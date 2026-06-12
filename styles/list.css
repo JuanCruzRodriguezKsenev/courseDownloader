@@ -1,0 +1,283 @@
+/* Listado Wrapper */
+.list-wrapper {
+  flex: 1;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: var(--radius-md);
+
+    &:hover {
+      background: var(--text-muted);
+    }
+  }
+}
+
+/* Fila de video individual */
+.video-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 10px;
+  border-radius: var(--radius-md);
+  background-color: var(--item-bg);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--border-color);
+  flex-shrink: 0;
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), 
+              border-color 0.15s ease, 
+              box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: default;
+
+  &:hover {
+    border-color: var(--text-muted);
+    transform: translateY(-0.5px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+  }
+
+  &.selected {
+    border-color: rgba(255, 94, 0, 0.15);
+    border-left-color: var(--accent-orange);
+    background-color: rgba(255, 94, 0, 0.03);
+  }
+
+  input[type="checkbox"] {
+    flex-shrink: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+
+  .checkbox-placeholder {
+    width: 14px;
+    height: 14px;
+    display: inline-block;
+    flex-shrink: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+
+  .video-label {
+    flex: 1;
+    font-size: var(--text-base);
+    font-weight: var(--font-medium);
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Botón de acción interna de fila */
+.btn-row-action {
+  background-color: var(--bg-main);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xs);
+  padding: 2px var(--space-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  cursor: pointer;
+  text-transform: uppercase;
+  color: var(--text-main);
+
+  &.remove-action {
+    color: var(--accent-error);
+    border-color: rgba(220, 53, 69, 0.2);
+
+    &:hover {
+      background-color: var(--accent-error);
+      color: var(--text-on-error);
+      border-color: var(--accent-error);
+    }
+  }
+}
+
+/* Badges de Estado */
+.badge {
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  padding: 3px var(--space-sm);
+  border-radius: var(--radius-xs);
+  text-transform: uppercase;
+
+  &.pending {
+    background-color: var(--badge-pending-bg);
+    color: var(--badge-pending-txt);
+  }
+
+  &.downloaded {
+    background-color: var(--badge-downloaded-bg);
+    color: var(--badge-downloaded-txt);
+  }
+
+  &.process {
+    background-color: var(--badge-process-bg);
+    color: var(--badge-process-txt);
+  }
+}
+
+/* Tarjeta de Error de Servidor Desconectado */
+.server-error-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-lg) var(--space-sm);
+  background-color: var(--bg-surface);
+  border: 1.5px dashed var(--accent-error-visible);
+  border-radius: var(--radius-lg);
+  margin: 0;
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  animation: fadeIn 0.25s ease-out;
+
+  .server-error-icon {
+    font-size: 1.8rem;
+    margin-bottom: 0.4rem;
+    filter: drop-shadow(0 2px 6px rgba(255, 59, 48, 0.15));
+    animation: pulse-icon 2s infinite ease-in-out;
+  }
+
+  h5 {
+    font-size: var(--text-md);
+    font-weight: var(--font-bold);
+    color: var(--accent-error-visible);
+    margin: 0 0 0.3rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  p {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    line-height: 1.35;
+    margin: 0 0 0.8rem 0;
+    max-width: 250px;
+  }
+
+  .server-error-pulse {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--text-xs);
+    font-weight: var(--font-bold);
+    color: var(--text-muted);
+  }
+}
+
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  background-color: var(--accent-orange);
+  border-radius: 50%;
+  animation: pulse-dot-anim 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse-icon {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+@keyframes pulse-dot-anim {
+  0%, 100% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.3); opacity: 1; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Tarjeta de Estado/Información en el Listado */
+.info-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px var(--space-lg);
+  background-color: var(--bg-surface);
+  border: 1.5px dashed var(--border-color);
+  border-radius: var(--radius-lg);
+  margin: 0;
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
+  animation: fadeIn 0.25s ease-out;
+
+  .info-card-icon {
+    font-size: 1.8rem;
+    margin-bottom: 0.4rem;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.05));
+  }
+
+  h5 {
+    font-size: var(--text-md);
+    font-weight: var(--font-bold);
+    margin: 0 0 0.3rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  p {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    line-height: 1.35;
+    margin: 0;
+    max-width: 240px;
+  }
+
+  /* Modificadores de Estado */
+  &.info {
+    border-color: rgba(255, 107, 0, 0.3);
+    h5 { color: var(--accent-orange); }
+  }
+
+  &.error {
+    border-color: rgba(255, 59, 48, 0.3);
+    h5 { color: var(--accent-error-visible); }
+  }
+
+  &.success {
+    border-color: rgba(48, 209, 88, 0.3);
+    h5 { color: var(--accent-green); }
+  }
+}
+
+/* Modo Selección Activo */
+.list-wrapper.selection-mode {
+  .video-item {
+    &:has(input[type="checkbox"]:not(:disabled)) {
+      cursor: pointer;
+    }
+    input[type="checkbox"] {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .checkbox-placeholder {
+      opacity: 1;
+    }
+    .btn-row-action.remove-action {
+      display: none;
+    }
+  }
+}
+

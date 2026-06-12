@@ -1,0 +1,1911 @@
+/**
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.4.1)
+ * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
+ * ==========================================================================
+ */
+
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log("🤖 [POPUP-CORE] Orquestador unificado V5.4.1 activo. Sincronización de escáner híbrido (Chrome/Bun) integrada.");
+
+  const nodos = {
+    btnAction:       document.getElementById('ui-btn-action'),
+    btnStartQueue:   document.getElementById('ui-btn-start-queue'),
+    txtEstado:       document.getElementById('ui-msg-status'),
+    lista:           document.getElementById('ui-list'),
+    search:          document.getElementById('ui-search'),
+    btnFilterPills:  document.getElementById('ui-btn-filter-pills'),
+    filterMenu:      document.getElementById('ui-filter-menu'),
+    masterCheck:     document.getElementById('ui-master-check'),
+    folder:          document.getElementById('ui-path-folder'),
+    progressCont:    document.getElementById('ui-progress-container'),
+    progressBar:     document.getElementById('ui-progress-bar'),
+    loader:          document.getElementById('ui-loader'),
+    loaderTxt:       document.getElementById('ui-loader-txt'),
+    filtersBar:      document.getElementById('ui-filter-bar'),
+    queueBadge:      document.getElementById('ui-queue-badge'),
+    tabDisp:         document.getElementById('tab-available'),
+    tabCola:         document.getElementById('tab-queue'),
+    cancelBox:       document.getElementById('ui-cancel-box'),
+    btnSoftCancel:   document.getElementById('ui-btn-soft-cancel'),
+    btnHardCancel:   document.getElementById('ui-btn-hard-cancel'),
+    panelTel:        document.getElementById('ui-telemetry'),
+    bytes:           document.getElementById('ui-tel-bytes'),
+    speed:           document.getElementById('ui-tel-speed'),
+    frags:           document.getElementById('ui-tel-frags'),
+    btnExplore:      document.getElementById('ui-btn-explore'),
+    statusDot:       document.getElementById('ui-status-dot'),
+    catedraBadge:    document.getElementById('ui-catedra-badge'),
+    pcPath:          document.getElementById('ui-pc-path'),
+    btnSort:         document.getElementById('ui-btn-sort'),
+    btnToggleSelect: document.getElementById('ui-btn-toggle-select'),
+    btnHelp:         document.getElementById('ui-btn-help'),
+    onboarding:      document.getElementById('ui-onboarding'),
+    onboardingSlides:document.getElementById('ui-onboarding-slides'),
+    onboardingPrev:  document.getElementById('ui-onboarding-prev'),
+    onboardingNext:  document.getElementById('ui-onboarding-next'),
+    onboardingSkip:  document.getElementById('ui-onboarding-skip'),
+    onboardingDots:  document.getElementById('ui-onboarding-dots')
+  };
+
+  let punteroOyenteRuntimeActivo = null;
+  let modoSeleccionFilaActivo = false;
+  const filtrosActivos = {
+    estados: new Set(),
+    materias: new Set(),
+    catedras: new Set()
+  };
+
+  nodos.catedraBadge.addEventListener("click", () => {
+    const catedrasDetectadas = Array.from(new Set(
+      AppState.listadoClasesGlobal.map(c => c.catedra).filter(cat => cat !== "COMUN")
+    ));
+    if (catedrasDetectadas.length > 1) {
+      mostrarModalMulticatedra(catedrasDetectadas);
+    }
+  });
+
+  if (nodos.btnSort) {
+    nodos.btnSort.addEventListener("click", () => {
+      if (AppState.pestañaActiva === "cola") {
+        if (AppState.ordenAscendente === true) {
+          AppState.ordenAscendente = false;
+        } else if (AppState.ordenAscendente === false) {
+          AppState.ordenAscendente = null; // FIFO natural
+        } else {
+          AppState.ordenAscendente = true;
+        }
+      } else {
+        AppState.ordenAscendente = (AppState.ordenAscendente === null) ? true : !AppState.ordenAscendente;
+      }
+      AppState.respaldar();
+      actualizarIconoSorteo();
+      renderizarListadoInterfaz();
+    });
+  }
+
+  if (nodos.btnToggleSelect) {
+    nodos.btnToggleSelect.addEventListener("click", () => {
+      modoSeleccionFilaActivo = !modoSeleccionFilaActivo;
+      if (modoSeleccionFilaActivo) {
+        nodos.btnToggleSelect.textContent = "Cancelar";
+        nodos.btnToggleSelect.title = "Desactivar selección múltiple";
+        const wrapper = document.getElementById('ui-master-select-wrapper');
+        if (wrapper) wrapper.style.display = 'flex';
+      } else {
+        nodos.btnToggleSelect.textContent = "Seleccionar";
+        nodos.btnToggleSelect.title = "Activar selección múltiple";
+        const wrapper = document.getElementById('ui-master-select-wrapper');
+        if (wrapper) wrapper.style.display = 'none';
+        
+        // Deseleccionar todas las clases de la fila al cancelar
+        AppState.colaDescargas.forEach(c => c.seleccionado = false);
+        nodos.masterCheck.checked = false;
+        AppState.respaldar();
+      }
+      actualizarContadoresBoton();
+      aplicarFiltrosCruzados();
+    });
+  }
+
+  // Toggle visibility of popover menu
+  if (nodos.btnFilterPills) {
+    nodos.btnFilterPills.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = nodos.filterMenu.style.display === 'flex';
+      if (!open) {
+        renderizarFiltrosMenuPopover();
+      }
+      nodos.filterMenu.style.display = open ? 'none' : 'flex';
+      nodos.btnFilterPills.classList.toggle('open', !open);
+    });
+  }
+
+  // Close when clicking outside
+  document.addEventListener('click', () => {
+    if (nodos.filterMenu) {
+      nodos.filterMenu.style.display = 'none';
+    }
+    if (nodos.btnFilterPills) {
+      nodos.btnFilterPills.classList.remove('open');
+    }
+  });
+
+  // Prevent close when clicking inside the popover
+  if (nodos.filterMenu) {
+    nodos.filterMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+  }
+  let intervalReconexion = null;
+  let verificandoConexionBoton = false;
+  let reintentandoColaActivo = false;
+  let comprobacionEnProgreso = false;
+
+  nodos.btnAction.setAttribute('data-modo', 'sincronizar-disco');
+
+  // Forzar re-escaneo automático si la pestaña de Ramón Net cambia de dirección o se recarga
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'complete' && tab.active && tab.url && tab.url.includes("plataforma.ramonnet.com.ar")) {
+      console.log("🔄 [POPUP] Pestaña Ramón Net actualizada. Re-escaneando...");
+      if (!AppState.fallaConexionActiva) {
+        ejecutarPaso1EscaneoRamonAutomatico();
+      }
+    }
+  });
+
+  // Forzar re-escaneo si el usuario cambia a la pestaña de Ramón Net
+  chrome.tabs.onActivated.addListener((activeInfo) => {
+    chrome.tabs.get(activeInfo.tabId, (tab) => {
+      if (chrome.runtime.lastError || !tab) return;
+      if (tab.active && tab.url && tab.url.includes("plataforma.ramonnet.com.ar")) {
+        console.log("🔄 [POPUP] Pestaña Ramón Net enfocada. Re-escaneando...");
+        if (!AppState.fallaConexionActiva) {
+          ejecutarPaso1EscaneoRamonAutomatico();
+        }
+      }
+    });
+  });
+
+  try {
+    nodos.loaderTxt.textContent = "Conectando con el servidor Bun...";
+    nodos.loader.style.display = 'flex';
+
+    await AppState.inicializarSincronizacionStorage();
+    actualizarIconoSorteo();
+    actualizarBadgeCatedra();
+    nodos.queueBadge.textContent = AppState.colaDescargas.length;
+
+    if (!AppState.tutorialCompletado) {
+      mostrarOnboarding();
+    }
+    
+    try {
+      const ruta = await BunClient.obtenerRutaServidor();
+      if (ruta) {
+        const tabsBar = document.querySelector(".tabs-bar");
+        if (tabsBar) tabsBar.style.display = "flex";
+
+        nodos.folder.disabled = false;
+        nodos.btnExplore.disabled = false;
+        document.querySelector('.path-bar')?.classList.remove('offline');
+
+        nodos.btnExplore.title = `Carpeta raíz actual: ${ruta} (Click para cambiar)`;
+        nodos.pcPath.textContent = ruta;
+        nodos.pcPath.title = ruta;
+        nodos.txtEstado.textContent = "Analizando aula virtual...";
+        if (nodos.statusDot) {
+          nodos.statusDot.className = "status-dot online";
+          nodos.statusDot.title = "Servidor conectado";
+        }
+
+        actualizarEstadoServidorOnboarding(true);
+
+        const respuestaFondo = await AppState.sincronizarConBackground();
+
+        if (AppState.ráfagaEnCurso) {
+          congelarUIPorDescargaActiva(AppState.videoActualEnTransmisiónSW, respuestaFondo.porcentaje, respuestaFondo.telemetry);
+        } else if (respuestaFondo && respuestaFondo.colaPausadaPorError) {
+          AppState.fallaConexionActiva = respuestaFondo.tipoDeErrorConexion;
+          AppState.videoFalladoParaReintento = respuestaFondo.videoActual;
+          mostrarAlertDeConexionCaida(respuestaFondo.tipoDeErrorConexion, respuestaFondo.videoActual);
+        }
+
+        if (!AppState.fallaConexionActiva) {
+          ejecutarPaso1EscaneoRamonAutomatico();
+        }
+      }
+    } catch (errConexion) {
+      console.warn("⚠️ Servidor Bun desconectado en inicio:", errConexion.message);
+      activarEstadoOfflineUI();
+    }
+  } catch (error) {
+    console.error("❌ Error en inicio del Orquestador:", error);
+    nodos.txtEstado.textContent = "⚠️ Error de inicialización interna.";
+  } finally {
+    nodos.loader.style.display = 'none';
+  }
+
+  function lanzarSeleccionCarpetaFisica() {
+    nodos.btnExplore.disabled = true;
+    nodos.btnExplore.classList.add('loading');
+    const originalBtnHTML = nodos.btnExplore.innerHTML;
+    nodos.btnExplore.innerHTML = `<span class="spinner-inline"></span> Cargando...`;
+    
+    const originalPcPath = nodos.pcPath.textContent;
+    nodos.pcPath.textContent = "Abriendo explorador...";
+    nodos.pcPath.classList.add('loading-text');
+    
+    // Mostrar loader de espera
+    nodos.loaderTxt.textContent = "Abriendo explorador de archivos...";
+    nodos.loader.style.display = 'flex';
+
+    BunClient.seleccionarCarpeta().then(res => {
+      if (res.success) {
+        nodos.pcPath.textContent = res.ruta;
+        nodos.pcPath.title = res.ruta;
+        nodos.btnExplore.title = `Carpeta raíz actual: ${res.ruta} (Click para cambiar)`;
+        AppState.sincronizacionDiscoCompletada = false;
+        
+        // Disparar auto-sincronización inmediatamente
+        ejecutarPaso2SincronizarDiscoVeloz();
+      } else {
+        nodos.pcPath.textContent = originalPcPath;
+      }
+    }).catch(err => {
+      nodos.pcPath.textContent = originalPcPath;
+      console.error(err);
+      if (err instanceof TypeError || err.message?.includes("fetch") || err.message?.includes("connect")) {
+        activarEstadoOfflineUI();
+      }
+    }).finally(() => {
+      nodos.btnExplore.disabled = false;
+      nodos.btnExplore.classList.remove('loading');
+      nodos.btnExplore.innerHTML = originalBtnHTML;
+      nodos.pcPath.classList.remove('loading-text');
+      nodos.loader.style.display = 'none';
+    });
+  }
+
+  if (nodos.btnExplore) {
+    nodos.btnExplore.addEventListener('click', () => {
+      if (AppState.ocultarAdvertenciaExplorar) {
+        lanzarSeleccionCarpetaFisica();
+        return;
+      }
+
+      mostrarModalAdvertencia({
+        titulo: "Selección de Carpeta 📂",
+        cuerpo: "Por favor, seleccioná tu carpeta principal (ej: 'RamonNet').<br><br>El sistema creará y organizará automáticamente las subcarpetas por materia y cátedra dentro de ella.<br><br><strong>Nota:</strong> Evitá elegir directamente subcarpetas específicas de materias.",
+        checkboxKey: "ocultarAdvExplorar",
+        onConfirm: () => {
+          lanzarSeleccionCarpetaFisica();
+        }
+      });
+    });
+  }
+
+  let advertenciaAulaMostradaEsteFoco = false;
+  if (nodos.folder) {
+    nodos.folder.addEventListener('focus', () => {
+      if (AppState.ocultarAdvertenciaAula || AppState.ráfagaEnCurso || advertenciaAulaMostradaEsteFoco) return;
+      
+      nodos.folder.blur();
+      advertenciaAulaMostradaEsteFoco = true;
+
+      mostrarModalAdvertencia({
+        titulo: "Modificación de Subcarpeta 📚",
+        cuerpo: "El descargador está diseñado para crear y gestionar las subcarpetas de materias automáticamente.<br><br>Podés modificar esta ruta si tenés una estructura personalizada, pero te aconsejamos dejar que el sistema opere con sus nombres por defecto para evitar inconsistencias.",
+        checkboxKey: "ocultarAdvAula",
+        onConfirm: () => {
+          setTimeout(() => {
+            nodos.folder.focus();
+            advertenciaAulaMostradaEsteFoco = false;
+          }, 150);
+        },
+        onCancel: () => {
+          advertenciaAulaMostradaEsteFoco = false;
+        }
+      });
+    });
+  }
+
+  function mostrarModalAdvertencia({ titulo, cuerpo, checkboxKey, onConfirm, onCancel }) {
+    document.querySelector(".adv-overlay")?.remove();
+
+    const overlay = document.createElement("div");
+    overlay.className = "adv-overlay";
+
+    const card = document.createElement("div");
+    card.className = "adv-card";
+
+    card.innerHTML = `
+      <h4>${titulo}</h4>
+      <p>${cuerpo}</p>
+    `;
+
+    const labelCheckbox = document.createElement("label");
+    labelCheckbox.className = "adv-checkbox-label";
+    labelCheckbox.innerHTML = `
+      <input type="checkbox" id="ui-adv-dontshow">
+      <span>No volver a mostrar este aviso</span>
+    `;
+    card.appendChild(labelCheckbox);
+
+    const buttons = document.createElement("div");
+    buttons.className = "adv-buttons";
+
+    const btnConfirm = document.createElement("button");
+    btnConfirm.className = "btn-adv-primary";
+    btnConfirm.textContent = "Entendido";
+    btnConfirm.addEventListener("click", () => {
+      const checked = document.getElementById("ui-adv-dontshow").checked;
+      if (checked) {
+        if (checkboxKey === "ocultarAdvExplorar") {
+          AppState.ocultarAdvertenciaExplorar = true;
+        } else if (checkboxKey === "ocultarAdvAula") {
+          AppState.ocultarAdvertenciaAula = true;
+        }
+        AppState.respaldar();
+      }
+      overlay.remove();
+      if (onConfirm) onConfirm();
+    });
+
+    const btnCancel = document.createElement("button");
+    btnCancel.className = "btn-adv-secondary";
+    btnCancel.textContent = "Cancelar";
+    btnCancel.addEventListener("click", () => {
+      overlay.remove();
+      if (onCancel) onCancel();
+    });
+
+    buttons.append(btnConfirm, btnCancel);
+    card.appendChild(buttons);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+  }
+
+  async function cargarRutaServidorSilencioso() {
+    if (!nodos.btnExplore) return;
+    try {
+      const ruta = await BunClient.obtenerRutaServidor();
+      if (ruta) {
+        nodos.btnExplore.title = `Carpeta raíz actual: ${ruta} (Click para cambiar)`;
+        nodos.pcPath.textContent = ruta;
+        nodos.pcPath.title = ruta;
+        if (nodos.statusDot) {
+          nodos.statusDot.className = "status-dot online";
+          nodos.statusDot.title = "Servidor conectado";
+        }
+      }
+    } catch (err) {
+      console.warn("⚠️ No se pudo conectar al servidor Bun para obtener la ruta raíz:", err);
+      nodos.pcPath.textContent = "Desconectado";
+      nodos.pcPath.title = "Servidor desconectado";
+      nodos.txtEstado.textContent = "❌ Servidor Bun apagado. Enciéndalo en consola para operar.";
+      if (nodos.statusDot) {
+        nodos.statusDot.className = "status-dot offline";
+        nodos.statusDot.title = "Servidor desconectado";
+      }
+    }
+  }
+
+  function activarEstadoOfflineUI() {
+    if (nodos.statusDot) {
+      nodos.statusDot.className = "status-dot offline";
+      nodos.statusDot.title = "Servidor desconectado";
+    }
+
+    nodos.folder.disabled = true;
+    nodos.btnExplore.disabled = true;
+    document.querySelector('.path-bar')?.classList.add('offline');
+
+    nodos.search.disabled = true;
+    nodos.btnFilterPills.disabled = true;
+    nodos.masterCheck.disabled = true;
+    nodos.masterCheck.checked = false;
+    if (nodos.btnSort) nodos.btnSort.disabled = true;
+
+    const tieneErrorCard = nodos.lista.querySelector(".server-error-card");
+    if (!tieneErrorCard) {
+      nodos.lista.innerHTML = "";
+      const card = document.createElement("div");
+      card.className = "server-error-card";
+      card.innerHTML = `
+        <div class="server-error-icon">🔌</div>
+        <h5>Servidor Desconectado</h5>
+        <p>Por favor, iniciá el servidor ejecutando <strong>iniciar.bat</strong> en tu PC.<br>La extensión se sincronizará sola apenas esté encendido.</p>
+        <div class="server-error-pulse">
+          <span class="pulse-dot"></span>
+          <span>Esperando conexión en puerto 3001...</span>
+        </div>
+      `;
+      nodos.lista.appendChild(card);
+    }
+    nodos.lista.style.opacity = "1";
+    nodos.loader.style.display = 'none';
+
+    nodos.pcPath.textContent = "Desconectado";
+    nodos.pcPath.title = "Servidor desconectado";
+    nodos.txtEstado.innerHTML = '⚠️ <span style="color:var(--accent-error-visible)">Servidor Bun desconectado.</span>';
+    configurarBotonesUX("sincronizar-disco", "Buscando servidor... ⏳", true);
+
+    const tabsBar = document.querySelector(".tabs-bar");
+    if (tabsBar) tabsBar.style.display = "none";
+    nodos.filtersBar.style.display = "none";
+
+    actualizarEstadoServidorOnboarding(false);
+
+    iniciarMonitoreoServidor();
+  }
+
+  function iniciarMonitoreoServidor() {
+    if (intervalReconexion) return;
+    
+    intervalReconexion = setInterval(async () => {
+      if (AppState.ráfagaEnCurso && !AppState.fallaConexionActiva) return;
+
+
+      // Auto-reintento si cayó el internet
+      if (AppState.fallaConexionActiva === "internet") {
+        if (navigator.onLine) {
+          if (comprobacionEnProgreso) return;
+          comprobacionEnProgreso = true;
+
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3000);
+          try {
+            await fetch("https://plataforma.ramonnet.com.ar", { 
+              method: "HEAD", 
+              mode: "no-cors",
+              cache: "no-store",
+              signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            comprobacionEnProgreso = false;
+
+            // ⚡ AUTOLIMPIEZA: Apagar el monitoreo ya que recuperamos internet
+            clearInterval(intervalReconexion);
+            intervalReconexion = null;
+
+            ejecutarReintentoDeCola();
+            return;
+          } catch (e) {
+            clearTimeout(timeoutId);
+            comprobacionEnProgreso = false;
+            // Sigue sin internet
+          }
+        }
+      }
+      
+      try {
+        const ruta = await BunClient.obtenerRutaServidor();
+        if (ruta) {
+          // ⚡ AUTOLIMPIEZA: Apagar el monitoreo ya que estamos conectados y sanos
+          clearInterval(intervalReconexion);
+          intervalReconexion = null;
+
+          actualizarEstadoServidorOnboarding(true);
+
+          if (AppState.fallaConexionActiva === "servidor") {
+            console.log("🔌 [UI-AUTOHEAL] Servidor Bun recuperado. Reanudando descarga masiva...");
+            ejecutarReintentoDeCola();
+            return;
+          }
+
+          const tieneErrorCard = nodos.lista.querySelector(".server-error-card");
+          if (tieneErrorCard) {
+            nodos.folder.disabled = false;
+            nodos.btnExplore.disabled = false;
+            document.querySelector('.path-bar')?.classList.remove('offline');
+
+            nodos.pcPath.textContent = ruta;
+            nodos.pcPath.title = ruta;
+            nodos.txtEstado.textContent = "Analizando aula virtual...";
+            nodos.btnExplore.title = `Carpeta raíz actual: ${ruta} (Click para cambiar)`;
+            
+            if (nodos.statusDot) {
+              nodos.statusDot.className = "status-dot online";
+              nodos.statusDot.title = "Servidor conectado";
+            }
+
+            const tabsBar = document.querySelector(".tabs-bar");
+            if (tabsBar) tabsBar.style.display = "flex";
+            nodos.filtersBar.style.display = AppState.pestañaActiva === "disponibles" ? "flex" : "none";
+
+            ejecutarPaso1EscaneoRamonAutomatico();
+          } else {
+            if (nodos.statusDot) {
+              nodos.statusDot.className = "status-dot online";
+              nodos.statusDot.title = "Servidor conectado";
+            }
+          }
+        }
+      } catch (err) {
+        const tieneErrorCard = nodos.lista.querySelector(".server-error-card");
+        if (!tieneErrorCard && !AppState.ráfagaEnCurso && !AppState.fallaConexionActiva) {
+          activarEstadoOfflineUI();
+        }
+      }
+    }, 1500);
+  }
+
+  let timerSincronizacionDebounce = null;
+  nodos.folder.addEventListener('input', () => {
+    const modoActual = nodos.btnAction.getAttribute('data-modo');
+    if (modoActual === 're-escanear') return; 
+
+    const nuevaRuta = nodos.folder.value.trim();
+    
+    // Actualizar la carpeta de destino en todas las clases no encoladas en caliente (KeyUp)
+    AppState.listadoClasesGlobal.forEach(c => {
+      if (c.estado !== 'process') {
+        c.carpeta = nuevaRuta;
+      }
+    });
+    
+    AppState.respaldar();
+    renderizarListadoInterfaz();
+    
+    // Debounce de la sincronización de archivos físicos con Bun (400ms)
+    clearTimeout(timerSincronizacionDebounce);
+    timerSincronizacionDebounce = setTimeout(() => {
+      AppState.sincronizacionDiscoCompletada = false;
+      ejecutarPaso2SincronizarDiscoVeloz();
+    }, 400);
+  });
+
+  nodos.tabDisp.addEventListener('click', () => conmutarPestañaA("disponibles", 'block', 'none', 'flex'));
+  nodos.tabCola.addEventListener('click', () => {
+    conmutarPestañaA("cola", 'none', 'block', 'none');
+    nodos.btnStartQueue.disabled = (AppState.colaDescargas.length === 0);
+  });
+
+  function conmutarPestañaA(id, actDisp, qDisp, filtDisp) {
+    AppState.pestañaActiva = id;
+    nodos.tabDisp.classList.toggle('active', id === "disponibles");
+    nodos.tabCola.classList.toggle('active', id === "cola");
+    nodos.filtersBar.style.display = 'flex';
+    nodos.btnStartQueue.style.display = AppState.ráfagaEnCurso ? 'none' : qDisp;
+    
+    // Limpiar filtros activos y cerrar el menú
+    filtrosActivos.estados.clear();
+    filtrosActivos.materias.clear();
+    filtrosActivos.catedras.clear();
+    actualizarPillsUIState();
+    if (nodos.filterMenu) nodos.filterMenu.style.display = 'none';
+    if (nodos.btnFilterPills) nodos.btnFilterPills.classList.remove('open');
+
+    const selectWrapper = document.getElementById('ui-master-select-wrapper');
+    if (id === "disponibles") {
+      if (nodos.btnToggleSelect) nodos.btnToggleSelect.style.display = 'none';
+      if (selectWrapper) selectWrapper.style.display = 'flex';
+      modoSeleccionFilaActivo = false;
+    } else {
+      if (nodos.btnToggleSelect) {
+        nodos.btnToggleSelect.style.display = 'flex';
+        nodos.btnToggleSelect.textContent = "Seleccionar";
+        nodos.btnToggleSelect.title = "Activar selección múltiple";
+      }
+      if (selectWrapper) selectWrapper.style.display = 'none';
+      modoSeleccionFilaActivo = false;
+    }
+    
+    actualizarContadoresBoton();
+    aplicarFiltrosCruzados();
+  }
+
+  function ejecutarPaso1EscaneoRamonAutomatico() {
+    nodos.loaderTxt.textContent = "Escaneando entorno de Ramón Net...";
+    nodos.loader.style.display = 'flex';
+    // Ocultar badge de cátedra al iniciar un nuevo escaneo para evitar estados inconsistentes
+    nodos.catedraBadge.style.display = "none";
+
+    const safetyTimeout = setTimeout(() => {
+      nodos.loader.style.display = 'none';
+      nodos.txtEstado.textContent = "⚠️ Timeout de carga del DOM.";
+      configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
+    }, 6000);
+
+    chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+      if (!tab || !tab.url.includes("plataforma.ramonnet.com.ar")) {
+        clearTimeout(safetyTimeout);
+        nodos.txtEstado.textContent = "⚠️ No estás en Ramón Net.";
+        configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
+        if (AppState.listadoClasesGlobal.length > 0) { desbanearFiltros(); aplicarFiltrosCruzados(); }
+        nodos.loader.style.display = 'none'; 
+        return;
+      }
+
+      // Preservar en memoria los elementos que están en la cola de descarga activa
+      const itemsEnCola = AppState.listadoClasesGlobal.filter(c => c.estado === 'process');
+      AppState.sincronizacionDiscoCompletada = false;
+
+      chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: Scraper.escanearAulaVirtual
+      }, (resultados) => {
+        clearTimeout(safetyTimeout);
+
+        // Controlar de forma resiliente si ocurrió un error de inyección (ej: permisos de host o página de sistema)
+        if (chrome.runtime.lastError) {
+          console.error("❌ [POPUP-SCRIPT-ERROR] Falló inyección de script de escaneo:", chrome.runtime.lastError.message);
+          nodos.txtEstado.textContent = `❌ Error de escaneo: ${chrome.runtime.lastError.message}`;
+          nodos.loader.style.display = 'none';
+          configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
+          
+          // Cargar el listado anterior del storage para evitar dejar la interfaz vacía
+          AppState.inicializarSincronizacionStorage().then(() => {
+            if (AppState.listadoClasesGlobal.length > 0) {
+              desbanearFiltros();
+              aplicarFiltrosCruzados();
+              actualizarBadgeCatedra();
+            }
+          });
+          return;
+        }
+
+        const res = resultados?.[0];
+        try {
+          const resultado = res?.result || { materia: "biologia", enlaces: [] };
+          const enlaces = resultado.enlaces;
+          
+          nodos.folder.value = resultado.materia || "biologia";
+
+          if (!enlaces || enlaces.length === 0) {
+            AppState.listadoClasesGlobal = itemsEnCola;
+            AppState.respaldar();
+            nodos.search.disabled = true;
+            nodos.btnFilterPills.disabled = true;
+            nodos.masterCheck.disabled = true;
+            
+            Renderers.renderizarTarjetaEstado(nodos.lista, {
+              tipo: 'info',
+              titulo: 'Sin clases detectadas',
+              descripcion: 'No encontramos enlaces de video en esta pestaña.<br>Asegurate de estar dentro de una clase de Ramón Net y hacé click en Re-escanear.',
+              icono: '🔍'
+            });
+            
+            configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
+          } else {
+            const nuevasClases = enlaces.map((item, idx) => {
+              const materiaBase = nodos.folder.value.trim();
+              const tituloFinalEstandar = Utils.formatTitleStructured(item.texto, materiaBase);
+              const clasif = Utils.clasificarCatedraYCarpeta(item.texto, materiaBase);
+
+              return {
+                id: idx + Date.now(), // ID único dinámico para evitar colisiones con clases persistidas
+                numeroOriginal: idx + 1,
+                titulo: tituloFinalEstandar,
+                urlInterna: item.href,
+                catedra: clasif.catedra,
+                carpeta: clasif.carpeta,
+                estado: 'pending',
+                seleccionado: false,
+                visible: true
+              };
+            });
+
+            // Combinar evitando duplicar elementos que ya están en la cola
+            const titulosEnCola = new Set(itemsEnCola.map(c => c.titulo));
+            const clasesNuevasFiltradas = nuevasClases.filter(c => !titulosEnCola.has(c.titulo));
+
+            AppState.listadoClasesGlobal = [...itemsEnCola, ...clasesNuevasFiltradas];
+            AppState.sincronizacionDiscoCompletada = false;
+            AppState.respaldar();
+            desbanearFiltros(); 
+            nodos.masterCheck.checked = false;
+            renderizarListadoInterfaz();
+            // Mostrar asistente de autoselección si es multicátedra
+            verificarYMostrarAsistenteMulticatedra();
+            // Auto-sincronizar inmediatamente
+            ejecutarPaso2SincronizarDiscoVeloz();
+          }
+        } catch (e) {
+          console.error("❌ Error procesando payload de inyección:", e);
+          configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
+        } finally {
+          nodos.loader.style.display = 'none';
+        }
+      });
+    });
+  }
+
+  // [REFACTORIZADO V5.4.1]: Motor de Sincronización Unificado e Híbrido (0% improvisación)
+  async function ejecutarPaso2SincronizarDiscoVeloz() {
+    configurarBotonesUX("sincronizar-disco", "", true);
+    nodos.btnAction.innerHTML = `<span class="spinner-inline"></span> Sincronizando disco local...`;
+    nodos.lista.style.opacity = '0.5';
+
+    const subcarpetaFiltro = nodos.folder.value.trim().toLowerCase();
+
+    AppState.listadoClasesGlobal.forEach(clase => {
+      if (clase.estado !== 'process') {
+        clase.estado = 'pending';
+        let debeSeleccionar = true;
+        if (AppState.catedraSeleccionada && AppState.catedraSeleccionada !== "TODAS") {
+          if (clase.catedra !== AppState.catedraSeleccionada && clase.catedra !== "COMUN") {
+            debeSeleccionar = false;
+          }
+        }
+        clase.seleccionado = debeSeleccionar;
+      }
+    });
+
+    // Inyectores lógicos del resolvedor final de nombres
+    const resolverMapeoEnUI = (nombresEnDisco) => {
+      try {
+        const setArchivosNormalizados = new Set(
+          nombresEnDisco.map(nom => nom.toLowerCase().trim())
+        );
+
+        AppState.listadoClasesGlobal.forEach(clase => {
+          if (clase.estado === 'process') return; 
+
+          const tituloNormalizado = clase.titulo.toLowerCase().trim();
+          let yaExiste = setArchivosNormalizados.has(tituloNormalizado);
+
+          if (!yaExiste) {
+            for (const nom of setArchivosNormalizados) {
+              if (nom.includes(tituloNormalizado)) {
+                yaExiste = true;
+                break;
+              }
+            }
+          }
+
+          clase.estado = yaExiste ? 'downloaded' : 'pending';
+          
+          let debeSeleccionar = !yaExiste;
+          if (AppState.catedraSeleccionada && AppState.catedraSeleccionada !== "TODAS") {
+            if (clase.catedra !== AppState.catedraSeleccionada && clase.catedra !== "COMUN") {
+              debeSeleccionar = false;
+            }
+          }
+          clase.seleccionado = debeSeleccionar; 
+        });
+
+        AppState.sincronizacionDiscoCompletada = true;
+        desbanearFiltros();
+        AppState.respaldar(); 
+        
+        nodos.queueBadge.textContent = AppState.listadoClasesGlobal.filter(c => c.estado === 'process').length;
+        nodos.masterCheck.checked = AppState.listadoClasesGlobal.filter(i => i.visible && i.estado === 'pending').every(i => i.seleccionado);
+
+        configurarBotonesUX("descargar", "Agregar seleccionados a la cola 📥", false);
+        aplicarFiltrosCruzados();
+        actualizarContadoresBoton();
+      } catch (err) {
+        console.error("❌ Error en empaquetado de sincronización:", err);
+      } finally {
+        nodos.lista.style.opacity = '1';
+      }
+    };
+
+    // ─── PIPELINE DE LECTURA DE DATOS (MULTIPLE O BUN SERVER DIRECTO) ────────
+    const carpetasUnicas = Array.from(new Set(AppState.listadoClasesGlobal.map(c => c.carpeta || subcarpetaFiltro)));
+    if (carpetasUnicas.length === 0) {
+      carpetasUnicas.push(subcarpetaFiltro);
+    }
+
+    try {
+      let todosLosArchivos = [];
+      const promesas = carpetasUnicas.map(carp => 
+        BunClient.escanearDisco(carp)
+          .then(data => data?.archivos || [])
+          .catch(e => {
+            if (e instanceof TypeError || e.message?.includes("fetch") || e.message?.includes("connect")) {
+              throw e;
+            }
+            console.warn(`⚠️ No se pudo escanear la carpeta ${carp}:`, e.message);
+            return [];
+          })
+      );
+      const resultados = await Promise.all(promesas);
+      todosLosArchivos = resultados.flat();
+      
+      if (nodos.statusDot) {
+        nodos.statusDot.className = "status-dot online";
+        nodos.statusDot.title = "Servidor conectado";
+      }
+
+      const tabsBar = document.querySelector(".tabs-bar");
+      if (tabsBar) tabsBar.style.display = "flex";
+      
+      resolverMapeoEnUI(todosLosArchivos);
+    } catch (errFetch) {
+      console.error("❌ [UI-ERROR] Imposible conectar con el escáner de Bun:", errFetch.message);
+      activarEstadoOfflineUI();
+    }
+  }
+
+  nodos.btnSoftCancel.addEventListener('click', () => {
+    nodos.btnSoftCancel.disabled = true;
+    AppState.banderaFrenadoSolicitado = true;
+
+    nodos.txtEstado.innerHTML = "";
+    const spanDesc = document.createElement('span');
+    spanDesc.style.color = "var(--accent-orange)";
+    spanDesc.textContent = AppState.videoActualEnTransmisiónSW || "Video actual";
+    nodos.txtEstado.append("Frenando al terminar:", document.createElement('br'), spanDesc);
+
+    chrome.runtime.sendMessage({ action: "activar_frenado_suave" });
+  });
+
+  nodos.btnHardCancel.addEventListener('click', () => {
+    chrome.runtime.sendMessage({ action: "abortar_rafaga_inmediata" }, () => {
+      restaurarPanelPorInterrupcion("🛑 Descargas detenidas. Fila preservada.", false);
+    });
+  });
+
+  nodos.btnAction.addEventListener('click', () => {
+    const modo = nodos.btnAction.getAttribute('data-modo');
+    if (modo === 're-escanear') {
+      ejecutarPaso1EscaneoRamonAutomatico();
+    } else if (modo === 'sincronizar-disco') {
+      ejecutarPaso2SincronizarDiscoVeloz();
+    } else if (modo === 'descargar') {
+      const elegidos = AppState.listadoClasesGlobal.filter(c => c.seleccionado && c.estado === 'pending');
+      if (elegidos.length > 0) encolarItemsEnCaliente(elegidos);
+    } else if (modo === 'reintentar-cola') {
+      ejecutarReintentoDeCola();
+    } else if (modo === 'quitar-de-cola') {
+      const seleccionados = AppState.colaDescargas.filter(c => c.seleccionado);
+      if (seleccionados.length > 0) quitarItemsDeColaEnLote(seleccionados);
+    }
+  });
+
+  async function verificarRedAntesDeDescargar() {
+    if (!navigator.onLine) return false;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000); // 4 seconds timeout
+    try {
+      await fetch("https://plataforma.ramonnet.com.ar", { 
+        method: "HEAD", 
+        mode: "no-cors",
+        cache: "no-store",
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      return true;
+    } catch (e) {
+      clearTimeout(timeoutId);
+      return false;
+    }
+  }
+
+  nodos.btnStartQueue.addEventListener('click', async () => {
+    const cola = AppState.colaDescargas;
+    if (cola.length === 0) return;
+    
+    verificandoConexionBoton = true;
+    actualizarContadoresBoton();
+
+    const redDisponible = await verificarRedAntesDeDescargar();
+    verificandoConexionBoton = false;
+
+    if (!redDisponible) {
+      actualizarContadoresBoton();
+      mostrarAlertDeConexionCaida("internet", cola[0].titulo);
+      return;
+    }
+
+    congelarUIPorDescargaActiva(cola[0].titulo, 0, null);
+    chrome.runtime.sendMessage({ action: "iniciar_descarga_cola" });
+  });
+
+
+  function encolarItemsEnCaliente(items) {
+    const carpeta = nodos.folder.value.trim().toLowerCase();
+    
+    // Crear los objetos limpios de la cola
+    const nuevosEncolados = items.map((c, idx) => ({
+      id: c.id,
+      numeroOriginal: c.numeroOriginal,
+      titulo: c.titulo,
+      urlInterna: c.urlInterna,
+      carpeta: carpeta,
+      fechaEncolado: Date.now() + idx
+    }));
+
+    // Combinar en el array de la cola desacoplado
+    AppState.colaDescargas = [...AppState.colaDescargas, ...nuevosEncolados];
+    
+    // Cambiar estado en listado visible
+    items.forEach(c => { c.estado = 'process'; c.seleccionado = false; });
+    nodos.queueBadge.textContent = AppState.colaDescargas.length;
+    
+    if (AppState.ráfagaEnCurso) {
+      // No molestar
+    } else {
+      nodos.txtEstado.textContent = `📥 ¡Clases agregadas! Pasá a la pestaña de Fila para iniciar.`;
+    }
+    
+    AppState.respaldar();
+    aplicarFiltrosCruzados();
+    
+    chrome.runtime.sendMessage({
+      action: "inyectar_items_en_cola_activa",
+      items: nuevosEncolados
+    });
+  }
+
+  nodos.search.addEventListener('input', aplicarFiltrosCruzados);
+  nodos.masterCheck.addEventListener('change', (e) => {
+    const check = e.target.checked;
+
+    if (AppState.pestañaActiva === "cola") {
+      const busqueda = nodos.search.value.toLowerCase().trim();
+      
+      const visibles = AppState.colaDescargas.filter(clase => {
+        const coincideTexto = clase.titulo.toLowerCase().includes(busqueda);
+        const esActivo = AppState.videoActualEnTransmisiónSW === clase.titulo && AppState.ráfagaEnCurso;
+        
+        const clasif = Utils.clasificarCatedraYCarpeta(clase.titulo, clase.carpeta);
+        const coincideMateria = filtrosActivos.materias.size === 0 || filtrosActivos.materias.has(clase.carpeta.toUpperCase());
+        const coincideCatedra = filtrosActivos.catedras.size === 0 || filtrosActivos.catedras.has(clasif.catedra);
+
+        return coincideTexto && coincideMateria && coincideCatedra && !esActivo;
+      });
+
+      visibles.forEach(c => {
+        c.seleccionado = check;
+        const chk = document.getElementById(`chk-cola-${c.id}`);
+        if (chk) {
+          chk.checked = check;
+          const row = chk.closest('.video-item');
+          if (row) row.classList.toggle('selected', check);
+        }
+      });
+    } else {
+      if (!AppState.sincronizacionDiscoCompletada) return; 
+      const visibles = AppState.listadoClasesGlobal.filter(c => c.visible);
+      AppState.conmutarSeleccionMasiva(check, visibles);
+      
+      visibles.forEach(c => {
+        const chk = document.getElementById(`chk-${c.id}`);
+        if (chk) {
+          chk.checked = check;
+          const row = chk.closest('.video-item');
+          if (row) row.classList.toggle('selected', check);
+        }
+      });
+    }
+
+    AppState.respaldar();
+    actualizarContadoresBoton();
+  });
+
+  function aplicarFiltrosCruzados() {
+    const busqueda = nodos.search.value.toLowerCase().trim();
+    const materiaActiva = nodos.folder.value.trim().toLowerCase();
+
+    // Recalcular siempre la visibilidad del listado global de disponibles
+    AppState.listadoClasesGlobal.forEach(clase => {
+      const coincideMateria = !clase.carpeta || (clase.carpeta.toLowerCase() === materiaActiva);
+      const coincideTexto = clase.titulo.toLowerCase().includes(busqueda);
+      const coincideEstado = filtrosActivos.estados.size === 0 || filtrosActivos.estados.has(clase.estado);
+      
+      let coincideCatedra = true;
+      if (filtrosActivos.catedras.size > 0) {
+        coincideCatedra = filtrosActivos.catedras.has(clase.catedra);
+      } else if (AppState.catedraSeleccionada && AppState.catedraSeleccionada !== "TODAS") {
+        coincideCatedra = (clase.catedra === AppState.catedraSeleccionada || clase.catedra === "COMUN");
+      }
+      
+      clase.visible = coincideMateria && coincideTexto && coincideEstado && coincideCatedra;
+    });
+
+    renderizarListadoInterfaz();
+    actualizarContadoresBoton();
+  }
+
+  function renderizarListadoInterfaz() {
+    nodos.lista.innerHTML = "";
+    
+    if (AppState.fallaConexionActiva) {
+      const titulo = AppState.videoFalladoParaReintento || "clase";
+      if (AppState.fallaConexionActiva === "servidor") {
+        Renderers.renderizarTarjetaEstado(nodos.lista, {
+          tipo: 'error',
+          titulo: 'Servidor Desconectado',
+          descripcion: `El servidor local de Bun se desconectó.<br>Por favor, ejecutá <strong>iniciar.bat</strong> para reanudar.<br><br><strong>Pausado en:</strong> ${titulo}`,
+          icono: '🔌'
+        });
+      } else {
+        Renderers.renderizarTarjetaEstado(nodos.lista, {
+          tipo: 'error',
+          titulo: 'Conexión a Internet Caída',
+          descripcion: `Se interrumpió la conexión a internet.<br>La descarga se reanudará automáticamente apenas vuelva la red.<br><br><strong>Pausado en:</strong> ${titulo}`,
+          icono: '⚠️'
+        });
+      }
+      return;
+    }
+    
+    // Sincronizar el estado de disponibles con los elementos en la cola real
+    const titulosEnCola = new Set(AppState.colaDescargas.map(c => c.titulo));
+    AppState.listadoClasesGlobal.forEach(c => {
+      if (titulosEnCola.has(c.titulo)) {
+        c.estado = 'process';
+      } else if (c.estado === 'process') {
+        c.estado = 'pending'; // Regresar a pendiente si ya no está en la cola real
+      }
+    });
+
+    let filtrados = [];
+    if (AppState.pestañaActiva === "cola") {
+      const busqueda = nodos.search.value.toLowerCase().trim();
+      
+      filtrados = AppState.colaDescargas.filter(clase => {
+        const coincideTexto = clase.titulo.toLowerCase().includes(busqueda);
+        
+        const clasif = Utils.clasificarCatedraYCarpeta(clase.titulo, clase.carpeta);
+        const coincideMateria = filtrosActivos.materias.size === 0 || filtrosActivos.materias.has(clase.carpeta.toUpperCase());
+        const coincideCatedra = filtrosActivos.catedras.size === 0 || filtrosActivos.catedras.has(clasif.catedra);
+
+        return coincideTexto && coincideMateria && coincideCatedra;
+      });
+
+      if (AppState.ordenAscendente !== null) {
+        filtrados.sort((a, b) => {
+          const comp = a.titulo.localeCompare(b.titulo, undefined, { numeric: true, sensitivity: 'base' });
+          return AppState.ordenAscendente ? comp : -comp;
+        });
+      } else {
+        filtrados.sort((a, b) => (a.fechaEncolado || 0) - (b.fechaEncolado || 0));
+      }
+    } else {
+      filtrados = AppState.listadoClasesGlobal.filter(c => c.visible);
+      
+      // Ordenar por título (semana) de forma ascendente o descendente (orden natural tipo Windows)
+      filtrados.sort((a, b) => {
+        const comp = a.titulo.localeCompare(b.titulo, undefined, { numeric: true, sensitivity: 'base' });
+        return AppState.ordenAscendente ? comp : -comp;
+      });
+    }
+
+    if (filtrados.length === 0) {
+      if (AppState.pestañaActiva === "cola") {
+        Renderers.renderizarTarjetaEstado(nodos.lista, {
+          tipo: 'info',
+          titulo: 'Fila de descarga vacía',
+          descripcion: 'No tenés clases agregadas en esta lista.<br>Volvé a "Clases Disponibles", marcá las clases y agregalas.',
+          icono: '📥'
+        });
+      } else {
+        Renderers.renderizarTarjetaEstado(nodos.lista, {
+          tipo: 'info',
+          titulo: 'No hay clases',
+          descripcion: 'No se encontraron clases que coincidan con la búsqueda o el filtro seleccionado.',
+          icono: '🔍'
+        });
+      }
+      return;
+    }
+
+    filtrados.forEach(clase => {
+      const fila = Renderers.construirFilaClaseDOM(clase, {
+        pestaña: AppState.pestañaActiva,
+        sincronizado: AppState.sincronizacionDiscoCompletada,
+        enCurso: AppState.ráfagaEnCurso,
+        videoActivo: AppState.videoActualEnTransmisiónSW,
+        onCheckChange: (c, check, div) => {
+          c.seleccionado = check;
+          div.classList.toggle('selected', check);
+          
+          if (AppState.pestañaActiva === "cola") {
+            const busqueda = nodos.search.value.toLowerCase().trim();
+            const visibles = AppState.colaDescargas.filter(i => i.titulo.toLowerCase().includes(busqueda));
+            nodos.masterCheck.checked = visibles.length > 0 && visibles.every(i => i.seleccionado);
+          } else {
+            if (!AppState.sincronizacionDiscoCompletada) return;
+            nodos.masterCheck.checked = AppState.listadoClasesGlobal.filter(i => i.visible && i.estado === 'pending').every(i => i.seleccionado);
+          }
+          
+          actualizarContadoresBoton();
+          AppState.respaldar();
+        },
+        onRemoverClick: (c, div) => {
+          console.log(`🗑️ [UI] Intento de remoción de la fila: "${c.titulo}"`);
+          
+          const esActivo = AppState.videoActualEnTransmisiónSW === c.titulo;
+          const esUltimoConRafaga = AppState.ráfagaEnCurso && AppState.colaDescargas.length <= 1;
+
+          // Determinar si la selección maestro "Todos" estaba activa para heredarla
+          const visiblesPendientes = AppState.listadoClasesGlobal.filter(i => i.visible && i.estado === 'pending');
+          const seleccionMaestraActiva = visiblesPendientes.length > 0 && visiblesPendientes.every(i => i.seleccionado);
+
+          if (esActivo || esUltimoConRafaga) {
+            chrome.runtime.sendMessage({ action: "abortar_rafaga_inmediata" }, () => {
+              // Remover de la cola local para persistencia correcta
+              AppState.colaDescargas = AppState.colaDescargas.filter(i => i.titulo !== c.titulo);
+              c.estado = 'pending';
+              c.seleccionado = seleccionMaestraActiva;
+
+              // Actualizar disponibles
+              const matchDisp = AppState.listadoClasesGlobal.find(i => i.titulo === c.titulo);
+              if (matchDisp) {
+                matchDisp.estado = 'pending';
+                matchDisp.seleccionado = seleccionMaestraActiva;
+              }
+
+              div.remove();
+              nodos.queueBadge.textContent = AppState.colaDescargas.length;
+              AppState.respaldar();
+              restaurarPanelPorInterrupcion("🛑 Descargas detenidas porque se eliminó la clase de la fila.");
+            });
+            return;
+          }
+
+          // Remover de la cola local
+          AppState.colaDescargas = AppState.colaDescargas.filter(i => i.titulo !== c.titulo);
+          div.remove();
+          
+          // Actualizar estado en disponibles
+          const matchDisp = AppState.listadoClasesGlobal.find(i => i.titulo === c.titulo);
+          if (matchDisp) {
+            matchDisp.estado = 'pending';
+            matchDisp.seleccionado = seleccionMaestraActiva;
+          }
+          
+          nodos.queueBadge.textContent = AppState.colaDescargas.length;
+          AppState.respaldar();
+
+          chrome.runtime.sendMessage({ 
+            action: "remover_item_de_cola", 
+            titulo: c.titulo
+          }, () => {
+            setTimeout(aplicarFiltrosCruzados, 100);
+          });
+        },
+      });
+      
+      if (!AppState.sincronizacionDiscoCompletada && AppState.pestañaActiva === "disponibles") {
+        const inputCheck = fila.querySelector('input[type="checkbox"]');
+        if (inputCheck) inputCheck.disabled = true;
+        fila.style.opacity = "0.65";
+      }
+
+      nodos.lista.appendChild(fila);
+    });
+  }
+
+  function congelarUIPorDescargaActiva(titulo, pct, tel) {
+    AppState.videoActualEnTransmisiónSW = titulo;
+    AppState.ráfagaEnCurso = true;
+    document.body.classList.add('downloading');
+    
+    nodos.txtEstado.innerHTML = "";
+    const span = document.createElement('span');
+    span.style.color = "var(--accent-orange)";
+    span.textContent = titulo;
+    
+    const prefijo = AppState.banderaFrenadoSolicitado ? "Frenando al terminar:" : "Descargando:";
+    nodos.txtEstado.append(prefijo, document.createElement('br'), span);
+
+    nodos.btnStartQueue.style.display = 'none';
+    nodos.cancelBox.style.display = 'flex';
+    nodos.folder.disabled = false;
+    nodos.btnExplore.disabled = true;
+    if (nodos.turboSwitch) nodos.turboSwitch.disabled = true; 
+    
+    nodos.btnSoftCancel.disabled = AppState.banderaFrenadoSolicitado;
+    
+    nodos.progressBar.style.width = `${pct}%`;
+    nodos.progressCont.style.display = 'block';
+    if (tel) Renderers.pintarTelemetria(tel, nodos);
+    renderizarListadoInterfaz();
+    conectarEscuchadoresDelWorker();
+    
+    actualizarContadoresBoton();
+  }
+
+  function conectarEscuchadoresDelWorker() {
+    if (punteroOyenteRuntimeActivo) {
+      chrome.runtime.onMessage.removeListener(punteroOyenteRuntimeActivo);
+      punteroOyenteRuntimeActivo = null;
+    }
+    
+    chrome.runtime.onMessage.addListener(punteroOyenteRuntimeActivo = (req) => {
+      if (req.action === "update_progress_bar") {
+        let debeReRenderizar = false;
+        if (AppState.fallaConexionActiva) {
+          AppState.fallaConexionActiva = null;
+          AppState.videoFalladoParaReintento = null;
+          
+          nodos.cancelBox.style.display = 'flex';
+          nodos.btnStartQueue.style.display = 'none';
+          nodos.progressCont.style.display = 'block';
+          if (req.telemetry) nodos.panelTel.style.display = 'flex';
+          
+          debeReRenderizar = true;
+        }
+
+        nodos.progressBar.style.width = `${req.percentage}%`;
+        
+        if (req.compiling && !AppState.modoTurboBun) {
+          nodos.txtEstado.innerHTML = "";
+          const spanComp = document.createElement('span');
+          spanComp.style.color = "#ffc107";
+          spanComp.textContent = `Guardando en /${nodos.folder.value}/ por favor espere...`;
+          nodos.txtEstado.append("⚙️ Compilando archivo final...", document.createElement('br'), spanComp);
+        } else if (!req.compiling) {
+          if (AppState.videoActualEnTransmisiónSW !== req.titulo || debeReRenderizar) {
+            AppState.videoActualEnTransmisiónSW = req.titulo;
+            renderizarListadoInterfaz();
+            actualizarContadoresBoton();
+          }
+          nodos.txtEstado.innerHTML = "";
+          const spanDesc = document.createElement('span');
+          spanDesc.style.color = "var(--accent-orange)";
+          spanDesc.textContent = req.titulo;
+          
+          const prefijo = AppState.banderaFrenadoSolicitado ? "Frenando al terminar:" : "Descargando:";
+          nodos.txtEstado.append(prefijo, document.createElement('br'), spanDesc);
+          
+          nodos.btnSoftCancel.disabled = AppState.banderaFrenadoSolicitado;
+          
+          if (req.telemetry) Renderers.pintarTelemetria(req.telemetry, nodos);
+        }
+      }
+      if (req.action === "clase_guardada_ok") {
+        const obj = AppState.listadoClasesGlobal.find(c => c.titulo === req.titulo);
+        if (obj) { obj.estado = 'downloaded'; obj.seleccionado = false; }
+        
+        // También remover de la cola local
+        AppState.colaDescargas = AppState.colaDescargas.filter(c => c.titulo !== req.titulo);
+        AppState.respaldar();
+        
+        nodos.queueBadge.textContent = AppState.colaDescargas.length;
+
+        if (req.suaveFrenado) { restaurarPanelPorInterrupcion("🏁 Fila interrumpida de forma segura.", false); return; }
+        aplicarFiltrosCruzados();
+      }
+      
+      if (req.action === "clase_con_error") {
+        console.error(`⚠️ [POPUP-ALERT] El Service Worker reportó un crash en: ${req.titulo}`);
+        nodos.txtEstado.textContent = "";
+        const spanErr = document.createElement('span');
+        spanErr.className = "text-danger";
+        spanErr.textContent = `Error de red en fragmentos. Saltando...`;
+        nodos.txtEstado.append(`⚠️ `, spanErr);
+        setTimeout(aplicarFiltrosCruzados, 500);
+      }
+
+      if (req.action === "cola_completamente_vacia") {
+        if (req.suaveFrenado) {
+          restaurarPanelPorInterrupcion("🏁 Fila interrumpida de forma segura.", false);
+        } else {
+          restaurarPanelPorInterrupcion("🏁 ¡Procesamiento terminado!", true);
+        }
+      }
+
+      if (req.action === "cola_pausada_por_error") {
+        mostrarAlertDeConexionCaida(req.errorType, req.titulo);
+      }
+    });
+  }
+
+  async function restaurarPanelPorInterrupcion(txt, limpiarCola = false) {
+    document.body.classList.remove('downloading');
+    if (punteroOyenteRuntimeActivo) {
+      chrome.runtime.onMessage.removeListener(punteroOyenteRuntimeActivo);
+      punteroOyenteRuntimeActivo = null; 
+    }
+    
+    const mantenerModoTurbo = AppState.modoTurboBun;
+
+    // Restablecer fallas de conexión al cancelar o interrumpir
+    AppState.fallaConexionActiva = null;
+    AppState.videoFalladoParaReintento = null;
+
+    if (limpiarCola) {
+      AppState.limpiarSesionLocal();
+    } else {
+      AppState.ráfagaEnCurso = false;
+      AppState.videoActualEnTransmisiónSW = "";
+      AppState.banderaFrenadoSolicitado = false;
+      await AppState.inicializarSincronizacionStorage();
+    }
+    
+    AppState.modoTurboBun = mantenerModoTurbo;
+    AppState.respaldar();
+    if (nodos.turboSwitch) {
+      nodos.turboSwitch.disabled = false;
+      nodos.turboSwitch.checked = mantenerModoTurbo;
+    }
+
+    nodos.progressCont.style.display = 'none';
+    nodos.panelTel.style.display = 'none';
+    nodos.cancelBox.style.display = 'none';
+    nodos.folder.disabled = false;
+    nodos.btnExplore.disabled = false;
+    
+    // Restablecer el botón de inicio de cola
+    nodos.btnStartQueue.innerHTML = "Iniciar descarga masiva 🚀";
+    
+    const countRestantes = AppState.colaDescargas.length;
+    nodos.queueBadge.textContent = countRestantes;
+    
+    if (!limpiarCola) {
+      conmutarPestañaA(AppState.pestañaActiva, 
+        AppState.pestañaActiva === "disponibles" ? 'block' : 'none', 
+        AppState.pestañaActiva === "cola" ? 'block' : 'none', 
+        AppState.pestañaActiva === "disponibles" ? 'flex' : 'none'
+      );
+      nodos.txtEstado.textContent = txt;
+    } else {
+      conmutarPestañaA("disponibles", 'block', 'none', 'flex');
+      nodos.txtEstado.textContent = txt;
+      ejecutarPaso1EscaneoRamonAutomatico();
+    }
+
+    // Actualizar botones de acción y restablecer filtros visuales
+    actualizarContadoresBoton();
+    setTimeout(aplicarFiltrosCruzados, 100);
+  }
+
+  function desbanearFiltros() {
+    nodos.search.disabled = false;
+    nodos.btnFilterPills.disabled = false;
+    nodos.masterCheck.disabled = !AppState.sincronizacionDiscoCompletada;
+    if (nodos.btnSort) nodos.btnSort.disabled = false;
+  }
+
+  function actualizarMasterCheckState() {
+    if (AppState.pestañaActiva === "cola") {
+      const busqueda = nodos.search.value.toLowerCase().trim();
+      const visibles = AppState.colaDescargas.filter(clase => {
+        const coincideTexto = clase.titulo.toLowerCase().includes(busqueda);
+        const clasif = Utils.clasificarCatedraYCarpeta(clase.titulo, clase.carpeta);
+        const coincideMateria = filtrosActivos.materias.size === 0 || filtrosActivos.materias.has(clase.carpeta.toUpperCase());
+        const coincideCatedra = filtrosActivos.catedras.size === 0 || filtrosActivos.catedras.has(clasif.catedra);
+        return coincideTexto && coincideMateria && coincideCatedra;
+      });
+      nodos.masterCheck.checked = visibles.length > 0 && visibles.every(i => i.seleccionado);
+    } else {
+      const visibles = AppState.listadoClasesGlobal.filter(i => i.visible && i.estado === 'pending');
+      nodos.masterCheck.checked = visibles.length > 0 && visibles.every(i => i.seleccionado);
+    }
+  }
+
+  function actualizarModoSeleccion() {
+    if (AppState.pestañaActiva === "disponibles") {
+      nodos.lista.classList.add('selection-mode');
+      return;
+    }
+
+    if (modoSeleccionFilaActivo) {
+      nodos.lista.classList.add('selection-mode');
+    } else {
+      nodos.lista.classList.remove('selection-mode');
+    }
+  }
+
+  function actualizarContadoresBoton() {
+    actualizarMasterCheckState();
+    actualizarModoSeleccion();
+
+    if (AppState.fallaConexionActiva) {
+      const txt = AppState.fallaConexionActiva === "internet" 
+        ? "Reintentar conexión a internet 🔄" 
+        : "Reintentar conexión con servidor 🔄";
+      configurarBotonesUX("reintentar-cola", txt, reintentandoColaActivo);
+      nodos.btnAction.style.display = 'block';
+      nodos.btnStartQueue.style.display = 'none';
+      nodos.masterCheck.disabled = true;
+      return;
+    }
+
+    if (AppState.pestañaActiva !== "disponibles") {
+      const seleccionadosEnCola = AppState.colaDescargas.filter(c => c.seleccionado).length;
+      
+      // Permitir habilitar masterCheck en la fila siempre
+      nodos.masterCheck.disabled = false;
+
+      if (seleccionadosEnCola > 0 && !AppState.ráfagaEnCurso) {
+        configurarBotonesUX("quitar-de-cola", `Quitar ${seleccionadosEnCola} clases de la fila 🗑️`, false);
+        nodos.btnAction.style.display = 'block';
+        nodos.btnStartQueue.style.display = 'none';
+      } else {
+        nodos.btnAction.style.display = 'none';
+        nodos.btnStartQueue.style.display = AppState.ráfagaEnCurso ? 'none' : 'block';
+        
+        if (verificandoConexionBoton) {
+          nodos.btnStartQueue.disabled = true;
+          nodos.btnStartQueue.innerHTML = `<span class="spinner-inline"></span> Verificando conexión...`;
+        } else {
+          nodos.btnStartQueue.disabled = (AppState.colaDescargas.length === 0);
+          if (!AppState.ráfagaEnCurso) {
+            nodos.btnStartQueue.innerHTML = "Iniciar descarga masiva 🚀";
+          }
+        }
+      }
+      return;
+    }
+    
+    nodos.btnStartQueue.style.display = 'none';
+    
+    const modoActual = nodos.btnAction.getAttribute('data-modo');
+    if (modoActual === 're-escanear') return; 
+
+    if (!AppState.sincronizacionDiscoCompletada) {
+      const isOffline = nodos.folder.disabled;
+      configurarBotonesUX("sincronizar-disco", isOffline ? "Buscando servidor... ⏳" : "Sincronizar carpeta local 📂", isOffline);
+      nodos.btnAction.style.display = 'block';
+      nodos.masterCheck.disabled = true;
+      return;
+    }
+
+    const sel = AppState.listadoClasesGlobal.filter(c => c.seleccionado && c.estado === 'pending').length;
+
+    if (AppState.ráfagaEnCurso) {
+      configurarBotonesUX("descargar", sel === 0 ? "Seleccioná clases" : `Agregar ${sel} clases a la fila 📥`, sel === 0);
+      nodos.btnAction.style.display = 'block';
+      nodos.masterCheck.disabled = false;
+    } else {
+      nodos.txtEstado.innerHTML = "";
+
+      configurarBotonesUX("descargar", sel === 0 ? "Seleccioná clases" : `Agregar ${sel} clases a la fila 📥`, sel === 0);
+      nodos.btnAction.style.display = 'block';
+      nodos.masterCheck.disabled = false;
+    }
+  }
+
+  function configurarBotonesUX(modo, txt, dis) {
+    nodos.btnAction.setAttribute('data-modo', modo);
+    nodos.btnAction.className = `btn-action modo-${modo}`;
+    nodos.btnAction.textContent = txt;
+    nodos.btnAction.disabled = dis;
+  }
+
+  function mostrarAlertDeConexionCaida(errorType, titulo) {
+    AppState.fallaConexionActiva = errorType;
+    AppState.videoFalladoParaReintento = titulo;
+    AppState.videoActualEnTransmisiónSW = titulo;
+    
+    nodos.cancelBox.style.display = 'none';
+    nodos.btnStartQueue.style.display = 'none';
+    nodos.progressCont.style.display = 'none';
+    nodos.panelTel.style.display = 'none';
+    
+    conectarEscuchadoresDelWorker();
+    
+    // Simplemente volver a renderizar y actualizar el botón en la pestaña activa sin redirigir
+    renderizarListadoInterfaz();
+    actualizarContadoresBoton();
+    
+    // Iniciar monitoreo para esperar la reconexión activa
+    iniciarMonitoreoServidor();
+  }
+
+  function clasificarCatedraYCarpeta(tituloClase, materiaBase) {
+    return Utils.clasificarCatedraYCarpeta(tituloClase, materiaBase);
+  }
+
+  function actualizarIconoSorteo() {
+    if (!nodos.btnSort) return;
+    if (AppState.pestañaActiva === "cola" && AppState.ordenAscendente === null) {
+      nodos.btnSort.innerHTML = "Fila";
+      nodos.btnSort.title = "Orden: De llegada original (FIFO)";
+    } else {
+      nodos.btnSort.innerHTML = AppState.ordenAscendente ? "Sem. ↑" : "Sem. ↓";
+      nodos.btnSort.title = AppState.ordenAscendente ? "Orden: Semanas más viejas primero (Ascendente)" : "Orden: Semanas más nuevas primero (Descendente)";
+    }
+  }
+
+  function actualizarBadgeCatedra() {
+    const catedrasDetectadas = Array.from(new Set(
+      AppState.listadoClasesGlobal
+        .map(c => c.catedra)
+        .filter(cat => cat !== "COMUN")
+    ));
+    const tieneMultiCatedras = catedrasDetectadas.length > 1;
+
+    if (tieneMultiCatedras && AppState.catedraSeleccionada && AppState.catedraSeleccionada !== "TODAS") {
+      nodos.catedraBadge.textContent = `Cátedra ${AppState.catedraSeleccionada}`;
+      nodos.catedraBadge.style.display = "inline-flex";
+    } else {
+      nodos.catedraBadge.style.display = "none";
+      // Si la materia no es multicátedra, forzar limpieza del estado para evitar deselecciones silenciosas
+      if (!tieneMultiCatedras && AppState.catedraSeleccionada !== null) {
+        AppState.catedraSeleccionada = null;
+        AppState.respaldar();
+      }
+    }
+  }
+
+  function aplicarSeleccionCatedraSilencioso(catedraElegida) {
+    AppState.catedraSeleccionada = catedraElegida;
+
+    AppState.listadoClasesGlobal.forEach(clase => {
+      if (clase.estado === 'pending') {
+        clase.seleccionado = (clase.catedra === catedraElegida || clase.catedra === "COMUN");
+      }
+    });
+
+    AppState.respaldar();
+    actualizarBadgeCatedra();
+    aplicarFiltrosCruzados();
+  }
+
+  function verificarYMostrarAsistenteMulticatedra() {
+    const catedrasDetectadas = Array.from(new Set(
+      AppState.listadoClasesGlobal
+        .map(c => c.catedra)
+        .filter(cat => cat !== "COMUN")
+    ));
+
+    console.log("[CATEDRA-DEBUG] Cátedras detectadas en total para el aula virtual:", catedrasDetectadas);
+
+    if (catedrasDetectadas.length > 1) {
+      if (AppState.catedraSeleccionada && AppState.catedraSeleccionada !== "TODAS" && catedrasDetectadas.includes(AppState.catedraSeleccionada)) {
+        console.log("[CATEDRA-DEBUG] -> Aplicando selección persistida:", AppState.catedraSeleccionada);
+        aplicarSeleccionCatedraSilencioso(AppState.catedraSeleccionada);
+        return;
+      }
+      console.log("[CATEDRA-DEBUG] -> Múltiples cátedras encontradas. Mostrando modal.");
+      mostrarModalMulticatedra(catedrasDetectadas);
+    } else {
+      console.log("[CATEDRA-DEBUG] -> Una o ninguna cátedra específica. Reseteando selección.");
+      AppState.catedraSeleccionada = null;
+      AppState.respaldar();
+      actualizarBadgeCatedra();
+    }
+  }
+
+  function mostrarModalMulticatedra(catedras) {
+    document.querySelector(".multicatedra-overlay")?.remove();
+
+    const overlay = document.createElement("div");
+    overlay.className = "multicatedra-overlay";
+
+    const card = document.createElement("div");
+    card.className = "multicatedra-card";
+
+    card.innerHTML = `
+      <h4>Multicátedra Detectada 🎓</h4>
+      <p>Esta aula virtual tiene videos de varias cátedras. ¿Cuál de ellas estás cursando para autoseleccionar tus videos?</p>
+    `;
+
+    const optionsDiv = document.createElement("div");
+    optionsDiv.className = "multicatedra-options";
+
+    // Ordenar alfabéticamente
+    const sortedCatedras = [...catedras].sort((a, b) => a.localeCompare(b));
+
+    sortedCatedras.forEach(cat => {
+      const btn = document.createElement("button");
+      btn.className = "btn-catedra-opt";
+      btn.textContent = `Cátedra ${cat}`;
+      btn.addEventListener("click", () => aplicarSeleccionCatedra(cat, overlay));
+      optionsDiv.appendChild(btn);
+    });
+
+    card.appendChild(optionsDiv);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+  }
+
+  function aplicarSeleccionCatedra(catedraElegida, overlay) {
+    aplicarSeleccionCatedraSilencioso(catedraElegida);
+    overlay.remove();
+  }
+
+  async function ejecutarReintentoDeCola() {
+    reintentandoColaActivo = true;
+    actualizarContadoresBoton();
+    nodos.txtEstado.textContent = "⏳ Verificando conexión...";
+    
+    const redDisponible = await verificarRedAntesDeDescargar();
+    reintentandoColaActivo = false;
+
+    if (!redDisponible) {
+      const primerItem = AppState.colaDescargas[0];
+      const tituloFallado = primerItem ? primerItem.titulo : (AppState.videoFalladoParaReintento || "clase");
+      mostrarAlertDeConexionCaida("internet", tituloFallado);
+      return;
+    }
+
+    AppState.fallaConexionActiva = null;
+    AppState.videoFalladoParaReintento = null;
+    
+    nodos.txtEstado.textContent = "⏳ Conectando y reanudando fila...";
+    chrome.runtime.sendMessage({ action: "iniciar_descarga_cola" });
+  }
+
+  function quitarItemsDeColaEnLote(items) {
+    const titulosAQuitar = new Set(items.map(c => c.titulo));
+    
+    // Determinar si la selección maestro "Todos" estaba activa para heredarla
+    const visiblesPendientes = AppState.listadoClasesGlobal.filter(i => i.visible && i.estado === 'pending');
+    const seleccionMaestraActiva = visiblesPendientes.length > 0 && visiblesPendientes.every(i => i.seleccionado);
+
+    // Filtrar de la fila local
+    AppState.colaDescargas = AppState.colaDescargas.filter(c => !titulosAQuitar.has(c.titulo));
+    
+    // Restablecer estados a pending en el listado global
+    AppState.listadoClasesGlobal.forEach(c => {
+      if (titulosAQuitar.has(c.titulo)) {
+        c.estado = 'pending';
+        c.seleccionado = seleccionMaestraActiva;
+      }
+    });
+    
+    nodos.queueBadge.textContent = AppState.colaDescargas.length;
+    nodos.masterCheck.checked = false;
+    modoSeleccionFilaActivo = false;
+    if (nodos.btnToggleSelect) {
+      nodos.btnToggleSelect.textContent = "Seleccionar";
+      nodos.btnToggleSelect.title = "Activar selección múltiple";
+    }
+    const selectWrapper = document.getElementById('ui-master-select-wrapper');
+    if (selectWrapper) selectWrapper.style.display = 'none';
+
+    AppState.respaldar();
+    actualizarContadoresBoton();
+    
+    const promesas = items.map(c => {
+      return new Promise(resolve => {
+        chrome.runtime.sendMessage({ 
+          action: "remover_item_de_cola", 
+          titulo: c.titulo
+        }, resolve);
+      });
+    });
+    
+    Promise.all(promesas).then(() => {
+      setTimeout(aplicarFiltrosCruzados, 100);
+    });
+  }
+
+  function renderizarFiltrosMenuPopover() {
+    if (!nodos.filterMenu) return;
+    nodos.filterMenu.innerHTML = "";
+
+    if (AppState.pestañaActiva === "disponibles") {
+      // --- Sección Estado ---
+      const secEstado = document.createElement("div");
+      secEstado.className = "popover-section";
+      
+      const titEstado = document.createElement("div");
+      titEstado.className = "popover-section-title";
+      titEstado.textContent = "Estado";
+      secEstado.appendChild(titEstado);
+
+      const estadosDisponibles = [
+        { key: "pending", label: "Pendientes" },
+        { key: "downloaded", label: "Descargados" },
+        { key: "process", label: "En Fila" }
+      ];
+
+      estadosDisponibles.forEach(est => {
+        const opt = crearPopoverOptionDOM(est.label, filtrosActivos.estados.has(est.key), (checked) => {
+          if (checked) {
+            filtrosActivos.estados.add(est.key);
+          } else {
+            filtrosActivos.estados.delete(est.key);
+          }
+          actualizarPillsUIState();
+          aplicarFiltrosCruzados();
+        });
+        secEstado.appendChild(opt);
+      });
+      nodos.filterMenu.appendChild(secEstado);
+
+      // --- Sección Cátedra ---
+      let catedrasDetectadas = Array.from(new Set(
+        AppState.listadoClasesGlobal.map(c => c.catedra).filter(cat => cat !== "COMUN")
+      )).sort();
+
+      if (AppState.catedraSeleccionada && AppState.catedraSeleccionada !== "TODAS") {
+        catedrasDetectadas = catedrasDetectadas.filter(cat => cat === AppState.catedraSeleccionada);
+      }
+
+      if (catedrasDetectadas.length > 0) {
+        const secCatedra = document.createElement("div");
+        secCatedra.className = "popover-section";
+
+        const titCatedra = document.createElement("div");
+        titCatedra.className = "popover-section-title";
+        titCatedra.textContent = "Cátedra";
+        secCatedra.appendChild(titCatedra);
+
+        // Opción COMUN
+        const optComun = crearPopoverOptionDOM("Común", filtrosActivos.catedras.has("COMUN"), (checked) => {
+          if (checked) filtrosActivos.catedras.add("COMUN");
+          else filtrosActivos.catedras.delete("COMUN");
+          actualizarPillsUIState();
+          aplicarFiltrosCruzados();
+        });
+        secCatedra.appendChild(optComun);
+
+        catedrasDetectadas.forEach(cat => {
+          const opt = crearPopoverOptionDOM(`Cat ${cat}`, filtrosActivos.catedras.has(cat), (checked) => {
+            if (checked) filtrosActivos.catedras.add(cat);
+            else filtrosActivos.catedras.delete(cat);
+            actualizarPillsUIState();
+            aplicarFiltrosCruzados();
+          });
+          secCatedra.appendChild(opt);
+        });
+        nodos.filterMenu.appendChild(secCatedra);
+      }
+    } else {
+      // --- Vista Pestaña Cola ---
+      const materiasUnicas = new Set();
+      const catedrasUnicas = new Set();
+
+      AppState.colaDescargas.forEach(c => {
+        const clasif = Utils.clasificarCatedraYCarpeta(c.titulo, c.carpeta);
+        materiasUnicas.add(c.carpeta.toUpperCase());
+        catedrasUnicas.add(clasif.catedra);
+      });
+
+      // --- Sección Materias ---
+      if (materiasUnicas.size > 0) {
+        const secMateria = document.createElement("div");
+        secMateria.className = "popover-section";
+
+        const titMateria = document.createElement("div");
+        titMateria.className = "popover-section-title";
+        titMateria.textContent = "Materia";
+        secMateria.appendChild(titMateria);
+
+        Array.from(materiasUnicas).sort().forEach(mat => {
+          const opt = crearPopoverOptionDOM(`📁 ${mat}`, filtrosActivos.materias.has(mat), (checked) => {
+            if (checked) filtrosActivos.materias.add(mat);
+            else filtrosActivos.materias.delete(mat);
+            actualizarPillsUIState();
+            aplicarFiltrosCruzados();
+          });
+          secMateria.appendChild(opt);
+        });
+        nodos.filterMenu.appendChild(secMateria);
+      }
+
+      // --- Sección Cátedras ---
+      if (catedrasUnicas.size > 0) {
+        const secCatedra = document.createElement("div");
+        secCatedra.className = "popover-section";
+
+        const titCatedra = document.createElement("div");
+        titCatedra.className = "popover-section-title";
+        titCatedra.textContent = "Cátedra";
+        secCatedra.appendChild(titCatedra);
+
+        Array.from(catedrasUnicas).sort().forEach(cat => {
+          const label = cat === "COMUN" ? "Común" : `Cat ${cat}`;
+          const opt = crearPopoverOptionDOM(`🎓 ${label}`, filtrosActivos.catedras.has(cat), (checked) => {
+            if (checked) filtrosActivos.catedras.add(cat);
+            else filtrosActivos.catedras.delete(cat);
+            actualizarPillsUIState();
+            aplicarFiltrosCruzados();
+          });
+          secCatedra.appendChild(opt);
+        });
+        nodos.filterMenu.appendChild(secCatedra);
+      }
+    }
+  }
+
+  function crearPopoverOptionDOM(labelText, isChecked, onChange) {
+    const label = document.createElement("label");
+    label.className = "popover-option";
+
+    const check = document.createElement("input");
+    check.type = "checkbox";
+    check.checked = isChecked;
+    check.addEventListener("change", (e) => onChange(e.target.checked));
+
+    const span = document.createElement("span");
+    span.textContent = labelText;
+
+    label.append(check, span);
+    return label;
+  }
+
+  function actualizarPillsUIState() {
+    if (!nodos.btnFilterPills) return;
+    const total = filtrosActivos.estados.size + filtrosActivos.materias.size + filtrosActivos.catedras.size;
+    nodos.btnFilterPills.classList.toggle('active', total > 0);
+    const span = nodos.btnFilterPills.querySelector('span');
+    if (span) {
+      span.textContent = total > 0 ? `Filtros (${total})` : "Filtros";
+    }
+  }
+
+  function actualizarEstadoServidorOnboarding(online) {
+    const statusMsg = document.getElementById('ui-onboarding-server-status');
+    const exploreBtn = document.getElementById('ui-onboarding-explore');
+    if (!statusMsg || !exploreBtn) return;
+
+    if (online) {
+      statusMsg.className = "onboarding-server-msg success";
+      statusMsg.textContent = "🔌 Servidor conectado. ¡Ya podés elegir carpeta!";
+      exploreBtn.disabled = false;
+      exploreBtn.title = "Seleccionar carpeta principal de descargas";
+    } else {
+      statusMsg.className = "onboarding-server-msg error";
+      statusMsg.textContent = "⚠️ Primero tenés que levantar el servidor";
+      exploreBtn.disabled = true;
+      exploreBtn.title = "Servidor desconectado. Ejecutá iniciar.bat primero.";
+    }
+  }
+
+  // --- MÁQUINA DE ESTADO DE ONBOARDING (WELCOME TOUR) ---
+  function mostrarOnboarding(forzado = false) {
+    if (!nodos.onboarding || !nodos.onboardingSlides || !nodos.onboardingPrev || !nodos.onboardingNext || !nodos.onboardingSkip || !nodos.onboardingDots) {
+      console.warn("⚠️ Nodos de onboarding no encontrados en el DOM.");
+      return;
+    }
+
+    let slideActual = 0;
+    const totalSlides = 6;
+
+    nodos.onboarding.style.display = 'flex';
+    actualizarSlides();
+
+    function actualizarSlides() {
+      nodos.onboardingSlides.style.transform = `translateX(-${slideActual * 100}%)`;
+
+      const dots = nodos.onboardingDots.querySelectorAll('.onboarding-dot');
+      dots.forEach((dot, idx) => {
+        dot.classList.toggle('active', idx === slideActual);
+      });
+
+      nodos.onboardingPrev.disabled = (slideActual === 0);
+
+      if (slideActual === totalSlides - 1) {
+        nodos.onboardingNext.textContent = "Comenzar";
+      } else {
+        nodos.onboardingNext.textContent = "Siguiente";
+      }
+    }
+
+    function irAtras() {
+      if (slideActual > 0) {
+        slideActual--;
+        actualizarSlides();
+      }
+    }
+
+    function irSiguiente() {
+      if (slideActual < totalSlides - 1) {
+        slideActual++;
+        actualizarSlides();
+      } else {
+        cerrarTutorial();
+      }
+    }
+
+    function cerrarTutorial() {
+      AppState.tutorialCompletado = true;
+      AppState.respaldar();
+      nodos.onboarding.style.display = 'none';
+
+      // Limpiar listeners asignados para esta sesión de tutorial
+      nodos.onboardingPrev.removeEventListener('click', irAtras);
+      nodos.onboardingNext.removeEventListener('click', irSiguiente);
+      nodos.onboardingSkip.removeEventListener('click', cerrarTutorial);
+    }
+
+    nodos.onboardingPrev.addEventListener('click', irAtras);
+    nodos.onboardingNext.addEventListener('click', irSiguiente);
+    nodos.onboardingSkip.addEventListener('click', cerrarTutorial);
+  }
+
+  if (nodos.btnHelp) {
+    nodos.btnHelp.addEventListener("click", () => {
+      mostrarOnboarding(true);
+    });
+  }
+
+  const onboardingExplore = document.getElementById('ui-onboarding-explore');
+  if (onboardingExplore) {
+    onboardingExplore.addEventListener("click", () => {
+      lanzarSeleccionCarpetaFisica();
+    });
+  }
+});

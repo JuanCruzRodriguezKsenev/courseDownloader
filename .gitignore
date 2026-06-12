@@ -1,0 +1,10 @@
+# Extension metadata and agent logs
+.agents/
+.antigravitycli/
+_metadata/
+
+# OS temporary files
+.DS_Store
+Thumbs.db
+*.log
+*.part

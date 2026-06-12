@@ -1,0 +1,117 @@
+:root {
+  /* LIGHT MODE (Lino Cálido & Acero) */
+  --bg-main: #FAF8F5;
+  --bg-surface: #FFFFFF;
+  --text-main: #1C1C1E;
+  --text-muted: #8E8E93;
+  --border-color: #E5E5EA;
+
+  /* ACCENTS & GENERAL */
+  --accent-orange: #FF5E00;
+  --accent-orange-hover: #E04D00;
+  --accent-cyan-disco: #005AD7; /* Azul oscuro legible con texto blanco */
+  --accent-cyan-disco-hover: #0045B5;
+  --accent-green: #30D158;
+  --accent-error: #FF3B30;
+  --accent-error-hover: #D72621;
+  --accent-error-visible: #FF3B30;
+  --accent-warning-visible: #FF9500;
+
+  /* BORDER RADIUS TOKENS */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 999px;
+
+  /* TYPOGRAPHY TOKENS */
+  --text-xs: 0.625rem;
+  --text-sm: 0.6875rem;
+  --text-base: 0.75rem;
+  --text-md: 0.8125rem;
+  --text-lg: 0.9rem;
+
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  --font-black: 800;
+
+  /* SPACING TOKENS (4px grid) */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+
+  /* ALPHA OPACITY TOKENS */
+  --alpha-hover: 0.08;
+  --alpha-active: 0.12;
+  --alpha-badge: 0.12;
+  --alpha-border: 0.30;
+  --alpha-overlay: 0.82;
+
+  /* TEXT ON ACCENT CONTRAST TOKENS */
+  --text-on-orange: #FFFFFF;
+  --text-on-cyan: #FFFFFF;
+  --text-on-error: #FFFFFF;
+
+  --item-bg: var(--bg-surface);
+  --bg-btn-secondary: #F2F2F7;
+  --text-btn-secondary: #1C1C1E;
+
+  --badge-pending-bg: rgba(142, 142, 147, var(--alpha-badge));
+  --badge-pending-txt: var(--text-muted);
+  --badge-downloaded-bg: rgba(48, 209, 88, var(--alpha-badge));
+  --badge-downloaded-txt: var(--accent-green);
+  --badge-process-bg: rgba(255, 94, 0, var(--alpha-badge));
+  --badge-process-txt: var(--accent-orange);
+  
+  --font-display: system-ui, -apple-system, sans-serif;
+  --font-mono: "SF Mono", "Fira Code", Consolas, Menlo, Monaco, monospace;
+
+  /* GLOW EFFECTS & TRANSITIONS */
+  --glow-orange: rgba(255, 94, 0, 0.12);
+  --glow-cyan: rgba(10, 132, 255, 0.12);
+  --glow-green: rgba(48, 209, 88, 0.12);
+  --ease-elastic: cubic-bezier(0.25, 1, 0.5, 1);
+  --bg-overlay: rgba(250, 248, 245, var(--alpha-overlay));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* DARK MODE (Pizarra Obsidiana Profunda & Metalizado) */
+    --bg-main: #090A0C;
+    --bg-surface: #111318;
+    --text-main: #F1F3F5;
+    --text-muted: #7E8590;
+    --border-color: #1E222A;
+
+    --accent-orange: #FF751F; /* Naranja neón brillante */
+    --accent-orange-hover: #FF8C42;
+    --accent-cyan-disco: #33EBFF; /* Cian eléctrico brillante */
+    --accent-cyan-disco-hover: #80F3FF;
+    --accent-error-hover: #FF665C;
+    --accent-error-visible: #FF453A;
+    --accent-warning-visible: #FF9F0A;
+
+    --alpha-badge: 0.15;
+
+    --text-on-orange: #090A0C; /* Texto oscuro para contraste en botones */
+    --text-on-cyan: #090A0C;   /* Texto oscuro para contraste en botones */
+    --text-on-error: #FFFFFF;
+
+    --bg-btn-secondary: #1E222A;
+    --text-btn-secondary: #F1F3F5;
+
+    --badge-pending-bg: rgba(126, 133, 144, var(--alpha-badge));
+    --badge-downloaded-bg: rgba(48, 209, 88, var(--alpha-badge));
+    --badge-process-bg: rgba(255, 94, 0, var(--alpha-badge));
+
+    --glow-orange: rgba(255, 94, 0, 0.25);
+    --glow-cyan: rgba(10, 132, 255, 0.25);
+    --glow-green: rgba(48, 209, 88, 0.25);
+    --bg-overlay: rgba(9, 10, 12, var(--alpha-overlay));
+  }
+}
+
+
