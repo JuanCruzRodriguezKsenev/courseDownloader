@@ -3,6 +3,9 @@
 .antigravitycli/
 _metadata/
 
+# Dev dependencies (solo para tests; la extensión no usa bundler)
+node_modules/
+
 # OS temporary files
 .DS_Store
 Thumbs.db

@@ -1,0 +1,14 @@
+{
+  "name": "ramonnet-video-downloader",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Herramientas de desarrollo (tests) para la extensión RamonNet Video Downloader. La extensión en sí no usa bundler ni dependencias de runtime — ver docs/adr/0001-no-bundler-or-typescript-yet.md.",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1",
+    "vitest": "^2.1.8"
+  }
+}

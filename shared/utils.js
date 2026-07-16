@@ -1,7 +1,11 @@
 /**
- * CLON DOWNLOADHELPER - UTILERÍAS CRIPTOGRÁFICAS Y PERSISTENCIA (V5.6.0)
+ * CLON DOWNLOADHELPER - UTILERÍAS CRIPTOGRÁFICAS Y PERSISTENCIA (V5.7.0)
  * ARCHIVO COMPLETO — FIX CRÍTICO: ERRADICACIÓN REAL DE FILEREADER/BASE64 EN VOLCADO A DISCO
  * ==============================================================================================
+ * CHANGELOG v5.7.0:
+ * - [SEGURIDAD] Nuevo helper escaparHtml() para neutralizar markup de títulos scrapeados
+ *   antes de interpolarlos en strings asignados vía innerHTML. Cierra el XSS de popup.js
+ *   (ver docs/TECHNICAL_DEBT.md, sección Seguridad).
  * CHANGELOG v5.6.0:
  * - [FIX CRÍTICO] inyectarArchivoEnDiscoChrome: reemplazado FileReader+readAsDataURL por
  *   URL.createObjectURL(blob). Elimina la serialización Base64 que causaba OOM en videos >100MB.
@@ -48,6 +52,21 @@ const Utils = {
       .replace(/[^a-zA-Z0-9 _\-().áéíóúÁÉÍÓÚñÑ]/g, "_") // Sincronizado con backend Bun para evitar desvíos
       .replace(/\s+/g, " ")         // Colapsar espacios múltiples
       .trim();
+  },
+
+  /**
+   * Escapa los metacaracteres de HTML de un texto no confiable (ej. títulos
+   * scrapeados del DOM de Ramón Net) antes de interpolarlo dentro de un string
+   * que se asigna vía innerHTML. Neutraliza inyección de markup (XSS).
+   */
+  escaparHtml(texto) {
+    if (texto == null) return "";
+    return String(texto)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   },
 
   /**
@@ -391,3 +410,14 @@ const Utils = {
     }
   }
 };
+
+// Exportación — module-pattern del proyecto (ver docs/coding-standards.md),
+// extendido con module.exports para poder testear las funciones puras en Node/Vitest.
+// En el browser/SW `module` es undefined, así que ese branch no se toca ahí.
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = Utils;
+} else if (typeof window !== "undefined") {
+  window.Utils = Utils;
+} else if (typeof self !== "undefined") {
+  self.Utils = Utils;
+}

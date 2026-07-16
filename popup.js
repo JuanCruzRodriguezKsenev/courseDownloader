@@ -1,6 +1,11 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.4.1)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.4.2)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
+ * ==========================================================================
+ * CHANGELOG v5.4.2:
+ * - [SEGURIDAD] renderizarListadoInterfaz: se escapa el título scrapeado con
+ *   Utils.escaparHtml antes de interpolarlo en la tarjeta de error (se pinta vía
+ *   innerHTML en Renderers.renderizarTarjetaEstado). Cierra el XSS conocido.
  * ==========================================================================
  */
 
@@ -1004,7 +1009,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     nodos.lista.innerHTML = "";
     
     if (AppState.fallaConexionActiva) {
-      const titulo = AppState.videoFalladoParaReintento || "clase";
+      // El título proviene del scraping del DOM de Ramón Net (contenido de terceros):
+      // se escapa antes de interpolarlo porque renderizarTarjetaEstado usa innerHTML.
+      const titulo = Utils.escaparHtml(AppState.videoFalladoParaReintento || "clase");
       if (AppState.fallaConexionActiva === "servidor") {
         Renderers.renderizarTarjetaEstado(nodos.lista, {
           tipo: 'error',
