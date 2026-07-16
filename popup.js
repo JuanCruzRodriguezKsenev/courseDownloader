@@ -1,7 +1,14 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.5.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.5.1)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.5.1:
+ * - [REFACTOR] Fase 2 (módulo 2/4): la conexión al servidor Bun
+ *   (cargarRutaServidorSilencioso, activarEstadoOfflineUI, iniciarMonitoreoServidor)
+ *   se extrajo a popup/features/serverConnection.js, que ahora es dueño de los flags
+ *   intervalReconexion/comprobacionEnProgreso. popup.js inyecta las llamadas cruzadas
+ *   (configurarBotonesUX, ejecutarReintentoDeCola, ejecutarPaso1EscaneoRamonAutomatico,
+ *   actualizarEstadoServidorOnboarding) como callbacks del ctx.
  * CHANGELOG v5.5.0:
  * - [REFACTOR] Fase 2 (split feature-driven): el onboarding (welcome tour) se
  *   extrajo a popup/features/onboarding.js. popup.js lo instancia como
@@ -157,10 +164,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       e.stopPropagation();
     });
   }
-  let intervalReconexion = null;
   let verificandoConexionBoton = false;
   let reintentandoColaActivo = false;
-  let comprobacionEnProgreso = false;
+
+  // --- Feature: conexión al servidor Bun (monitoreo/offline) — popup/features/serverConnection.js ---
+  // El módulo es dueño de su propio estado de monitoreo (intervalReconexion,
+  // comprobacionEnProgreso). Las llamadas cruzadas a queue/scan/UX se inyectan como
+  // callbacks (referencias diferidas a funciones hoisted de popup.js).
+  const _serverConnection = ServerConnectionFeature.crear({
+    nodos,
+    configurarBotonesUX: (modo, txt, dis) => configurarBotonesUX(modo, txt, dis),
+    actualizarEstadoServidorOnboarding: (online) => actualizarEstadoServidorOnboarding(online),
+    onReintentarCola: () => ejecutarReintentoDeCola(),
+    onReescanearAula: () => ejecutarPaso1EscaneoRamonAutomatico()
+  });
+  const activarEstadoOfflineUI = _serverConnection.activarEstadoOfflineUI;
+  const iniciarMonitoreoServidor = _serverConnection.iniciarMonitoreoServidor;
 
   nodos.btnAction.setAttribute('data-modo', 'sincronizar-disco');
 
@@ -386,170 +405,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.body.appendChild(overlay);
   }
 
-  async function cargarRutaServidorSilencioso() {
-    if (!nodos.btnExplore) return;
-    try {
-      const ruta = await BunClient.obtenerRutaServidor();
-      if (ruta) {
-        nodos.btnExplore.title = `Carpeta raíz actual: ${ruta} (Click para cambiar)`;
-        nodos.pcPath.textContent = ruta;
-        nodos.pcPath.title = ruta;
-        if (nodos.statusDot) {
-          nodos.statusDot.className = "status-dot online";
-          nodos.statusDot.title = "Servidor conectado";
-        }
-      }
-    } catch (err) {
-      console.warn("⚠️ No se pudo conectar al servidor Bun para obtener la ruta raíz:", err);
-      nodos.pcPath.textContent = "Desconectado";
-      nodos.pcPath.title = "Servidor desconectado";
-      nodos.txtEstado.textContent = "❌ Servidor Bun apagado. Enciéndalo en consola para operar.";
-      if (nodos.statusDot) {
-        nodos.statusDot.className = "status-dot offline";
-        nodos.statusDot.title = "Servidor desconectado";
-      }
-    }
-  }
-
-  function activarEstadoOfflineUI() {
-    if (nodos.statusDot) {
-      nodos.statusDot.className = "status-dot offline";
-      nodos.statusDot.title = "Servidor desconectado";
-    }
-
-    nodos.folder.disabled = true;
-    nodos.btnExplore.disabled = true;
-    document.querySelector('.path-bar')?.classList.add('offline');
-
-    nodos.search.disabled = true;
-    nodos.btnFilterPills.disabled = true;
-    nodos.masterCheck.disabled = true;
-    nodos.masterCheck.checked = false;
-    if (nodos.btnSort) nodos.btnSort.disabled = true;
-
-    const tieneErrorCard = nodos.lista.querySelector(".server-error-card");
-    if (!tieneErrorCard) {
-      nodos.lista.innerHTML = "";
-      const card = document.createElement("div");
-      card.className = "server-error-card";
-      card.innerHTML = `
-        <div class="server-error-icon">🔌</div>
-        <h5>Servidor Desconectado</h5>
-        <p>Por favor, iniciá el servidor ejecutando <strong>iniciar.bat</strong> en tu PC.<br>La extensión se sincronizará sola apenas esté encendido.</p>
-        <div class="server-error-pulse">
-          <span class="pulse-dot"></span>
-          <span>Esperando conexión en puerto 3001...</span>
-        </div>
-      `;
-      nodos.lista.appendChild(card);
-    }
-    nodos.lista.style.opacity = "1";
-    nodos.loader.style.display = 'none';
-
-    nodos.pcPath.textContent = "Desconectado";
-    nodos.pcPath.title = "Servidor desconectado";
-    nodos.txtEstado.innerHTML = '⚠️ <span style="color:var(--accent-error-visible)">Servidor Bun desconectado.</span>';
-    configurarBotonesUX("sincronizar-disco", "Buscando servidor... ⏳", true);
-
-    const tabsBar = document.querySelector(".tabs-bar");
-    if (tabsBar) tabsBar.style.display = "none";
-    nodos.filtersBar.style.display = "none";
-
-    actualizarEstadoServidorOnboarding(false);
-
-    iniciarMonitoreoServidor();
-  }
-
-  function iniciarMonitoreoServidor() {
-    if (intervalReconexion) return;
-    
-    intervalReconexion = setInterval(async () => {
-      if (AppState.ráfagaEnCurso && !AppState.fallaConexionActiva) return;
-
-
-      // Auto-reintento si cayó el internet
-      if (AppState.fallaConexionActiva === "internet") {
-        if (navigator.onLine) {
-          if (comprobacionEnProgreso) return;
-          comprobacionEnProgreso = true;
-
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 3000);
-          try {
-            await fetch("https://plataforma.ramonnet.com.ar", { 
-              method: "HEAD", 
-              mode: "no-cors",
-              cache: "no-store",
-              signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-            comprobacionEnProgreso = false;
-
-            // ⚡ AUTOLIMPIEZA: Apagar el monitoreo ya que recuperamos internet
-            clearInterval(intervalReconexion);
-            intervalReconexion = null;
-
-            ejecutarReintentoDeCola();
-            return;
-          } catch (e) {
-            clearTimeout(timeoutId);
-            comprobacionEnProgreso = false;
-            // Sigue sin internet
-          }
-        }
-      }
-      
-      try {
-        const ruta = await BunClient.obtenerRutaServidor();
-        if (ruta) {
-          // ⚡ AUTOLIMPIEZA: Apagar el monitoreo ya que estamos conectados y sanos
-          clearInterval(intervalReconexion);
-          intervalReconexion = null;
-
-          actualizarEstadoServidorOnboarding(true);
-
-          if (AppState.fallaConexionActiva === "servidor") {
-            console.log("🔌 [UI-AUTOHEAL] Servidor Bun recuperado. Reanudando descarga masiva...");
-            ejecutarReintentoDeCola();
-            return;
-          }
-
-          const tieneErrorCard = nodos.lista.querySelector(".server-error-card");
-          if (tieneErrorCard) {
-            nodos.folder.disabled = false;
-            nodos.btnExplore.disabled = false;
-            document.querySelector('.path-bar')?.classList.remove('offline');
-
-            nodos.pcPath.textContent = ruta;
-            nodos.pcPath.title = ruta;
-            nodos.txtEstado.textContent = "Analizando aula virtual...";
-            nodos.btnExplore.title = `Carpeta raíz actual: ${ruta} (Click para cambiar)`;
-            
-            if (nodos.statusDot) {
-              nodos.statusDot.className = "status-dot online";
-              nodos.statusDot.title = "Servidor conectado";
-            }
-
-            const tabsBar = document.querySelector(".tabs-bar");
-            if (tabsBar) tabsBar.style.display = "flex";
-            nodos.filtersBar.style.display = AppState.pestañaActiva === "disponibles" ? "flex" : "none";
-
-            ejecutarPaso1EscaneoRamonAutomatico();
-          } else {
-            if (nodos.statusDot) {
-              nodos.statusDot.className = "status-dot online";
-              nodos.statusDot.title = "Servidor conectado";
-            }
-          }
-        }
-      } catch (err) {
-        const tieneErrorCard = nodos.lista.querySelector(".server-error-card");
-        if (!tieneErrorCard && !AppState.ráfagaEnCurso && !AppState.fallaConexionActiva) {
-          activarEstadoOfflineUI();
-        }
-      }
-    }, 1500);
-  }
+  // cargarRutaServidorSilencioso, activarEstadoOfflineUI e iniciarMonitoreoServidor
+  // viven ahora en popup/features/serverConnection.js, instanciados más arriba como
+  // _serverConnection. Los dos últimos se exponen como alias locales.
 
   let timerSincronizacionDebounce = null;
   nodos.folder.addEventListener('input', () => {
