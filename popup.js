@@ -1,7 +1,11 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.5.1)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.5.3)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.5.3:
+ * - [REFACTOR] El init arranca el único detector de estado de serverConnection
+ *   (iniciarDetectorEstado), que reemplaza al monitor + latido separados. El
+ *   alias iniciarMonitoreoServidor apunta a ese detector (idempotente).
  * CHANGELOG v5.5.1:
  * - [REFACTOR] Fase 2 (módulo 2/4): la conexión al servidor Bun
  *   (cargarRutaServidorSilencioso, activarEstadoOfflineUI, iniciarMonitoreoServidor)
@@ -179,7 +183,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     onReescanearAula: () => ejecutarPaso1EscaneoRamonAutomatico()
   });
   const activarEstadoOfflineUI = _serverConnection.activarEstadoOfflineUI;
-  const iniciarMonitoreoServidor = _serverConnection.iniciarMonitoreoServidor;
+  // Un único detector de estado de conexión, siempre activo mientras el popup está
+  // abierto: mantiene el indicador al día en ambos sentidos y recupera la cola/aula al
+  // reconectar. mostrarAlertDeConexionCaida lo (re)dispara vía este alias (idempotente).
+  const iniciarMonitoreoServidor = _serverConnection.iniciarDetectorEstado;
+  _serverConnection.iniciarDetectorEstado();
 
   nodos.btnAction.setAttribute('data-modo', 'sincronizar-disco');
 

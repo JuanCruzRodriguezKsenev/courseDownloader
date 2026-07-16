@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 /**
  * Test del módulo extraído popup/features/serverConnection.js.
- * Cubre la función determinista más usada (activarEstadoOfflineUI) y la
- * idempotencia del polling de reconexión, verificando además que las
- * dependencias cruzadas se invocan a través de los callbacks del ctx.
+ * Desde v1.3.0 el módulo NO sondea: se suscribe al daemon Conexion. Estos tests
+ * inyectan un Conexion falso que captura al suscriptor y emite estados, y
+ * verifican la reacción (indicador + recuperación de cola/aula) + activarEstadoOfflineUI.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import ServerConnectionFeature from './serverConnection.js';
@@ -13,6 +13,17 @@ globalThis.AppState = {
   fallaConexionActiva: null,
   pestañaActiva: 'disponibles'
 };
+
+// Construye un objeto de estado como el que emite Conexion.get().
+function estadoConexion({ servidor, internet = true }) {
+  return {
+    servidor,
+    internet,
+    listo: true,
+    completa: servidor && internet,
+    tipoFalla: !servidor ? 'servidor' : (!internet ? 'internet' : null)
+  };
+}
 
 function montarNodos() {
   document.body.innerHTML = `
@@ -48,10 +59,18 @@ function montarNodos() {
 }
 
 describe('ServerConnectionFeature.crear', () => {
-  let nodos, ctx, api;
+  let nodos, ctx, api, suscriptor;
 
   beforeEach(() => {
-    vi.useFakeTimers();
+    globalThis.AppState.ráfagaEnCurso = false;
+    globalThis.AppState.fallaConexionActiva = null;
+    globalThis.BunClient = { obtenerRutaServidor: vi.fn().mockResolvedValue('C:/RamonNet') };
+    // Conexion falso: captura al suscriptor para poder emitir estados a mano.
+    suscriptor = null;
+    globalThis.Conexion = {
+      suscribir: vi.fn((cb) => { suscriptor = cb; return () => { suscriptor = null; }; }),
+      iniciar: vi.fn(),
+    };
     nodos = montarNodos();
     ctx = {
       nodos,
@@ -63,15 +82,14 @@ describe('ServerConnectionFeature.crear', () => {
     api = ServerConnectionFeature.crear(ctx);
   });
 
-  afterEach(() => {
-    vi.clearAllTimers();
-    vi.useRealTimers();
-  });
+  // Emite un estado del daemon al suscriptor de la feature.
+  function emitir(estado) { suscriptor(estadoConexion(estado)); }
 
-  it('expone las tres funciones de conexión', () => {
+  it('expone las funciones públicas', () => {
     expect(typeof api.cargarRutaServidorSilencioso).toBe('function');
     expect(typeof api.activarEstadoOfflineUI).toBe('function');
-    expect(typeof api.iniciarMonitoreoServidor).toBe('function');
+    expect(typeof api.iniciarDetectorEstado).toBe('function');
+    expect(typeof api.reaccionarAConexion).toBe('function');
   });
 
   it('activarEstadoOfflineUI pinta la tarjeta de error y deshabilita los controles', () => {
@@ -95,10 +113,76 @@ describe('ServerConnectionFeature.crear', () => {
     expect(nodos.lista.querySelectorAll('.server-error-card').length).toBe(1);
   });
 
-  it('iniciarMonitoreoServidor es idempotente (un solo intervalo activo)', () => {
-    const spy = vi.spyOn(globalThis, 'setInterval');
-    api.iniciarMonitoreoServidor();
-    api.iniciarMonitoreoServidor();
-    expect(spy).toHaveBeenCalledTimes(1);
+  it('iniciarDetectorEstado se suscribe al daemon y lo arranca una sola vez (idempotente)', () => {
+    api.iniciarDetectorEstado();
+    api.iniciarDetectorEstado();
+    expect(globalThis.Conexion.suscribir).toHaveBeenCalledTimes(1);
+    expect(globalThis.Conexion.iniciar).toHaveBeenCalledTimes(1);
+  });
+
+  it('pinta el indicador en rojo cuando el daemon reporta el server caído', () => {
+    api.iniciarDetectorEstado();
+    emitir({ servidor: false });
+    expect(ctx.actualizarEstadoServidorOnboarding).toHaveBeenLastCalledWith(false);
+    expect(nodos.statusDot.className).toContain('offline');
+  });
+
+  it('muestra el banner offline cuando el daemon reporta el server caído (detección pasiva)', () => {
+    api.iniciarDetectorEstado();
+    emitir({ servidor: false });
+    expect(nodos.lista.querySelector('.server-error-card')).not.toBeNull();
+  });
+
+  it('NO muestra el banner offline si hay una cola pausada por error (lo maneja la UI de descarga)', () => {
+    globalThis.AppState.fallaConexionActiva = 'servidor';
+    api.iniciarDetectorEstado();
+    emitir({ servidor: false });
+    expect(nodos.lista.querySelector('.server-error-card')).toBeNull();
+  });
+
+  it('pinta el indicador en verde cuando el daemon reporta el server OK', () => {
+    api.iniciarDetectorEstado();
+    emitir({ servidor: true });
+    expect(ctx.actualizarEstadoServidorOnboarding).toHaveBeenLastCalledWith(true);
+    expect(nodos.statusDot.className).toContain('online');
+  });
+
+  it('sólo repinta el indicador en la transición de estado, no en cada notificación', () => {
+    api.iniciarDetectorEstado();
+    emitir({ servidor: true });
+    emitir({ servidor: true });
+    emitir({ servidor: true });
+    expect(ctx.actualizarEstadoServidorOnboarding).toHaveBeenCalledTimes(1);
+  });
+
+  it('al reconectar el server con la tarjeta de error visible, re-escanea el aula una sola vez', () => {
+    api.activarEstadoOfflineUI(); // pinta la tarjeta y se suscribe
+    emitir({ servidor: false });  // confirma offline
+    emitir({ servidor: true });   // reconecta
+    emitir({ servidor: true });   // no vuelve a disparar
+    expect(ctx.onReescanearAula).toHaveBeenCalledTimes(1);
+  });
+
+  it('al reconectar tras fallo de servidor, reanuda la cola', () => {
+    globalThis.AppState.fallaConexionActiva = 'servidor';
+    api.iniciarDetectorEstado();
+    emitir({ servidor: false });
+    emitir({ servidor: true });
+    expect(ctx.onReintentarCola).toHaveBeenCalledTimes(1);
+  });
+
+  it('al volver internet tras fallo de internet, reanuda la cola', () => {
+    globalThis.AppState.fallaConexionActiva = 'internet';
+    api.iniciarDetectorEstado();
+    emitir({ servidor: true, internet: false });
+    emitir({ servidor: true, internet: true });
+    expect(ctx.onReintentarCola).toHaveBeenCalledTimes(1);
+  });
+
+  it('no reacciona durante una descarga activa sin fallo (ráfagaEnCurso)', () => {
+    globalThis.AppState.ráfagaEnCurso = true;
+    api.iniciarDetectorEstado();
+    emitir({ servidor: false });
+    expect(ctx.actualizarEstadoServidorOnboarding).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,25 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: CONEXIÓN AL SERVIDOR BUN (V1.0.0)
+ * CLON DOWNLOADHELPER - FEATURE: CONEXIÓN AL SERVIDOR BUN (V1.3.1)
+ * ==========================================================================
+ * CHANGELOG v1.3.1:
+ * - [FIX] La caída pasiva del servidor (detectada por el daemon, sin acción del
+ *   usuario) ahora dispara el banner "Servidor Desconectado" (activarEstadoOfflineUI),
+ *   no sólo el indicador. Se omite si hay una cola pausada (esa UI ya se encarga).
+ * CHANGELOG v1.3.0:
+ * - [REFACTOR] La feature deja de sondear: el estado de conexión ahora lo posee
+ *   el daemon Conexion (shared/conexion.js), fuente única de verdad. iniciarDetectorEstado
+ *   se suscribe a Conexion y reacciona (reaccionarAConexion): indicador + recuperación
+ *   de cola/aula. Se eliminan de acá el setInterval, el HEAD de internet duplicado y
+ *   navigator.onLine (todo eso vive ahora en el daemon).
+ * CHANGELOG v1.2.0:
+ * - [REFACTOR] Un ÚNICO detector de estado (iniciarDetectorEstado) reemplaza a
+ *   los dos loops que se solapaban (el monitor reactivo de recuperación + el
+ *   latido de indicador de v1.1.0). Es la fuente única de verdad de la conexión:
+ *   siempre activo mientras el popup está abierto, mantiene el indicador al día
+ *   en ambos sentidos y ejecuta la recuperación (reanudar cola / re-escanear)
+ *   sólo en la transición offline->online (edge-triggered).
+ * - v1.1.0: latido de salud (iniciarLatidoSalud) para detectar la desconexión
+ *   pasiva del servidor. Absorbido por el detector unificado de v1.2.0.
  * ==========================================================================
  * Módulo 2/4 de la reorganización feature-driven de popup.js
  * (ver docs/adr/0005-feature-driven-popup-split.md, docs/ROADMAP.md Fase 2).
@@ -16,7 +36,7 @@
  *   - ctx.onReintentarCola()               : reanuda la cola (queue de popup.js).
  *   - ctx.onReescanearAula()               : dispara el re-escaneo del aula (popup.js).
  *
- * Expone: cargarRutaServidorSilencioso, activarEstadoOfflineUI, iniciarMonitoreoServidor.
+ * Expone: cargarRutaServidorSilencioso, activarEstadoOfflineUI, iniciarDetectorEstado.
  * ==========================================================================
  */
 
@@ -30,9 +50,20 @@ const ServerConnectionFeature = {
       onReescanearAula
     } = ctx;
 
-    // Estado interno de monitoreo (antes: closure flags de popup.js).
-    let intervalReconexion = null;
-    let comprobacionEnProgreso = false;
+    // El estado de conexión NO vive acá: lo posee el daemon Conexion (shared/conexion.js).
+    // Esta feature sólo se SUSCRIBE a sus cambios y reacciona (UI + recuperación de cola).
+    let suscrito = false;
+    let previoServidor = null; // para detectar la transición offline->online del servidor.
+
+    // Refleja el estado del servidor en los indicadores visuales (puntito de estado
+    // + indicador del onboarding) sin tocar el resto de la UI.
+    function pintarIndicadorConexion(online) {
+      actualizarEstadoServidorOnboarding(online);
+      if (nodos.statusDot) {
+        nodos.statusDot.className = online ? "status-dot online" : "status-dot offline";
+        nodos.statusDot.title = online ? "Servidor conectado" : "Servidor desconectado";
+      }
+    }
 
     async function cargarRutaServidorSilencioso() {
       if (!nodos.btnExplore) return;
@@ -105,101 +136,86 @@ const ServerConnectionFeature = {
 
       actualizarEstadoServidorOnboarding(false);
 
-      iniciarMonitoreoServidor();
+      // Asegura que el detector esté corriendo (idempotente; normalmente ya arrancó en el init).
+      iniciarDetectorEstado();
     }
 
-    function iniciarMonitoreoServidor() {
-      if (intervalReconexion) return;
+    // Reacción a los cambios del daemon Conexion (shared/conexion.js), la fuente única
+    // de verdad. Esta feature NO sondea: sólo consume el estado que le llega por push.
+    //   1. Mantiene el indicador (puntito + onboarding) al día según el estado del server.
+    //   2. En la transición del servidor offline->online (o de internet, según el tipo de
+    //      falla), ejecuta la recuperación: reanudar la cola y/o sacar la tarjeta de error
+    //      + re-escanear el aula.
+    // No dispara el modo offline completo ante una caída pasiva: eso lo siguen gatillando
+    // las acciones del usuario que fallan (activarEstadoOfflineUI).
+    function reaccionarAConexion(estado) {
+      // Durante una descarga activa sin fallo, el estado lo maneja el SW; no interferir
+      // (ni siquiera el indicador: la UI de telemetría es la que manda ahí).
+      if (AppState.ráfagaEnCurso && !AppState.fallaConexionActiva) return;
 
-      intervalReconexion = setInterval(async () => {
-        if (AppState.ráfagaEnCurso && !AppState.fallaConexionActiva) return;
+      // El indicador refleja el estado del servidor Bun (es lo que habilita elegir carpeta).
+      if (estado.servidor !== previoServidor) {
+        pintarIndicadorConexion(estado.servidor);
+      }
 
+      // Recuperación de una cola pausada por error: reanudar apenas vuelve la conexión que
+      // faltaba. Conexion notifica sólo en transición, así que esto es edge-triggered.
+      if (AppState.fallaConexionActiva === "internet" && estado.internet) {
+        previoServidor = estado.servidor;
+        onReintentarCola();
+        return;
+      }
+      if (AppState.fallaConexionActiva === "servidor" && estado.servidor) {
+        console.log("🔌 [UI-AUTOHEAL] Servidor Bun recuperado. Reanudando descarga masiva...");
+        previoServidor = estado.servidor;
+        onReintentarCola();
+        return;
+      }
 
-        // Auto-reintento si cayó el internet
-        if (AppState.fallaConexionActiva === "internet") {
-          if (navigator.onLine) {
-            if (comprobacionEnProgreso) return;
-            comprobacionEnProgreso = true;
-
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3000);
-            try {
-              await fetch("https://plataforma.ramonnet.com.ar", {
-                method: "HEAD",
-                mode: "no-cors",
-                cache: "no-store",
-                signal: controller.signal
-              });
-              clearTimeout(timeoutId);
-              comprobacionEnProgreso = false;
-
-              // ⚡ AUTOLIMPIEZA: Apagar el monitoreo ya que recuperamos internet
-              clearInterval(intervalReconexion);
-              intervalReconexion = null;
-
-              onReintentarCola();
-              return;
-            } catch (e) {
-              clearTimeout(timeoutId);
-              comprobacionEnProgreso = false;
-              // Sigue sin internet
-            }
-          }
+      // Servidor caído sin descarga pausada (detección pasiva): mostrar el banner
+      // "Servidor Desconectado". El daemon notifica sólo en transición, así que esto
+      // dispara activarEstadoOfflineUI una única vez al perder el servidor. Si hay una
+      // cola pausada (fallaConexionActiva), la UI de descarga interrumpida ya se encarga.
+      if (!estado.servidor && !AppState.fallaConexionActiva) {
+        if (!nodos.lista.querySelector(".server-error-card")) {
+          activarEstadoOfflineUI();
         }
+        previoServidor = estado.servidor;
+        return;
+      }
 
-        try {
-          const ruta = await BunClient.obtenerRutaServidor();
-          if (ruta) {
-            // ⚡ AUTOLIMPIEZA: Apagar el monitoreo ya que estamos conectados y sanos
-            clearInterval(intervalReconexion);
-            intervalReconexion = null;
+      // El servidor (re)conectó y estábamos mostrando la tarjeta de error offline (sin
+      // descarga pausada): re-habilitar controles, restaurar la ruta y re-escanear el aula.
+      if (previoServidor !== true && estado.servidor) {
+        const tieneErrorCard = nodos.lista.querySelector(".server-error-card");
+        if (tieneErrorCard) {
+          nodos.folder.disabled = false;
+          nodos.btnExplore.disabled = false;
+          document.querySelector('.path-bar')?.classList.remove('offline');
 
-            actualizarEstadoServidorOnboarding(true);
+          nodos.txtEstado.textContent = "Analizando aula virtual...";
 
-            if (AppState.fallaConexionActiva === "servidor") {
-              console.log("🔌 [UI-AUTOHEAL] Servidor Bun recuperado. Reanudando descarga masiva...");
-              onReintentarCola();
-              return;
-            }
+          const tabsBar = document.querySelector(".tabs-bar");
+          if (tabsBar) tabsBar.style.display = "flex";
+          nodos.filtersBar.style.display = AppState.pestañaActiva === "disponibles" ? "flex" : "none";
 
-            const tieneErrorCard = nodos.lista.querySelector(".server-error-card");
-            if (tieneErrorCard) {
-              nodos.folder.disabled = false;
-              nodos.btnExplore.disabled = false;
-              document.querySelector('.path-bar')?.classList.remove('offline');
-
-              nodos.pcPath.textContent = ruta;
-              nodos.pcPath.title = ruta;
-              nodos.txtEstado.textContent = "Analizando aula virtual...";
-              nodos.btnExplore.title = `Carpeta raíz actual: ${ruta} (Click para cambiar)`;
-
-              if (nodos.statusDot) {
-                nodos.statusDot.className = "status-dot online";
-                nodos.statusDot.title = "Servidor conectado";
-              }
-
-              const tabsBar = document.querySelector(".tabs-bar");
-              if (tabsBar) tabsBar.style.display = "flex";
-              nodos.filtersBar.style.display = AppState.pestañaActiva === "disponibles" ? "flex" : "none";
-
-              onReescanearAula();
-            } else {
-              if (nodos.statusDot) {
-                nodos.statusDot.className = "status-dot online";
-                nodos.statusDot.title = "Servidor conectado";
-              }
-            }
-          }
-        } catch (err) {
-          const tieneErrorCard = nodos.lista.querySelector(".server-error-card");
-          if (!tieneErrorCard && !AppState.ráfagaEnCurso && !AppState.fallaConexionActiva) {
-            activarEstadoOfflineUI();
-          }
+          cargarRutaServidorSilencioso(); // restaura el path mostrado (PC: ...)
+          onReescanearAula();
         }
-      }, 1500);
+      }
+
+      previoServidor = estado.servidor;
     }
 
-    return { cargarRutaServidorSilencioso, activarEstadoOfflineUI, iniciarMonitoreoServidor };
+    // Arranca el daemon de conexión y se suscribe a sus cambios. Idempotente.
+    function iniciarDetectorEstado() {
+      if (suscrito) return;
+      suscrito = true;
+      Conexion.suscribir(reaccionarAConexion);
+      Conexion.iniciar();
+    }
+
+    return { cargarRutaServidorSilencioso, activarEstadoOfflineUI, iniciarDetectorEstado, reaccionarAConexion };
   }
 };
 
