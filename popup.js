@@ -1,7 +1,12 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.4.2)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.5.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.5.0:
+ * - [REFACTOR] Fase 2 (split feature-driven): el onboarding (welcome tour) se
+ *   extrajo a popup/features/onboarding.js. popup.js lo instancia como
+ *   _onboardingFeature y conserva alias locales mostrarOnboarding /
+ *   actualizarEstadoServidorOnboarding para no tocar los call-sites.
  * CHANGELOG v5.4.2:
  * - [SEGURIDAD] renderizarListadoInterfaz: se escapa el título scrapeado con
  *   Utils.escaparHtml antes de interpolarlo en la tarjeta de error (se pinta vía
@@ -59,6 +64,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     materias: new Set(),
     catedras: new Set()
   };
+
+  // --- Feature: Onboarding (welcome tour) — ver popup/features/onboarding.js ---
+  // Se instancia temprano porque el flujo de inicialización (más abajo) invoca
+  // mostrarOnboarding / actualizarEstadoServidorOnboarding. lanzarSeleccionCarpetaFisica
+  // es una declaración de función (hoisted), así que la referencia diferida es segura.
+  const _onboardingFeature = OnboardingFeature.crear({
+    nodos,
+    onExplore: () => lanzarSeleccionCarpetaFisica()
+  });
+  const mostrarOnboarding = _onboardingFeature.mostrarOnboarding;
+  const actualizarEstadoServidorOnboarding = _onboardingFeature.actualizarEstadoServidorOnboarding;
 
   nodos.catedraBadge.addEventListener("click", () => {
     const catedrasDetectadas = Array.from(new Set(
@@ -1823,96 +1839,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function actualizarEstadoServidorOnboarding(online) {
-    const statusMsg = document.getElementById('ui-onboarding-server-status');
-    const exploreBtn = document.getElementById('ui-onboarding-explore');
-    if (!statusMsg || !exploreBtn) return;
-
-    if (online) {
-      statusMsg.className = "onboarding-server-msg success";
-      statusMsg.textContent = "🔌 Servidor conectado. ¡Ya podés elegir carpeta!";
-      exploreBtn.disabled = false;
-      exploreBtn.title = "Seleccionar carpeta principal de descargas";
-    } else {
-      statusMsg.className = "onboarding-server-msg error";
-      statusMsg.textContent = "⚠️ Primero tenés que levantar el servidor";
-      exploreBtn.disabled = true;
-      exploreBtn.title = "Servidor desconectado. Ejecutá iniciar.bat primero.";
-    }
-  }
-
-  // --- MÁQUINA DE ESTADO DE ONBOARDING (WELCOME TOUR) ---
-  function mostrarOnboarding(forzado = false) {
-    if (!nodos.onboarding || !nodos.onboardingSlides || !nodos.onboardingPrev || !nodos.onboardingNext || !nodos.onboardingSkip || !nodos.onboardingDots) {
-      console.warn("⚠️ Nodos de onboarding no encontrados en el DOM.");
-      return;
-    }
-
-    let slideActual = 0;
-    const totalSlides = 6;
-
-    nodos.onboarding.style.display = 'flex';
-    actualizarSlides();
-
-    function actualizarSlides() {
-      nodos.onboardingSlides.style.transform = `translateX(-${slideActual * 100}%)`;
-
-      const dots = nodos.onboardingDots.querySelectorAll('.onboarding-dot');
-      dots.forEach((dot, idx) => {
-        dot.classList.toggle('active', idx === slideActual);
-      });
-
-      nodos.onboardingPrev.disabled = (slideActual === 0);
-
-      if (slideActual === totalSlides - 1) {
-        nodos.onboardingNext.textContent = "Comenzar";
-      } else {
-        nodos.onboardingNext.textContent = "Siguiente";
-      }
-    }
-
-    function irAtras() {
-      if (slideActual > 0) {
-        slideActual--;
-        actualizarSlides();
-      }
-    }
-
-    function irSiguiente() {
-      if (slideActual < totalSlides - 1) {
-        slideActual++;
-        actualizarSlides();
-      } else {
-        cerrarTutorial();
-      }
-    }
-
-    function cerrarTutorial() {
-      AppState.tutorialCompletado = true;
-      AppState.respaldar();
-      nodos.onboarding.style.display = 'none';
-
-      // Limpiar listeners asignados para esta sesión de tutorial
-      nodos.onboardingPrev.removeEventListener('click', irAtras);
-      nodos.onboardingNext.removeEventListener('click', irSiguiente);
-      nodos.onboardingSkip.removeEventListener('click', cerrarTutorial);
-    }
-
-    nodos.onboardingPrev.addEventListener('click', irAtras);
-    nodos.onboardingNext.addEventListener('click', irSiguiente);
-    nodos.onboardingSkip.addEventListener('click', cerrarTutorial);
-  }
-
-  if (nodos.btnHelp) {
-    nodos.btnHelp.addEventListener("click", () => {
-      mostrarOnboarding(true);
-    });
-  }
-
-  const onboardingExplore = document.getElementById('ui-onboarding-explore');
-  if (onboardingExplore) {
-    onboardingExplore.addEventListener("click", () => {
-      lanzarSeleccionCarpetaFisica();
-    });
-  }
+  // Onboarding (mostrarOnboarding, actualizarEstadoServidorOnboarding, botón de ayuda
+  // y botón "Seleccionar Carpeta" del tour) vive ahora en popup/features/onboarding.js,
+  // instanciado más arriba como _onboardingFeature.
 });
