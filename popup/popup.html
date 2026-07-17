@@ -81,7 +81,9 @@
       </div>
       <div class="header-right">
         <button id="ui-btn-help" class="btn-help-icon" title="Ver guía de uso y ayuda">❓</button>
-        <div id="ui-status-dot" class="status-dot offline" title="Servidor desconectado"></div>
+        <!-- Isla Preact #1: el puntito de estado lo renderiza features/conexionHeader.preact.js
+             (derivado del daemon Conexion). display:contents => el wrapper no afecta el layout flex. -->
+        <span id="preact-status-dot" style="display:contents"></span>
       </div>
     </header>
 
@@ -173,5 +175,8 @@
   <script src="features/onboarding.js"></script>
   <script src="features/serverConnection.js"></script>
   <script src="../popup.js"></script>
+  <!-- Islas Preact (ES modules, sin build). Corren después de los scripts clásicos,
+       así que window.Conexion / window.AppState ya existen. Ver ADR-0006. -->
+  <script type="module" src="features/conexionHeader.preact.js"></script>
 </body>
 </html>

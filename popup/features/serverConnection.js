@@ -1,6 +1,13 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: CONEXIÓN AL SERVIDOR BUN (V1.5.0)
+ * CLON DOWNLOADHELPER - FEATURE: CONEXIÓN AL SERVIDOR BUN (V1.6.0)
  * ==========================================================================
+ * CHANGELOG v1.6.0:
+ * - [MIGRACIÓN] El puntito de estado (statusDot) ya NO se pinta acá: lo posee la
+ *   isla Preact features/conexionHeader.preact.js, que lo deriva del daemon Conexion.
+ *   Se elimina pintarStatusDot y las escrituras a nodos.statusDot en
+ *   cargarRutaServidorSilencioso / activarEstadoOfflineUI / reaccionarAConexion.
+ *   Esta feature sigue dueña del banner offline, la recuperación de cola y el
+ *   indicador del onboarding. Ver docs/adr/0006-adopt-preact-islands-in-popup.md.
  * CHANGELOG v1.5.0:
  * - [FIX] El puntito de estado ahora refleja la conexión SIEMPRE, incluso durante
  *   una descarga activa. Antes, si el servidor Bun caía a mitad de una ráfaga, el
@@ -67,18 +74,10 @@ const ServerConnectionFeature = {
     // Esta feature sólo se SUSCRIBE a sus cambios y reacciona (UI + recuperación de cola).
     let suscrito = false;
     let previoServidor = null;  // transición del servidor (para el indicador del onboarding).
-    let previoCompleta = null;  // transición de "ambas conexiones OK" (para statusDot + recuperación).
+    let previoCompleta = null;  // transición de "ambas conexiones OK" (para recuperación).
 
-    // Puntito de estado general (arriba a la derecha): rojo si falta CUALQUIERA de las
-    // dos conexiones (servidor o internet), verde sólo si ambas están OK.
-    function pintarStatusDot(estado) {
-      if (!nodos.statusDot) return;
-      const ok = estado.completa;
-      nodos.statusDot.className = ok ? "status-dot online" : "status-dot offline";
-      nodos.statusDot.title = ok
-        ? "Conectado"
-        : (!estado.servidor ? "Servidor desconectado" : "Sin conexión a internet");
-    }
+    // NOTA: el puntito de estado (statusDot) ya NO se pinta acá — lo posee la isla
+    // Preact features/conexionHeader.preact.js, que lo deriva del daemon Conexion.
 
     async function cargarRutaServidorSilencioso() {
       if (!nodos.btnExplore) return;
@@ -88,20 +87,12 @@ const ServerConnectionFeature = {
           nodos.btnExplore.title = `Carpeta raíz actual: ${ruta} (Click para cambiar)`;
           nodos.pcPath.textContent = ruta;
           nodos.pcPath.title = ruta;
-          if (nodos.statusDot) {
-            nodos.statusDot.className = "status-dot online";
-            nodos.statusDot.title = "Servidor conectado";
-          }
         }
       } catch (err) {
         console.warn("⚠️ No se pudo conectar al servidor Bun para obtener la ruta raíz:", err);
         nodos.pcPath.textContent = "Desconectado";
         nodos.pcPath.title = "Servidor desconectado";
         nodos.txtEstado.textContent = "❌ Servidor Bun apagado. Enciéndalo en consola para operar.";
-        if (nodos.statusDot) {
-          nodos.statusDot.className = "status-dot offline";
-          nodos.statusDot.title = "Servidor desconectado";
-        }
       }
     }
 
@@ -128,11 +119,7 @@ const ServerConnectionFeature = {
     // Muestra el banner de conexión caída. `tipo` = "servidor" | "internet".
     function activarEstadoOfflineUI(tipo = "servidor") {
       const info = TARJETAS_OFFLINE[tipo] || TARJETAS_OFFLINE.servidor;
-
-      if (nodos.statusDot) {
-        nodos.statusDot.className = "status-dot offline";
-        nodos.statusDot.title = info.titulo;
-      }
+      // (el puntito de estado lo maneja la isla Preact conexionHeader.preact.js)
 
       nodos.folder.disabled = true;
       nodos.btnExplore.disabled = true;
@@ -192,15 +179,10 @@ const ServerConnectionFeature = {
     //   3. Banner offline pasivo: muestra el del servidor o el de internet según cuál
     //      falte (servidor tiene prioridad si caen ambos), y lo saca al reconectar.
     function reaccionarAConexion(estado) {
-      // El puntito de estado SIEMPRE refleja la conexión real, incluso durante una
-      // descarga activa: es sólo un indicador, no toca la UI de la descarga. Antes
-      // quedaba verde para siempre si el servidor caía a mitad de una ráfaga, porque
-      // el handler entero abortaba en la guarda de abajo (el SW no siempre alcanza a
-      // marcar el fallo si el streaming se cuelga). Level-triggered: idempotente.
-      pintarStatusDot(estado);
-
-      // Durante una descarga activa sin fallo, el RESTO (banner/lista/recuperación de
-      // cola) lo maneja el SW; no interferir con esa UI.
+      // El puntito de estado lo maneja la isla Preact (conexionHeader.preact.js), que
+      // se suscribe al daemon directo — refleja la conexión SIEMPRE, incluso durante
+      // una descarga (por eso ya no importa que este handler aborte en la guarda).
+      // Acá sólo queda la UI de descarga: banner/lista/recuperación de cola.
       if (AppState.ráfagaEnCurso && !AppState.fallaConexionActiva) return;
 
       const servidorAntes = previoServidor;

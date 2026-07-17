@@ -98,7 +98,6 @@ describe('ServerConnectionFeature.crear', () => {
     expect(nodos.folder.disabled).toBe(true);
     expect(nodos.btnExplore.disabled).toBe(true);
     expect(nodos.search.disabled).toBe(true);
-    expect(nodos.statusDot.className).toContain('offline');
   });
 
   it('activarEstadoOfflineUI delega en los callbacks cruzados del ctx', () => {
@@ -120,11 +119,11 @@ describe('ServerConnectionFeature.crear', () => {
     expect(globalThis.Conexion.iniciar).toHaveBeenCalledTimes(1);
   });
 
-  it('pinta el indicador en rojo cuando el daemon reporta el server caído', () => {
+  it('actualiza el indicador de onboarding cuando el daemon reporta el server caído', () => {
     api.iniciarDetectorEstado();
     emitir({ servidor: false });
     expect(ctx.actualizarEstadoServidorOnboarding).toHaveBeenLastCalledWith(false);
-    expect(nodos.statusDot.className).toContain('offline');
+    // (el puntito de estado lo posee la isla Preact conexionHeader.preact.js — ver su test)
   });
 
   it('muestra el banner de servidor cuando cae el server (detección pasiva)', () => {
@@ -149,12 +148,6 @@ describe('ServerConnectionFeature.crear', () => {
     expect(nodos.lista.querySelector('.server-error-card').dataset.tipo).toBe('servidor');
   });
 
-  it('el puntito general se pone rojo si falta internet aunque el server esté OK', () => {
-    api.iniciarDetectorEstado();
-    emitir({ servidor: true, internet: false });
-    expect(nodos.statusDot.className).toContain('offline');
-  });
-
   it('cambia el banner de servidor a internet si el server vuelve pero internet sigue caído', () => {
     api.iniciarDetectorEstado();
     emitir({ servidor: false, internet: false }); // banner servidor
@@ -169,11 +162,10 @@ describe('ServerConnectionFeature.crear', () => {
     expect(nodos.lista.querySelector('.server-error-card')).toBeNull();
   });
 
-  it('pinta el indicador en verde cuando el daemon reporta el server OK', () => {
+  it('actualiza el indicador de onboarding en verde cuando el daemon reporta el server OK', () => {
     api.iniciarDetectorEstado();
     emitir({ servidor: true });
     expect(ctx.actualizarEstadoServidorOnboarding).toHaveBeenLastCalledWith(true);
-    expect(nodos.statusDot.className).toContain('online');
   });
 
   it('sólo repinta el indicador en la transición de estado, no en cada notificación', () => {
@@ -208,14 +200,14 @@ describe('ServerConnectionFeature.crear', () => {
     expect(ctx.onReintentarCola).toHaveBeenCalledTimes(1);
   });
 
-  it('durante una descarga activa NO toca banner/onboarding, pero el puntito SÍ refleja la caída', () => {
+  it('durante una descarga activa NO toca la UI de descarga (banner/onboarding)', () => {
     globalThis.AppState.ráfagaEnCurso = true;
     api.iniciarDetectorEstado();
     emitir({ servidor: false });
-    // No interfiere con la UI de la descarga (eso lo maneja el SW)...
+    // No interfiere con la UI de la descarga (eso lo maneja el SW).
     expect(ctx.actualizarEstadoServidorOnboarding).not.toHaveBeenCalled();
     expect(nodos.lista.querySelector('.server-error-card')).toBeNull();
-    // ...pero el indicador refleja la realidad (antes quedaba verde para siempre).
-    expect(nodos.statusDot.className).toContain('offline');
+    // (El puntito SÍ refleja la caída durante la descarga, pero eso ahora lo garantiza
+    //  la isla Preact conexionHeader.preact.js, que se suscribe a Conexion directo.)
   });
 });

@@ -71,7 +71,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     speed:           document.getElementById('ui-tel-speed'),
     frags:           document.getElementById('ui-tel-frags'),
     btnExplore:      document.getElementById('ui-btn-explore'),
-    statusDot:       document.getElementById('ui-status-dot'),
     catedraBadge:    document.getElementById('ui-catedra-badge'),
     pcPath:          document.getElementById('ui-pc-path'),
     btnSort:         document.getElementById('ui-btn-sort'),
@@ -256,10 +255,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         nodos.pcPath.textContent = ruta;
         nodos.pcPath.title = ruta;
         nodos.txtEstado.textContent = "Analizando aula virtual...";
-        if (nodos.statusDot) {
-          nodos.statusDot.className = "status-dot online";
-          nodos.statusDot.title = "Servidor conectado";
-        }
+        // (el puntito de estado lo maneja la isla Preact features/conexionHeader.preact.js)
 
         actualizarEstadoServidorOnboarding(true);
 
@@ -726,12 +722,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       );
       const resultados = await Promise.all(promesas);
       todosLosArchivos = resultados.flat();
-      
-      if (nodos.statusDot) {
-        nodos.statusDot.className = "status-dot online";
-        nodos.statusDot.title = "Servidor conectado";
-      }
 
+      // (el puntito de estado lo maneja la isla Preact features/conexionHeader.preact.js)
       const tabsBar = document.querySelector(".tabs-bar");
       if (tabsBar) tabsBar.style.display = "flex";
       

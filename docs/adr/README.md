@@ -18,5 +18,6 @@ Registro formal de las decisiones de arquitectura significativas del proyecto.
 | [0003](0003-defer-circuit-breaker-and-idempotency-service.md) | Formalizar Circuit Breaker e Idempotency Service | Diferida |
 | [0004](0004-defer-result-pattern.md) | No adoptar Result Pattern sin TypeScript | Diferida |
 | [0005](0005-feature-driven-popup-split.md) | Reorganización de `popup.js` como feature-driven | Aceptada |
+| [0006](0006-adopt-preact-islands-in-popup.md) | Adoptar Preact (islas) en el popup, sin build | Aceptada |
 
 Estados posibles: `Propuesta` → `Aceptada` | `Rechazada` | `Diferida` → (eventualmente) `Superseded by NNNN`.

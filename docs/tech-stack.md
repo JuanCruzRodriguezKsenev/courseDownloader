@@ -21,6 +21,8 @@ Agregar un framework de UI (React/Vue/Svelte) o un bundler (Vite) tendría costo
 
 **Cuándo reconsiderar**: si el proyecto crece a un tamaño donde el acoplamiento entre archivos vía variables globales se vuelve inmanejable, o si se suma más de un desarrollador activo.
 
+**Actualización (Preact sin build, ADR-0006)**: el párrafo de arriba sigue vigente para el *bundler* — no lo hay. Pero sí se adoptó **Preact + htm** para la UI del popup, vendorizado como un único ES module local (`popup/vendor/htm-preact-standalone.module.js`) cargado con `<script type="module">`. `htm` da sintaxis tipo-JSX que se parsea en runtime, así que **no hay paso de build ni transpilación** — se respeta el "cargá la carpeta y andá". Es la única dependencia de runtime, acotada al popup (el SW sigue vanilla), y se migra por islas incrementales. Ver `docs/adr/0006-adopt-preact-islands-in-popup.md`.
+
 ## Por qué Bun como backend, y no todo en el navegador (Turbo Mode)
 
 El código tiene dos paths de escritura a disco:
