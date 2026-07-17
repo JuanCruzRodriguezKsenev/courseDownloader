@@ -1,6 +1,20 @@
 /**
- * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V5.5.0)
+ * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V5.6.1)
  * ==========================================================================
+ * CHANGELOG v5.6.1:
+ * - [FIX] La clasificación de fin de descarga ya no confunde una caída de conexión
+ *   con una cancelación del usuario. Antes usaba controladorGraficoActivo.signal.
+ *   aborted / errDescarga.name==='AbortError', pero el motor HLS aborta ese
+ *   controlador a propósito para frenar a los otros workers cuando un fragmento
+ *   falla (server caído) → se tomaba como cancelación y NO se pausaba la cola, así
+ *   que el popup nunca recibía "cola_pausada_por_error" y el banner no aparecía.
+ *   Ahora sólo el flag explícito state.abortadoPorUsuario marca cancelación real.
+ * CHANGELOG v5.6.0:
+ * - [REFACTOR] Estado de conexión unificado vía el daemon shared/conexion.js
+ *   (fuente única de verdad, compartida con el popup por chrome.storage.session):
+ *   la clasificación de error de descarga y la alarma alarma_autoheal ahora usan
+ *   Conexion.verificarAhora()/get() en vez de chequeos propios (string-match del
+ *   mensaje + dos ramas HEAD/health separadas).
  * CHANGELOG v5.5.0:
  * - [FIX CRÍTICO] extraerEnlaceMaestroM3u8Clasico: corregida la extracción de
  *   M3u8. Ahora utiliza expresiones regulares con bandera global y extrae el
@@ -14,7 +28,7 @@
  * ==========================================================================
  */
 
-importScripts('shared/utils.js', 'shared/bunClient.js', 'background/hlsEngine.js');
+importScripts('shared/utils.js', 'shared/bunClient.js', 'shared/conexion.js', 'background/hlsEngine.js');
 
 // Helper para encapsular el estado en almacenamiento de sesión (persistente al SW, volátil al navegador)
 const SessionState = {
@@ -525,17 +539,29 @@ async function procesarSiguienteElementoDeLaCola() {
       console.error(`⚠️ [BUCLE-ERROR] Falló la descarga de "${tituloInmutableVideo}":`, errDescarga);
       
       const state = await SessionState.get();
-      const wasAborted = (controladorGraficoActivo && controladorGraficoActivo.signal.aborted) || errDescarga?.name === 'AbortError';
-      const esAbortoUsuario = state.abortadoPorUsuario || wasAborted;
-      
+      // SÓLO el flag explícito marca una cancelación del usuario. NO usar
+      // controladorGraficoActivo.signal.aborted ni errDescarga.name==='AbortError':
+      // el motor HLS aborta ese controlador A PROPÓSITO para frenar a los otros
+      // workers cuando UN fragmento falla (ej. server caído), y ese abort hace que
+      // los fetches hermanos rechacen con AbortError. Confiar en eso hacía que una
+      // caída de conexión se confundiera con cancelación → la cola no se pausaba y
+      // el popup nunca recibía "cola_pausada_por_error" (banner que no se disparaba).
+      const esAbortoUsuario = state.abortadoPorUsuario;
+
       if (esAbortoUsuario) {
         console.log("🛑 [SW] Bucle de descarga abortado por el usuario de forma limpia.");
         return;
       } else {
-        let tipoError = "internet";
-        const msg = errDescarga?.message || "";
-        if (msg.includes("Bun") || msg.includes("localhost") || msg.includes("127.0.0.1") || msg.includes("backend")) {
-          tipoError = "servidor";
+        // Clasificar el tipo de fallo con el daemon de conexión (fuente única de verdad).
+        // Si la conectividad está OK (el fallo no fue de red), caer a la heurística por
+        // mensaje como antes para no clasificar mal un error no relacionado.
+        await Conexion.verificarAhora();
+        let tipoError = Conexion.get().tipoFalla;
+        if (!tipoError) {
+          const msg = errDescarga?.message || "";
+          tipoError = (msg.includes("Bun") || msg.includes("localhost") || msg.includes("127.0.0.1") || msg.includes("backend"))
+            ? "servidor"
+            : "internet";
         }
         await pausarColaPorErrorDeConexion(tipoError, tituloInmutableVideo);
       }
@@ -630,28 +656,16 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     const state = await SessionState.get();
     if (state.colaPausadaPorError) {
       try {
-        if (state.tipoDeErrorConexion === "servidor") {
-          await BunClient.obtenerRutaServidor();
-          console.log("🔌 [ALARM-AUTOHEAL] Servidor Bun recuperado. Reanudando...");
+        // Un solo chequeo vía el daemon (fuente única de verdad) en vez de dos ramas
+        // con lógicas distintas. Reanuda apenas vuelve la conexión que faltaba, según
+        // el tipo de error que pausó la cola. verificarAhora() también espeja el estado
+        // en chrome.storage.session, así el popup (si está abierto) lo ve.
+        await Conexion.verificarAhora();
+        const est = Conexion.get();
+        const recuperado = state.tipoDeErrorConexion === "servidor" ? est.servidor : est.internet;
+        if (recuperado) {
+          console.log(`✅ [ALARM-AUTOHEAL] Conexión (${state.tipoDeErrorConexion}) recuperada. Reanudando...`);
           await reanudarColaDesdeBackground();
-        } else {
-          // Intenta validar la conexión a internet con Ramón Net
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000);
-          try {
-            await fetch("https://plataforma.ramonnet.com.ar", { 
-              method: "HEAD", 
-              mode: "no-cors",
-              cache: "no-store",
-              signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-            console.log("🌐 [ALARM-AUTOHEAL] Conexión a Internet recuperada. Reanudando...");
-            await reanudarColaDesdeBackground();
-          } catch (err) {
-            clearTimeout(timeoutId);
-            throw err; // Propagar al catch externo de la alarma
-          }
         }
       } catch (e) {
         // Sigue sin conexión/servidor

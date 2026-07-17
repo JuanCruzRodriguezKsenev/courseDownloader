@@ -1,5 +1,11 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: ONBOARDING (WELCOME TOUR) (V1.0.0)
+ * CLON DOWNLOADHELPER - FEATURE: ONBOARDING (WELCOME TOUR) (V1.1.0)
+ * ==========================================================================
+ * CHANGELOG v1.1.0:
+ * - [FIX] onComplete: callback que se dispara al cerrar el tour de la PRIMERA vez
+ *   (no el reabierto por el botón de ayuda, forzado=true). popup.js lo usa para
+ *   diferir la conexión al servidor + escaneo del aula hasta después del tour, así
+ *   el loader "Escaneando..." ya no aparece detrás/antes del tutorial.
  * ==========================================================================
  * Primer módulo extraído de popup.js en la reorganización feature-driven
  * (ver docs/adr/0005-feature-driven-popup-split.md, docs/ROADMAP.md Fase 2).
@@ -10,15 +16,16 @@
  * el orquestador y el módulo de conexión al servidor necesitan invocar.
  *
  * Dependencias que recibe por ctx:
- *   - ctx.nodos    : mapa de nodos del popup (usa onboarding*, btnHelp).
- *   - ctx.onExplore: callback a ejecutar cuando se toca "Seleccionar Carpeta"
- *                    dentro del slide de onboarding (= lanzarSeleccionCarpetaFisica).
+ *   - ctx.nodos     : mapa de nodos del popup (usa onboarding*, btnHelp).
+ *   - ctx.onExplore : callback a ejecutar cuando se toca "Seleccionar Carpeta"
+ *                     dentro del slide de onboarding (= lanzarSeleccionCarpetaFisica).
+ *   - ctx.onComplete: (opcional) callback al terminar el tour de la primera vez.
  * ==========================================================================
  */
 
 const OnboardingFeature = {
   crear(ctx) {
-    const { nodos, onExplore } = ctx;
+    const { nodos, onExplore, onComplete } = ctx;
 
     // --- MÁQUINA DE ESTADO DE ONBOARDING (WELCOME TOUR) ---
     function mostrarOnboarding(forzado = false) {
@@ -75,6 +82,10 @@ const OnboardingFeature = {
         nodos.onboardingPrev.removeEventListener('click', irAtras);
         nodos.onboardingNext.removeEventListener('click', irSiguiente);
         nodos.onboardingSkip.removeEventListener('click', cerrarTutorial);
+
+        // Solo tras el tour de la primera vez (no el reabierto por el botón de ayuda)
+        // avisamos al orquestador para que conecte y arranque el escaneo del aula.
+        if (!forzado && typeof onComplete === 'function') onComplete();
       }
 
       nodos.onboardingPrev.addEventListener('click', irAtras);

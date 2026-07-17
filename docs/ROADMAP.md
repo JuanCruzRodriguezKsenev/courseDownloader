@@ -35,15 +35,15 @@ No depende de nada de lo que sigue. Se puede hacer en cualquier momento, indepen
 
 **Objetivo**: eliminar el "god file" (ver `docs/adr/0005-feature-driven-popup-split.md` para el criterio de división).
 
-- [ ] Borrar código muerto (`popup.js:1483-1485`, wrapper `clasificarCatedraYCarpeta`).
-- [ ] Extraer `popup/features/onboarding.js` (tour de bienvenida — es la feature más autocontenida, buen punto de partida de bajo riesgo).
-- [ ] Extraer `popup/features/serverConnection.js` (polling de conexión al backend Bun, `iniciarMonitoreoServidor`, `activarEstadoOfflineUI`).
+- [x] Borrar código muerto (wrapper `clasificarCatedraYCarpeta`). ✅ 2026-07-16
+- [x] Extraer `popup/features/onboarding.js` (tour de bienvenida — es la feature más autocontenida, buen punto de partida de bajo riesgo). ✅
+- [x] Extraer `popup/features/serverConnection.js` (detección de estado del servidor Bun + UI offline + auto-healing). ✅ En vez de mantener el polling propio original, se introdujo el daemon `shared/conexion.js` como fuente única de verdad del estado de conexión (servidor + internet, modelo push, espejado popup↔SW por `chrome.storage.session`); la feature ahora se suscribe a él y reacciona. `background.js` también migró a consumirlo (clasificación de error + `alarma_autoheal`).
 - [ ] Extraer `popup/features/filters.js` (búsqueda, filtros por estado/materia/cátedra, popover de filtros).
 - [ ] Extraer `popup/features/queue.js` (cola de descarga, `encolarItemsEnCaliente`, cancelación, reintentos).
 - [ ] Dejar en `popup.js` solo: inicialización de `nodos`, wiring de listeners de alto nivel, y orquestación entre features.
-- [ ] Sumar cada archivo nuevo como `<script>` en `popup/popup.html`, respetando el orden de dependencia existente (después de `shared/*.js`, antes de `popup.js`).
+- [x] Sumar cada archivo nuevo como `<script>` en `popup/popup.html`, respetando el orden de dependencia existente (después de `shared/*.js`, antes de `popup.js`). ✅ (hecho para las features ya extraídas; repetir para `filters.js`/`queue.js`).
 
-**Nota de secuencia**: depende de Fase 1 — sin tests de `shared/utils.js`, no hay forma de verificar que mover código no cambió comportamiento sutilmente.
+**Nota de secuencia**: depende de Fase 1 — sin tests de `shared/utils.js`, no hay forma de verificar que mover código no cambió comportamiento sutilmente. Las features ya extraídas suman además sus propios tests (`onboarding.test.js`, `serverConnection.test.js`, `conexion.test.js`).
 
 ---
 

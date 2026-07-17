@@ -42,14 +42,15 @@ function montarDOM() {
 }
 
 describe('OnboardingFeature.crear', () => {
-  let nodos, onExplore, api;
+  let nodos, onExplore, onComplete, api;
 
   beforeEach(() => {
     globalThis.AppState.tutorialCompletado = false;
     globalThis.AppState.respaldar.mockClear();
     nodos = montarDOM();
     onExplore = vi.fn();
-    api = OnboardingFeature.crear({ nodos, onExplore });
+    onComplete = vi.fn();
+    api = OnboardingFeature.crear({ nodos, onExplore, onComplete });
   });
 
   it('expone las dos funciones cruzadas que el orquestador necesita', () => {
@@ -90,9 +91,21 @@ describe('OnboardingFeature.crear', () => {
     expect(document.getElementById('ui-onboarding-server-status').className).toContain('error');
   });
 
+  it('cerrar el tour de la primera vez dispara onComplete', () => {
+    api.mostrarOnboarding(); // no forzado
+    for (let i = 0; i < 6; i++) nodos.onboardingNext.click(); // avanza y cierra
+    expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+
   it('el botón de ayuda reabre el tour', () => {
     nodos.btnHelp.click();
     expect(nodos.onboarding.style.display).toBe('flex');
+  });
+
+  it('reabrir por ayuda (forzado) y cerrar NO dispara onComplete', () => {
+    nodos.btnHelp.click(); // mostrarOnboarding(true) — forzado
+    nodos.onboardingSkip.click(); // cierra
+    expect(onComplete).not.toHaveBeenCalled();
   });
 
   it('el botón "Seleccionar Carpeta" del tour dispara el callback onExplore', () => {

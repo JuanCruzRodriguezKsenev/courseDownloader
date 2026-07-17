@@ -1,6 +1,19 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: CONEXIÓN AL SERVIDOR BUN (V1.3.1)
+ * CLON DOWNLOADHELPER - FEATURE: CONEXIÓN AL SERVIDOR BUN (V1.5.0)
  * ==========================================================================
+ * CHANGELOG v1.5.0:
+ * - [FIX] El puntito de estado ahora refleja la conexión SIEMPRE, incluso durante
+ *   una descarga activa. Antes, si el servidor Bun caía a mitad de una ráfaga, el
+ *   handler abortaba en la guarda "ráfagaEnCurso" y el indicador quedaba verde para
+ *   siempre (el SW no marcaba el fallo si el streaming se colgaba). pintarStatusDot
+ *   se movió ANTES de la guarda (level-triggered); el banner/lista siguen delegados
+ *   al SW durante la descarga. Ver bunClient.js (timeout de enviarFragmentoStream).
+ * CHANGELOG v1.4.0:
+ * - [FEAT] La caída de INTERNET ahora también se refleja en la UI (antes sólo el
+ *   servidor). activarEstadoOfflineUI(tipo) muestra el banner correcto ("Servidor
+ *   Desconectado" o "Sin conexión a internet") según cuál falte; el puntito de
+ *   estado se pone rojo si falta CUALQUIERA de las dos (antes: sólo el servidor).
+ *   El indicador del onboarding sigue = servidor (elegir carpeta no necesita internet).
  * CHANGELOG v1.3.1:
  * - [FIX] La caída pasiva del servidor (detectada por el daemon, sin acción del
  *   usuario) ahora dispara el banner "Servidor Desconectado" (activarEstadoOfflineUI),
@@ -53,16 +66,18 @@ const ServerConnectionFeature = {
     // El estado de conexión NO vive acá: lo posee el daemon Conexion (shared/conexion.js).
     // Esta feature sólo se SUSCRIBE a sus cambios y reacciona (UI + recuperación de cola).
     let suscrito = false;
-    let previoServidor = null; // para detectar la transición offline->online del servidor.
+    let previoServidor = null;  // transición del servidor (para el indicador del onboarding).
+    let previoCompleta = null;  // transición de "ambas conexiones OK" (para statusDot + recuperación).
 
-    // Refleja el estado del servidor en los indicadores visuales (puntito de estado
-    // + indicador del onboarding) sin tocar el resto de la UI.
-    function pintarIndicadorConexion(online) {
-      actualizarEstadoServidorOnboarding(online);
-      if (nodos.statusDot) {
-        nodos.statusDot.className = online ? "status-dot online" : "status-dot offline";
-        nodos.statusDot.title = online ? "Servidor conectado" : "Servidor desconectado";
-      }
+    // Puntito de estado general (arriba a la derecha): rojo si falta CUALQUIERA de las
+    // dos conexiones (servidor o internet), verde sólo si ambas están OK.
+    function pintarStatusDot(estado) {
+      if (!nodos.statusDot) return;
+      const ok = estado.completa;
+      nodos.statusDot.className = ok ? "status-dot online" : "status-dot offline";
+      nodos.statusDot.title = ok
+        ? "Conectado"
+        : (!estado.servidor ? "Servidor desconectado" : "Sin conexión a internet");
     }
 
     async function cargarRutaServidorSilencioso() {
@@ -90,10 +105,33 @@ const ServerConnectionFeature = {
       }
     }
 
-    function activarEstadoOfflineUI() {
+    // Contenido de la tarjeta de error según el tipo de conexión caída.
+    const TARJETAS_OFFLINE = {
+      servidor: {
+        icono: "🔌",
+        titulo: "Servidor Desconectado",
+        cuerpo: "Por favor, iniciá el servidor ejecutando <strong>iniciar.bat</strong> en tu PC.<br>La extensión se sincronizará sola apenas esté encendido.",
+        pulso: "Esperando conexión en puerto 3001...",
+        estadoTxt: '⚠️ <span style="color:var(--accent-error-visible)">Servidor Bun desconectado.</span>',
+        botonTxt: "Buscando servidor... ⏳"
+      },
+      internet: {
+        icono: "🌐",
+        titulo: "Sin conexión a internet",
+        cuerpo: "Revisá tu conexión a la red.<br>La extensión se reconectará y sincronizará sola apenas vuelva internet.",
+        pulso: "Esperando conexión a internet...",
+        estadoTxt: '⚠️ <span style="color:var(--accent-error-visible)">Sin conexión a internet.</span>',
+        botonTxt: "Esperando internet... ⏳"
+      }
+    };
+
+    // Muestra el banner de conexión caída. `tipo` = "servidor" | "internet".
+    function activarEstadoOfflineUI(tipo = "servidor") {
+      const info = TARJETAS_OFFLINE[tipo] || TARJETAS_OFFLINE.servidor;
+
       if (nodos.statusDot) {
         nodos.statusDot.className = "status-dot offline";
-        nodos.statusDot.title = "Servidor desconectado";
+        nodos.statusDot.title = info.titulo;
       }
 
       nodos.folder.disabled = true;
@@ -106,18 +144,21 @@ const ServerConnectionFeature = {
       nodos.masterCheck.checked = false;
       if (nodos.btnSort) nodos.btnSort.disabled = true;
 
-      const tieneErrorCard = nodos.lista.querySelector(".server-error-card");
-      if (!tieneErrorCard) {
+      // Recrear la tarjeta si no existe o si cambió el tipo (ej: cae el server estando
+      // ya sin internet, o viceversa).
+      const cardExistente = nodos.lista.querySelector(".server-error-card");
+      if (!cardExistente || cardExistente.dataset.tipo !== tipo) {
         nodos.lista.innerHTML = "";
         const card = document.createElement("div");
         card.className = "server-error-card";
+        card.dataset.tipo = tipo;
         card.innerHTML = `
-          <div class="server-error-icon">🔌</div>
-          <h5>Servidor Desconectado</h5>
-          <p>Por favor, iniciá el servidor ejecutando <strong>iniciar.bat</strong> en tu PC.<br>La extensión se sincronizará sola apenas esté encendido.</p>
+          <div class="server-error-icon">${info.icono}</div>
+          <h5>${info.titulo}</h5>
+          <p>${info.cuerpo}</p>
           <div class="server-error-pulse">
             <span class="pulse-dot"></span>
-            <span>Esperando conexión en puerto 3001...</span>
+            <span>${info.pulso}</span>
           </div>
         `;
         nodos.lista.appendChild(card);
@@ -125,16 +166,20 @@ const ServerConnectionFeature = {
       nodos.lista.style.opacity = "1";
       nodos.loader.style.display = 'none';
 
-      nodos.pcPath.textContent = "Desconectado";
-      nodos.pcPath.title = "Servidor desconectado";
-      nodos.txtEstado.innerHTML = '⚠️ <span style="color:var(--accent-error-visible)">Servidor Bun desconectado.</span>';
-      configurarBotonesUX("sincronizar-disco", "Buscando servidor... ⏳", true);
+      // El path del disco sólo se pierde si el que cayó es el servidor Bun (localhost).
+      if (tipo === "servidor") {
+        nodos.pcPath.textContent = "Desconectado";
+        nodos.pcPath.title = "Servidor desconectado";
+      }
+      nodos.txtEstado.innerHTML = info.estadoTxt;
+      configurarBotonesUX("sincronizar-disco", info.botonTxt, true);
 
       const tabsBar = document.querySelector(".tabs-bar");
       if (tabsBar) tabsBar.style.display = "none";
       nodos.filtersBar.style.display = "none";
 
-      actualizarEstadoServidorOnboarding(false);
+      // El indicador del onboarding refleja el servidor (la carpeta no necesita internet).
+      actualizarEstadoServidorOnboarding(tipo !== "servidor");
 
       // Asegura que el detector esté corriendo (idempotente; normalmente ya arrancó en el init).
       iniciarDetectorEstado();
@@ -142,53 +187,59 @@ const ServerConnectionFeature = {
 
     // Reacción a los cambios del daemon Conexion (shared/conexion.js), la fuente única
     // de verdad. Esta feature NO sondea: sólo consume el estado que le llega por push.
-    //   1. Mantiene el indicador (puntito + onboarding) al día según el estado del server.
-    //   2. En la transición del servidor offline->online (o de internet, según el tipo de
-    //      falla), ejecuta la recuperación: reanudar la cola y/o sacar la tarjeta de error
-    //      + re-escanear el aula.
-    // No dispara el modo offline completo ante una caída pasiva: eso lo siguen gatillando
-    // las acciones del usuario que fallan (activarEstadoOfflineUI).
+    //   1. Indicadores al día: onboarding = servidor; puntito general = ambas conexiones.
+    //   2. Recuperación de cola pausada: reanuda apenas vuelve la conexión que faltaba.
+    //   3. Banner offline pasivo: muestra el del servidor o el de internet según cuál
+    //      falte (servidor tiene prioridad si caen ambos), y lo saca al reconectar.
     function reaccionarAConexion(estado) {
-      // Durante una descarga activa sin fallo, el estado lo maneja el SW; no interferir
-      // (ni siquiera el indicador: la UI de telemetría es la que manda ahí).
+      // El puntito de estado SIEMPRE refleja la conexión real, incluso durante una
+      // descarga activa: es sólo un indicador, no toca la UI de la descarga. Antes
+      // quedaba verde para siempre si el servidor caía a mitad de una ráfaga, porque
+      // el handler entero abortaba en la guarda de abajo (el SW no siempre alcanza a
+      // marcar el fallo si el streaming se cuelga). Level-triggered: idempotente.
+      pintarStatusDot(estado);
+
+      // Durante una descarga activa sin fallo, el RESTO (banner/lista/recuperación de
+      // cola) lo maneja el SW; no interferir con esa UI.
       if (AppState.ráfagaEnCurso && !AppState.fallaConexionActiva) return;
 
-      // El indicador refleja el estado del servidor Bun (es lo que habilita elegir carpeta).
-      if (estado.servidor !== previoServidor) {
-        pintarIndicadorConexion(estado.servidor);
-      }
+      const servidorAntes = previoServidor;
+      const completaAntes = previoCompleta;
+      previoServidor = estado.servidor;
+      previoCompleta = estado.completa;
+
+      // Onboarding sólo en transición; el puntito ya se pintó arriba (level-triggered).
+      if (estado.servidor !== servidorAntes) actualizarEstadoServidorOnboarding(estado.servidor);
 
       // Recuperación de una cola pausada por error: reanudar apenas vuelve la conexión que
-      // faltaba. Conexion notifica sólo en transición, así que esto es edge-triggered.
+      // faltaba (edge-triggered: Conexion notifica sólo en transición).
       if (AppState.fallaConexionActiva === "internet" && estado.internet) {
-        previoServidor = estado.servidor;
         onReintentarCola();
         return;
       }
       if (AppState.fallaConexionActiva === "servidor" && estado.servidor) {
         console.log("🔌 [UI-AUTOHEAL] Servidor Bun recuperado. Reanudando descarga masiva...");
-        previoServidor = estado.servidor;
         onReintentarCola();
         return;
       }
+      // Cola pausada pero aún falta la conexión: la UI de descarga interrumpida ya se encarga.
+      if (AppState.fallaConexionActiva) return;
 
-      // Servidor caído sin descarga pausada (detección pasiva): mostrar el banner
-      // "Servidor Desconectado". El daemon notifica sólo en transición, así que esto
-      // dispara activarEstadoOfflineUI una única vez al perder el servidor. Si hay una
-      // cola pausada (fallaConexionActiva), la UI de descarga interrumpida ya se encarga.
-      if (!estado.servidor && !AppState.fallaConexionActiva) {
-        if (!nodos.lista.querySelector(".server-error-card")) {
-          activarEstadoOfflineUI();
+      // Sin cola pausada. Falta alguna conexión (detección pasiva): mostrar el banner del
+      // que falte (servidor tiene prioridad). Si ya está el banner correcto, no re-renderiza.
+      if (!estado.completa) {
+        const tipo = !estado.servidor ? "servidor" : "internet";
+        const card = nodos.lista.querySelector(".server-error-card");
+        if (!card || card.dataset.tipo !== tipo) {
+          activarEstadoOfflineUI(tipo);
         }
-        previoServidor = estado.servidor;
         return;
       }
 
-      // El servidor (re)conectó y estábamos mostrando la tarjeta de error offline (sin
-      // descarga pausada): re-habilitar controles, restaurar la ruta y re-escanear el aula.
-      if (previoServidor !== true && estado.servidor) {
-        const tieneErrorCard = nodos.lista.querySelector(".server-error-card");
-        if (tieneErrorCard) {
+      // Ambas conexiones OK y veníamos de un banner offline: re-habilitar y re-escanear.
+      if (completaAntes !== true) {
+        const card = nodos.lista.querySelector(".server-error-card");
+        if (card) {
           nodos.folder.disabled = false;
           nodos.btnExplore.disabled = false;
           document.querySelector('.path-bar')?.classList.remove('offline');
@@ -203,8 +254,6 @@ const ServerConnectionFeature = {
           onReescanearAula();
         }
       }
-
-      previoServidor = estado.servidor;
     }
 
     // Arranca el daemon de conexión y se suscribe a sus cambios. Idempotente.

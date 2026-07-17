@@ -1,7 +1,24 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.5.3)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.5.6)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.5.6:
+ * - [FIX] Al reconectar el servidor, el banner de "descarga interrumpida" no se iba
+ *   hasta refrescar el popup. ejecutarReintentoDeCola ponía fallaConexionActiva=null
+ *   sin re-renderizar; el handler update_progress_bar (única limpieza del banner) no
+ *   entraba a su rama porque esa rama está gateada a que la falla siga activa, y su
+ *   re-render está gateado a que cambie el título (no cambia: se reanuda el mismo
+ *   video). Ahora ejecutarReintentoDeCola restaura el panel y re-renderiza al reanudar.
+ * CHANGELOG v5.5.5:
+ * - [FIX] En la primera vez, el loader "Escaneando..." aparecía antes/detrás del
+ *   tutorial. Ahora el onboarding va primero y solo; la conexión al servidor y el
+ *   escaneo del aula se extrajeron a conectarYArrancar() y se difieren hasta que
+ *   el usuario cierra el tour (onboarding onComplete). El estado del servidor
+ *   dentro del tour lo mantiene el daemon de conexión, que arranca antes.
+ * CHANGELOG v5.5.4:
+ * - [LIMPIEZA] Se borra el wrapper muerto clasificarCatedraYCarpeta (solo
+ *   reenviaba a Utils.clasificarCatedraYCarpeta); ningún call-site lo usaba —
+ *   los 5 reales llaman directo a Utils.* (ver docs/TECHNICAL_DEBT.md).
  * CHANGELOG v5.5.3:
  * - [REFACTOR] El init arranca el único detector de estado de serverConnection
  *   (iniciarDetectorEstado), que reemplaza al monitor + latido separados. El
@@ -82,7 +99,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // es una declaración de función (hoisted), así que la referencia diferida es segura.
   const _onboardingFeature = OnboardingFeature.crear({
     nodos,
-    onExplore: () => lanzarSeleccionCarpetaFisica()
+    onExplore: () => lanzarSeleccionCarpetaFisica(),
+    // Al cerrar el tour de la PRIMERA vez (no el reabierto por el botón de ayuda),
+    // recién ahí conectamos al servidor y escaneamos el aula, para que el loader no
+    // aparezca detrás/antes del tutorial. conectarYArrancar es hoisted (ver init).
+    onComplete: () => conectarYArrancar()
   });
   const mostrarOnboarding = _onboardingFeature.mostrarOnboarding;
   const actualizarEstadoServidorOnboarding = _onboardingFeature.actualizarEstadoServidorOnboarding;
@@ -214,20 +235,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  try {
-    nodos.loaderTxt.textContent = "Conectando con el servidor Bun...";
-    nodos.loader.style.display = 'flex';
-
-    await AppState.inicializarSincronizacionStorage();
-    actualizarIconoSorteo();
-    actualizarBadgeCatedra();
-    nodos.queueBadge.textContent = AppState.colaDescargas.length;
-
-    if (!AppState.tutorialCompletado) {
-      mostrarOnboarding();
-    }
-    
+  // Conecta con el servidor Bun, sincroniza con el SW y arranca el escaneo del aula.
+  // Se invoca al inicio si el tutorial ya estaba completo, o al cerrar el onboarding
+  // de la primera vez (onComplete). Es dueña de su propio loader (mostrar/ocultar).
+  async function conectarYArrancar() {
     try {
+      nodos.loaderTxt.textContent = "Conectando con el servidor Bun...";
+      nodos.loader.style.display = 'flex';
+
       const ruta = await BunClient.obtenerRutaServidor();
       if (ruta) {
         const tabsBar = document.querySelector(".tabs-bar");
@@ -265,12 +280,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (errConexion) {
       console.warn("⚠️ Servidor Bun desconectado en inicio:", errConexion.message);
       activarEstadoOfflineUI();
+    } finally {
+      nodos.loader.style.display = 'none';
+    }
+  }
+
+  try {
+    await AppState.inicializarSincronizacionStorage();
+    actualizarIconoSorteo();
+    actualizarBadgeCatedra();
+    nodos.queueBadge.textContent = AppState.colaDescargas.length;
+
+    // Primera vez: el tutorial va PRIMERO y solo. El estado del servidor dentro del
+    // onboarding lo mantiene al día el daemon (iniciarDetectorEstado, ya arrancado);
+    // la conexión + escaneo se difieren hasta cerrar el tour (onComplete), así el
+    // loader no aparece detrás/antes del tutorial. Si ya se completó, arrancamos ya.
+    if (!AppState.tutorialCompletado) {
+      // El loader (.loader-overlay) tiene z-index MAYOR que el onboarding y arranca
+      // en display:flex por CSS; hay que ocultarlo o taparía el tour.
+      nodos.loader.style.display = 'none';
+      mostrarOnboarding();
+    } else {
+      await conectarYArrancar();
     }
   } catch (error) {
     console.error("❌ Error en inicio del Orquestador:", error);
     nodos.txtEstado.textContent = "⚠️ Error de inicialización interna.";
-  } finally {
-    nodos.loader.style.display = 'none';
+    nodos.loader.style.display = 'none'; // el loader tapa el mensaje de error si queda visible
   }
 
   function lanzarSeleccionCarpetaFisica() {
@@ -1369,10 +1405,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     iniciarMonitoreoServidor();
   }
 
-  function clasificarCatedraYCarpeta(tituloClase, materiaBase) {
-    return Utils.clasificarCatedraYCarpeta(tituloClase, materiaBase);
-  }
-
   function actualizarIconoSorteo() {
     if (!nodos.btnSort) return;
     if (AppState.pestañaActiva === "cola" && AppState.ordenAscendente === null) {
@@ -1499,7 +1531,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     AppState.fallaConexionActiva = null;
     AppState.videoFalladoParaReintento = null;
-    
+
+    // Restaurar la UI de descarga (quitar el banner) YA, al reanudar. No alcanza con
+    // esperar al primer update_progress_bar: como acá dejamos fallaConexionActiva en
+    // null, ese handler ya no entra a su rama de limpieza (está gateada a que la falla
+    // siga activa), y su re-render está gateado a que cambie el título — que no cambia
+    // porque se reanuda el MISMO video. Sin esto, el banner quedaba hasta refrescar.
+    nodos.cancelBox.style.display = 'flex';
+    nodos.btnStartQueue.style.display = 'none';
+    nodos.progressCont.style.display = 'block';
+    renderizarListadoInterfaz();
+    actualizarContadoresBoton();
+
     nodos.txtEstado.textContent = "⏳ Conectando y reanudando fila...";
     chrome.runtime.sendMessage({ action: "iniciar_descarga_cola" });
   }

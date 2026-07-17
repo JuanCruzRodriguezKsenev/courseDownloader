@@ -1,5 +1,14 @@
 /**
- * CLON DOWNLOADHELPER - DAEMON DE ESTADO DE CONEXIÓN (V1.0.0)
+ * CLON DOWNLOADHELPER - DAEMON DE ESTADO DE CONEXIÓN (V1.0.2)
+ * ==========================================================================
+ * CHANGELOG v1.0.2:
+ * - [OBS] Log en cada transición de estado de conexión (edge-triggered, bajo ruido)
+ *   para depurar caídas/recuperaciones tanto en el popup como en el SW.
+ * CHANGELOG v1.0.1:
+ * - [FIX] _chequearServidor pasa un timeout (2500ms < INTERVALO_SONDEO_MS) a
+ *   BunClient.obtenerRutaServidor. Antes, con el server colgado (no apagado
+ *   limpio), el chequeo sin timeout congelaba verificarAhora() y el estado
+ *   quedaba pegado en "conectado". Ver bunClient.js v1.1.0.
  * ==========================================================================
  * Fuente ÚNICA de verdad del estado de conexión de la extensión. Modelo push,
  * no pull: un solo subproceso (poller) mantiene una variable de estado siempre
@@ -66,7 +75,9 @@ const Conexion = {
 
   // -------- Primitivos de chequeo (los ÚNICOS del proyecto) --------
   async _chequearServidor() {
-    try { return !!(await BunClient.obtenerRutaServidor()); }
+    // Timeout < INTERVALO_SONDEO_MS para que cada sondeo cierre antes del siguiente
+    // (si el server está colgado, el abort corta y marcamos servidor=false sin apilar).
+    try { return !!(await BunClient.obtenerRutaServidor({ timeoutMs: 2500 })); }
     catch (e) { return false; }
   },
   async _chequearInternet() {
@@ -104,6 +115,7 @@ const Conexion = {
       nuevo.listo !== this._estado.listo;
     this._estado = { ...this._estado, ...nuevo };
     if (cambio) {
+      console.log(`🔌 [Conexion] estado → servidor=${this._estado.servidor} internet=${this._estado.internet} (espejar=${!!espejar})`);
       this._notificar();
       if (espejar) this._escribirEnStorage();
     }

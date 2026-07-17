@@ -25,19 +25,19 @@ Inventario vivo de problemas conocidos en el código actual, ordenados por sever
 
 ## 🟠 Mantenibilidad
 
-### `popup.js` como "god file" (1910 líneas, un solo closure)
+### `popup.js` como "god file" (1710 líneas, un solo closure)
 
 - **Dónde**: `popup.js`, completo.
-- **Qué pasa**: prácticamente toda la lógica de UI vive dentro de un único listener `DOMContentLoaded`, con ~50 funciones anidadas que comparten variables de clausura (`nodos`, `filtrosActivos`, y flags sueltos como `intervalReconexion`, `verificandoConexionBoton`, `reintentandoColaActivo`, `comprobacionEnProgreso`).
+- **Qué pasa**: prácticamente toda la lógica de UI vive dentro de un único listener `DOMContentLoaded`, con ~50 funciones anidadas que comparten variables de clausura (`nodos`, `filtrosActivos`, y flags sueltos como `verificandoConexionBoton` (`popup.js:171`) y `reintentandoColaActivo` (`popup.js:172`)).
 - **Impacto concreto**:
   - No se puede testear ninguna función de forma aislada sin montar el DOM completo y disparar `DOMContentLoaded`.
   - Acoplamiento oculto: una variable de clausura mutada en una función puede afectar el comportamiento de otra función a 800+ líneas de distancia, sin que quede evidencia en el diff de un cambio puntual.
-- **Fix propuesto**: ver `docs/ROADMAP.md` — reorganización feature-driven en módulos (`popup/features/queue.js`, `onboarding.js`, `serverConnection.js`, `filters.js`), cargados como `<script>` adicionales en `popup.html`.
-- **Estado**: 🔲 pendiente. Bloqueado por falta de tests (ver sección Testing) — no conviene refactorizar en caliente sin cobertura de regresión primero.
+- **Fix propuesto**: ver `docs/ROADMAP.md` — reorganización feature-driven en módulos (`popup/features/*`), cargados como `<script>` adicionales en `popup.html`.
+- **Estado**: 🟡 parcial. Ya extraídos `popup/features/onboarding.js` y `popup/features/serverConnection.js` (este último apoyado en el nuevo daemon `shared/conexion.js`, que absorbió los flags de monitoreo `intervalReconexion`/`comprobacionEnProgreso` que antes vivían sueltos acá). Pendientes: `filters.js` y `queue.js`, más adelgazar `popup.js` a init + wiring. Fue lo que bajó el archivo de 1910 → 1710 líneas.
 
 ### `background.js` — listener IPC monolítico
 
-- **Dónde**: `background.js:137-358`, `chrome.runtime.onMessage.addListener`.
+- **Dónde**: `background.js:143-356`, `chrome.runtime.onMessage.addListener`.
 - **Qué pasa**: mismo patrón que `popup.js` pero a menor escala — un único listener con un bloque `if (request.action === "...")` por cada una de las 8 acciones soportadas.
 - **Impacto**: menor que en `popup.js` porque cada bloque es relativamente autocontenido, pero sigue siendo difícil de testear sin mockear `chrome.runtime.onMessage`.
 - **Fix propuesto**: si se toca este archivo para otra tarea, extraer cada acción a una función nombrada en un dict `{accion: handler}` y despachar por lookup en vez de cadena de `if`.
@@ -45,10 +45,10 @@ Inventario vivo de problemas conocidos en el código actual, ordenados por sever
 
 ### Código muerto: wrapper `clasificarCatedraYCarpeta` en `popup.js`
 
-- **Dónde**: `popup.js:1483-1485`.
-- **Qué pasa**: define una función local que solo llama a `Utils.clasificarCatedraYCarpeta`. Los 5 call-sites reales (`popup.js:674`, `:944`, `:1043`, `:1361`, `:1741`) llaman directo a `Utils.clasificarCatedraYCarpeta`, ignorando el wrapper.
-- **Fix propuesto**: borrar `popup.js:1483-1485`.
-- **Estado**: 🔲 pendiente (trivial, se puede resolver en cualquier momento).
+- **Dónde**: `popup.js:1372-1374`.
+- **Qué pasa**: define una función local que solo llama a `Utils.clasificarCatedraYCarpeta`. Los 5 call-sites reales (`popup.js:561`, `:831`, `:932`, `:1250`, `:1630`) llaman directo a `Utils.clasificarCatedraYCarpeta`, ignorando el wrapper.
+- **Fix propuesto**: borrar `popup.js:1372-1374`.
+- **Estado**: ✅ resuelto (2026-07-16). Wrapper eliminado; los 5 call-sites ya llamaban directo a `Utils.clasificarCatedraYCarpeta`. `popup.js` → v5.5.4. Ver sección Resuelto.
 
 ### `styles/components.css` (1261 líneas en un solo archivo)
 
@@ -61,12 +61,12 @@ Inventario vivo de problemas conocidos en el código actual, ordenados por sever
 
 ## 🟡 Testing
 
-### Cobertura de tests: parcial (solo `shared/utils.js`)
+### Cobertura de tests: parcial
 
-- **Qué pasa**: ya hay `package.json` + Vitest/jsdom y `shared/utils.test.js` (funciones puras de utils cubiertas). Sigue sin cobertura: `background.js`, `background/hlsEngine.js` (requieren mocks de `chrome.*`) y `popup.js` (bloqueado por el split de Fase 2).
-- **Impacto**: los cambios en la lógica pura de `shared/utils.js` ya tienen red de regresión; el motor HLS y la orquestación de UI siguen dependiendo de pruebas manuales.
-- **Fix propuesto**: ver `docs/ROADMAP.md` — continuar con `hlsEngine.js`/`background.js` (mocks de `chrome.*`) y `popup.js` post-split.
-- **Estado**: 🟡 parcial — `shared/utils.js` cubierto (2026-07-16); resto pendiente.
+- **Qué pasa**: ya hay `package.json` + Vitest/jsdom. Cubiertos: `shared/utils.js` (funciones puras), `shared/conexion.js` (daemon de conexión), y las features extraídas `popup/features/onboarding.js` y `popup/features/serverConnection.js`. Sigue sin cobertura: `background.js`, `background/hlsEngine.js` (requieren mocks de `chrome.*`) y el resto de `popup.js` (bloqueado por el split de Fase 2).
+- **Impacto**: la lógica pura de utils, el daemon de conexión y las features ya extraídas tienen red de regresión; el motor HLS y la orquestación restante de UI siguen dependiendo de pruebas manuales.
+- **Fix propuesto**: ver `docs/ROADMAP.md` — continuar con `hlsEngine.js`/`background.js` (mocks de `chrome.*`) y el resto de `popup.js` post-split.
+- **Estado**: 🟡 parcial — `shared/utils.js`, `shared/conexion.js`, `onboarding.js` y `serverConnection.js` cubiertos; `background.js`/`hlsEngine.js` y el resto de `popup.js` pendientes.
 
 ---
 
@@ -74,7 +74,7 @@ Inventario vivo de problemas conocidos en el código actual, ordenados por sever
 
 ### Optimistic update sin rollback en `encolarItemsEnCaliente`
 
-- **Dónde**: `popup.js:898-931`.
+- **Dónde**: `encolarItemsEnCaliente` en `popup.js:785` (el `sendMessage` sin verificar, en `popup.js:815`).
 - **Qué pasa**: la función actualiza `AppState.colaDescargas` y el DOM de inmediato (patrón optimistic update), y recién después dispara `chrome.runtime.sendMessage({ action: "inyectar_items_en_cola_activa", ... })` sin `.then`/`.catch` ni verificar la respuesta.
 - **Impacto**: si el mensaje falla (SW dormido, error de storage), la UI queda mostrando ítems como "en cola" que en realidad nunca se persistieron en `background.js`, generando un estado inconsistente entre popup y service worker hasta el próximo `sincronizarConBackground()`.
 - **Fix propuesto**: verificar la respuesta de `sendMessage` (usar el patrón callback/promise con manejo de `chrome.runtime.lastError` que ya usan en otras partes del código, ej. `state.js:66-68`) y revertir `AppState.colaDescargas` + re-render si falla.
@@ -85,7 +85,7 @@ Inventario vivo de problemas conocidos en el código actual, ordenados por sever
 - **Dónde**: varios puntos de `background.js` que leen y escriben `listaPersistente`, `colaDescargas` y `SW_ESTADOS_PROGRESO` como operaciones `.get()`/`.set()` separadas para el mismo cambio lógico.
 - **Qué pasa**: `chrome.storage.local` no ofrece transacciones — si el service worker se suspende o falla entre un `.set()` y el siguiente, esas claves relacionadas pueden quedar desincronizadas entre sí.
 - **Impacto**: riesgo de estado inconsistente (ej. un ítem marcado `process` en `SW_ESTADOS_PROGRESO` pero ya removido de `colaDescargas`). Bajo en la práctica porque el SW suele completar estas operaciones síncronamente dentro del mismo tick, pero no está garantizado.
-- **Fix propuesto**: auditar y consolidar en un único `.set({...})` por operación lógica cuando se tocan varias claves relacionadas. El patrón correcto ya existe en `background.js:232-236` (`inyectar_items_en_cola_activa`) — usarlo como referencia para homogeneizar el resto.
+- **Fix propuesto**: auditar y consolidar en un único `.set({...})` por operación lógica cuando se tocan varias claves relacionadas. El patrón correcto ya existe en `background.js:216-239` (`inyectar_items_en_cola_activa`: un `.get()` de las tres claves seguido de un único `.set({...})`) — usarlo como referencia para homogeneizar el resto.
 - **Estado**: 🔲 pendiente, prioridad media.
 
 ---
@@ -95,11 +95,16 @@ Inventario vivo de problemas conocidos en el código actual, ordenados por sever
 | Ítem | Ubicación | Impacto | Estado |
 |---|---|---|---|
 | Sin linter (ESLint) configurado | proyecto completo | No se detectan variables no usadas, `==` vs `===`, código muerto adicional | 🔲 pendiente |
-| `catch (e) {}` silenciosos (3 casos) | `background.js:133`, `background.js:311` y `background/hlsEngine.js:219` (los dos últimos, `abort()` del controlador de gráfico activo) | Dificulta debug si falla el abort/limpieza de recursos | 🔲 pendiente, bajo impacto |
+| `catch (e) {}` silenciosos (3 casos) | `background.js:139`, `background.js:317` y `background/hlsEngine.js:219` (los dos últimos, `abort()` del controlador de gráfico activo) | Dificulta debug si falla el abort/limpieza de recursos | 🔲 pendiente, bajo impacto |
 | URL de backend hardcodeada | `shared/bunClient.js:8` (`baseUrl = "http://localhost:3001"`) | No se puede apuntar a otro host/puerto sin editar código; relevante si se agregan tests de integración contra el backend real | 🔲 pendiente, bajo impacto |
 
 ---
 
 ## Resuelto
 
+- **El banner de "descarga interrumpida" no se iba al reconectar el servidor (hasta refrescar el popup)** (2026-07-16). Al volver el server, `reaccionarAConexion` → `onReintentarCola` → `ejecutarReintentoDeCola` ponía `AppState.fallaConexionActiva = null` sin re-renderizar. La única limpieza real del banner vive en el handler `update_progress_bar`, pero (a) su rama de limpieza está gateada a `if (AppState.fallaConexionActiva)` — ya en null — y (b) su re-render está gateado a que cambie el título, que no cambia porque se reanuda el mismo video. La descarga avanzaba en el SW pero el popup quedaba pegado en el banner. Fix: `ejecutarReintentoDeCola` restaura el panel de descarga (`cancelBox`/`progressCont`) y llama `renderizarListadoInterfaz()` al reanudar. `popup.js` → v5.5.6. Nota relacionada: `reanudarColaDesdeBackground` (autoheal del SW) reanuda sin avisar al popup — la limpieza del banner depende de la ruta del popup o del primer `update_progress_bar`.
+- **El banner de "descarga interrumpida" no se disparaba al caer el servidor durante una descarga** (2026-07-16). La clasificación de fin de descarga en `background.js` (~línea 534) tomaba `controladorGraficoActivo.signal.aborted` y `errDescarga.name==='AbortError'` como señales de cancelación del usuario. Pero el motor HLS aborta ese controlador A PROPÓSITO para frenar a los otros workers cuando un fragmento falla (server caído), y ese abort hace que los fetches hermanos rechacen con `AbortError`. Resultado: la caída se confundía con cancelación, el SW retornaba sin pausar la cola, y nunca enviaba `cola_pausada_por_error` → el popup no mostraba el banner. Fix: la clasificación usa SÓLO el flag explícito `state.abortadoPorUsuario`. `background.js` → v5.6.1. (Sin test unitario: `background.js` depende de `chrome.*`, fuera del alcance de testing actual — ver Testing.)
+- **Indicador verde para siempre si el servidor cae durante una descarga** (2026-07-16). Dos capas: (1) `enviarFragmentoStream` (`bunClient.js`) no tenía timeout, así que al morir el Bun a mitad de descarga el POST a `/api/bypass-stream` se colgaba, el loop del SW nunca fallaba y nunca pausaba la cola ni marcaba la caída; (2) aun detectándola, el popup ignora al daemon durante una ráfaga (`reaccionarAConexion` abortaba en la guarda `ráfagaEnCurso`), dejando el puntito verde. Fix: timeout de 30s en `enviarFragmentoStream` que lanza un Error de "backend" (NO `AbortError` — el SW lo trata como cancelación de usuario) para que la cola se pause; y `pintarStatusDot` se movió ANTES de la guarda para que el indicador refleje la conexión SIEMPRE (level-triggered), sin tocar el banner/lista durante la descarga. `bunClient.js` → v1.2.0, `serverConnection.js` → v1.5.0. Tests nuevos en `bunClient.test.js` (timeout ≠ AbortError; abort de usuario se propaga) y `serverConnection.test.js` (puntito refleja la caída durante ráfaga).
+- **Falso positivo del daemon de conexión: "dice conectado estando apagado"** (2026-07-16). Con el servidor Bun apagado, `localhost:3001` no rechaza al instante (Windows deja la conexión colgada). `BunClient.obtenerRutaServidor` hacía un `fetch` a `/api/health` **sin timeout**, así que `Conexion.verificarAhora()` (que lo espera en un `Promise.all`) nunca resolvía y el estado quedaba congelado en el último valor conocido ("conectado"). Fix: `AbortController`+timeout + `cache:"no-store"` en `obtenerRutaServidor` (mismo patrón que el chequeo de internet), y el daemon lo llama con timeout 2500ms < intervalo de sondeo (3000ms) para que los polls no se apilen. Se agregó `module.exports` a `bunClient.js` y `shared/bunClient.test.js` (regresión: un fetch colgado aborta). `bunClient.js` → v1.1.0, `conexion.js` → v1.0.1.
+- **Código muerto: wrapper `clasificarCatedraYCarpeta` en `popup.js`** (2026-07-16). Borrado el wrapper local que solo reenviaba a `Utils.clasificarCatedraYCarpeta`; los 5 call-sites reales ya usaban `Utils.*` directo. Sin cambios de comportamiento (62/62 tests en verde). `popup.js` → v5.5.4.
 - **XSS por interpolación sin escapar de título scrapeado** (2026-07-16). Nuevo helper `Utils.escaparHtml` en `shared/utils.js`; aplicado en `popup.js:renderizarListadoInterfaz` a `videoFalladoParaReintento` antes de interpolarlo en la tarjeta de error. `utils.js` → v5.7.0, `popup.js` → v5.4.2.

@@ -127,10 +127,39 @@ describe('ServerConnectionFeature.crear', () => {
     expect(nodos.statusDot.className).toContain('offline');
   });
 
-  it('muestra el banner offline cuando el daemon reporta el server caído (detección pasiva)', () => {
+  it('muestra el banner de servidor cuando cae el server (detección pasiva)', () => {
     api.iniciarDetectorEstado();
     emitir({ servidor: false });
-    expect(nodos.lista.querySelector('.server-error-card')).not.toBeNull();
+    const card = nodos.lista.querySelector('.server-error-card');
+    expect(card).not.toBeNull();
+    expect(card.dataset.tipo).toBe('servidor');
+  });
+
+  it('muestra el banner de internet cuando cae internet con el server OK', () => {
+    api.iniciarDetectorEstado();
+    emitir({ servidor: true, internet: false });
+    const card = nodos.lista.querySelector('.server-error-card');
+    expect(card).not.toBeNull();
+    expect(card.dataset.tipo).toBe('internet');
+  });
+
+  it('prioriza el banner de servidor si caen ambas conexiones', () => {
+    api.iniciarDetectorEstado();
+    emitir({ servidor: false, internet: false });
+    expect(nodos.lista.querySelector('.server-error-card').dataset.tipo).toBe('servidor');
+  });
+
+  it('el puntito general se pone rojo si falta internet aunque el server esté OK', () => {
+    api.iniciarDetectorEstado();
+    emitir({ servidor: true, internet: false });
+    expect(nodos.statusDot.className).toContain('offline');
+  });
+
+  it('cambia el banner de servidor a internet si el server vuelve pero internet sigue caído', () => {
+    api.iniciarDetectorEstado();
+    emitir({ servidor: false, internet: false }); // banner servidor
+    emitir({ servidor: true, internet: false });  // server volvió, falta internet
+    expect(nodos.lista.querySelector('.server-error-card').dataset.tipo).toBe('internet');
   });
 
   it('NO muestra el banner offline si hay una cola pausada por error (lo maneja la UI de descarga)', () => {
@@ -179,10 +208,14 @@ describe('ServerConnectionFeature.crear', () => {
     expect(ctx.onReintentarCola).toHaveBeenCalledTimes(1);
   });
 
-  it('no reacciona durante una descarga activa sin fallo (ráfagaEnCurso)', () => {
+  it('durante una descarga activa NO toca banner/onboarding, pero el puntito SÍ refleja la caída', () => {
     globalThis.AppState.ráfagaEnCurso = true;
     api.iniciarDetectorEstado();
     emitir({ servidor: false });
+    // No interfiere con la UI de la descarga (eso lo maneja el SW)...
     expect(ctx.actualizarEstadoServidorOnboarding).not.toHaveBeenCalled();
+    expect(nodos.lista.querySelector('.server-error-card')).toBeNull();
+    // ...pero el indicador refleja la realidad (antes quedaba verde para siempre).
+    expect(nodos.statusDot.className).toContain('offline');
   });
 });
