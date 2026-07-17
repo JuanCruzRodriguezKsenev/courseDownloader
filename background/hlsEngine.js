@@ -1,7 +1,11 @@
 /**
- * CLON DOWNLOADHELPER - MOTOR HLS CRYPTO-TRANSCODER (V1.0.1)
+ * CLON DOWNLOADHELPER - MOTOR HLS CRYPTO-TRANSCODER (V1.0.2)
  * GESTIONA LA EXTRACTIBILIDAD DE M3U8, DESCARGA CONCURRENTE Y DESCIFRADO AES-128 NATIVO
  * ==========================================================================
+ * CHANGELOG v1.0.2:
+ * - [LIMPIEZA] El log del match del iframe ya no vuelca el objeto entero del regex
+ *   (array gigante en consola); ahora sólo indica sí/no. La URL resuelta ya se
+ *   loguea limpia en la línea siguiente y el caso de fallo tiene su propio log.
  * CHANGELOG v1.0.1:
  * - [DEBT] El catch(e){} silencioso del abort() de limpieza del controlador de
  *   gráfico activo (ante fallo de fragmento) ahora deja rastro con console.warn.
@@ -36,7 +40,7 @@ const HlsEngine = {
     // 1. Buscar la etiqueta <iframe> que apunte a Bunny o Mediadelivery
     const regexIframe = /<iframe[^>]+src=\\?["'](https?:\/\/[^\\"']*(?:b-cdn\.net|mediadelivery\.net)[^\\"']+)/i;
     const matchIframe = html.match(regexIframe);
-    console.log(`📡 [HLS-ENGINE] Match de etiqueta iframe:`, matchIframe);
+    console.log(`📡 [HLS-ENGINE] ¿Match de etiqueta iframe?: ${matchIframe ? 'sí' : 'no'}`);
     
     if (matchIframe && matchIframe[1]) {
       const iframeUrl = matchIframe[1].replace(/\\/g, ''); // Limpiar escapes
