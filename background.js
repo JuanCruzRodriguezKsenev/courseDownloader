@@ -1,6 +1,13 @@
 /**
- * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V5.6.3)
+ * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V5.6.4)
  * ==========================================================================
+ * CHANGELOG v5.6.4:
+ * - [LIMPIEZA] Eliminada la función muerta marcarClaseComoPendiente (la destapó
+ *   ESLint no-unused-vars). Su lógica de "sacar de la cola + volver a 'pending'"
+ *   ya vive inline en el handler remover_item_de_cola; la función quedó sin
+ *   call-sites desde el commit inicial del repo. Ver docs/TECHNICAL_DEBT.md.
+ *   (La escritura atómica que v5.6.3 aplicó sobre ella era, por tanto, sobre
+ *   código sin uso — los otros 2 puntos de v5.6.3 siguen vigentes.)
  * CHANGELOG v5.6.3:
  * - [DEBT] Escrituras atómicas a chrome.storage.local en los 3 puntos donde un
  *   cambio lógico toca listaPersistente + colaDescargas + SW_ESTADOS_PROGRESO
@@ -602,43 +609,6 @@ async function procesarSiguienteElementoDeLaCola() {
     loopActivo = false;
   }
 }
-
-async function marcarClaseComoPendiente(listaCompleta, elementoActual) {
-  const checkAbort = await SessionState.get();
-  if (checkAbort.abortadoPorUsuario) {
-    console.log("🛑 [SW] Aborto confirmado por el usuario. Cancelando marcado de pendientes redundante.");
-    return;
-  }
-
-  const titulo = elementoActual.titulo;
-  const objPersistente = listaCompleta.find(c => c.titulo === titulo);
-  if (objPersistente) objPersistente.estado = 'pending';
-  
-  const estados = await recuperarEstadoFondo();
-  estados[titulo] = 'pending';
-
-  const data = await chrome.storage.local.get(['colaDescargas']);
-  let cola = data.colaDescargas || [];
-  cola = cola.filter(c => c.titulo !== titulo);
-
-  // Escritura atómica: 'pendiente' toca las tres claves de la misma clase
-  // (estado en la lista, entrada de progreso, remoción de la cola) en un solo .set().
-  await chrome.storage.local.set({
-    listaPersistente: listaCompleta,
-    colaDescargas: cola,
-    SW_ESTADOS_PROGRESO: estados
-  });
-  
-  const sessionId = checkAbort.videoActualSessionId || "";
-  await BunClient.cancelarDescarga(titulo, sessionId);
-
-  const state = await SessionState.get();
-  if (state.rafagaCorriendo) {
-    chrome.runtime.sendMessage({ action: "clase_con_error", titulo: titulo }).catch(() => {});
-    setTimeout(procesarSiguienteElementoDeLaCola, 100);
-  }
-}
-
 async function notificarFrenoSuaveExitoso() {
   await SessionState.set({
     rafagaCorriendo: false,
