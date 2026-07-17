@@ -23,6 +23,7 @@ Start at **`docs/architecture.md`**. Full map:
 - `docs/adr/` — immutable Architectural Decision Records. Never edit an existing ADR; a changed decision gets a new ADR that marks the old one superseded (see `docs/adr/README.md`).
 - `docs/TECHNICAL_DEBT.md` — open issues backlog, with exact file/line locations.
 - `docs/ROADMAP.md` — phased plan to pay down the backlog, in dependency order.
+- `docs/preact-migration.md` — live status of the incremental Preact-islands migration of the popup (which islands are done/next, the DOM-boundary rule, and a recipe for adding one). See also ADR-0006.
 
 Notably: **the XSS at `popup.js` `renderizarListadoInterfaz()` is fixed** (2026-07-16) by escaping the scraped title with `Utils.escaparHtml` before interpolating it into the `innerHTML` string of `Renderers.renderizarTarjetaEstado`. `renderizarTarjetaEstado` still assigns `descripcion`/`titulo`/`icono` via `innerHTML` (the description carries intentional `<br>`/`<strong>`), so any scraped/third-party value routed through it must be escaped at the call-site first — see `docs/security.md`.
 

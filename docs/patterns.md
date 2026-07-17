@@ -22,6 +22,22 @@ Explicación de los patrones que sostienen el código actual — qué problema r
 
 **Detalle completo del esquema**: ver `docs/data-model.md`.
 
+## Daemon de estado de conexión (fuente única, push/subscribe)
+
+**Dónde**: `shared/conexion.js` (`Conexion`), cargado tanto en el popup como en el SW.
+
+**Qué hace**: centraliza TODA la detección de conexión (servidor Bun + internet) en un único poller. El resto del código no chequea conexión por su cuenta: sólo lee (`Conexion.get()` → `{servidor, internet, completa, tipoFalla}`) o se suscribe a los cambios (`Conexion.suscribir(cb)`, edge-triggered: notifica sólo en transición). El estado se espeja entre popup y SW vía `chrome.storage.session`, así ambos contextos convergen. En el popup el poller corre con `setInterval`; en el SW, que no sobrevive la suspensión, se dispara desde el handler de `chrome.alarms`.
+
+**Por qué así**: antes había chequeos de conexión duplicados y con lógicas distintas (string-match de mensajes de error, HEADs sueltos, `navigator.onLine`) repartidos por popup y SW, que se contradecían. Una fuente única elimina esa clase de bugs. **Regla**: no agregar chequeos de conexión ad-hoc en otro lado — extender o consumir el daemon.
+
+## Islas Preact (migración incremental de la UI, sin build)
+
+**Dónde**: `popup/features/*.preact.js` + `popup/vendor/htm-preact-standalone.module.js`. Ver `docs/adr/0006` y el estado en `docs/preact-migration.md`.
+
+**Qué hace**: regiones acotadas de la UI del popup se migran de manipulación imperativa del DOM a componentes Preact (`UI = f(estado)`), conviviendo con el resto vanilla. Preact + htm se cargan vendorizados como un ES module local (sin bundler, sin transpilación), vía `<script type="module">`. Un hook puente (`useConexion` ≈ `useSyncExternalStore`) suscribe la isla a la fuente de verdad (el daemon `Conexion`, o `AppState`).
+
+**Por qué así**: casi todos los bugs de UI recientes fueron de sincronización estado↔DOM ("cambié el estado pero olvidé re-renderizar"). Con Preact la UI se re-deriva sola. **Regla de límite**: el DOM de una isla debe ser una región que el vanilla NO referencie por `nodos.*` (para no dejar referencias colgadas al re-renderizar) — por eso se migran indicadores puros (statusDot) antes que controles interactivos (inputs, botones).
+
 ## Cola FIFO persistente con reanudación automática
 
 **Dónde**: `colaDescargas` en `chrome.storage.local`, procesada por `procesarSiguienteElementoDeLaCola()` en `background.js`.
