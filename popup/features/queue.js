@@ -1,6 +1,13 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: COLA DE DESCARGA (V1.1.0)
+ * CLON DOWNLOADHELPER - FEATURE: COLA DE DESCARGA (V1.2.0)
  * ==========================================================================
+ * CHANGELOG v1.2.0:
+ * - [SPLIT] Último corte: el arranque de descarga (iniciarDescargaCola) y la
+ *   reanudación tras caída (ejecutarReintentoDeCola) pasan a QueueFeature, junto
+ *   con el helper privado verificarRedAntesDeDescargar. Los flags de UI
+ *   verificandoConexionBoton/reintentandoColaActivo siguen en popup.js (los lee
+ *   actualizarContadoresBoton); la feature los togglea vía ctx.setVerificandoConexion
+ *   / ctx.setReintentandoCola. Sin cambio de comportamiento respecto a popup.js v5.8.1.
  * CHANGELOG v1.1.0:
  * - [SPLIT] Sumada la cancelación de descarga: solicitarFrenadoSuave (frenado
  *   suave, activar_frenado_suave) y abortarRafagaInmediata (detención dura,
@@ -23,28 +30,63 @@
  *     clases a 'pending' y las remueve en el SW (remover_item_de_cola).
  *   - solicitarFrenadoSuave(): frenado suave (activar_frenado_suave).
  *   - abortarRafagaInmediata(): detención dura (abortar_rafaga_inmediata).
- *
- * NO incluye (siguen en popup.js por su acoplamiento con la recuperación de
- * conexión y el render): ejecutarReintentoDeCola y el arranque de descarga
- * (btnStartQueue → iniciar_descarga_cola, que arrastra verificarRed / congelarUI /
- * mostrarAlert). Se migrarán en pasos siguientes del split.
+ *   - iniciarDescargaCola(): arranca la cola (verifica red → congela UI → iniciar_descarga_cola).
+ *   - ejecutarReintentoDeCola(): reanuda tras una caída (verifica red → limpia falla → reanuda).
  *
  * Dependencias que recibe por ctx:
  *   - ctx.nodos                 : mapa de nodos (usa folder, queueBadge, txtEstado,
- *                                 masterCheck, btnToggleSelect, btnSoftCancel).
+ *                                 masterCheck, btnToggleSelect, btnSoftCancel,
+ *                                 cancelBox, btnStartQueue, progressCont).
  *   - ctx.aplicarFiltros()      : re-render cruzado de popup.js (aplicarFiltrosCruzados).
  *   - ctx.actualizarContadores(): refresco de contadores del botón de acción (popup.js).
  *   - ctx.resetSeleccionFila()  : apaga el modo selección múltiple de la fila
  *                                 (flag modoSeleccionFilaActivo, dueño en popup.js).
  *   - ctx.onRestaurarPanel(txt, limpiarCola): restaura el panel del popup tras la
  *                                 detención dura (restaurarPanelPorInterrupcion, popup.js).
+ *   - ctx.mostrarAlerta(tipo, titulo): banner/alert de conexión caída (popup.js).
+ *   - ctx.congelarUI(titulo, pct, tel): congela la UI en "descargando" (popup.js).
+ *   - ctx.renderizar()          : re-render del listado (renderizarListadoInterfaz, popup.js).
+ *   - ctx.setVerificandoConexion(bool) / ctx.setReintentandoCola(bool): togglean los
+ *                                 flags de UI que sigue leyendo actualizarContadoresBoton (popup.js).
  *
- * Expone: encolarItemsEnCaliente, quitarItemsDeColaEnLote,
- *         solicitarFrenadoSuave, abortarRafagaInmediata.
+ * Expone: encolarItemsEnCaliente, quitarItemsDeColaEnLote, solicitarFrenadoSuave,
+ *         abortarRafagaInmediata, iniciarDescargaCola, ejecutarReintentoDeCola.
  */
 const QueueFeature = {
   crear(ctx) {
-    const { nodos, aplicarFiltros, actualizarContadores, resetSeleccionFila, onRestaurarPanel } = ctx;
+    const {
+      nodos,
+      aplicarFiltros,
+      actualizarContadores,
+      resetSeleccionFila,
+      onRestaurarPanel,
+      mostrarAlerta,
+      congelarUI,
+      renderizar,
+      setVerificandoConexion,
+      setReintentandoCola,
+    } = ctx;
+
+    // Chequeo de red previo a arrancar/reanudar: HEAD a la plataforma con timeout.
+    // navigator.onLine descarta el caso obvio sin pegarle a la red.
+    async function verificarRedAntesDeDescargar() {
+      if (!navigator.onLine) return false;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout
+      try {
+        await fetch("https://plataforma.ramonnet.com.ar", {
+          method: "HEAD",
+          mode: "no-cors",
+          cache: "no-store",
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        return true;
+      } catch (e) {
+        clearTimeout(timeoutId);
+        return false;
+      }
+    }
 
     function encolarItemsEnCaliente(items) {
       const carpeta = nodos.folder.value.trim().toLowerCase();
@@ -174,7 +216,71 @@ const QueueFeature = {
       });
     }
 
-    return { encolarItemsEnCaliente, quitarItemsDeColaEnLote, solicitarFrenadoSuave, abortarRafagaInmediata };
+    // Arranque de la cola: verifica red, congela la UI en "descargando" y avisa
+    // al SW. Si no hay red, muestra el alert de conexión caída y no arranca.
+    async function iniciarDescargaCola() {
+      const cola = AppState.colaDescargas;
+      if (cola.length === 0) return;
+
+      setVerificandoConexion(true);
+      actualizarContadores();
+
+      const redDisponible = await verificarRedAntesDeDescargar();
+      setVerificandoConexion(false);
+
+      if (!redDisponible) {
+        actualizarContadores();
+        mostrarAlerta("internet", cola[0].titulo);
+        return;
+      }
+
+      congelarUI(cola[0].titulo, 0, null);
+      chrome.runtime.sendMessage({ action: "iniciar_descarga_cola" });
+    }
+
+    // Reanudación tras una caída: verifica red, limpia el estado de falla y
+    // restaura el panel de descarga (quitando el banner) al reanudar.
+    async function ejecutarReintentoDeCola() {
+      setReintentandoCola(true);
+      actualizarContadores();
+      nodos.txtEstado.textContent = "⏳ Verificando conexión...";
+
+      const redDisponible = await verificarRedAntesDeDescargar();
+      setReintentandoCola(false);
+
+      if (!redDisponible) {
+        const primerItem = AppState.colaDescargas[0];
+        const tituloFallado = primerItem ? primerItem.titulo : (AppState.videoFalladoParaReintento || "clase");
+        mostrarAlerta("internet", tituloFallado);
+        return;
+      }
+
+      AppState.fallaConexionActiva = null;
+      AppState.videoFalladoParaReintento = null;
+
+      // Restaurar la UI de descarga (quitar el banner) YA, al reanudar. No alcanza con
+      // esperar al primer update_progress_bar: como acá dejamos fallaConexionActiva en
+      // null, ese handler ya no entra a su rama de limpieza (está gateada a que la falla
+      // siga activa), y su re-render está gateado a que cambie el título — que no cambia
+      // porque se reanuda el MISMO video. Sin esto, el banner quedaba hasta refrescar.
+      nodos.cancelBox.style.display = 'flex';
+      nodos.btnStartQueue.style.display = 'none';
+      nodos.progressCont.style.display = 'block';
+      renderizar();
+      actualizarContadores();
+
+      nodos.txtEstado.textContent = "⏳ Conectando y reanudando fila...";
+      chrome.runtime.sendMessage({ action: "iniciar_descarga_cola" });
+    }
+
+    return {
+      encolarItemsEnCaliente,
+      quitarItemsDeColaEnLote,
+      solicitarFrenadoSuave,
+      abortarRafagaInmediata,
+      iniciarDescargaCola,
+      ejecutarReintentoDeCola,
+    };
   }
 };
 

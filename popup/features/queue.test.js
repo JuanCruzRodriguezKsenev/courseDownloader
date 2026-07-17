@@ -19,6 +19,9 @@ function montarNodos() {
     <button id="ui-btn-toggle-select"></button>
     <label id="ui-master-select-wrapper"></label>
     <button id="ui-btn-soft-cancel"></button>
+    <button id="ui-btn-start-queue"></button>
+    <div id="ui-cancel-box"></div>
+    <div id="ui-progress-container"></div>
   `;
   return {
     folder: document.getElementById('ui-path-folder'),
@@ -27,6 +30,9 @@ function montarNodos() {
     masterCheck: document.getElementById('ui-master-check'),
     btnToggleSelect: document.getElementById('ui-btn-toggle-select'),
     btnSoftCancel: document.getElementById('ui-btn-soft-cancel'),
+    btnStartQueue: document.getElementById('ui-btn-start-queue'),
+    cancelBox: document.getElementById('ui-cancel-box'),
+    progressCont: document.getElementById('ui-progress-container'),
   };
 }
 
@@ -37,6 +43,11 @@ function crearFeature(overrides = {}) {
     aplicarFiltros: vi.fn(),
     actualizarContadores: vi.fn(),
     resetSeleccionFila: vi.fn(),
+    mostrarAlerta: vi.fn(),
+    congelarUI: vi.fn(),
+    renderizar: vi.fn(),
+    setVerificandoConexion: vi.fn(),
+    setReintentandoCola: vi.fn(),
     ...overrides,
   };
   const feature = QueueFeature.crear(ctx);
@@ -172,5 +183,74 @@ describe('QueueFeature.abortarRafagaInmediata', () => {
       expect.any(Function)
     );
     expect(onRestaurarPanel).toHaveBeenCalledWith('🛑 Descargas detenidas. Fila preservada.', false);
+  });
+});
+
+describe('QueueFeature.iniciarDescargaCola', () => {
+  it('con red OK: congela la UI y avisa al SW', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({}); // HEAD OK => red disponible
+    AppState.colaDescargas = [{ titulo: 'A' }];
+    const { feature, ctx } = crearFeature();
+
+    await feature.iniciarDescargaCola();
+
+    expect(ctx.setVerificandoConexion).toHaveBeenCalledWith(true);
+    expect(ctx.setVerificandoConexion).toHaveBeenCalledWith(false);
+    expect(ctx.congelarUI).toHaveBeenCalledWith('A', 0, null);
+    expect(sendMessage).toHaveBeenCalledWith({ action: 'iniciar_descarga_cola' });
+    expect(ctx.mostrarAlerta).not.toHaveBeenCalled();
+  });
+
+  it('sin red: muestra el alert y NO arranca', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('sin red'));
+    AppState.colaDescargas = [{ titulo: 'A' }];
+    const { feature, ctx } = crearFeature();
+
+    await feature.iniciarDescargaCola();
+
+    expect(ctx.mostrarAlerta).toHaveBeenCalledWith('internet', 'A');
+    expect(ctx.congelarUI).not.toHaveBeenCalled();
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('con la cola vacía no hace nada', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({});
+    AppState.colaDescargas = [];
+    const { feature, ctx } = crearFeature();
+
+    await feature.iniciarDescargaCola();
+
+    expect(ctx.setVerificandoConexion).not.toHaveBeenCalled();
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe('QueueFeature.ejecutarReintentoDeCola', () => {
+  it('con red OK: limpia la falla, restaura el panel y reanuda', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({});
+    AppState.colaDescargas = [{ titulo: 'A' }];
+    AppState.fallaConexionActiva = 'internet';
+    AppState.videoFalladoParaReintento = 'A';
+    const { feature, ctx, nodos } = crearFeature();
+
+    await feature.ejecutarReintentoDeCola();
+
+    expect(AppState.fallaConexionActiva).toBeNull();
+    expect(AppState.videoFalladoParaReintento).toBeNull();
+    expect(ctx.renderizar).toHaveBeenCalled();
+    expect(nodos.progressCont.style.display).toBe('block');
+    expect(sendMessage).toHaveBeenCalledWith({ action: 'iniciar_descarga_cola' });
+    expect(ctx.mostrarAlerta).not.toHaveBeenCalled();
+  });
+
+  it('sin red: muestra el alert y NO reanuda', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('sin red'));
+    AppState.colaDescargas = [{ titulo: 'A' }];
+    const { feature, ctx } = crearFeature();
+
+    await feature.ejecutarReintentoDeCola();
+
+    expect(ctx.mostrarAlerta).toHaveBeenCalledWith('internet', 'A');
+    expect(sendMessage).not.toHaveBeenCalled();
   });
 });

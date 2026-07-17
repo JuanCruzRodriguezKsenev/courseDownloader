@@ -1,7 +1,16 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.8.1)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.8.2)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.8.2:
+ * - [SPLIT] Último corte de queue.js: el arranque de descarga (btnStartQueue) y
+ *   ejecutarReintentoDeCola pasaron a QueueFeature (iniciarDescargaCola /
+ *   ejecutarReintentoDeCola), junto con verificarRedAntesDeDescargar. Los flags
+ *   verificandoConexionBoton/reintentandoColaActivo se quedan acá (los lee
+ *   actualizarContadoresBoton); la feature los togglea por ctx (setVerificandoConexion/
+ *   setReintentandoCola) y recibe mostrarAlerta/congelarUI/renderizar por ctx. El
+ *   listener de btnStartQueue quedó en one-liner; onReintentarCola de serverConnection
+ *   apunta al alias. Sin cambio de comportamiento. Ver queue.js v1.2.0.
  * CHANGELOG v5.8.1:
  * - [SPLIT] La cancelación de descarga (frenado suave + detención dura) pasó a
  *   QueueFeature: los listeners btnSoftCancel/btnHardCancel ahora sólo llaman a
@@ -248,10 +257,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     aplicarFiltros: () => aplicarFiltrosCruzados(),
     actualizarContadores: () => actualizarContadoresBoton(),
     resetSeleccionFila: () => { modoSeleccionFilaActivo = false; },
-    onRestaurarPanel: (txt, limpiarCola) => restaurarPanelPorInterrupcion(txt, limpiarCola)
+    onRestaurarPanel: (txt, limpiarCola) => restaurarPanelPorInterrupcion(txt, limpiarCola),
+    mostrarAlerta: (tipo, titulo) => mostrarAlertDeConexionCaida(tipo, titulo),
+    congelarUI: (titulo, pct, tel) => congelarUIPorDescargaActiva(titulo, pct, tel),
+    renderizar: () => renderizarListadoInterfaz(),
+    setVerificandoConexion: (v) => { verificandoConexionBoton = v; },
+    setReintentandoCola: (v) => { reintentandoColaActivo = v; }
   });
   const encolarItemsEnCaliente = _queue.encolarItemsEnCaliente;
   const quitarItemsDeColaEnLote = _queue.quitarItemsDeColaEnLote;
+  const ejecutarReintentoDeCola = _queue.ejecutarReintentoDeCola;
 
   nodos.btnAction.setAttribute('data-modo', 'sincronizar-disco');
 
@@ -794,44 +809,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  async function verificarRedAntesDeDescargar() {
-    if (!navigator.onLine) return false;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000); // 4 seconds timeout
-    try {
-      await fetch("https://plataforma.ramonnet.com.ar", { 
-        method: "HEAD", 
-        mode: "no-cors",
-        cache: "no-store",
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-      return true;
-    } catch (e) {
-      clearTimeout(timeoutId);
-      return false;
-    }
-  }
-
-  nodos.btnStartQueue.addEventListener('click', async () => {
-    const cola = AppState.colaDescargas;
-    if (cola.length === 0) return;
-    
-    verificandoConexionBoton = true;
-    actualizarContadoresBoton();
-
-    const redDisponible = await verificarRedAntesDeDescargar();
-    verificandoConexionBoton = false;
-
-    if (!redDisponible) {
-      actualizarContadoresBoton();
-      mostrarAlertDeConexionCaida("internet", cola[0].titulo);
-      return;
-    }
-
-    congelarUIPorDescargaActiva(cola[0].titulo, 0, null);
-    chrome.runtime.sendMessage({ action: "iniciar_descarga_cola" });
-  });
+  nodos.btnStartQueue.addEventListener('click', () => _queue.iniciarDescargaCola());
 
 
   nodos.search.addEventListener('input', aplicarFiltrosCruzados);
@@ -1493,39 +1471,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   function aplicarSeleccionCatedra(catedraElegida, overlay) {
     aplicarSeleccionCatedraSilencioso(catedraElegida);
     overlay.remove();
-  }
-
-  async function ejecutarReintentoDeCola() {
-    reintentandoColaActivo = true;
-    actualizarContadoresBoton();
-    nodos.txtEstado.textContent = "⏳ Verificando conexión...";
-    
-    const redDisponible = await verificarRedAntesDeDescargar();
-    reintentandoColaActivo = false;
-
-    if (!redDisponible) {
-      const primerItem = AppState.colaDescargas[0];
-      const tituloFallado = primerItem ? primerItem.titulo : (AppState.videoFalladoParaReintento || "clase");
-      mostrarAlertDeConexionCaida("internet", tituloFallado);
-      return;
-    }
-
-    AppState.fallaConexionActiva = null;
-    AppState.videoFalladoParaReintento = null;
-
-    // Restaurar la UI de descarga (quitar el banner) YA, al reanudar. No alcanza con
-    // esperar al primer update_progress_bar: como acá dejamos fallaConexionActiva en
-    // null, ese handler ya no entra a su rama de limpieza (está gateada a que la falla
-    // siga activa), y su re-render está gateado a que cambie el título — que no cambia
-    // porque se reanuda el MISMO video. Sin esto, el banner quedaba hasta refrescar.
-    nodos.cancelBox.style.display = 'flex';
-    nodos.btnStartQueue.style.display = 'none';
-    nodos.progressCont.style.display = 'block';
-    renderizarListadoInterfaz();
-    actualizarContadoresBoton();
-
-    nodos.txtEstado.textContent = "⏳ Conectando y reanudando fila...";
-    chrome.runtime.sendMessage({ action: "iniciar_descarga_cola" });
   }
 
   function renderizarFiltrosMenuPopover() {
