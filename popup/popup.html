@@ -37,7 +37,9 @@
       <!-- Fila 1: Disco Físico -->
       <div class="meta-row row-pc">
         <span class="meta-label">📁 PC:</span>
-        <span id="ui-pc-path" class="pc-path-text" title="Buscando servidor...">Buscando servidor...</span>
+        <!-- Isla Preact #1b: el texto de la ruta lo renderiza features/rutaDisco.preact.js
+             (derivado del store RutaDisco). display:contents => el wrapper no rompe el flex. -->
+        <span id="preact-pc-path" style="display:contents"></span>
         <button id="ui-btn-explore" class="btn-explore" title="Seleccionar carpeta raíz de descargas" disabled>
           📂 Explorar
         </button>
@@ -126,5 +128,6 @@
        Ver ADR-0006. -->
   <script type="module" src="features/conexionHeader.preact.js"></script>
   <script type="module" src="features/onboarding.preact.js"></script>
+  <script type="module" src="features/rutaDisco.preact.js"></script>
 </body>
 </html>

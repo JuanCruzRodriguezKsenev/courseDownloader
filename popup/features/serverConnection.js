@@ -1,6 +1,11 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: CONEXIÓN AL SERVIDOR BUN (V1.7.0)
+ * CLON DOWNLOADHELPER - FEATURE: CONEXIÓN AL SERVIDOR BUN (V1.8.0)
  * ==========================================================================
+ * CHANGELOG v1.8.0:
+ * - [MIGRACIÓN] El texto de la ruta del disco (📁 PC:) ya no se escribe acá vía
+ *   nodos.pcPath: pasa por el store window.RutaDisco (isla Preact #1b,
+ *   features/rutaDisco.preact.js). cargarRutaServidorSilencioso y activarEstadoOfflineUI
+ *   llaman RutaDisco.mostrar(...). El toggle .path-bar.offline sigue vanilla acá.
  * CHANGELOG v1.7.0:
  * - [MIGRACIÓN] El estado del servidor dentro del onboarding tampoco se empuja ya
  *   desde acá: la isla Preact features/onboarding.preact.js lo deriva del daemon
@@ -88,13 +93,11 @@ const ServerConnectionFeature = {
         const ruta = await BunClient.obtenerRutaServidor();
         if (ruta) {
           nodos.btnExplore.title = `Carpeta raíz actual: ${ruta} (Click para cambiar)`;
-          nodos.pcPath.textContent = ruta;
-          nodos.pcPath.title = ruta;
+          RutaDisco.mostrar(ruta);
         }
       } catch (err) {
         console.warn("⚠️ No se pudo conectar al servidor Bun para obtener la ruta raíz:", err);
-        nodos.pcPath.textContent = "Desconectado";
-        nodos.pcPath.title = "Servidor desconectado";
+        RutaDisco.mostrar("Desconectado", "Servidor desconectado");
         nodos.txtEstado.textContent = "❌ Servidor Bun apagado. Enciéndalo en consola para operar.";
       }
     }
@@ -158,8 +161,7 @@ const ServerConnectionFeature = {
 
       // El path del disco sólo se pierde si el que cayó es el servidor Bun (localhost).
       if (tipo === "servidor") {
-        nodos.pcPath.textContent = "Desconectado";
-        nodos.pcPath.title = "Servidor desconectado";
+        RutaDisco.mostrar("Desconectado", "Servidor desconectado");
       }
       nodos.txtEstado.innerHTML = info.estadoTxt;
       configurarBotonesUX("sincronizar-disco", info.botonTxt, true);

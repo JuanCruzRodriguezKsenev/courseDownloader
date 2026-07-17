@@ -38,10 +38,11 @@ function montarNodos() {
     <button id="ui-btn-sort"></button>
     <main id="ui-list"></main>
     <div id="ui-loader"></div>
-    <span id="ui-pc-path"></span>
     <p id="ui-msg-status"></p>
     <section id="ui-filter-bar"></section>
   `;
+  // El texto de la ruta ya no es un nodo del popup: lo posee la isla Preact #1b
+  // (window.RutaDisco). serverConnection ahora lo empuja por ese store.
   return {
     statusDot: document.getElementById('ui-status-dot'),
     folder: document.getElementById('ui-path-folder'),
@@ -52,7 +53,6 @@ function montarNodos() {
     btnSort: document.getElementById('ui-btn-sort'),
     lista: document.getElementById('ui-list'),
     loader: document.getElementById('ui-loader'),
-    pcPath: document.getElementById('ui-pc-path'),
     txtEstado: document.getElementById('ui-msg-status'),
     filtersBar: document.getElementById('ui-filter-bar'),
   };
@@ -65,6 +65,8 @@ describe('ServerConnectionFeature.crear', () => {
     globalThis.AppState.ráfagaEnCurso = false;
     globalThis.AppState.fallaConexionActiva = null;
     globalThis.BunClient = { obtenerRutaServidor: vi.fn().mockResolvedValue('C:/RamonNet') };
+    // Store de la isla #1b (texto de la ruta): serverConnection lo empuja al mostrar/ocultar.
+    globalThis.RutaDisco = { mostrar: vi.fn(), cargando: vi.fn(), get: () => ({ texto: '', titulo: '' }) };
     // Conexion falso: captura al suscriptor para poder emitir estados a mano.
     suscriptor = null;
     globalThis.Conexion = {

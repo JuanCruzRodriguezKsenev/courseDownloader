@@ -1,7 +1,13 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.6.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.7.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.7.0:
+ * - [MIGRACIÓN] El texto de la ruta del disco (📁 PC:) pasó a ser la isla Preact #1b
+ *   (features/rutaDisco.preact.js). Se quitó nodos.pcPath: los sets de texto/título/
+ *   spinner ahora pasan por el store window.RutaDisco (mostrar/cargando/get). El botón
+ *   "Explorar", el input de materia y el toggle .path-bar.offline siguen vanilla.
+ *   Ver docs/preact-migration.md, ADR-0006.
  * CHANGELOG v5.6.0:
  * - [MIGRACIÓN] El onboarding (welcome tour) pasó a ser la isla Preact #3
  *   (features/onboarding.preact.js): posee todo el overlay #ui-onboarding y su DOM.
@@ -79,7 +85,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     frags:           document.getElementById('ui-tel-frags'),
     btnExplore:      document.getElementById('ui-btn-explore'),
     catedraBadge:    document.getElementById('ui-catedra-badge'),
-    pcPath:          document.getElementById('ui-pc-path'),
+    // El texto de la ruta (#preact-pc-path) lo posee la isla Preact
+    // features/rutaDisco.preact.js; se empuja vía window.RutaDisco (no hay ref nodos.*).
     btnSort:         document.getElementById('ui-btn-sort'),
     btnToggleSelect: document.getElementById('ui-btn-toggle-select'),
     btnHelp:         document.getElementById('ui-btn-help')
@@ -257,8 +264,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.querySelector('.path-bar')?.classList.remove('offline');
 
         nodos.btnExplore.title = `Carpeta raíz actual: ${ruta} (Click para cambiar)`;
-        nodos.pcPath.textContent = ruta;
-        nodos.pcPath.title = ruta;
+        RutaDisco.mostrar(ruta);
         nodos.txtEstado.textContent = "Analizando aula virtual...";
         // (el puntito de estado y el estado del servidor en el onboarding los derivan
         //  las islas Preact del daemon Conexion — ya no se empujan imperativamente)
@@ -315,37 +321,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     const originalBtnHTML = nodos.btnExplore.innerHTML;
     nodos.btnExplore.innerHTML = `<span class="spinner-inline"></span> Cargando...`;
     
-    const originalPcPath = nodos.pcPath.textContent;
-    nodos.pcPath.textContent = "Abriendo explorador...";
-    nodos.pcPath.classList.add('loading-text');
-    
+    const rutaPrevia = RutaDisco.get();
+    RutaDisco.cargando("Abriendo explorador...");
+
     // Mostrar loader de espera
     nodos.loaderTxt.textContent = "Abriendo explorador de archivos...";
     nodos.loader.style.display = 'flex';
 
     BunClient.seleccionarCarpeta().then(res => {
       if (res.success) {
-        nodos.pcPath.textContent = res.ruta;
-        nodos.pcPath.title = res.ruta;
+        RutaDisco.mostrar(res.ruta);
         nodos.btnExplore.title = `Carpeta raíz actual: ${res.ruta} (Click para cambiar)`;
         AppState.sincronizacionDiscoCompletada = false;
-        
+
         // Disparar auto-sincronización inmediatamente
         ejecutarPaso2SincronizarDiscoVeloz();
       } else {
-        nodos.pcPath.textContent = originalPcPath;
+        RutaDisco.mostrar(rutaPrevia.texto, rutaPrevia.titulo);
       }
     }).catch(err => {
-      nodos.pcPath.textContent = originalPcPath;
+      RutaDisco.mostrar(rutaPrevia.texto, rutaPrevia.titulo);
       console.error(err);
       if (err instanceof TypeError || err.message?.includes("fetch") || err.message?.includes("connect")) {
         activarEstadoOfflineUI();
       }
     }).finally(() => {
+      // El estado .loading-text lo apagó RutaDisco.mostrar (cargando:false) en cada rama.
       nodos.btnExplore.disabled = false;
       nodos.btnExplore.classList.remove('loading');
       nodos.btnExplore.innerHTML = originalBtnHTML;
-      nodos.pcPath.classList.remove('loading-text');
       nodos.loader.style.display = 'none';
     });
   }
