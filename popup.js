@@ -1,7 +1,15 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.8.2)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.8.3)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.8.3:
+ * - [ISLA #4 · Etapa 0] Render de la lista state-driven, sin refs imperativas al
+ *   DOM de las filas (prep para la migración Preact). El handler de masterCheck ya
+ *   no sincroniza cada checkbox por getElementById('chk-...') + classList.toggle:
+ *   muta sólo el estado (seleccionado / conmutarSeleccionMasiva) y re-renderiza.
+ *   onRemoverClick reemplaza div.remove() por renderizarListadoInterfaz(). Así el
+ *   render queda como única vía de pintar filas. Sin cambio de comportamiento.
+ *   Ver docs/preact-migration.md (isla #4).
  * CHANGELOG v5.8.2:
  * - [SPLIT] Último corte de queue.js: el arranque de descarga (btnStartQueue) y
  *   ejecutarReintentoDeCola pasaron a QueueFeature (iniciarDescargaCola /
@@ -830,30 +838,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         return coincideTexto && coincideMateria && coincideCatedra && !esActivo;
       });
 
-      visibles.forEach(c => {
-        c.seleccionado = check;
-        const chk = document.getElementById(`chk-cola-${c.id}`);
-        if (chk) {
-          chk.checked = check;
-          const row = chk.closest('.video-item');
-          if (row) row.classList.toggle('selected', check);
-        }
-      });
+      visibles.forEach(c => { c.seleccionado = check; });
     } else {
-      if (!AppState.sincronizacionDiscoCompletada) return; 
+      if (!AppState.sincronizacionDiscoCompletada) return;
       const visibles = AppState.listadoClasesGlobal.filter(c => c.visible);
       AppState.conmutarSeleccionMasiva(check, visibles);
-      
-      visibles.forEach(c => {
-        const chk = document.getElementById(`chk-${c.id}`);
-        if (chk) {
-          chk.checked = check;
-          const row = chk.closest('.video-item');
-          if (row) row.classList.toggle('selected', check);
-        }
-      });
     }
 
+    // Render state-driven: en vez de sincronizar cada checkbox/fila a mano (getElementById +
+    // classList), se muta sólo el estado (arriba) y se repinta el listado desde él. Deja el
+    // render como única vía de pintar filas (prep para la isla Preact #4, Etapa 0).
+    renderizarListadoInterfaz();
     AppState.respaldar();
     actualizarContadoresBoton();
   });
@@ -990,7 +985,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           actualizarContadoresBoton();
           AppState.respaldar();
         },
-        onRemoverClick: (c, div) => {
+        onRemoverClick: (c) => {
           console.log(`🗑️ [UI] Intento de remoción de la fila: "${c.titulo}"`);
           
           const esActivo = AppState.videoActualEnTransmisiónSW === c.titulo;
@@ -1014,8 +1009,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 matchDisp.seleccionado = seleccionMaestraActiva;
               }
 
-              div.remove();
               nodos.queueBadge.textContent = AppState.colaDescargas.length;
+              renderizarListadoInterfaz(); // re-render desde estado en vez de div.remove() imperativo
               AppState.respaldar();
               restaurarPanelPorInterrupcion("🛑 Descargas detenidas porque se eliminó la clase de la fila.");
             });
@@ -1024,8 +1019,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           // Remover de la cola local
           AppState.colaDescargas = AppState.colaDescargas.filter(i => i.titulo !== c.titulo);
-          div.remove();
-          
+          renderizarListadoInterfaz(); // re-render desde estado en vez de div.remove() imperativo
+
           // Actualizar estado en disponibles
           const matchDisp = AppState.listadoClasesGlobal.find(i => i.titulo === c.titulo);
           if (matchDisp) {
