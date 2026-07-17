@@ -49,7 +49,7 @@ No depende de nada de lo que sigue. Se puede hacer en cualquier momento, indepen
 
 ## Fase 3 — Robustez del flujo de datos
 
-- [ ] Cerrar el gap de rollback en `encolarItemsEnCaliente` (`popup.js:898-931` antes del split de Fase 2, o en `popup/features/queue.js` después).
+- [x] Cerrar el gap de rollback en `encolarItemsEnCaliente`. ✅ 2026-07-17 — callback en el `sendMessage` que revierte cola + estado de ítems + re-render ante `lastError`/status inesperado. `popup.js` → v5.7.1.
 - [ ] Auditar y consolidar escrituras a `chrome.storage.local` en `background.js` que tocan múltiples claves relacionadas (`listaPersistente`, `colaDescargas`, `SW_ESTADOS_PROGRESO`) en operaciones separadas.
 
 **Nota de secuencia**: técnicamente independiente de las Fases 1-2, pero tiene más sentido hacerla junto con o después del split de `popup.js`, para no tocar el mismo código dos veces.

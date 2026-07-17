@@ -1,7 +1,16 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.7.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.7.1)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.7.1:
+ * - [FIX] encolarItemsEnCaliente hacía optimistic update (AppState.colaDescargas +
+ *   DOM + estado 'process') y disparaba inyectar_items_en_cola_activa SIN verificar
+ *   la respuesta. Si el SW no confirmaba (dormido, error de storage), la UI quedaba
+ *   mostrando ítems "en cola" nunca persistidos en background.js (estado inconsistente
+ *   popup↔SW hasta el próximo sincronizarConBackground). Ahora el sendMessage tiene
+ *   callback: ante lastError o status != "encolados_ok" revierte la cola (por id),
+ *   restaura estado/selección de los ítems y re-renderiza. Ver docs/TECHNICAL_DEBT.md
+ *   (Robustez del flujo de datos), ROADMAP Fase 3.
  * CHANGELOG v5.7.0:
  * - [MIGRACIÓN] El texto de la ruta del disco (📁 PC:) pasó a ser la isla Preact #1b
  *   (features/rutaDisco.preact.js). Se quitó nodos.pcPath: los sets de texto/título/
@@ -820,7 +829,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function encolarItemsEnCaliente(items) {
     const carpeta = nodos.folder.value.trim().toLowerCase();
-    
+
     // Crear los objetos limpios de la cola
     const nuevosEncolados = items.map((c, idx) => ({
       id: c.id,
@@ -831,25 +840,50 @@ document.addEventListener('DOMContentLoaded', async () => {
       fechaEncolado: Date.now() + idx
     }));
 
+    // Snapshot para revertir el optimistic update si el SW no confirma la persistencia
+    const estadoPrevioItems = items.map(c => ({ ref: c, estado: c.estado, seleccionado: c.seleccionado }));
+    const idsNuevos = new Set(nuevosEncolados.map(n => n.id));
+
     // Combinar en el array de la cola desacoplado
     AppState.colaDescargas = [...AppState.colaDescargas, ...nuevosEncolados];
-    
+
     // Cambiar estado en listado visible
     items.forEach(c => { c.estado = 'process'; c.seleccionado = false; });
     nodos.queueBadge.textContent = AppState.colaDescargas.length;
-    
+
     if (AppState.ráfagaEnCurso) {
       // No molestar
     } else {
       nodos.txtEstado.textContent = `📥 ¡Clases agregadas! Pasá a la pestaña de Fila para iniciar.`;
     }
-    
+
     AppState.respaldar();
     aplicarFiltrosCruzados();
-    
+
+    // El SW responde { status: "encolados_ok" } tras persistir; si falla (SW dormido,
+    // error de storage) el canal se cierra sin respuesta y queda chrome.runtime.lastError.
+    // En cualquiera de esos casos revertimos el optimistic update para no dejar la UI
+    // mostrando ítems "en cola" que nunca se persistieron en background.js.
     chrome.runtime.sendMessage({
       action: "inyectar_items_en_cola_activa",
       items: nuevosEncolados
+    }, (respuesta) => {
+      if (chrome.runtime.lastError || !respuesta || respuesta.status !== "encolados_ok") {
+        console.warn(
+          '[popup] La inyección en cola no se confirmó; revirtiendo optimistic update:',
+          chrome.runtime.lastError?.message || `respuesta inesperada: ${JSON.stringify(respuesta)}`
+        );
+        // Rollback: sacar sólo lo que agregamos (por id, robusto ante encolados intermedios)
+        AppState.colaDescargas = AppState.colaDescargas.filter(item => !idsNuevos.has(item.id));
+        estadoPrevioItems.forEach(({ ref, estado, seleccionado }) => {
+          ref.estado = estado;
+          ref.seleccionado = seleccionado;
+        });
+        nodos.queueBadge.textContent = AppState.colaDescargas.length;
+        nodos.txtEstado.textContent = `⚠️ No se pudieron agregar las clases a la Fila. Reintentá.`;
+        AppState.respaldar();
+        aplicarFiltrosCruzados();
+      }
     });
   }
 
