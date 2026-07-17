@@ -1,6 +1,10 @@
 /**
- * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V5.6.1)
+ * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V5.6.2)
  * ==========================================================================
+ * CHANGELOG v5.6.2:
+ * - [DEBT] Los catch(e){} silenciosos ahora dejan rastro con console.warn: el
+ *   cierre del documento offscreen y el abort() de limpieza del controlador de
+ *   gráfico activo (ver docs/TECHNICAL_DEBT.md, sección Menores/de proceso).
  * CHANGELOG v5.6.1:
  * - [FIX] La clasificación de fin de descarga ya no confunde una caída de conexión
  *   con una cancelación del usuario. Antes usaba controladorGraficoActivo.signal.
@@ -144,7 +148,11 @@ async function cerrarOffscreenYRevocar(blobUrl) {
   
   try {
     await chrome.offscreen.closeDocument();
-  } catch (e) {}
+  } catch (e) {
+    // Puede fallar si no había documento offscreen abierto (esperado en ese caso);
+    // un warn de bajo nivel deja rastro si el cierre falla por otra razón.
+    console.warn("⚠️ No se pudo cerrar el documento offscreen:", e?.message);
+  }
 }
 
 // Listener principal síncrono para mantener canal IPC
@@ -322,7 +330,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         chrome.alarms.clear("alarma_autoheal");
 
         if (controladorGraficoActivo) {
-          try { controladorGraficoActivo.abort(); } catch (e) {}
+          try { controladorGraficoActivo.abort(); }
+          catch (e) { console.warn("⚠️ Falló el abort del controlador de gráfico activo (limpieza de fin de ráfaga):", e?.message); }
           controladorGraficoActivo = null;
         }
 

@@ -1,7 +1,11 @@
 /**
- * CLON DOWNLOADHELPER - MOTOR HLS CRYPTO-TRANSCODER (V1.0.0)
+ * CLON DOWNLOADHELPER - MOTOR HLS CRYPTO-TRANSCODER (V1.0.1)
  * GESTIONA LA EXTRACTIBILIDAD DE M3U8, DESCARGA CONCURRENTE Y DESCIFRADO AES-128 NATIVO
  * ==========================================================================
+ * CHANGELOG v1.0.1:
+ * - [DEBT] El catch(e){} silencioso del abort() de limpieza del controlador de
+ *   gráfico activo (ante fallo de fragmento) ahora deja rastro con console.warn.
+ *   Ver docs/TECHNICAL_DEBT.md, sección Menores/de proceso.
  */
 
 const HlsEngine = {
@@ -216,7 +220,8 @@ const HlsEngine = {
           console.error(`❌ Error crítico en fragmento index [${tarea.idx}]:`, errChunk.message);
           // Abortar descarga completa ante fallo de fragmento
           if (typeof controladorGraficoActivo !== "undefined" && controladorGraficoActivo) {
-            try { controladorGraficoActivo.abort(); } catch (e) {}
+            try { controladorGraficoActivo.abort(); }
+            catch (e) { console.warn("⚠️ Falló el abort del controlador de gráfico activo (fallo de fragmento):", e?.message); }
           }
           throw errChunk; 
         }
