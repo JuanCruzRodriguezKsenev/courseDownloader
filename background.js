@@ -1,6 +1,15 @@
 /**
- * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V5.6.2)
+ * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V5.6.3)
  * ==========================================================================
+ * CHANGELOG v5.6.3:
+ * - [DEBT] Escrituras atómicas a chrome.storage.local en los 3 puntos donde un
+ *   cambio lógico toca listaPersistente + colaDescargas + SW_ESTADOS_PROGRESO
+ *   (clase descargada, marcarClaseComoPendiente, abortar_rafaga_inmediata). Antes
+ *   cada uno hacía persistirEstadoFondo() en un .set() y las otras dos claves en
+ *   otro .set() separado → si el SW se suspendía en el medio, quedaban
+ *   desincronizadas (ej. ítem 'process' en progreso pero ya fuera de la cola).
+ *   Ahora un único .set() por operación, siguiendo el patrón del handler
+ *   inyectar_items_en_cola_activa. Ver docs/TECHNICAL_DEBT.md, ROADMAP Fase 3.
  * CHANGELOG v5.6.2:
  * - [DEBT] Los catch(e){} silenciosos ahora dejan rastro con console.warn: el
  *   cierre del documento offscreen y el abort() de limpieza del controlador de
@@ -339,8 +348,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           await BunClient.cancelarDescarga(titulo, sessionId);
         }
 
-        await persistirEstadoFondo({});
-
         // También resetear las clases en la cola a pending
         const data = await chrome.storage.local.get(['listaPersistente', 'colaDescargas']);
         const listaCompleta = data.listaPersistente || [];
@@ -351,7 +358,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           if (match) match.estado = 'pending';
         });
 
-        await chrome.storage.local.set({ listaPersistente: listaCompleta, colaDescargas: colaDescargas });
+        // Escritura atómica: el abort limpia el progreso (SW_ESTADOS_PROGRESO: {}) y
+        // resetea las clases de la cola a 'pending' en un solo .set(), sin ventana
+        // intermedia donde el progreso ya esté vacío pero la lista aún no reseteada.
+        await chrome.storage.local.set({
+          listaPersistente: listaCompleta,
+          colaDescargas: colaDescargas,
+          SW_ESTADOS_PROGRESO: {}
+        });
 
         return sendResponse({ status: "abortado_ok" });
       }
@@ -532,9 +546,15 @@ async function procesarSiguienteElementoDeLaCola() {
       
       const estadosUpdate = await recuperarEstadoFondo();
       delete estadosUpdate[tituloInmutableVideo];
-      await persistirEstadoFondo(estadosUpdate);
 
-      await chrome.storage.local.set({ listaPersistente: listaCompleta, colaDescargas: colaActual });
+      // Escritura atómica: las tres claves describen el estado de la misma clase
+      // (descargada → fuera de la cola, marcada 'downloaded', sin entrada de progreso).
+      // Consolidadas en un solo .set() para que una suspensión del SW no las desincronice.
+      await chrome.storage.local.set({
+        listaPersistente: listaCompleta,
+        colaDescargas: colaActual,
+        SW_ESTADOS_PROGRESO: estadosUpdate
+      });
 
       chrome.runtime.sendMessage({
         action: "clase_guardada_ok",
@@ -596,14 +616,18 @@ async function marcarClaseComoPendiente(listaCompleta, elementoActual) {
   
   const estados = await recuperarEstadoFondo();
   estados[titulo] = 'pending';
-  
-  await persistirEstadoFondo(estados);
 
   const data = await chrome.storage.local.get(['colaDescargas']);
   let cola = data.colaDescargas || [];
   cola = cola.filter(c => c.titulo !== titulo);
 
-  await chrome.storage.local.set({ listaPersistente: listaCompleta, colaDescargas: cola });
+  // Escritura atómica: 'pendiente' toca las tres claves de la misma clase
+  // (estado en la lista, entrada de progreso, remoción de la cola) en un solo .set().
+  await chrome.storage.local.set({
+    listaPersistente: listaCompleta,
+    colaDescargas: cola,
+    SW_ESTADOS_PROGRESO: estados
+  });
   
   const sessionId = checkAbort.videoActualSessionId || "";
   await BunClient.cancelarDescarga(titulo, sessionId);
