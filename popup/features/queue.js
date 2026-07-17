@@ -1,6 +1,11 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: COLA DE DESCARGA (V1.0.0)
+ * CLON DOWNLOADHELPER - FEATURE: COLA DE DESCARGA (V1.1.0)
  * ==========================================================================
+ * CHANGELOG v1.1.0:
+ * - [SPLIT] Sumada la cancelación de descarga: solicitarFrenadoSuave (frenado
+ *   suave, activar_frenado_suave) y abortarRafagaInmediata (detención dura,
+ *   abortar_rafaga_inmediata + restauración del panel vía ctx.onRestaurarPanel).
+ *   Sin cambios de comportamiento respecto a popup.js v5.8.0.
  * CHANGELOG v1.0.0:
  * - [SPLIT] Extraídas de popup.js las dos operaciones de MUTACIÓN de la cola:
  *   encolarItemsEnCaliente (agregar con optimistic update + rollback) y
@@ -16,25 +21,30 @@
  *     revierte si el SW no confirma la persistencia (inyectar_items_en_cola_activa).
  *   - quitarItemsDeColaEnLote(items): saca un lote de la cola, restablece esas
  *     clases a 'pending' y las remueve en el SW (remover_item_de_cola).
+ *   - solicitarFrenadoSuave(): frenado suave (activar_frenado_suave).
+ *   - abortarRafagaInmediata(): detención dura (abortar_rafaga_inmediata).
  *
  * NO incluye (siguen en popup.js por su acoplamiento con la recuperación de
- * conexión y el render): ejecutarReintentoDeCola, el arranque de descarga
- * (btnStartQueue → iniciar_descarga_cola) y la cancelación suave/dura. Se
- * migrarán en pasos siguientes del split.
+ * conexión y el render): ejecutarReintentoDeCola y el arranque de descarga
+ * (btnStartQueue → iniciar_descarga_cola, que arrastra verificarRed / congelarUI /
+ * mostrarAlert). Se migrarán en pasos siguientes del split.
  *
  * Dependencias que recibe por ctx:
  *   - ctx.nodos                 : mapa de nodos (usa folder, queueBadge, txtEstado,
- *                                 masterCheck, btnToggleSelect).
+ *                                 masterCheck, btnToggleSelect, btnSoftCancel).
  *   - ctx.aplicarFiltros()      : re-render cruzado de popup.js (aplicarFiltrosCruzados).
  *   - ctx.actualizarContadores(): refresco de contadores del botón de acción (popup.js).
  *   - ctx.resetSeleccionFila()  : apaga el modo selección múltiple de la fila
  *                                 (flag modoSeleccionFilaActivo, dueño en popup.js).
+ *   - ctx.onRestaurarPanel(txt, limpiarCola): restaura el panel del popup tras la
+ *                                 detención dura (restaurarPanelPorInterrupcion, popup.js).
  *
- * Expone: encolarItemsEnCaliente, quitarItemsDeColaEnLote.
+ * Expone: encolarItemsEnCaliente, quitarItemsDeColaEnLote,
+ *         solicitarFrenadoSuave, abortarRafagaInmediata.
  */
 const QueueFeature = {
   crear(ctx) {
-    const { nodos, aplicarFiltros, actualizarContadores, resetSeleccionFila } = ctx;
+    const { nodos, aplicarFiltros, actualizarContadores, resetSeleccionFila, onRestaurarPanel } = ctx;
 
     function encolarItemsEnCaliente(items) {
       const carpeta = nodos.folder.value.trim().toLowerCase();
@@ -141,7 +151,30 @@ const QueueFeature = {
       });
     }
 
-    return { encolarItemsEnCaliente, quitarItemsDeColaEnLote };
+    // Frenado suave: termina el video en curso y no arranca los siguientes.
+    // Deja el botón deshabilitado, marca la bandera y avisa al SW.
+    function solicitarFrenadoSuave() {
+      nodos.btnSoftCancel.disabled = true;
+      AppState.banderaFrenadoSolicitado = true;
+
+      nodos.txtEstado.innerHTML = "";
+      const spanDesc = document.createElement('span');
+      spanDesc.style.color = "var(--accent-orange)";
+      spanDesc.textContent = AppState.videoActualEnTransmisiónSW || "Video actual";
+      nodos.txtEstado.append("Frenando al terminar:", document.createElement('br'), spanDesc);
+
+      chrome.runtime.sendMessage({ action: "activar_frenado_suave" });
+    }
+
+    // Detención dura: aborta la ráfaga ya, preservando la fila. Restaura el panel
+    // del popup (callback de popup.js) cuando el SW confirma el abort.
+    function abortarRafagaInmediata() {
+      chrome.runtime.sendMessage({ action: "abortar_rafaga_inmediata" }, () => {
+        onRestaurarPanel("🛑 Descargas detenidas. Fila preservada.", false);
+      });
+    }
+
+    return { encolarItemsEnCaliente, quitarItemsDeColaEnLote, solicitarFrenadoSuave, abortarRafagaInmediata };
   }
 };
 

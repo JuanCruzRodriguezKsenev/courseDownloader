@@ -1,7 +1,13 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.8.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.8.1)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.8.1:
+ * - [SPLIT] La cancelación de descarga (frenado suave + detención dura) pasó a
+ *   QueueFeature: los listeners btnSoftCancel/btnHardCancel ahora sólo llaman a
+ *   _queue.solicitarFrenadoSuave() / _queue.abortarRafagaInmediata(). El panel se
+ *   restaura vía ctx.onRestaurarPanel (restaurarPanelPorInterrupcion sigue acá,
+ *   la usan 5 call-sites). Sin cambio de comportamiento. Ver queue.js v1.1.0.
  * CHANGELOG v5.8.0:
  * - [SPLIT] Las mutaciones de la cola (encolarItemsEnCaliente, quitarItemsDeColaEnLote)
  *   se extrajeron a la feature popup/features/queue.js (QueueFeature.crear(ctx)).
@@ -241,7 +247,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     nodos,
     aplicarFiltros: () => aplicarFiltrosCruzados(),
     actualizarContadores: () => actualizarContadoresBoton(),
-    resetSeleccionFila: () => { modoSeleccionFilaActivo = false; }
+    resetSeleccionFila: () => { modoSeleccionFilaActivo = false; },
+    onRestaurarPanel: (txt, limpiarCola) => restaurarPanelPorInterrupcion(txt, limpiarCola)
   });
   const encolarItemsEnCaliente = _queue.encolarItemsEnCaliente;
   const quitarItemsDeColaEnLote = _queue.quitarItemsDeColaEnLote;
@@ -767,24 +774,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  nodos.btnSoftCancel.addEventListener('click', () => {
-    nodos.btnSoftCancel.disabled = true;
-    AppState.banderaFrenadoSolicitado = true;
-
-    nodos.txtEstado.innerHTML = "";
-    const spanDesc = document.createElement('span');
-    spanDesc.style.color = "var(--accent-orange)";
-    spanDesc.textContent = AppState.videoActualEnTransmisiónSW || "Video actual";
-    nodos.txtEstado.append("Frenando al terminar:", document.createElement('br'), spanDesc);
-
-    chrome.runtime.sendMessage({ action: "activar_frenado_suave" });
-  });
-
-  nodos.btnHardCancel.addEventListener('click', () => {
-    chrome.runtime.sendMessage({ action: "abortar_rafaga_inmediata" }, () => {
-      restaurarPanelPorInterrupcion("🛑 Descargas detenidas. Fila preservada.", false);
-    });
-  });
+  nodos.btnSoftCancel.addEventListener('click', () => _queue.solicitarFrenadoSuave());
+  nodos.btnHardCancel.addEventListener('click', () => _queue.abortarRafagaInmediata());
 
   nodos.btnAction.addEventListener('click', () => {
     const modo = nodos.btnAction.getAttribute('data-modo');

@@ -18,6 +18,7 @@ function montarNodos() {
     <input id="ui-master-check" type="checkbox">
     <button id="ui-btn-toggle-select"></button>
     <label id="ui-master-select-wrapper"></label>
+    <button id="ui-btn-soft-cancel"></button>
   `;
   return {
     folder: document.getElementById('ui-path-folder'),
@@ -25,6 +26,7 @@ function montarNodos() {
     txtEstado: document.getElementById('ui-msg-status'),
     masterCheck: document.getElementById('ui-master-check'),
     btnToggleSelect: document.getElementById('ui-btn-toggle-select'),
+    btnSoftCancel: document.getElementById('ui-btn-soft-cancel'),
   };
 }
 
@@ -139,5 +141,36 @@ describe('QueueFeature.quitarItemsDeColaEnLote', () => {
     // aplicarFiltros se dispara diferido (Promise.all + setTimeout 100ms).
     await new Promise(r => setTimeout(r, 150));
     expect(ctx.aplicarFiltros).toHaveBeenCalled();
+  });
+});
+
+describe('QueueFeature.solicitarFrenadoSuave', () => {
+  it('deshabilita el botón, marca la bandera y avisa al SW', () => {
+    AppState.videoActualEnTransmisiónSW = 'Clase X';
+    const { feature, nodos } = crearFeature();
+
+    feature.solicitarFrenadoSuave();
+
+    expect(nodos.btnSoftCancel.disabled).toBe(true);
+    expect(AppState.banderaFrenadoSolicitado).toBe(true);
+    expect(nodos.txtEstado.textContent).toContain('Frenando al terminar:');
+    expect(nodos.txtEstado.textContent).toContain('Clase X');
+    expect(sendMessage).toHaveBeenCalledWith({ action: 'activar_frenado_suave' });
+  });
+});
+
+describe('QueueFeature.abortarRafagaInmediata', () => {
+  it('avisa al SW y restaura el panel cuando el SW confirma', () => {
+    sendMessage.mockImplementation((_msg, cb) => cb({ status: 'abortado_ok' }));
+    const onRestaurarPanel = vi.fn();
+    const { feature } = crearFeature({ onRestaurarPanel });
+
+    feature.abortarRafagaInmediata();
+
+    expect(sendMessage).toHaveBeenCalledWith(
+      { action: 'abortar_rafaga_inmediata' },
+      expect.any(Function)
+    );
+    expect(onRestaurarPanel).toHaveBeenCalledWith('🛑 Descargas detenidas. Fila preservada.', false);
   });
 });
