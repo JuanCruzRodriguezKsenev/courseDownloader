@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Preact demo — serverConnection</title>
+  <style>
+    :root {
+      --bg: #14161a; --panel: #1c1f26; --border: #2a2f3a; --txt: #e6e8ec;
+      --muted: #9aa0aa; --orange: #ff7a1a; --err: #ff5c5c; --ok: #35c759;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0e0f12; color: var(--txt);
+           font: 14px/1.5 system-ui, sans-serif; display: grid; place-items: center; min-height: 100vh; }
+    .popup { width: 380px; background: var(--bg); border: 1px solid var(--border);
+             border-radius: 12px; overflow: hidden; }
+    .header { display: flex; align-items: center; justify-content: space-between;
+              padding: 10px 14px; background: var(--panel); border-bottom: 1px solid var(--border); }
+    .header-left { display: flex; align-items: center; gap: 8px; }
+    .header-left img { border-radius: 5px; }
+    .header-left h4 { margin: 0; font-size: 14px; font-weight: 700; letter-spacing: .01em; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .btn-help { background: transparent; border: none; color: var(--muted); font-size: 14px;
+                cursor: pointer; padding: 2px; border-radius: 6px; }
+    .btn-help:hover { color: var(--txt); }
+    .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; transition: background .2s; }
+
+    .path-bar { padding: 8px 14px; background: #16181d; border-bottom: 1px solid var(--border);
+                transition: background .2s; }
+    .path-bar.offline { background: #2a1414; }
+    .meta-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+    .meta-label { color: var(--muted); white-space: nowrap; }
+    .pc-path { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--txt); }
+    .path-bar.offline .pc-path { color: var(--err); }
+    .btn-explore { background: var(--panel); color: var(--txt); border: 1px solid var(--border);
+                   border-radius: 7px; padding: 4px 9px; font-size: 11px; cursor: pointer; white-space: nowrap; }
+    .btn-explore:disabled { opacity: .4; cursor: not-allowed; }
+    .dot.online { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+    .dot.offline { background: var(--err); box-shadow: 0 0 8px var(--err); }
+
+    .error-card { padding: 22px 18px; text-align: center; }
+    .error-icon { font-size: 34px; }
+    .error-card h5 { margin: 10px 0 6px; font-size: 15px; }
+    .error-card p { margin: 0 0 14px; color: var(--muted); font-size: 12.5px; }
+    .error-pulse { display: inline-flex; gap: 8px; align-items: center; color: var(--muted); font-size: 12px; }
+    .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--orange);
+                 animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100% { opacity: .3 } 50% { opacity: 1 } }
+
+    .dl-panel { padding: 16px; }
+    .dl-title { font-size: 12.5px; color: var(--muted); margin-bottom: 10px; }
+    .dl-title b { color: var(--orange); }
+    .dl-bar { height: 8px; background: #0e0f12; border-radius: 6px; overflow: hidden; }
+    .dl-fill { height: 100%; background: var(--orange); transition: width .3s; }
+    .dl-pct { text-align: right; font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+    .idle { padding: 22px 18px; color: var(--muted); font-size: 12.5px; text-align: center; }
+
+    .dev { border-top: 1px dashed var(--border); background: #101216; padding: 12px 14px; }
+    .dev-title { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 8px; }
+    .dev-row { display: flex; gap: 8px; margin-bottom: 8px; }
+    .dev button { flex: 1; background: var(--panel); color: var(--txt); border: 1px solid var(--border);
+                  border-radius: 8px; padding: 8px; font-size: 12px; cursor: pointer; }
+    .dev button:hover:not(:disabled) { border-color: var(--orange); }
+    .dev button:disabled { opacity: .4; cursor: not-allowed; }
+    .dev-state { background: #0b0c0f; border: 1px solid var(--border); border-radius: 8px;
+                 padding: 8px; font-size: 11px; color: var(--muted); margin: 4px 0 0; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <!-- Sin build, sin CDN en runtime: Preact+htm vendorizados como ES module local.
+       Igual que lo cargaría popup.html en la extensión (compatible con el CSP de MV3). -->
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
