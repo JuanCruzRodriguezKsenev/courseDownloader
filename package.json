@@ -5,9 +5,12 @@
   "description": "Herramientas de desarrollo (tests) para la extensión RamonNet Video Downloader. La extensión en sí no usa bundler ni dependencias de runtime — ver docs/adr/0001-no-bundler-or-typescript-yet.md.",
   "scripts": {
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lint": "eslint ."
   },
   "devDependencies": {
+    "eslint": "^9.39.5",
+    "globals": "^17.7.0",
     "jsdom": "^25.0.1",
     "vitest": "^2.1.8"
   }

@@ -60,7 +60,7 @@ No depende de nada de lo que sigue. Se puede hacer en cualquier momento, indepen
 
 ## Fase 4 — Calidad de proceso
 
-- [ ] Configurar ESLint básico (reglas mínimas: `no-unused-vars`, `eqeqeq`, `no-undef`).
+- [x] Configurar ESLint básico (reglas mínimas: `no-unused-vars`, `eqeqeq`, `no-undef`). ✅ 2026-07-17 — `eslint.config.js` (flat config, ESLint 9) con globals por contexto (SW/importScripts, popup/`<script>`, dual-export, islas Preact ESM, tests). Script `npm run lint`. Estado inicial: 0 errores, 11 warnings (destapó código muerto `marcarClaseComoPendiente` — ver TECHNICAL_DEBT).
 - [x] Reemplazar los 3 `catch (e) {}` silenciosos identificados por al menos un `console.warn`. ✅ 2026-07-17
 - [ ] Hacer configurable la URL base del backend Bun en `shared/bunClient.js` (hoy hardcodeada a `localhost:3001`), si se llega a necesitar para tests de integración.
 

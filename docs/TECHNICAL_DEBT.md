@@ -50,6 +50,16 @@ Inventario vivo de problemas conocidos en el código actual, ordenados por sever
 - **Fix propuesto**: borrar `popup.js:1372-1374`.
 - **Estado**: ✅ resuelto (2026-07-16). Wrapper eliminado; los 5 call-sites ya llamaban directo a `Utils.clasificarCatedraYCarpeta`. `popup.js` → v5.5.4. Ver sección Resuelto.
 
+### Función muerta (¿o call-site faltante?): `marcarClaseComoPendiente`
+
+- **Dónde**: `background.js:606`, `async function marcarClaseComoPendiente(listaCompleta, elementoActual)`.
+- **Qué pasa**: la detectó el `no-unused-vars` de ESLint (2026-07-17). La función marca una clase como `'pending'` (en `listaPersistente`, `SW_ESTADOS_PROGRESO`) y la saca de `colaDescargas`, pero **no la llama nadie** — el único otro match textual es un comentario de changelog.
+- **Impacto / ambigüedad**: hay que decidir cuál de dos es el caso real antes de tocar:
+  - (a) **Código muerto** → borrarla.
+  - (b) **Call-site faltante (bug latente)** → por el nombre y la firma (`elementoActual`), parece pensada para cuando una descarga falla a mitad de ráfaga y la clase debería volver a `'pending'` en vez de quedar en `'process'`. Si ese caso hoy no resetea la clase, hay un hueco funcional, no sólo código muerto.
+- **Nota**: la consolidación de escritura atómica de v5.6.3 tocó esta función; el cambio sigue siendo correcto, pero resultó estar sobre código sin uso.
+- **Estado**: 🔲 pendiente — requiere decisión de producto/diseño (borrar vs cablear).
+
 ### `styles/components.css` (1261 líneas en un solo archivo)
 
 - **Dónde**: `styles/components.css`.
@@ -94,7 +104,7 @@ Inventario vivo de problemas conocidos en el código actual, ordenados por sever
 
 | Ítem | Ubicación | Impacto | Estado |
 |---|---|---|---|
-| Sin linter (ESLint) configurado | proyecto completo | No se detectan variables no usadas, `==` vs `===`, código muerto adicional | 🔲 pendiente |
+| Sin linter (ESLint) configurado | proyecto completo | No se detectan variables no usadas, `==` vs `===`, código muerto adicional | ✅ resuelto (2026-07-17) — `eslint.config.js` + `npm run lint`; 0 errores, 11 warnings iniciales |
 | `catch (e) {}` silenciosos (3 casos) | `background.js:147`, `background.js:325` y `background/hlsEngine.js:219` (los dos últimos, `abort()` del controlador de gráfico activo) | Dificulta debug si falla el abort/limpieza de recursos | ✅ resuelto (2026-07-17) — ahora `console.warn` con contexto |
 | URL de backend hardcodeada | `shared/bunClient.js:8` (`baseUrl = "http://localhost:3001"`) | No se puede apuntar a otro host/puerto sin editar código; relevante si se agregan tests de integración contra el backend real | 🔲 pendiente, bajo impacto |
 
