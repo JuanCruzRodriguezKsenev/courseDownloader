@@ -24,6 +24,18 @@ Configuración de entorno local y flujo de trabajo para desarrollar sobre esta e
 - Rama principal: `main`.
 - No hay checks de CI configurados todavía. Hasta que existan, la responsabilidad de no romper nada recae en probar manualmente el flujo afectado antes de mergear (ver "probar el golden path" más abajo).
 
+### Regla DRY: cada dato vive en un solo doc
+
+La documentación sigue el mismo principio de *single source of truth* que el código: **cada concepto tiene un doc canónico** que lo explica completo (con su por qué), y cualquier otra mención lo **cita con link** en vez de re-explicarlo. Duplicar una explicación garantiza que tarde o temprano las copias se desincronicen. Guía de hogares canónicos:
+
+- Schema de `chrome.storage` e invariantes de estado → `docs/data-model.md`.
+- Patrones (IPC, split de ownership, daemon `Conexion`, circuit breaker, worker pool, parsing de títulos) → `docs/patterns.md`.
+- Elección de tecnologías y Turbo Mode → `docs/tech-stack.md`.
+- Política de seguridad (regla XSS, permisos) → `docs/security.md`.
+- Estado de la migración a islas Preact → `docs/preact-migration.md`.
+
+Un overview que orienta y apunta (una frase + link) **no** es duplicación; re-especificar el mismo mecanismo/valores/rationale en dos lugares **sí** lo es. Si al escribir un doc te encontrás re-explicando algo que ya vive en otro, dejá el resumen y linkéalo.
+
 ### Checklist antes de abrir un PR
 
 Este proyecto trata la documentación con la misma disciplina que el código — **un doc que miente es peor que no tener doc**. Si tu cambio afecta el modelo de storage, la arquitectura de mensajería IPC, o la lógica de negocio (parsing de títulos, clasificación de cátedra, flujo de descarga), la documentación correspondiente se actualiza **en la misma rama y el mismo PR** — no se abren tareas de seguimiento para eso.

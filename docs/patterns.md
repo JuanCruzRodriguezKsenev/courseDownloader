@@ -92,4 +92,8 @@ Explicación de los patrones que sostienen el código actual — qué problema r
 
 **Qué hace**: normaliza títulos de clases scrapeados (texto libre, con acentos, fechas en formatos variables, mención de cátedra en distintas posiciones) a un nombre de archivo canónico `SEM mm-dd - MATERIA CATEDRA - CLASE n - PARTE m - DETALLE`, y separa esa clasificación en pasos (fecha → cátedra → materia → clase/parte → resto) que se van "consumiendo" del texto original para no volver a matchear lo mismo dos veces.
 
+**Detalle de las heurísticas** (fuente canónica):
+- **Fecha** (`parseSmartDate`): ante ambigüedad día/mes, si un número es >12 y el otro no, el >12 es el día.
+- **Cátedra + carpeta** (`clasificarCatedraYCarpeta`): se intenta en orden — mención explícita "CATEDRA X" → mención "MATERIA X" → match difuso genérico "SIGLA X" contra la materia base → default `"COMUN"`.
+
 **Nota de fragilidad**: es la lógica más sensible a regresiones del proyecto — cualquier cambio en el orden de los regex puede alterar la clasificación de forma sutil. Es la prioridad #1 de cobertura de tests (ver `docs/testing.md`).

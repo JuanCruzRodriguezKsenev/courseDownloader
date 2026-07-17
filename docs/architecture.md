@@ -62,16 +62,16 @@ Ver `docs/patterns.md` para el detalle de cómo se comunican estas zonas y qué 
 
 ## Modelo de estado
 
-El estado está deliberadamente **partido, no compartido**, entre popup y service worker — ver el detalle completo en `docs/data-model.md`:
+El estado está deliberadamente **partido, no compartido**, entre popup y service worker. Cada zona es dueña de una porción; se reconcilian por IPC, no comparten memoria. En una línea cada uno:
 
-- **`AppState`** (popup, `shared/state.js`) es la fuente de verdad de la *lista de clases scrapeadas* y de la selección/filtros de UI.
-- **`SessionState`** (service worker, definido inline en `background.js`) es la fuente de verdad del *progreso de la descarga activa* (bytes, fragmentos, velocidad, flags de abort/pausa).
-- **`Conexion`** (daemon, `shared/conexion.js`) es la fuente **única** de verdad del *estado de conexión* (servidor Bun + internet). Modelo push: un solo poller mantiene el estado fresco; el resto sólo lo lee (`Conexion.get()`) o se suscribe (`Conexion.suscribir(cb)`). Cargado en popup y SW, se espeja entre ambos vía `chrome.storage.session`. Nadie más debe chequear conexión por su cuenta (ver `docs/patterns.md`).
+- **`AppState`** (popup, `shared/state.js`) — la *lista de clases scrapeadas* + selección/filtros de UI.
+- **`SessionState`** (service worker, inline en `background.js`) — el *progreso de la descarga activa*.
+- **`Conexion`** (daemon, `shared/conexion.js`) — la fuente **única** del *estado de conexión* (servidor + internet).
 
-`AppState`/`SessionState` se reconcilian vía el mensaje IPC `obtener_estados_en_progreso` — el popup nunca debe asumir que su copia cacheada de `estado` por clase está actualizada sin pasar por esa reconciliación.
+El schema exacto, las invariantes de reconciliación (`obtener_estados_en_progreso`) y por qué el split → `docs/data-model.md`. El patrón de ownership y el daemon `Conexion` (modelo push, "no chequeos ad-hoc") → `docs/patterns.md`.
 
 ## Auto-sanación ante fallas de red
 
-`background.js` registra una alarma (`chrome.alarms`, id `alarma_autoheal`, cada ~12s) que se activa cuando la cola se pausa por error de conexión (a Ramón Net o al backend Bun). La alarma sondea (vía `Conexion.verificarAhora()`, el daemon de conexión) si el recurso caído volvió y reanuda la cola automáticamente — es, en esencia, un circuit breaker simplificado de 2 estados. Ver `docs/adr/0003-defer-circuit-breaker-and-idempotency-service.md` para por qué no se formalizó a un patrón explícito de 3 estados.
+Cuando la cola se pausa por un error de conexión, `background.js` sondea si el recurso caído volvió y reanuda sola — un circuit breaker ad-hoc de 2 estados. La mecánica (alarma `alarma_autoheal`, intervalo, sondeo vía `Conexion`) → `docs/patterns.md` §Circuit breaker; por qué no se formalizó a 3 estados → `docs/adr/0003-defer-circuit-breaker-and-idempotency-service.md`.
 
-**Ojo con los timeouts** (aprendido a los golpes, ver `docs/TECHNICAL_DEBT.md` → Resuelto): en Windows, `localhost:3001` con el servidor apagado **cuelga** en vez de rechazar. Todo `fetch` al backend que alimente detección de estado o el loop de descarga lleva `AbortController`+timeout (`obtenerRutaServidor`, `enviarFragmentoStream`). Y el loop del SW **no** debe tratar cualquier `AbortError` como cancelación del usuario (el motor HLS aborta a propósito para frenar workers): sólo el flag `state.abortadoPorUsuario` marca cancelación real.
+**Ojo con los timeouts** (aprendido a los golpes): en Windows, `localhost:3001` con el servidor apagado **cuelga** en vez de rechazar. Todo `fetch` al backend que alimente detección de estado o el loop de descarga lleva `AbortController`+timeout (`obtenerRutaServidor`, `enviarFragmentoStream`). Y el loop del SW **no** debe tratar cualquier `AbortError` como cancelación del usuario (el motor HLS aborta a propósito para frenar workers): sólo el flag `state.abortadoPorUsuario` marca cancelación real.

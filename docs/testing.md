@@ -22,11 +22,11 @@ Nota sobre el import: `shared/utils.js` no era un módulo ESM/CJS. Se le agregó
 
 ### 1. `shared/utils.js` — prioridad máxima ✅ cubierto (inicial)
 
-Es la única capa de lógica de negocio que ya está desacoplada del DOM y de `chrome.*` — se puede testear sin ningún mock. Ya cubierto en `shared/utils.test.js` (más `escaparHtml`, agregado con el fix de XSS). En orden de criticidad:
+Es la única capa de lógica de negocio que ya está desacoplada del DOM y de `chrome.*` — se puede testear sin ningún mock. Ya cubierto en `shared/utils.test.js` (más `escaparHtml`, agregado con el fix de XSS). El *mecanismo* de parsing/clasificación vive en `docs/patterns.md` §Sanitización; acá sólo el *por qué* de la prioridad de test. En orden de criticidad:
 
 1. **`formatTitleStructured`** — la función más compleja del proyecto (múltiples regex aplicados en secuencia, donde el orden importa). Un bug acá corrompe el nombre de archivo de la clase descargada.
 2. **`clasificarCatedraYCarpeta`** — determina a qué carpeta/cátedra se asigna cada clase. Un bug acá mueve archivos al lugar equivocado silenciosamente.
-3. **`parseSmartDate`** — heurística de desambiguación día/mes (regla: si un número es >12 y el otro no, el >12 es el día). Fácil de romper con un cambio aparentemente inocuo.
+3. **`parseSmartDate`** — heurística de desambiguación día/mes (la regla exacta, en `docs/patterns.md` §Sanitización). Fácil de romper con un cambio aparentemente inocuo.
 4. **`sanitizarTexto`** — nombres de archivo inválidos rompen la escritura a disco del backend Bun.
 
 Casos de borde a cubrir explícitamente para `formatTitleStructured`/`clasificarCatedraYCarpeta`: títulos sin fecha, títulos con cátedra explícita ("CATEDRA B") vs. implícita ("ANATO B"), títulos con acentos, títulos con múltiples números que podrían confundirse con clase/parte/fecha.

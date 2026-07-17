@@ -10,7 +10,7 @@ Todo texto que provenga de `popup/scraper.js` (títulos de clase, nombre de mate
 - ✅ Correcto cuando el string HTML es inevitable (mezcla markup fijo + dato de terceros): escapar el dato con `Utils.escaparHtml` antes de interpolarlo — patrón aplicado en `popup.js:renderizarListadoInterfaz` al pasar el título a la tarjeta de estado (que pinta vía `.innerHTML`). Desde la isla Preact #4, la lista en vivo se pinta con los componentes `<TarjetaEstado>`/`<FilaClase>` de `popup/features/listaClases.preact.js` (las versiones de `renderers.js` quedaron como referencia muerta), así que la misma obligación de escapar aplica en el límite del view-model `window.ListaClases` que alimenta esos componentes.
 - ❌ Incorrecto: `` card.innerHTML = `<p>${clase.titulo}</p>` `` (patrón que causó el XSS ya corregido; ver `docs/TECHNICAL_DEBT.md`, sección Resuelto).
 
-Esta regla también está en `docs/coding-standards.md` — está duplicada intencionalmente ahí porque es la clase de regla que hay que ver en el momento de escribir código, no solo al auditar seguridad.
+Esta es la **fuente canónica** de la regla. `docs/coding-standards.md` la referencia con una versión de una línea (para verla al escribir código), pero el detalle y el rationale viven acá.
 
 ## Permisos declarados (`manifest.json`) y por qué
 
