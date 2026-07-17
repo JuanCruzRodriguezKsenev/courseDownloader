@@ -1,7 +1,19 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.8.3)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.9.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.9.0:
+ * - [ISLA #4 · Etapa 1] El pintado de #ui-list se migró a la isla Preact
+ *   features/listaClases.preact.js. renderizarListadoInterfaz ya NO construye DOM:
+ *   mantiene la lógica (sincronizar cola, filtrar, ordenar) y empuja un view-model
+ *   a window.ListaClases.render(vm) — { modo:'card', card } o { modo:'lista', items, ctx }.
+ *   onCheckChange pasó a firma (clase, checked) y re-empuja el vm; el post-proceso
+ *   por fila (atenuar/deshabilitar sin sincronizar) vive ahora en <FilaClase>. La
+ *   card de escaneo "sin enlaces" también empuja al store. AppState sigue siendo la
+ *   fuente de verdad; la isla es vista pura. renderers.js (construirFilaClaseDOM /
+ *   renderizarTarjetaEstado) queda como referencia muerta (se borra en Etapa 2). Los
+ *   atributos del contenedor (opacity/.selection-mode/display) siguen vanilla (Etapa 2).
+ *   Ver docs/preact-migration.md, ADR-0006.
  * CHANGELOG v5.8.3:
  * - [ISLA #4 · Etapa 0] Render de la lista state-driven, sin refs imperativas al
  *   DOM de las filas (prep para la migración Preact). El handler de masterCheck ya
@@ -641,12 +653,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             nodos.btnFilterPills.disabled = true;
             nodos.masterCheck.disabled = true;
             
-            Renderers.renderizarTarjetaEstado(nodos.lista, {
+            ListaClases.render({ modo: 'card', card: {
               tipo: 'info',
               titulo: 'Sin clases detectadas',
               descripcion: 'No encontramos enlaces de video en esta pestaña.<br>Asegurate de estar dentro de una clase de Ramón Net y hacé click en Re-escanear.',
               icono: '🔍'
-            });
+            }});
             
             configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
           } else {
@@ -878,26 +890,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function renderizarListadoInterfaz() {
-    nodos.lista.innerHTML = "";
-    
+    // La isla Preact #4 (features/listaClases.preact.js) es dueña de los HIJOS de
+    // #ui-list. Este render ya no construye DOM: mantiene la lógica de negocio
+    // (sincronizar con la cola, filtrar, ordenar) y EMPUJA un view-model al store
+    // window.ListaClases. Los atributos del contenedor (opacity/.selection-mode/display)
+    // siguen vanilla hasta la Etapa 2.
+
     if (AppState.fallaConexionActiva) {
       // El título proviene del scraping del DOM de Ramón Net (contenido de terceros):
-      // se escapa antes de interpolarlo porque renderizarTarjetaEstado usa innerHTML.
+      // se escapa antes de interpolarlo porque la card usa dangerouslySetInnerHTML.
       const titulo = Utils.escaparHtml(AppState.videoFalladoParaReintento || "clase");
       if (AppState.fallaConexionActiva === "servidor") {
-        Renderers.renderizarTarjetaEstado(nodos.lista, {
+        ListaClases.render({ modo: 'card', card: {
           tipo: 'error',
           titulo: 'Servidor Desconectado',
           descripcion: `El servidor local de Bun se desconectó.<br>Por favor, ejecutá <strong>iniciar.bat</strong> para reanudar.<br><br><strong>Pausado en:</strong> ${titulo}`,
           icono: '🔌'
-        });
+        }});
       } else {
-        Renderers.renderizarTarjetaEstado(nodos.lista, {
+        ListaClases.render({ modo: 'card', card: {
           tipo: 'error',
           titulo: 'Conexión a Internet Caída',
           descripcion: `Se interrumpió la conexión a internet.<br>La descarga se reanudará automáticamente apenas vuelva la red.<br><br><strong>Pausado en:</strong> ${titulo}`,
           icono: '⚠️'
-        });
+        }});
       }
       return;
     }
@@ -946,33 +962,39 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (filtrados.length === 0) {
       if (AppState.pestañaActiva === "cola") {
-        Renderers.renderizarTarjetaEstado(nodos.lista, {
+        ListaClases.render({ modo: 'card', card: {
           tipo: 'info',
           titulo: 'Fila de descarga vacía',
           descripcion: 'No tenés clases agregadas en esta lista.<br>Volvé a "Clases Disponibles", marcá las clases y agregalas.',
           icono: '📥'
-        });
+        }});
       } else {
-        Renderers.renderizarTarjetaEstado(nodos.lista, {
+        ListaClases.render({ modo: 'card', card: {
           tipo: 'info',
           titulo: 'No hay clases',
           descripcion: 'No se encontraron clases que coincidan con la búsqueda o el filtro seleccionado.',
           icono: '🔍'
-        });
+        }});
       }
       return;
     }
 
-    filtrados.forEach(clase => {
-      const fila = Renderers.construirFilaClaseDOM(clase, {
+    // selectionMode espeja actualizarModoSeleccion: en Disponibles siempre activo;
+    // en Cola depende del toggle modoSeleccionFilaActivo.
+    const selectionMode = AppState.pestañaActiva === "disponibles" ? true : modoSeleccionFilaActivo;
+
+    ListaClases.render({
+      modo: 'lista',
+      items: filtrados,
+      ctx: {
         pestaña: AppState.pestañaActiva,
         sincronizado: AppState.sincronizacionDiscoCompletada,
         enCurso: AppState.ráfagaEnCurso,
         videoActivo: AppState.videoActualEnTransmisiónSW,
-        onCheckChange: (c, check, div) => {
+        selectionMode,
+        onCheckChange: (c, check) => {
           c.seleccionado = check;
-          div.classList.toggle('selected', check);
-          
+
           if (AppState.pestañaActiva === "cola") {
             const busqueda = nodos.search.value.toLowerCase().trim();
             const visibles = AppState.colaDescargas.filter(i => i.titulo.toLowerCase().includes(busqueda));
@@ -981,9 +1003,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!AppState.sincronizacionDiscoCompletada) return;
             nodos.masterCheck.checked = AppState.listadoClasesGlobal.filter(i => i.visible && i.estado === 'pending').every(i => i.seleccionado);
           }
-          
+
           actualizarContadoresBoton();
           AppState.respaldar();
+          renderizarListadoInterfaz(); // re-empuja el vm para que la fila refleje seleccionado
         },
         onRemoverClick: (c) => {
           console.log(`🗑️ [UI] Intento de remoción de la fila: "${c.titulo}"`);
@@ -1038,16 +1061,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             setTimeout(aplicarFiltrosCruzados, 100);
           });
         },
-      });
-      
-      if (!AppState.sincronizacionDiscoCompletada && AppState.pestañaActiva === "disponibles") {
-        const inputCheck = fila.querySelector('input[type="checkbox"]');
-        if (inputCheck) inputCheck.disabled = true;
-        fila.style.opacity = "0.65";
       }
-
-      nodos.lista.appendChild(fila);
     });
+
   }
 
   function congelarUIPorDescargaActiva(titulo, pct, tel) {

@@ -18,6 +18,7 @@ const globalesDelProyecto = {
   ServerConnectionFeature: "readonly",
   QueueFeature: "readonly",
   BannerConexion: "readonly",
+  ListaClases: "readonly",
   OnboardingFeature: "readonly",
   RutaDisco: "readonly",
 };
