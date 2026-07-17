@@ -1,6 +1,6 @@
 # Testing
 
-**Estado actual: infra montada, cobertura inicial sobre `shared/utils.js`.** Existe `package.json` con Vitest + jsdom como devDependencies y un suite en `shared/utils.test.js` (23 tests de caracterización de las funciones puras). El resto de este documento describe la estrategia y lo que todavía falta cubrir.
+**Estado actual: suite real y en crecimiento — 10 archivos de test, ~101 tests.** Existe `package.json` con Vitest + jsdom como devDependencies. Cubierto hoy: la lógica pura (`shared/utils.js`), el daemon de conexión (`shared/conexion.js`), el cliente del backend (`shared/bunClient.js`), y las features/islas del popup ya extraídas (`popup/features/serverConnection.js`, `queue.js`, y las islas Preact `conexionHeader`/`onboarding`/`rutaDisco`/`bannerConexion`/`listaClases`). El resto de este documento describe la estrategia y lo que todavía falta cubrir (principalmente `background.js`/`background/hlsEngine.js` y el núcleo de `popup.js` aún sin extraer).
 
 ## Cómo correr los tests
 
@@ -40,13 +40,13 @@ Casos de borde a cubrir explícitamente para `formatTitleStructured`/`clasificar
 
 Requieren mockear `chrome.storage`, `chrome.alarms`, `chrome.runtime`, `chrome.offscreen`, etc. El costo de setup es mayor (librería tipo `sinon-chrome`, o mocks manuales del namespace `chrome`). Se aborda en una fase posterior si el proyecto lo justifica — no es parte de la Fase 1.
 
-### 4. `popup.js` — bloqueado hasta el split (Fase 2 del roadmap)
+### 4. `popup.js` — parcial: lo ya extraído está cubierto, el núcleo sigue bloqueado
 
-No es testeable en su forma actual: es un único closure `DOMContentLoaded` con ~50 funciones anidadas que comparten variables de clausura no exportadas. Antes de escribir tests acá, hay que extraer la lógica a módulos con funciones nombradas y exportables (`popup/features/*.js`, ver `docs/ROADMAP.md` Fase 2 y `docs/adr/0005-feature-driven-popup-split.md`).
+El `popup.js` original era un único closure `DOMContentLoaded` con ~50 funciones anidadas no exportables — no testeable así. A medida que la Fase 2 extrae lógica a `popup/features/*` (y a islas Preact), esos módulos **sí** se testean de forma aislada: ya hay tests para `serverConnection`, `queue` y las cinco islas Preact. Lo que queda sin cubrir es el núcleo de `popup.js` todavía no extraído (init + wiring + funciones aún en el closure) — ver `docs/ROADMAP.md` Fase 2 y `docs/adr/0005-feature-driven-popup-split.md`.
 
 ## Qué NO testear (por ahora)
 
-- `renderers.js` y `popup/scraper.js` son principalmente manipulación de DOM/scraping de un DOM de terceros — de menor prioridad que la lógica de negocio pura. Si se testean, usar jsdom para simular el DOM.
+- El render de la lista de clases se migró a la isla Preact `popup/features/listaClases.preact.js`, que **sí** está cubierta con jsdom (`listaClases.preact.test.js`). Lo que queda de `renderers.js` (`pintarTelemetria`, más los ports `construirFilaClaseDOM`/`renderizarTarjetaEstado` que quedaron como referencia muerta hasta la Etapa 2 de la migración) y `popup/scraper.js` (scraping de un DOM de terceros) siguen de menor prioridad que la lógica de negocio pura. Si se testean, usar jsdom para simular el DOM.
 - No hay necesidad de tests end-to-end automatizados (ej. Playwright) contra el backend Bun real — el golden path manual descrito en `docs/contributing.md` cumple ese rol mientras el proyecto sea de este tamaño.
 
 ## Convención de archivos de test

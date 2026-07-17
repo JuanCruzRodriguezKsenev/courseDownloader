@@ -78,13 +78,13 @@ Explicación de los patrones que sostienen el código actual — qué problema r
 
 **Relación con el patrón formal**: cumple el rol de un servicio de idempotencia sin ser uno centralizado. Ver `docs/adr/0003-defer-circuit-breaker-and-idempotency-service.md`.
 
-## Optimistic UI update (parcial)
+## Optimistic UI update (con rollback)
 
-**Dónde**: `encolarItemsEnCaliente()` en `popup.js:898-931`.
+**Dónde**: `encolarItemsEnCaliente()` en `popup/features/queue.js` (`QueueFeature`; `popup.js` la consume vía un alias local).
 
-**Qué hace**: al agregar clases a la cola, `AppState.colaDescargas` y el DOM se actualizan de inmediato, sin esperar confirmación del service worker — la notificación IPC (`inyectar_items_en_cola_activa`) se dispara después, en fire-and-forget.
+**Qué hace**: al agregar clases a la cola, `AppState.colaDescargas` y el DOM se actualizan de inmediato, sin esperar confirmación del service worker. La notificación IPC (`inyectar_items_en_cola_activa`) se dispara después con un callback: si el SW no confirma (`chrome.runtime.lastError` o `status != "encolados_ok"`), revierte la cola por `id`, restaura `estado`/`seleccionado` de los ítems y re-renderiza.
 
-**Estado**: implementación parcial — falta el rollback si el IPC falla. Ver el ítem correspondiente en `docs/TECHNICAL_DEBT.md` y la Fase 3 de `docs/ROADMAP.md`.
+**Estado**: el rollback se implementó (`queue.js`, `popup.js` v5.7.1) — ver el ítem en la sección Resuelto de `docs/TECHNICAL_DEBT.md`.
 
 ## Sanitización de nombres de archivo y parsing de títulos
 

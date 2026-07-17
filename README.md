@@ -62,6 +62,7 @@ Para realizar las descargas físicas en tu disco, la extensión se conecta con u
 * **`popup/`**:
   * `popup.html`: Plantilla visual del popup (Onboarding, pestañas, buscador y footer).
   * `scraper.js`: Algoritmo de inyección y extracción de datos del DOM de Ramón Net.
+  * `features/`: Módulos autocontenidos de la UI del popup (conexión, cola, e islas Preact para header, banner, ruta, onboarding y lista de clases).
 * **`popup.js`**: Orquestador principal de eventos, máquina de estados de UI y pasarela de mensajes IPC.
 * **`renderers.js`**: Renderizador optimizado de tarjetas de estado e ítems de video con soporte de checkboxes interactivos y selección múltiple.
 * **`background/`**:
@@ -70,5 +71,6 @@ Para realizar las descargas físicas en tu disco, la extensión se conecta con u
 * **`shared/`**:
   * `state.js`: Maquinaria de estado centralizada (`AppState`) con persistencia en storage.
   * `bunClient.js`: Cliente de comunicación HTTP/IPC con el backend de Bun.
+  * `conexion.js`: Daemon de estado de conexión (servidor + internet), fuente única consumida por popup y Service Worker.
   * `utils.js`: Funciones comunes de sanitización, clasificación de cátedras y normalización de títulos de video.
 * **`styles/`**: Sistema de tokens de diseño visual (Colores OLED, radios, espaciados, tipografías y pulso ECG animado).

@@ -1,6 +1,6 @@
 # Estándar de código
 
-Convenciones observadas y a mantener en este repositorio. No hay linter configurado todavía que las haga cumplir automáticamente (ver `docs/ROADMAP.md`, Fase 4) — por ahora dependen de revisión manual.
+Convenciones observadas y a mantener en este repositorio. Hay un ESLint (flat config, `eslint.config.js`) que hace cumplir automáticamente un subconjunto (`no-undef`, `no-unused-vars`, `eqeqeq`) vía `npm run lint`; el resto de las convenciones de este documento dependen de revisión manual.
 
 ## Idioma: identificadores y logs en español
 
@@ -35,7 +35,7 @@ La mayoría de los archivos tienen un comentario de banner al inicio con número
 
 ## Sin framework, sin bundler — module pattern por objeto global
 
-No hay `import`/`export` de ES modules. Cada archivo define un objeto (`AppState`, `Utils`, `BunClient`, `HlsEngine`, `Renderers`, `Scraper`) y lo expone condicionalmente según el contexto:
+Salvo las islas Preact (ver abajo), no hay `import`/`export` de ES modules. Cada archivo define un objeto (`AppState`, `Utils`, `BunClient`, `HlsEngine`, `Conexion`, `Renderers`, `Scraper`) y lo expone condicionalmente según el contexto:
 
 ```js
 if (typeof window !== "undefined") {
@@ -45,7 +45,9 @@ if (typeof window !== "undefined") {
 }
 ```
 
-Esto es necesario porque el mismo archivo (`shared/*.js`) se carga tanto en el popup (contexto `window`) como en el service worker (contexto `self`, sin `window`). **Regla**: todo módulo nuevo en `shared/` debe seguir este mismo patrón de exportación dual si va a usarse desde ambos contextos.
+Esto es necesario porque el mismo archivo (`shared/*.js`) se carga tanto en el popup (contexto `window`) como en el service worker (contexto `self`, sin `window`). **Regla**: todo módulo nuevo en `shared/` debe seguir este mismo patrón de exportación dual si va a usarse desde ambos contextos. Los módulos testeados agregan además un branch `module.exports` para Node/Vitest (ver `docs/testing.md`).
+
+**Excepción — islas Preact**: los archivos `popup/features/*.preact.js` sí usan `import`/`export` de ES modules reales (se cargan con `<script type="module">` y toman Preact/htm de `popup/vendor/htm-preact-standalone.module.js`). Conviven con el patrón de objeto global, pero siguen las reglas de `docs/preact-migration.md`, no las de esta sección.
 
 ## Orden de carga de scripts
 
@@ -55,7 +57,7 @@ Esto es necesario porque el mismo archivo (`shared/*.js`) se carga tanto en el p
 
 - Los errores esperables de red usan `Utils.fetchConReintentos` (retry con backoff) en vez de un `fetch` directo — ver `docs/patterns.md`.
 - Los errores de `chrome.storage`/`chrome.runtime` se chequean explícitamente vía `chrome.runtime.lastError` dentro del callback, no vía try/catch (es el patrón que exige la API de callbacks de `chrome.*`) — ver `shared/state.js:66-68` como referencia.
-- `catch (e) {}` completamente silenciosos deben evitarse — como mínimo, un `console.warn` con el mensaje del error. Ver el ítem correspondiente en `docs/TECHNICAL_DEBT.md` para los casos existentes que todavía no siguen esta regla.
+- `catch (e) {}` completamente silenciosos deben evitarse — como mínimo, un `console.warn` con el mensaje del error. Los 3 casos que había se resolvieron (ver `docs/TECHNICAL_DEBT.md`, sección Resuelto); mantené la regla en código nuevo.
 
 ## Seguridad al pintar contenido de terceros en el DOM
 

@@ -33,7 +33,7 @@ Inventario vivo de problemas conocidos en el código actual, ordenados por sever
   - No se puede testear ninguna función de forma aislada sin montar el DOM completo y disparar `DOMContentLoaded`.
   - Acoplamiento oculto: una variable de clausura mutada en una función puede afectar el comportamiento de otra función a 800+ líneas de distancia, sin que quede evidencia en el diff de un cambio puntual.
 - **Fix propuesto**: ver `docs/ROADMAP.md` — reorganización feature-driven en módulos (`popup/features/*`), cargados como `<script>` adicionales en `popup.html`.
-- **Estado**: 🟡 parcial. Ya extraídos `popup/features/onboarding.js` y `popup/features/serverConnection.js` (este último apoyado en el nuevo daemon `shared/conexion.js`, que absorbió los flags de monitoreo `intervalReconexion`/`comprobacionEnProgreso` que antes vivían sueltos acá), y `popup/features/queue.js` (mutaciones de la cola: `encolarItemsEnCaliente` + `quitarItemsDeColaEnLote`, con tests). Pendientes: `filters.js`, el resto de `queue.js` (`ejecutarReintentoDeCola`, arranque y cancelación de descarga), más adelgazar `popup.js` a init + wiring.
+- **Estado**: 🟡 parcial. Ya extraídos `popup/features/serverConnection.js` (apoyado en el daemon `shared/conexion.js`, que absorbió los flags de monitoreo `intervalReconexion`/`comprobacionEnProgreso` que antes vivían sueltos acá) y `popup/features/queue.js` (ciclo de vida completo de la cola: mutaciones `encolarItemsEnCaliente`/`quitarItemsDeColaEnLote`, cancelación `solicitarFrenadoSuave`/`abortarRafagaInmediata`, arranque `iniciarDescargaCola` y reintento `ejecutarReintentoDeCola`, con tests). Además, varias regiones de UI pasaron a **islas Preact** (onboarding, header de conexión, banner de caída, ruta de disco y la lista de clases — ver `docs/preact-migration.md`). Pendientes: extraer `filters.js` y adelgazar `popup.js` a init + wiring.
 
 ### `background.js` — listener IPC monolítico
 
@@ -73,10 +73,10 @@ Inventario vivo de problemas conocidos en el código actual, ordenados por sever
 
 ### Cobertura de tests: parcial
 
-- **Qué pasa**: ya hay `package.json` + Vitest/jsdom. Cubiertos: `shared/utils.js` (funciones puras), `shared/conexion.js` (daemon de conexión), y las features extraídas `popup/features/onboarding.js` y `popup/features/serverConnection.js`. Sigue sin cobertura: `background.js`, `background/hlsEngine.js` (requieren mocks de `chrome.*`) y el resto de `popup.js` (bloqueado por el split de Fase 2).
-- **Impacto**: la lógica pura de utils, el daemon de conexión y las features ya extraídas tienen red de regresión; el motor HLS y la orquestación restante de UI siguen dependiendo de pruebas manuales.
+- **Qué pasa**: ya hay `package.json` + Vitest/jsdom, con 10 archivos de test (~101 tests). Cubiertos: `shared/utils.js` (funciones puras), `shared/conexion.js` (daemon de conexión), `shared/bunClient.js` (cliente del backend), y las features/islas del popup extraídas — `popup/features/serverConnection.js`, `queue.js`, y las islas Preact `conexionHeader`/`onboarding`/`rutaDisco`/`bannerConexion`/`listaClases`. Sigue sin cobertura: `background.js`, `background/hlsEngine.js` (requieren mocks de `chrome.*`) y el núcleo de `popup.js` aún sin extraer.
+- **Impacto**: la lógica pura, el daemon de conexión, el cliente del backend y las features/islas ya extraídas tienen red de regresión; el motor HLS y la orquestación restante de UI siguen dependiendo de pruebas manuales.
 - **Fix propuesto**: ver `docs/ROADMAP.md` — continuar con `hlsEngine.js`/`background.js` (mocks de `chrome.*`) y el resto de `popup.js` post-split.
-- **Estado**: 🟡 parcial — `shared/utils.js`, `shared/conexion.js`, `onboarding.js` y `serverConnection.js` cubiertos; `background.js`/`hlsEngine.js` y el resto de `popup.js` pendientes.
+- **Estado**: 🟡 parcial — `shared/utils.js`, `shared/conexion.js`, `shared/bunClient.js`, `serverConnection.js`, `queue.js` y las 5 islas Preact cubiertos; `background.js`/`hlsEngine.js` y el núcleo de `popup.js` pendientes.
 
 ---
 

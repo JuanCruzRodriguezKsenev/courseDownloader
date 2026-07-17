@@ -6,7 +6,7 @@ Configuración de entorno local y flujo de trabajo para desarrollar sobre esta e
 
 - Chrome o Brave con "Modo de desarrollador" habilitable en `chrome://extensions/`.
 - El backend local en Bun (`ramonnet-bun-backend`, repo separado) corriendo en `http://localhost:3001` para poder probar descargas de punta a punta — ver `docs/deployment.md`.
-- No hace falta Node.js para trabajar en este repo hoy (no hay build step). Sí va a hacer falta una vez que se implemente `docs/testing.md` (Vitest) o `docs/ROADMAP.md` Fase 5 (`// @ts-check`).
+- No hace falta Node.js para *cargar* la extensión (no hay build step — el navegador lee los `.js`/`.html` fuente directo). Sí hace falta Node.js para correr la suite de tests (`npm test`, Vitest + jsdom) y el linter (`npm run lint`, ESLint) — ver `docs/testing.md`.
 
 ## Cargar la extensión en modo desarrollo
 
@@ -32,7 +32,9 @@ Este proyecto trata la documentación con la misma disciplina que el código —
 - [ ] Si cambiaste cómo se comunican popup/SW/offscreen, o agregaste una acción IPC nueva → actualizaste `docs/architecture.md` y/o `docs/patterns.md`.
 - [ ] Si tomaste una decisión de arquitectura significativa (nueva dependencia, nuevo patrón, reemplazo de uno existente) → agregaste un ADR nuevo en `docs/adr/` (nunca edites uno existente — ver `docs/adr/README.md`).
 - [ ] Si tu cambio toca código de manejo de contenido scrapeado o de terceros → revisaste `docs/security.md`.
+- [ ] Si agregaste o cambiaste una isla Preact del popup → actualizaste la tabla de estado en `docs/preact-migration.md`.
 - [ ] Si resolviste un ítem de `docs/TECHNICAL_DEBT.md` → lo marcaste como resuelto ahí.
+- [ ] Corriste `npm test` (sin regresiones) y `npm run lint` (0 errores) sobre el cambio.
 - [ ] Probaste el flujo afectado end-to-end en el navegador (con el backend Bun corriendo si tocaste algo de descarga) — ver `docs/testing.md`.
 
 ## Probar el "golden path" antes de dar por terminado un cambio
