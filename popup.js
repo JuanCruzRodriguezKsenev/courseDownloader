@@ -1,7 +1,13 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.7.1)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.8.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.8.0:
+ * - [SPLIT] Las mutaciones de la cola (encolarItemsEnCaliente, quitarItemsDeColaEnLote)
+ *   se extrajeron a la feature popup/features/queue.js (QueueFeature.crear(ctx)).
+ *   popup.js las recibe por ctx (nodos + callbacks aplicarFiltros/actualizarContadores/
+ *   resetSeleccionFila) y las expone como alias locales — los call-sites no cambian.
+ *   Sin cambio de comportamiento. Ver ADR-0005, ROADMAP Fase 2, queue.test.js.
  * CHANGELOG v5.7.1:
  * - [FIX] encolarItemsEnCaliente hacía optimistic update (AppState.colaDescargas +
  *   DOM + estado 'process') y disparaba inyectar_items_en_cola_activa SIN verificar
@@ -229,6 +235,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   // reconectar. mostrarAlertDeConexionCaida lo (re)dispara vía este alias (idempotente).
   const iniciarMonitoreoServidor = _serverConnection.iniciarDetectorEstado;
   _serverConnection.iniciarDetectorEstado();
+
+  // Feature: mutaciones de la cola (agregar/quitar en lote). Ver popup/features/queue.js.
+  const _queue = QueueFeature.crear({
+    nodos,
+    aplicarFiltros: () => aplicarFiltrosCruzados(),
+    actualizarContadores: () => actualizarContadoresBoton(),
+    resetSeleccionFila: () => { modoSeleccionFilaActivo = false; }
+  });
+  const encolarItemsEnCaliente = _queue.encolarItemsEnCaliente;
+  const quitarItemsDeColaEnLote = _queue.quitarItemsDeColaEnLote;
 
   nodos.btnAction.setAttribute('data-modo', 'sincronizar-disco');
 
@@ -826,66 +842,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     chrome.runtime.sendMessage({ action: "iniciar_descarga_cola" });
   });
 
-
-  function encolarItemsEnCaliente(items) {
-    const carpeta = nodos.folder.value.trim().toLowerCase();
-
-    // Crear los objetos limpios de la cola
-    const nuevosEncolados = items.map((c, idx) => ({
-      id: c.id,
-      numeroOriginal: c.numeroOriginal,
-      titulo: c.titulo,
-      urlInterna: c.urlInterna,
-      carpeta: carpeta,
-      fechaEncolado: Date.now() + idx
-    }));
-
-    // Snapshot para revertir el optimistic update si el SW no confirma la persistencia
-    const estadoPrevioItems = items.map(c => ({ ref: c, estado: c.estado, seleccionado: c.seleccionado }));
-    const idsNuevos = new Set(nuevosEncolados.map(n => n.id));
-
-    // Combinar en el array de la cola desacoplado
-    AppState.colaDescargas = [...AppState.colaDescargas, ...nuevosEncolados];
-
-    // Cambiar estado en listado visible
-    items.forEach(c => { c.estado = 'process'; c.seleccionado = false; });
-    nodos.queueBadge.textContent = AppState.colaDescargas.length;
-
-    if (AppState.ráfagaEnCurso) {
-      // No molestar
-    } else {
-      nodos.txtEstado.textContent = `📥 ¡Clases agregadas! Pasá a la pestaña de Fila para iniciar.`;
-    }
-
-    AppState.respaldar();
-    aplicarFiltrosCruzados();
-
-    // El SW responde { status: "encolados_ok" } tras persistir; si falla (SW dormido,
-    // error de storage) el canal se cierra sin respuesta y queda chrome.runtime.lastError.
-    // En cualquiera de esos casos revertimos el optimistic update para no dejar la UI
-    // mostrando ítems "en cola" que nunca se persistieron en background.js.
-    chrome.runtime.sendMessage({
-      action: "inyectar_items_en_cola_activa",
-      items: nuevosEncolados
-    }, (respuesta) => {
-      if (chrome.runtime.lastError || !respuesta || respuesta.status !== "encolados_ok") {
-        console.warn(
-          '[popup] La inyección en cola no se confirmó; revirtiendo optimistic update:',
-          chrome.runtime.lastError?.message || `respuesta inesperada: ${JSON.stringify(respuesta)}`
-        );
-        // Rollback: sacar sólo lo que agregamos (por id, robusto ante encolados intermedios)
-        AppState.colaDescargas = AppState.colaDescargas.filter(item => !idsNuevos.has(item.id));
-        estadoPrevioItems.forEach(({ ref, estado, seleccionado }) => {
-          ref.estado = estado;
-          ref.seleccionado = seleccionado;
-        });
-        nodos.queueBadge.textContent = AppState.colaDescargas.length;
-        nodos.txtEstado.textContent = `⚠️ No se pudieron agregar las clases a la Fila. Reintentá.`;
-        AppState.respaldar();
-        aplicarFiltrosCruzados();
-      }
-    });
-  }
 
   nodos.search.addEventListener('input', aplicarFiltrosCruzados);
   nodos.masterCheck.addEventListener('change', (e) => {
@@ -1579,51 +1535,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     nodos.txtEstado.textContent = "⏳ Conectando y reanudando fila...";
     chrome.runtime.sendMessage({ action: "iniciar_descarga_cola" });
-  }
-
-  function quitarItemsDeColaEnLote(items) {
-    const titulosAQuitar = new Set(items.map(c => c.titulo));
-    
-    // Determinar si la selección maestro "Todos" estaba activa para heredarla
-    const visiblesPendientes = AppState.listadoClasesGlobal.filter(i => i.visible && i.estado === 'pending');
-    const seleccionMaestraActiva = visiblesPendientes.length > 0 && visiblesPendientes.every(i => i.seleccionado);
-
-    // Filtrar de la fila local
-    AppState.colaDescargas = AppState.colaDescargas.filter(c => !titulosAQuitar.has(c.titulo));
-    
-    // Restablecer estados a pending en el listado global
-    AppState.listadoClasesGlobal.forEach(c => {
-      if (titulosAQuitar.has(c.titulo)) {
-        c.estado = 'pending';
-        c.seleccionado = seleccionMaestraActiva;
-      }
-    });
-    
-    nodos.queueBadge.textContent = AppState.colaDescargas.length;
-    nodos.masterCheck.checked = false;
-    modoSeleccionFilaActivo = false;
-    if (nodos.btnToggleSelect) {
-      nodos.btnToggleSelect.textContent = "Seleccionar";
-      nodos.btnToggleSelect.title = "Activar selección múltiple";
-    }
-    const selectWrapper = document.getElementById('ui-master-select-wrapper');
-    if (selectWrapper) selectWrapper.style.display = 'none';
-
-    AppState.respaldar();
-    actualizarContadoresBoton();
-    
-    const promesas = items.map(c => {
-      return new Promise(resolve => {
-        chrome.runtime.sendMessage({ 
-          action: "remover_item_de_cola", 
-          titulo: c.titulo
-        }, resolve);
-      });
-    });
-    
-    Promise.all(promesas).then(() => {
-      setTimeout(aplicarFiltrosCruzados, 100);
-    });
   }
 
   function renderizarFiltrosMenuPopover() {

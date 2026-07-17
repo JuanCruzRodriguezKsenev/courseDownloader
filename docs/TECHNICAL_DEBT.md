@@ -33,7 +33,7 @@ Inventario vivo de problemas conocidos en el código actual, ordenados por sever
   - No se puede testear ninguna función de forma aislada sin montar el DOM completo y disparar `DOMContentLoaded`.
   - Acoplamiento oculto: una variable de clausura mutada en una función puede afectar el comportamiento de otra función a 800+ líneas de distancia, sin que quede evidencia en el diff de un cambio puntual.
 - **Fix propuesto**: ver `docs/ROADMAP.md` — reorganización feature-driven en módulos (`popup/features/*`), cargados como `<script>` adicionales en `popup.html`.
-- **Estado**: 🟡 parcial. Ya extraídos `popup/features/onboarding.js` y `popup/features/serverConnection.js` (este último apoyado en el nuevo daemon `shared/conexion.js`, que absorbió los flags de monitoreo `intervalReconexion`/`comprobacionEnProgreso` que antes vivían sueltos acá). Pendientes: `filters.js` y `queue.js`, más adelgazar `popup.js` a init + wiring. Fue lo que bajó el archivo de 1910 → 1710 líneas.
+- **Estado**: 🟡 parcial. Ya extraídos `popup/features/onboarding.js` y `popup/features/serverConnection.js` (este último apoyado en el nuevo daemon `shared/conexion.js`, que absorbió los flags de monitoreo `intervalReconexion`/`comprobacionEnProgreso` que antes vivían sueltos acá), y `popup/features/queue.js` (mutaciones de la cola: `encolarItemsEnCaliente` + `quitarItemsDeColaEnLote`, con tests). Pendientes: `filters.js`, el resto de `queue.js` (`ejecutarReintentoDeCola`, arranque y cancelación de descarga), más adelgazar `popup.js` a init + wiring.
 
 ### `background.js` — listener IPC monolítico
 

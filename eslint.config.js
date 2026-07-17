@@ -16,6 +16,7 @@ const globalesDelProyecto = {
   Renderers: "readonly",
   Scraper: "readonly",
   ServerConnectionFeature: "readonly",
+  QueueFeature: "readonly",
   BannerConexion: "readonly",
   OnboardingFeature: "readonly",
   RutaDisco: "readonly",
@@ -68,7 +69,7 @@ module.exports = [
   // Dual-export (browser/SW + import en Vitest): el footer referencia `module`
   // (CommonJS/Node). Aplica a shared/*.js y a la feature vanilla serverConnection.
   {
-    files: ["shared/**/*.js", "popup/features/serverConnection.js"],
+    files: ["shared/**/*.js", "popup/features/serverConnection.js", "popup/features/queue.js"],
     languageOptions: { globals: { ...globals.node } },
   },
 
