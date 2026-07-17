@@ -1,6 +1,14 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: CONEXIÓN AL SERVIDOR BUN (V1.8.0)
+ * CLON DOWNLOADHELPER - FEATURE: CONEXIÓN AL SERVIDOR BUN (V1.9.0)
  * ==========================================================================
+ * CHANGELOG v1.9.0:
+ * - [MIGRACIÓN] El banner de conexión caída (.server-error-card) ya no se crea acá
+ *   dentro de #ui-list: lo pinta la isla Preact #2 (features/bannerConexion.preact.js)
+ *   en su propio root. activarEstadoOfflineUI ahora oculta/vacía #ui-list y llama
+ *   BannerConexion.mostrar(tipo); reaccionarAConexion lee BannerConexion.get() como
+ *   flag (antes querySelector('.server-error-card')) y al reconectar hace ocultar()
+ *   + restaura la lista. TARJETAS_OFFLINE se partió: el contenido de la card se movió
+ *   a la isla, acá queda ESTADO_OFFLINE (texto del footer + botón). Ver ADR-0006.
  * CHANGELOG v1.8.0:
  * - [MIGRACIÓN] El texto de la ruta del disco (📁 PC:) ya no se escribe acá vía
  *   nodos.pcPath: pasa por el store window.RutaDisco (isla Preact #1b,
@@ -102,21 +110,15 @@ const ServerConnectionFeature = {
       }
     }
 
-    // Contenido de la tarjeta de error según el tipo de conexión caída.
-    const TARJETAS_OFFLINE = {
+    // Texto de estado del footer + label del botón según el tipo de caída. El
+    // CONTENIDO de la tarjeta (icono/título/cuerpo/pulso) vive ahora en la isla
+    // Preact features/bannerConexion.preact.js; acá sólo queda lo que pinta el footer.
+    const ESTADO_OFFLINE = {
       servidor: {
-        icono: "🔌",
-        titulo: "Servidor Desconectado",
-        cuerpo: "Por favor, iniciá el servidor ejecutando <strong>iniciar.bat</strong> en tu PC.<br>La extensión se sincronizará sola apenas esté encendido.",
-        pulso: "Esperando conexión en puerto 3001...",
         estadoTxt: '⚠️ <span style="color:var(--accent-error-visible)">Servidor Bun desconectado.</span>',
         botonTxt: "Buscando servidor... ⏳"
       },
       internet: {
-        icono: "🌐",
-        titulo: "Sin conexión a internet",
-        cuerpo: "Revisá tu conexión a la red.<br>La extensión se reconectará y sincronizará sola apenas vuelva internet.",
-        pulso: "Esperando conexión a internet...",
         estadoTxt: '⚠️ <span style="color:var(--accent-error-visible)">Sin conexión a internet.</span>',
         botonTxt: "Esperando internet... ⏳"
       }
@@ -124,7 +126,7 @@ const ServerConnectionFeature = {
 
     // Muestra el banner de conexión caída. `tipo` = "servidor" | "internet".
     function activarEstadoOfflineUI(tipo = "servidor") {
-      const info = TARJETAS_OFFLINE[tipo] || TARJETAS_OFFLINE.servidor;
+      const info = ESTADO_OFFLINE[tipo] || ESTADO_OFFLINE.servidor;
       // (el puntito de estado lo maneja la isla Preact conexionHeader.preact.js)
 
       nodos.folder.disabled = true;
@@ -137,26 +139,13 @@ const ServerConnectionFeature = {
       nodos.masterCheck.checked = false;
       if (nodos.btnSort) nodos.btnSort.disabled = true;
 
-      // Recrear la tarjeta si no existe o si cambió el tipo (ej: cae el server estando
-      // ya sin internet, o viceversa).
-      const cardExistente = nodos.lista.querySelector(".server-error-card");
-      if (!cardExistente || cardExistente.dataset.tipo !== tipo) {
-        nodos.lista.innerHTML = "";
-        const card = document.createElement("div");
-        card.className = "server-error-card";
-        card.dataset.tipo = tipo;
-        card.innerHTML = `
-          <div class="server-error-icon">${info.icono}</div>
-          <h5>${info.titulo}</h5>
-          <p>${info.cuerpo}</p>
-          <div class="server-error-pulse">
-            <span class="pulse-dot"></span>
-            <span>${info.pulso}</span>
-          </div>
-        `;
-        nodos.lista.appendChild(card);
-      }
-      nodos.lista.style.opacity = "1";
+      // El banner lo pinta la isla Preact #2 (BannerConexion) en su propio root.
+      // La lista (#ui-list) se oculta y vacía mientras el banner ocupa su lugar
+      // (se repuebla al reconectar, en reaccionarAConexion). mostrar() es idempotente:
+      // si ya está el banner del mismo tipo, la isla no re-renderiza.
+      nodos.lista.innerHTML = "";
+      nodos.lista.style.display = "none";
+      BannerConexion.mostrar(tipo);
       nodos.loader.style.display = 'none';
 
       // El path del disco sólo se pierde si el que cayó es el servidor Bun (localhost).
@@ -211,8 +200,8 @@ const ServerConnectionFeature = {
       // que falte (servidor tiene prioridad). Si ya está el banner correcto, no re-renderiza.
       if (!estado.completa) {
         const tipo = !estado.servidor ? "servidor" : "internet";
-        const card = nodos.lista.querySelector(".server-error-card");
-        if (!card || card.dataset.tipo !== tipo) {
+        const b = BannerConexion.get();
+        if (!b.visible || b.tipo !== tipo) {
           activarEstadoOfflineUI(tipo);
         }
         return;
@@ -220,8 +209,10 @@ const ServerConnectionFeature = {
 
       // Ambas conexiones OK y veníamos de un banner offline: re-habilitar y re-escanear.
       if (completaAntes !== true) {
-        const card = nodos.lista.querySelector(".server-error-card");
-        if (card) {
+        if (BannerConexion.get().visible) {
+          BannerConexion.ocultar();
+          nodos.lista.style.display = ""; // restaura la lista (la repuebla el re-escaneo).
+
           nodos.folder.disabled = false;
           nodos.btnExplore.disabled = false;
           document.querySelector('.path-bar')?.classList.remove('offline');

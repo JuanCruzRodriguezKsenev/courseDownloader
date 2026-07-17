@@ -3,9 +3,13 @@
  * Test del módulo extraído popup/features/serverConnection.js.
  * Desde v1.3.0 el módulo NO sondea: se suscribe al daemon Conexion. Estos tests
  * inyectan un Conexion falso que captura al suscriptor y emite estados, y
- * verifican la reacción (indicador + recuperación de cola/aula) + activarEstadoOfflineUI.
+ * verifican la reacción (recuperación de cola/aula + banner offline).
+ * Desde v1.9.0 el banner de conexión caída lo pinta la isla Preact #2
+ * (window.BannerConexion); acá se inyecta un BannerConexion falso con estado real
+ * (mostrar/ocultar mutan .estado) para poder asertar y para que reaccionarAConexion
+ * lea .get().visible correctamente.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ServerConnectionFeature from './serverConnection.js';
 
 globalThis.AppState = {
@@ -25,6 +29,14 @@ function estadoConexion({ servidor, internet = true }) {
   };
 }
 
+// Store falso de la isla #2 (banner): estado real + spies.
+function fakeBanner() {
+  const b = { estado: { visible: false, tipo: null }, get() { return this.estado; } };
+  b.mostrar = vi.fn((tipo = 'servidor') => { b.estado = { visible: true, tipo }; });
+  b.ocultar = vi.fn(() => { b.estado = { visible: false, tipo: null }; });
+  return b;
+}
+
 function montarNodos() {
   document.body.innerHTML = `
     <div class="path-bar"></div>
@@ -41,8 +53,8 @@ function montarNodos() {
     <p id="ui-msg-status"></p>
     <section id="ui-filter-bar"></section>
   `;
-  // El texto de la ruta ya no es un nodo del popup: lo posee la isla Preact #1b
-  // (window.RutaDisco). serverConnection ahora lo empuja por ese store.
+  // El texto de la ruta (isla #1b, window.RutaDisco) y el banner (isla #2,
+  // window.BannerConexion) ya no son nodos del popup: serverConnection los empuja.
   return {
     statusDot: document.getElementById('ui-status-dot'),
     folder: document.getElementById('ui-path-folder'),
@@ -59,14 +71,15 @@ function montarNodos() {
 }
 
 describe('ServerConnectionFeature.crear', () => {
-  let nodos, ctx, api, suscriptor;
+  let nodos, ctx, api, suscriptor, banner;
 
   beforeEach(() => {
     globalThis.AppState.ráfagaEnCurso = false;
     globalThis.AppState.fallaConexionActiva = null;
     globalThis.BunClient = { obtenerRutaServidor: vi.fn().mockResolvedValue('C:/RamonNet') };
-    // Store de la isla #1b (texto de la ruta): serverConnection lo empuja al mostrar/ocultar.
     globalThis.RutaDisco = { mostrar: vi.fn(), cargando: vi.fn(), get: () => ({ texto: '', titulo: '' }) };
+    banner = fakeBanner();
+    globalThis.BannerConexion = banner;
     // Conexion falso: captura al suscriptor para poder emitir estados a mano.
     suscriptor = null;
     globalThis.Conexion = {
@@ -93,9 +106,10 @@ describe('ServerConnectionFeature.crear', () => {
     expect(typeof api.reaccionarAConexion).toBe('function');
   });
 
-  it('activarEstadoOfflineUI pinta la tarjeta de error y deshabilita los controles', () => {
+  it('activarEstadoOfflineUI muestra el banner (store), oculta la lista y deshabilita los controles', () => {
     api.activarEstadoOfflineUI();
-    expect(nodos.lista.querySelector('.server-error-card')).not.toBeNull();
+    expect(banner.get()).toEqual({ visible: true, tipo: 'servidor' });
+    expect(nodos.lista.style.display).toBe('none');
     expect(nodos.folder.disabled).toBe(true);
     expect(nodos.btnExplore.disabled).toBe(true);
     expect(nodos.search.disabled).toBe(true);
@@ -104,12 +118,6 @@ describe('ServerConnectionFeature.crear', () => {
   it('activarEstadoOfflineUI delega en los callbacks cruzados del ctx', () => {
     api.activarEstadoOfflineUI();
     expect(ctx.configurarBotonesUX).toHaveBeenCalledWith('sincronizar-disco', expect.any(String), true);
-  });
-
-  it('no duplica la tarjeta de error si ya existe una', () => {
-    api.activarEstadoOfflineUI();
-    api.activarEstadoOfflineUI();
-    expect(nodos.lista.querySelectorAll('.server-error-card').length).toBe(1);
   });
 
   it('iniciarDetectorEstado se suscribe al daemon y lo arranca una sola vez (idempotente)', () => {
@@ -122,44 +130,52 @@ describe('ServerConnectionFeature.crear', () => {
   it('muestra el banner de servidor cuando cae el server (detección pasiva)', () => {
     api.iniciarDetectorEstado();
     emitir({ servidor: false });
-    const card = nodos.lista.querySelector('.server-error-card');
-    expect(card).not.toBeNull();
-    expect(card.dataset.tipo).toBe('servidor');
+    expect(banner.get()).toEqual({ visible: true, tipo: 'servidor' });
   });
 
   it('muestra el banner de internet cuando cae internet con el server OK', () => {
     api.iniciarDetectorEstado();
     emitir({ servidor: true, internet: false });
-    const card = nodos.lista.querySelector('.server-error-card');
-    expect(card).not.toBeNull();
-    expect(card.dataset.tipo).toBe('internet');
+    expect(banner.get()).toEqual({ visible: true, tipo: 'internet' });
   });
 
   it('prioriza el banner de servidor si caen ambas conexiones', () => {
     api.iniciarDetectorEstado();
     emitir({ servidor: false, internet: false });
-    expect(nodos.lista.querySelector('.server-error-card').dataset.tipo).toBe('servidor');
+    expect(banner.get().tipo).toBe('servidor');
   });
 
   it('cambia el banner de servidor a internet si el server vuelve pero internet sigue caído', () => {
     api.iniciarDetectorEstado();
     emitir({ servidor: false, internet: false }); // banner servidor
     emitir({ servidor: true, internet: false });  // server volvió, falta internet
-    expect(nodos.lista.querySelector('.server-error-card').dataset.tipo).toBe('internet');
+    expect(banner.get().tipo).toBe('internet');
+  });
+
+  it('no re-dispara activarEstadoOfflineUI si el banner ya es del tipo correcto', () => {
+    api.iniciarDetectorEstado();
+    emitir({ servidor: false });
+    emitir({ servidor: false });
+    emitir({ servidor: false });
+    expect(banner.mostrar).toHaveBeenCalledTimes(1);
   });
 
   it('NO muestra el banner offline si hay una cola pausada por error (lo maneja la UI de descarga)', () => {
     globalThis.AppState.fallaConexionActiva = 'servidor';
     api.iniciarDetectorEstado();
     emitir({ servidor: false });
-    expect(nodos.lista.querySelector('.server-error-card')).toBeNull();
+    expect(banner.get().visible).toBe(false);
+    expect(banner.mostrar).not.toHaveBeenCalled();
   });
 
-  it('al reconectar el server con la tarjeta de error visible, re-escanea el aula una sola vez', () => {
-    api.activarEstadoOfflineUI(); // pinta la tarjeta y se suscribe
+  it('al reconectar con el banner visible: lo oculta, restaura la lista y re-escanea una sola vez', () => {
+    api.activarEstadoOfflineUI(); // muestra el banner y se suscribe
     emitir({ servidor: false });  // confirma offline
     emitir({ servidor: true });   // reconecta
     emitir({ servidor: true });   // no vuelve a disparar
+    expect(banner.ocultar).toHaveBeenCalledTimes(1);
+    expect(banner.get().visible).toBe(false);
+    expect(nodos.lista.style.display).toBe('');
     expect(ctx.onReescanearAula).toHaveBeenCalledTimes(1);
   });
 
@@ -179,12 +195,13 @@ describe('ServerConnectionFeature.crear', () => {
     expect(ctx.onReintentarCola).toHaveBeenCalledTimes(1);
   });
 
-  it('durante una descarga activa NO toca la UI de descarga (banner/onboarding)', () => {
+  it('durante una descarga activa NO toca la UI de descarga (banner)', () => {
     globalThis.AppState.ráfagaEnCurso = true;
     api.iniciarDetectorEstado();
     emitir({ servidor: false });
     // No interfiere con la UI de la descarga (eso lo maneja el SW).
-    expect(nodos.lista.querySelector('.server-error-card')).toBeNull();
+    expect(banner.mostrar).not.toHaveBeenCalled();
+    expect(banner.get().visible).toBe(false);
     // (El puntito SÍ refleja la caída durante la descarga, pero eso ahora lo garantiza
     //  la isla Preact conexionHeader.preact.js, que se suscribe a Conexion directo.)
   });

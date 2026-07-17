@@ -87,6 +87,11 @@
     </section>
 
     <main id="ui-list" class="list-wrapper" role="tabpanel" aria-labelledby="tab-available"></main>
+    <!-- Isla Preact #2: el banner de conexión caída (.server-error-card) lo renderiza
+         features/bannerConexion.preact.js en su propio root (no dentro de #ui-list).
+         Mientras el banner está visible, el vanilla oculta #ui-list. display:contents
+         => la card (flex:1) participa del flex del .container como lo hacía la lista. -->
+    <div id="preact-banner" style="display:contents"></div>
 
     <footer class="footer-panel">
       <button id="ui-btn-action" class="btn-action" disabled>Conectando con el servidor... ⏳</button>
@@ -129,5 +134,6 @@
   <script type="module" src="features/conexionHeader.preact.js"></script>
   <script type="module" src="features/onboarding.preact.js"></script>
   <script type="module" src="features/rutaDisco.preact.js"></script>
+  <script type="module" src="features/bannerConexion.preact.js"></script>
 </body>
 </html>
