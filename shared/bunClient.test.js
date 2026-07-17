@@ -13,6 +13,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  BunClient.configurarBaseUrl(); // reset del singleton al default (evita fugas entre tests)
 });
 
 describe('obtenerRutaServidor()', () => {
@@ -43,6 +44,37 @@ describe('obtenerRutaServidor()', () => {
   it('propaga el error si el server responde !ok', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) });
     await expect(BunClient.obtenerRutaServidor()).rejects.toThrow(/no respondió/);
+  });
+});
+
+describe('baseUrl configurable', () => {
+  // El override por globalThis.RAMONNET_BUN_BASE_URL ocurre al cargar el módulo y no se
+  // puede reejercitar sin reimportar; se cubre por inspección (el init usa el mismo
+  // normalizarBaseUrl que configurarBaseUrl, testeado abajo).
+  it('por defecto apunta a http://localhost:3001', () => {
+    expect(BunClient.baseUrl).toBe('http://localhost:3001');
+  });
+
+  it('configurarBaseUrl normaliza (saca la barra final)', () => {
+    BunClient.configurarBaseUrl('http://192.168.1.5:3001/');
+    expect(BunClient.baseUrl).toBe('http://192.168.1.5:3001');
+  });
+
+  it('configurarBaseUrl con arg inválido/vacío vuelve al default', () => {
+    BunClient.configurarBaseUrl('http://otro:1234');
+    BunClient.configurarBaseUrl('');
+    expect(BunClient.baseUrl).toBe('http://localhost:3001');
+    BunClient.configurarBaseUrl(undefined);
+    expect(BunClient.baseUrl).toBe('http://localhost:3001');
+  });
+
+  it('las funciones usan la URL configurada', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => [] });
+    BunClient.configurarBaseUrl('http://host:9999');
+    await BunClient.escanearDisco('x');
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/^http:\/\/host:9999\/api\/escanear-disco/)
+    );
   });
 });
 

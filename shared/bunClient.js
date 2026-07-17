@@ -1,7 +1,14 @@
 /**
- * CLON DOWNLOADHELPER - CLIENTE API BUN BACKEND (V1.2.0)
+ * CLON DOWNLOADHELPER - CLIENTE API BUN BACKEND (V1.3.0)
  * CENTRALIZA LAS CONSULTAS DE ESCANEO DE DISCO Y ENVIOS DE STREAMING AL SERVIDOR BUN
  * ==========================================================================
+ * CHANGELOG v1.3.0:
+ * - [CONFIG] La URL base del backend ya no es un literal hardcodeado: se puede
+ *   sobreescribir SIN editar código, para tests de integración o apuntar a otro
+ *   host/puerto. Default de fábrica intacto ("http://localhost:3001"). Dos vías:
+ *   el global globalThis.RAMONNET_BUN_BASE_URL (leído al cargar el módulo) y el
+ *   método BunClient.configurarBaseUrl(url) en runtime (sin arg válido → default).
+ *   Las 6 funciones no cambiaron (siguen usando this.baseUrl). Ver TECHNICAL_DEBT.
  * CHANGELOG v1.2.0:
  * - [FIX CRÍTICO] enviarFragmentoStream ahora tiene timeout (30s). Si el servidor
  *   Bun moría a mitad de una descarga, el POST a /api/bypass-stream se colgaba sin
@@ -21,8 +28,28 @@
  * ==========================================================================
  */
 
+// Default de fábrica del backend Bun. Sobreescribible SIN editar código:
+//  - global globalThis.RAMONNET_BUN_BASE_URL (seteado antes de cargar el módulo, ej. tests de integración)
+//  - en runtime/tests: BunClient.configurarBaseUrl(url)
+const BASE_URL_DEFECTO = "http://localhost:3001";
+
+function normalizarBaseUrl(url) {
+  // Fallback al default si viene vacío/no-string; saca la barra final para no duplicar '//'.
+  if (typeof url !== "string" || !url.trim()) return BASE_URL_DEFECTO;
+  return url.trim().replace(/\/+$/, "");
+}
+
 const BunClient = {
-  baseUrl: "http://localhost:3001",
+  baseUrl: normalizarBaseUrl(
+    (typeof globalThis !== "undefined" && globalThis.RAMONNET_BUN_BASE_URL) || BASE_URL_DEFECTO
+  ),
+
+  // Configura la URL base del backend en runtime (tests de integración / otro host:puerto).
+  // Sin argumento válido, vuelve al default de fábrica.
+  configurarBaseUrl(url) {
+    this.baseUrl = normalizarBaseUrl(url);
+    return this.baseUrl;
+  },
 
   /**
    * Consulta los archivos descargados (.mp4) en la subcarpeta especificada

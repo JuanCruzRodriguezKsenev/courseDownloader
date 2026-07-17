@@ -106,7 +106,7 @@ Inventario vivo de problemas conocidos en el código actual, ordenados por sever
 |---|---|---|---|
 | Sin linter (ESLint) configurado | proyecto completo | No se detectan variables no usadas, `==` vs `===`, código muerto adicional | ✅ resuelto (2026-07-17) — `eslint.config.js` + `npm run lint`; 0 errores, 11 warnings iniciales |
 | `catch (e) {}` silenciosos (3 casos) | `background.js:147`, `background.js:325` y `background/hlsEngine.js:219` (los dos últimos, `abort()` del controlador de gráfico activo) | Dificulta debug si falla el abort/limpieza de recursos | ✅ resuelto (2026-07-17) — ahora `console.warn` con contexto |
-| URL de backend hardcodeada | `shared/bunClient.js:8` (`baseUrl = "http://localhost:3001"`) | No se puede apuntar a otro host/puerto sin editar código; relevante si se agregan tests de integración contra el backend real | 🔲 pendiente, bajo impacto |
+| URL de backend hardcodeada | `shared/bunClient.js` (`baseUrl`) | No se puede apuntar a otro host/puerto sin editar código; relevante si se agregan tests de integración contra el backend real | ✅ resuelto (2026-07-17) — hook liviano: `configurarBaseUrl(url)` + global `RAMONNET_BUN_BASE_URL`; default intacto. `bunClient.js` → v1.3.0 |
 
 ---
 
