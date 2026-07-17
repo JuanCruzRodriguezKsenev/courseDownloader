@@ -1,7 +1,14 @@
 /**
- * CLON DOWNLOADHELPER - MOTOR HLS CRYPTO-TRANSCODER (V1.0.2)
+ * CLON DOWNLOADHELPER - MOTOR HLS CRYPTO-TRANSCODER (V1.0.3)
  * GESTIONA LA EXTRACTIBILIDAD DE M3U8, DESCARGA CONCURRENTE Y DESCIFRADO AES-128 NATIVO
  * ==========================================================================
+ * CHANGELOG v1.0.3:
+ * - [LOG] El worker ya no loguea ❌ "Error crítico en fragmento" ante un AbortError.
+ *   Un AbortError en un worker no es un fallo del fragmento: es la consecuencia
+ *   esperada de que la descarga se detenga (usuario canceló, u otro worker falló y
+ *   abortó el controlador para frenar a los hermanos). Ahora se propaga callado; sólo
+ *   los fallos REALES logean crítico y re-abortan. Antes, una cancelación llenaba la
+ *   consola de ❌ falsos (uno por worker en vuelo). Complementa background.js v5.6.5.
  * CHANGELOG v1.0.2:
  * - [LIMPIEZA] El log del match del iframe ya no vuelca el objeto entero del regex
  *   (array gigante en consola); ahora sólo indica sí/no. La URL resuelta ya se
@@ -221,13 +228,21 @@ const HlsEngine = {
           }
 
         } catch (errChunk) {
+          // Un AbortError acá NO es un fallo del fragmento: la descarga se está
+          // deteniendo (el usuario canceló, o OTRO worker falló de verdad y abortó el
+          // controlador para frenar a los hermanos). No es "crítico", no hay que
+          // re-abortar ni loguearlo como error crítico: sólo propagar y salir. Así, ante
+          // una cancelación del usuario la consola no se llena de ❌ falsos.
+          if (errChunk?.name === "AbortError") {
+            throw errChunk;
+          }
           console.error(`❌ Error crítico en fragmento index [${tarea.idx}]:`, errChunk.message);
-          // Abortar descarga completa ante fallo de fragmento
+          // Abortar descarga completa ante un fallo REAL de fragmento (frena a los otros workers).
           if (typeof controladorGraficoActivo !== "undefined" && controladorGraficoActivo) {
             try { controladorGraficoActivo.abort(); }
             catch (e) { console.warn("⚠️ Falló el abort del controlador de gráfico activo (fallo de fragmento):", e?.message); }
           }
-          throw errChunk; 
+          throw errChunk;
         }
       }
     }

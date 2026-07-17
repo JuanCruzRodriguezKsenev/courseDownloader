@@ -1,6 +1,12 @@
 /**
- * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V5.6.4)
+ * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V5.6.5)
  * ==========================================================================
+ * CHANGELOG v5.6.5:
+ * - [LOG] Una cancelación del usuario ya no se loguea como error fatal. El catch
+ *   del bucle de descarga chequea state.abortadoPorUsuario ANTES de loguear: si
+ *   fue el usuario, sale con un console.log limpio (🛑 … de forma limpia) y NO
+ *   dispara el console.error "[BUCLE-ERROR] Falló". El console.error queda sólo
+ *   para fallos reales. (Complementa el des-ruido de hlsEngine.js v1.0.3.)
  * CHANGELOG v5.6.4:
  * - [LIMPIEZA] Eliminada la función muerta marcarClaseComoPendiente (la destapó
  *   ESLint no-unused-vars). Su lógica de "sacar de la cola + volver a 'pending'"
@@ -572,8 +578,6 @@ async function procesarSiguienteElementoDeLaCola() {
       setTimeout(procesarSiguienteElementoDeLaCola, 60);
 
     } catch (errDescarga) {
-      console.error(`⚠️ [BUCLE-ERROR] Falló la descarga de "${tituloInmutableVideo}":`, errDescarga);
-      
       const state = await SessionState.get();
       // SÓLO el flag explícito marca una cancelación del usuario. NO usar
       // controladorGraficoActivo.signal.aborted ni errDescarga.name==='AbortError':
@@ -582,25 +586,30 @@ async function procesarSiguienteElementoDeLaCola() {
       // los fetches hermanos rechacen con AbortError. Confiar en eso hacía que una
       // caída de conexión se confundiera con cancelación → la cola no se pausaba y
       // el popup nunca recibía "cola_pausada_por_error" (banner que no se disparaba).
-      const esAbortoUsuario = state.abortadoPorUsuario;
-
-      if (esAbortoUsuario) {
-        console.log("🛑 [SW] Bucle de descarga abortado por el usuario de forma limpia.");
+      if (state.abortadoPorUsuario) {
+        // Cancelación deliberada del usuario: NO es un fallo. Se loguea limpio (sin el
+        // console.error de [BUCLE-ERROR]) y ANTES de clasificar nada: los AbortError de
+        // los fragmentos que llegaron hasta acá son la consecuencia esperada del abort,
+        // no un crash.
+        console.log(`🛑 [SW] Descarga de "${tituloInmutableVideo}" abortada por el usuario de forma limpia.`);
         return;
-      } else {
-        // Clasificar el tipo de fallo con el daemon de conexión (fuente única de verdad).
-        // Si la conectividad está OK (el fallo no fue de red), caer a la heurística por
-        // mensaje como antes para no clasificar mal un error no relacionado.
-        await Conexion.verificarAhora();
-        let tipoError = Conexion.get().tipoFalla;
-        if (!tipoError) {
-          const msg = errDescarga?.message || "";
-          tipoError = (msg.includes("Bun") || msg.includes("localhost") || msg.includes("127.0.0.1") || msg.includes("backend"))
-            ? "servidor"
-            : "internet";
-        }
-        await pausarColaPorErrorDeConexion(tipoError, tituloInmutableVideo);
       }
+
+      // A partir de acá es un fallo REAL (no iniciado por el usuario): ahora sí, error.
+      console.error(`⚠️ [BUCLE-ERROR] Falló la descarga de "${tituloInmutableVideo}":`, errDescarga);
+
+      // Clasificar el tipo de fallo con el daemon de conexión (fuente única de verdad).
+      // Si la conectividad está OK (el fallo no fue de red), caer a la heurística por
+      // mensaje como antes para no clasificar mal un error no relacionado.
+      await Conexion.verificarAhora();
+      let tipoError = Conexion.get().tipoFalla;
+      if (!tipoError) {
+        const msg = errDescarga?.message || "";
+        tipoError = (msg.includes("Bun") || msg.includes("localhost") || msg.includes("127.0.0.1") || msg.includes("backend"))
+          ? "servidor"
+          : "internet";
+      }
+      await pausarColaPorErrorDeConexion(tipoError, tituloInmutableVideo);
     }
 
   } catch (errStorage) {
