@@ -1,7 +1,14 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.5.6)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.6.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.6.0:
+ * - [MIGRACIÓN] El onboarding (welcome tour) pasó a ser la isla Preact #3
+ *   (features/onboarding.preact.js): posee todo el overlay #ui-onboarding y su DOM.
+ *   popup.js ya NO tiene refs nodos.onboarding* (se quitaron del mapa) y le pasa a
+ *   OnboardingFeature.crear sólo { btnHelp, onExplore, onComplete }. Desaparece el
+ *   alias/callback actualizarEstadoServidorOnboarding: el estado del servidor del
+ *   tour lo deriva la isla del daemon Conexion. Ver docs/preact-migration.md, ADR-0006.
  * CHANGELOG v5.5.6:
  * - [FIX] Al reconectar el servidor, el banner de "descarga interrumpida" no se iba
  *   hasta refrescar el popup. ejecutarReintentoDeCola ponía fallaConexionActiva=null
@@ -75,13 +82,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     pcPath:          document.getElementById('ui-pc-path'),
     btnSort:         document.getElementById('ui-btn-sort'),
     btnToggleSelect: document.getElementById('ui-btn-toggle-select'),
-    btnHelp:         document.getElementById('ui-btn-help'),
-    onboarding:      document.getElementById('ui-onboarding'),
-    onboardingSlides:document.getElementById('ui-onboarding-slides'),
-    onboardingPrev:  document.getElementById('ui-onboarding-prev'),
-    onboardingNext:  document.getElementById('ui-onboarding-next'),
-    onboardingSkip:  document.getElementById('ui-onboarding-skip'),
-    onboardingDots:  document.getElementById('ui-onboarding-dots')
+    btnHelp:         document.getElementById('ui-btn-help')
+    // El overlay del onboarding y su DOM interno los posee la isla Preact
+    // features/onboarding.preact.js (ver ADR-0006). Ya no hay refs nodos.* a él.
   };
 
   let punteroOyenteRuntimeActivo = null;
@@ -92,12 +95,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     catedras: new Set()
   };
 
-  // --- Feature: Onboarding (welcome tour) — ver popup/features/onboarding.js ---
-  // Se instancia temprano porque el flujo de inicialización (más abajo) invoca
-  // mostrarOnboarding / actualizarEstadoServidorOnboarding. lanzarSeleccionCarpetaFisica
-  // es una declaración de función (hoisted), así que la referencia diferida es segura.
+  // --- Isla Preact #3: Onboarding (welcome tour) — features/onboarding.preact.js ---
+  // Se cablea temprano porque el flujo de inicialización (más abajo) invoca
+  // mostrarOnboarding. lanzarSeleccionCarpetaFisica es una declaración de función
+  // (hoisted), así que la referencia diferida es segura.
+  // La isla Preact features/onboarding.preact.js expone window.OnboardingFeature.crear
+  // (misma firma que la feature vieja). Le pasamos el botón de ayuda (vive en el header,
+  // fuera de la isla) y los callbacks cruzados. El estado del servidor del slide de la
+  // carpeta ya NO se empuja desde acá: la isla lo deriva del daemon Conexion.
   const _onboardingFeature = OnboardingFeature.crear({
-    nodos,
+    btnHelp: nodos.btnHelp,
     onExplore: () => lanzarSeleccionCarpetaFisica(),
     // Al cerrar el tour de la PRIMERA vez (no el reabierto por el botón de ayuda),
     // recién ahí conectamos al servidor y escaneamos el aula, para que el loader no
@@ -105,7 +112,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     onComplete: () => conectarYArrancar()
   });
   const mostrarOnboarding = _onboardingFeature.mostrarOnboarding;
-  const actualizarEstadoServidorOnboarding = _onboardingFeature.actualizarEstadoServidorOnboarding;
 
   nodos.catedraBadge.addEventListener("click", () => {
     const catedrasDetectadas = Array.from(new Set(
@@ -198,7 +204,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const _serverConnection = ServerConnectionFeature.crear({
     nodos,
     configurarBotonesUX: (modo, txt, dis) => configurarBotonesUX(modo, txt, dis),
-    actualizarEstadoServidorOnboarding: (online) => actualizarEstadoServidorOnboarding(online),
     onReintentarCola: () => ejecutarReintentoDeCola(),
     onReescanearAula: () => ejecutarPaso1EscaneoRamonAutomatico()
   });
@@ -255,9 +260,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         nodos.pcPath.textContent = ruta;
         nodos.pcPath.title = ruta;
         nodos.txtEstado.textContent = "Analizando aula virtual...";
-        // (el puntito de estado lo maneja la isla Preact features/conexionHeader.preact.js)
-
-        actualizarEstadoServidorOnboarding(true);
+        // (el puntito de estado y el estado del servidor en el onboarding los derivan
+        //  las islas Preact del daemon Conexion — ya no se empujan imperativamente)
 
         const respuestaFondo = await AppState.sincronizarConBackground();
 
@@ -1740,7 +1744,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Onboarding (mostrarOnboarding, actualizarEstadoServidorOnboarding, botón de ayuda
-  // y botón "Seleccionar Carpeta" del tour) vive ahora en popup/features/onboarding.js,
-  // instanciado más arriba como _onboardingFeature.
+  // El onboarding (overlay, carrusel, botón de ayuda y "Seleccionar Carpeta" del tour)
+  // vive ahora en la isla Preact features/onboarding.preact.js, cableada más arriba
+  // como _onboardingFeature (window.OnboardingFeature.crear).
 });

@@ -43,7 +43,7 @@ No depende de nada de lo que sigue. Se puede hacer en cualquier momento, indepen
 - [ ] Dejar en `popup.js` solo: inicialización de `nodos`, wiring de listeners de alto nivel, y orquestación entre features.
 - [x] Sumar cada archivo nuevo como `<script>` en `popup/popup.html`, respetando el orden de dependencia existente (después de `shared/*.js`, antes de `popup.js`). ✅ (hecho para las features ya extraídas; repetir para `filters.js`/`queue.js`).
 
-**Nota de secuencia**: depende de Fase 1 — sin tests de `shared/utils.js`, no hay forma de verificar que mover código no cambió comportamiento sutilmente. Las features ya extraídas suman además sus propios tests (`onboarding.test.js`, `serverConnection.test.js`, `conexion.test.js`).
+**Nota de secuencia**: depende de Fase 1 — sin tests de `shared/utils.js`, no hay forma de verificar que mover código no cambió comportamiento sutilmente. Las features ya extraídas suman además sus propios tests (`serverConnection.test.js`, `conexion.test.js`, y `onboarding.preact.test.js` — el onboarding pasó de feature vanilla a isla Preact, ver `docs/preact-migration.md`).
 
 ---
 

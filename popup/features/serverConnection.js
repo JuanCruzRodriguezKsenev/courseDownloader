@@ -1,6 +1,12 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: CONEXIÓN AL SERVIDOR BUN (V1.6.0)
+ * CLON DOWNLOADHELPER - FEATURE: CONEXIÓN AL SERVIDOR BUN (V1.7.0)
  * ==========================================================================
+ * CHANGELOG v1.7.0:
+ * - [MIGRACIÓN] El estado del servidor dentro del onboarding tampoco se empuja ya
+ *   desde acá: la isla Preact features/onboarding.preact.js lo deriva del daemon
+ *   Conexion (igual que el puntito). Se elimina el callback ctx.actualizarEstadoServidorOnboarding
+ *   y el tracking de transición `previoServidor` que existía sólo para alimentarlo.
+ *   Ver docs/adr/0006-adopt-preact-islands-in-popup.md, docs/preact-migration.md.
  * CHANGELOG v1.6.0:
  * - [MIGRACIÓN] El puntito de estado (statusDot) ya NO se pinta acá: lo posee la
  *   isla Preact features/conexionHeader.preact.js, que lo deriva del daemon Conexion.
@@ -52,7 +58,6 @@
  * Dependencias que recibe por ctx:
  *   - ctx.nodos                            : mapa de nodos del popup.
  *   - ctx.configurarBotonesUX(modo,txt,dis): helper de UX de popup.js.
- *   - ctx.actualizarEstadoServidorOnboarding(online): de la feature onboarding.
  *   - ctx.onReintentarCola()               : reanuda la cola (queue de popup.js).
  *   - ctx.onReescanearAula()               : dispara el re-escaneo del aula (popup.js).
  *
@@ -65,7 +70,6 @@ const ServerConnectionFeature = {
     const {
       nodos,
       configurarBotonesUX,
-      actualizarEstadoServidorOnboarding,
       onReintentarCola,
       onReescanearAula
     } = ctx;
@@ -73,7 +77,6 @@ const ServerConnectionFeature = {
     // El estado de conexión NO vive acá: lo posee el daemon Conexion (shared/conexion.js).
     // Esta feature sólo se SUSCRIBE a sus cambios y reacciona (UI + recuperación de cola).
     let suscrito = false;
-    let previoServidor = null;  // transición del servidor (para el indicador del onboarding).
     let previoCompleta = null;  // transición de "ambas conexiones OK" (para recuperación).
 
     // NOTA: el puntito de estado (statusDot) ya NO se pinta acá — lo posee la isla
@@ -165,8 +168,7 @@ const ServerConnectionFeature = {
       if (tabsBar) tabsBar.style.display = "none";
       nodos.filtersBar.style.display = "none";
 
-      // El indicador del onboarding refleja el servidor (la carpeta no necesita internet).
-      actualizarEstadoServidorOnboarding(tipo !== "servidor");
+      // (el estado del servidor en el onboarding lo deriva la isla Preact del daemon)
 
       // Asegura que el detector esté corriendo (idempotente; normalmente ya arrancó en el init).
       iniciarDetectorEstado();
@@ -174,10 +176,11 @@ const ServerConnectionFeature = {
 
     // Reacción a los cambios del daemon Conexion (shared/conexion.js), la fuente única
     // de verdad. Esta feature NO sondea: sólo consume el estado que le llega por push.
-    //   1. Indicadores al día: onboarding = servidor; puntito general = ambas conexiones.
-    //   2. Recuperación de cola pausada: reanuda apenas vuelve la conexión que faltaba.
-    //   3. Banner offline pasivo: muestra el del servidor o el de internet según cuál
+    //   1. Recuperación de cola pausada: reanuda apenas vuelve la conexión que faltaba.
+    //   2. Banner offline pasivo: muestra el del servidor o el de internet según cuál
     //      falte (servidor tiene prioridad si caen ambos), y lo saca al reconectar.
+    // Los indicadores (puntito de estado y estado del servidor en el onboarding) los
+    // derivan las islas Preact del daemon directo — ya no se pintan desde acá.
     function reaccionarAConexion(estado) {
       // El puntito de estado lo maneja la isla Preact (conexionHeader.preact.js), que
       // se suscribe al daemon directo — refleja la conexión SIEMPRE, incluso durante
@@ -185,13 +188,8 @@ const ServerConnectionFeature = {
       // Acá sólo queda la UI de descarga: banner/lista/recuperación de cola.
       if (AppState.ráfagaEnCurso && !AppState.fallaConexionActiva) return;
 
-      const servidorAntes = previoServidor;
       const completaAntes = previoCompleta;
-      previoServidor = estado.servidor;
       previoCompleta = estado.completa;
-
-      // Onboarding sólo en transición; el puntito ya se pintó arriba (level-triggered).
-      if (estado.servidor !== servidorAntes) actualizarEstadoServidorOnboarding(estado.servidor);
 
       // Recuperación de una cola pausada por error: reanudar apenas vuelve la conexión que
       // faltaba (edge-triggered: Conexion notifica sólo en transición).

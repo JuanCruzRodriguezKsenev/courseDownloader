@@ -12,66 +12,12 @@
     <div class="loader-text" id="ui-loader-txt">Leyendo pestaña Ramón Net...</div>
   </div>
 
-  <!-- Overlay del Tutorial de Bienvenida (Onboarding) -->
-  <div id="ui-onboarding" class="onboarding-overlay" style="display: none;">
-    <div class="onboarding-card">
-      <button class="onboarding-skip-btn" id="ui-onboarding-skip" title="Saltar tutorial">Saltar</button>
-      <div class="onboarding-slides-wrapper">
-        <div class="onboarding-slides" id="ui-onboarding-slides">
-          <!-- Slide 1: Welcome -->
-          <div class="onboarding-slide">
-            <div class="onboarding-icon">🚀</div>
-            <h3>¡Bienvenido a Ramón Net Turbo!</h3>
-            <p>Descargá todas tus clases de Ramón Net al instante, sin límites de tamaño y de forma organizada en tu PC.</p>
-          </div>
-          <!-- Slide 2: Correct Page -->
-          <div class="onboarding-slide">
-            <div class="onboarding-icon">🌐</div>
-            <h3>Página Correcta</h3>
-            <p>Usá la extensión dentro del listado de clases de tu materia en Ramón Net para detectar los videos: <a href="https://plataforma.ramonnet.com.ar/usuario/clases-grabadas" target="_blank" class="onboarding-link">Ir a Clases Grabadas 🌐</a></p>
-          </div>
-          <!-- Slide 3: Chunks/Reveal -->
-          <div class="onboarding-slide">
-            <div class="onboarding-icon">🔍</div>
-            <h3>Clases y Videos</h3>
-            <p>Verás en pantalla las clases de la materia que elijas en el selector y presiones <strong>👁️ mostrar</strong>.</p>
-          </div>
-          <!-- Slide 4: Bun server connection -->
-          <div class="onboarding-slide">
-            <div class="onboarding-icon">🔌</div>
-            <h3>Conectá tu Servidor</h3>
-            <p>Ejecutá <strong>iniciar.bat</strong>. El servidor debe quedar abierto (podés minimizar la consola y no tenés que hacer nada más).</p>
-          </div>
-          <!-- Slide 5: Folder Selection -->
-          <div class="onboarding-slide">
-            <div class="onboarding-icon">📁</div>
-            <h3>Carpeta de Descargas</h3>
-            <p>Seleccioná tu carpeta raíz. La extensión creará y organizará las subcarpetas por materia y cátedra automáticamente de forma ordenada.</p>
-            <div id="ui-onboarding-server-status" class="onboarding-server-msg error">⚠️ Primero tenés que levantar el servidor</div>
-            <button id="ui-onboarding-explore" class="btn-adv-primary" style="margin-top: 10px; padding: 6px 14px; font-size: var(--text-sm);" disabled>📂 Seleccionar Carpeta</button>
-          </div>
-          <!-- Slide 6: Background Page Change -->
-          <div class="onboarding-slide">
-            <div class="onboarding-icon">⚡</div>
-            <h3>Navegá sin Preocupaciones</h3>
-            <p>Podés cambiar de materia, navegar otras páginas o cerrar la pestaña de Ramón Net. ¡La descarga seguirá corriendo de fondo!</p>
-          </div>
-        </div>
-      </div>
-      <div class="onboarding-footer">
-        <button class="btn-onboarding-nav" id="ui-onboarding-prev" disabled>Atrás</button>
-        <div class="onboarding-dots" id="ui-onboarding-dots">
-          <span class="onboarding-dot active"></span>
-          <span class="onboarding-dot"></span>
-          <span class="onboarding-dot"></span>
-          <span class="onboarding-dot"></span>
-          <span class="onboarding-dot"></span>
-          <span class="onboarding-dot"></span>
-        </div>
-        <button class="btn-onboarding-nav" id="ui-onboarding-next">Siguiente</button>
-      </div>
-    </div>
-  </div>
+  <!-- Overlay del Tutorial de Bienvenida (Onboarding).
+       Isla Preact #3: todo el overlay lo renderiza features/onboarding.preact.js
+       (carrusel + dots + navegación + estado del servidor derivado del daemon
+       Conexion). Antes era markup estático manipulado imperativamente. Ver ADR-0006
+       y docs/preact-migration.md. Este es sólo el punto de montaje. -->
+  <div id="preact-onboarding"></div>
 
   <div class="container">
     <header class="header">
@@ -172,11 +118,13 @@
   <script src="../shared/conexion.js"></script>
   <script src="scraper.js"></script>
   <script src="../renderers.js"></script>
-  <script src="features/onboarding.js"></script>
   <script src="features/serverConnection.js"></script>
   <script src="../popup.js"></script>
-  <!-- Islas Preact (ES modules, sin build). Corren después de los scripts clásicos,
-       así que window.Conexion / window.AppState ya existen. Ver ADR-0006. -->
+  <!-- Islas Preact (ES modules, sin build). Corren después de los scripts clásicos
+       y antes de DOMContentLoaded, así que window.Conexion / window.AppState /
+       window.OnboardingFeature ya existen cuando el handler DCL de popup.js corre.
+       Ver ADR-0006. -->
   <script type="module" src="features/conexionHeader.preact.js"></script>
+  <script type="module" src="features/onboarding.preact.js"></script>
 </body>
 </html>

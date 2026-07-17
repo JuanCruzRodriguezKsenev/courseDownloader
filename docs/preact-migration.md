@@ -21,15 +21,15 @@ el **mapa de avance**: qué isla está hecha, cuál sigue, y cómo agregar una n
 | # | Isla | Región DOM | Estado | Archivo |
 |---|---|---|---|---|
 | 1 | **StatusDot** (puntito de conexión) | `#preact-status-dot` en el header | ✅ Hecha | `popup/features/conexionHeader.preact.js` (+ `.test.js`) |
+| 3 | **Onboarding** (overlay del tour) | `#preact-onboarding` (antes `#ui-onboarding`) | ✅ Hecha | `popup/features/onboarding.preact.js` (+ `.test.js`) |
 | 1b | **Barra de ruta** (`pcPath` + estado offline) | fila `📁 PC:` de `.path-bar` | 🔲 Próxima | — |
 | 2 | **Banner de conexión caída** | dentro de `#ui-list` | 🔲 Pendiente | — |
-| 3 | **Onboarding** (overlay del tour) | `#ui-onboarding` | 🔲 Pendiente | (hoy `features/onboarding.js`, vanilla + tests) |
 | 4 | **Tabs / filtros / cola / lista** | cuerpo del popup | 🔲 Pendiente (lo más grande) | — |
 
 **Notas de secuencia / riesgo:**
+- **3 (onboarding) — ✅ hecha.** Era la feature más aislada (overlay propio, sin compartir DOM) y ya tenía tests, así que fue el candidato de bajo riesgo. Puente vanilla↔isla vía `window.OnboardingFeature.crear({ btnHelp, onExplore, onComplete })` (misma firma que la feature vanilla que reemplazó): un store local guarda apertura/carrusel/callbacks y `popup.js` sólo dispara `mostrarOnboarding()`. El **estado del servidor** del slide de la carpeta ya no se empuja imperativamente — la isla lo **deriva** de `Conexion` con `useConexion()` (reusado de la isla #1), por lo que desapareció el sink `actualizarEstadoServidorOnboarding` que `serverConnection.js` empujaba en cada transición (se borró también su tracking `previoServidor`). El botón de ayuda vive en el header (fuera de la isla) → lo cablea el puente.
 - **1b (barra de ruta)** necesita un *bridge* reactivo: el path del disco viene de `BunClient` (no de `Conexion`), así que hay que empujarlo a un pequeño store que la isla lea (los ~7 lugares que hoy escriben `nodos.pcPath.textContent` pasan a llamar a ese store). `btnExplore` y el input de materia quedan vanilla (son interactivos → fuera de "indicador").
 - **2 (banner)** es delicado: hoy se renderiza dentro de `#ui-list`, el **mismo** nodo que usa la lista de clases (dos dueños). Antes de migrarlo hay que decidir la propiedad de `#ui-list` (darle a la isla su propio root, o migrar lista+banner juntos).
-- **3 (onboarding)** es la feature más aislada (overlay propio, sin compartir DOM) y **ya tiene tests** → buen candidato de bajo riesgo si se prioriza sobre 2.
 
 ## Cómo agregar una isla nueva (receta)
 

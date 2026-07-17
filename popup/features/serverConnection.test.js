@@ -75,7 +75,6 @@ describe('ServerConnectionFeature.crear', () => {
     ctx = {
       nodos,
       configurarBotonesUX: vi.fn(),
-      actualizarEstadoServidorOnboarding: vi.fn(),
       onReintentarCola: vi.fn(),
       onReescanearAula: vi.fn(),
     };
@@ -103,7 +102,6 @@ describe('ServerConnectionFeature.crear', () => {
   it('activarEstadoOfflineUI delega en los callbacks cruzados del ctx', () => {
     api.activarEstadoOfflineUI();
     expect(ctx.configurarBotonesUX).toHaveBeenCalledWith('sincronizar-disco', expect.any(String), true);
-    expect(ctx.actualizarEstadoServidorOnboarding).toHaveBeenCalledWith(false);
   });
 
   it('no duplica la tarjeta de error si ya existe una', () => {
@@ -117,13 +115,6 @@ describe('ServerConnectionFeature.crear', () => {
     api.iniciarDetectorEstado();
     expect(globalThis.Conexion.suscribir).toHaveBeenCalledTimes(1);
     expect(globalThis.Conexion.iniciar).toHaveBeenCalledTimes(1);
-  });
-
-  it('actualiza el indicador de onboarding cuando el daemon reporta el server caído', () => {
-    api.iniciarDetectorEstado();
-    emitir({ servidor: false });
-    expect(ctx.actualizarEstadoServidorOnboarding).toHaveBeenLastCalledWith(false);
-    // (el puntito de estado lo posee la isla Preact conexionHeader.preact.js — ver su test)
   });
 
   it('muestra el banner de servidor cuando cae el server (detección pasiva)', () => {
@@ -162,20 +153,6 @@ describe('ServerConnectionFeature.crear', () => {
     expect(nodos.lista.querySelector('.server-error-card')).toBeNull();
   });
 
-  it('actualiza el indicador de onboarding en verde cuando el daemon reporta el server OK', () => {
-    api.iniciarDetectorEstado();
-    emitir({ servidor: true });
-    expect(ctx.actualizarEstadoServidorOnboarding).toHaveBeenLastCalledWith(true);
-  });
-
-  it('sólo repinta el indicador en la transición de estado, no en cada notificación', () => {
-    api.iniciarDetectorEstado();
-    emitir({ servidor: true });
-    emitir({ servidor: true });
-    emitir({ servidor: true });
-    expect(ctx.actualizarEstadoServidorOnboarding).toHaveBeenCalledTimes(1);
-  });
-
   it('al reconectar el server con la tarjeta de error visible, re-escanea el aula una sola vez', () => {
     api.activarEstadoOfflineUI(); // pinta la tarjeta y se suscribe
     emitir({ servidor: false });  // confirma offline
@@ -205,7 +182,6 @@ describe('ServerConnectionFeature.crear', () => {
     api.iniciarDetectorEstado();
     emitir({ servidor: false });
     // No interfiere con la UI de la descarga (eso lo maneja el SW).
-    expect(ctx.actualizarEstadoServidorOnboarding).not.toHaveBeenCalled();
     expect(nodos.lista.querySelector('.server-error-card')).toBeNull();
     // (El puntito SÍ refleja la caída durante la descarga, pero eso ahora lo garantiza
     //  la isla Preact conexionHeader.preact.js, que se suscribe a Conexion directo.)
