@@ -8,7 +8,7 @@ RamonNet Video Downloader (Turbo Edition) is a Manifest V3 Chrome/Brave browser 
 
 ## Documentation as Code
 
-This project treats `docs/` as the technical source of truth, maintained with the same discipline as source code — a PR that changes storage shape, IPC contracts, or business logic updates the relevant doc in the same PR (see `docs/contributing.md` for the checklist). `README.md` remains the accurate end-user install guide and is not superseded by `docs/` — they serve different audiences.
+This project treats `docs/` as the technical source of truth, maintained with the same discipline as source code — a PR that changes storage shape, IPC contracts, or business logic updates the relevant doc in the same PR (see `docs/contributing.md` for the checklist). Docs also follow a **DRY / single-source-of-truth convention**: each concept has one canonical doc; everything else summarizes + links rather than re-explaining (rationale in `docs/adr/0007-dry-docs-canonical-homes.md`, the actionable rule + canonical-homes map in `docs/contributing.md`). When adding docs, don't paste an explanation that already lives elsewhere — link it. `README.md` remains the accurate end-user install guide and is not superseded by `docs/` — they serve different audiences.
 
 Start at **`docs/architecture.md`**. Full map:
 - `docs/architecture.md` — system overview, execution zones, end-to-end download flow.

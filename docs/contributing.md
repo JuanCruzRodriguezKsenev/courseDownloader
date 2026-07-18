@@ -26,7 +26,7 @@ Configuración de entorno local y flujo de trabajo para desarrollar sobre esta e
 
 ### Regla DRY: cada dato vive en un solo doc
 
-La documentación sigue el mismo principio de *single source of truth* que el código: **cada concepto tiene un doc canónico** que lo explica completo (con su por qué), y cualquier otra mención lo **cita con link** en vez de re-explicarlo. Duplicar una explicación garantiza que tarde o temprano las copias se desincronicen. Guía de hogares canónicos:
+La documentación sigue el mismo principio de *single source of truth* que el código: **cada concepto tiene un doc canónico** que lo explica completo (con su por qué), y cualquier otra mención lo **cita con link** en vez de re-explicarlo. Duplicar una explicación garantiza que tarde o temprano las copias se desincronicen. La decisión y su rationale están en `docs/adr/0007-dry-docs-canonical-homes.md`; esta sección es la guía accionable. Hogares canónicos:
 
 - Schema de `chrome.storage` e invariantes de estado → `docs/data-model.md`.
 - Patrones (IPC, split de ownership, daemon `Conexion`, circuit breaker, worker pool, parsing de títulos) → `docs/patterns.md`.

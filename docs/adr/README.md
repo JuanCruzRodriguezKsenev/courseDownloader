@@ -19,5 +19,6 @@ Registro formal de las decisiones de arquitectura significativas del proyecto.
 | [0004](0004-defer-result-pattern.md) | No adoptar Result Pattern sin TypeScript | Diferida |
 | [0005](0005-feature-driven-popup-split.md) | Reorganización de `popup.js` como feature-driven | Aceptada |
 | [0006](0006-adopt-preact-islands-in-popup.md) | Adoptar Preact (islas) en el popup, sin build | Aceptada |
+| [0007](0007-dry-docs-canonical-homes.md) | Documentación DRY: un hogar canónico por concepto | Aceptada |
 
 Estados posibles: `Propuesta` → `Aceptada` | `Rechazada` | `Diferida` → (eventualmente) `Superseded by NNNN`.
