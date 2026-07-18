@@ -65,7 +65,7 @@ Inventario vivo de problemas conocidos en el código actual, ordenados por sever
 - **Dónde**: `styles/components.css`.
 - **Impacto**: bajo — no es un problema funcional, solo dificulta ubicar reglas específicas a medida que crece.
 - **Fix propuesto**: dividir por componente (`components/onboarding.css`, `components/queue.css`, etc.) si el archivo sigue creciendo. No urgente.
-- **Estado**: 🔲 pendiente, prioridad muy baja.
+- **Estado**: ✅ resuelto (2026-07-17). `styles/components.css` se partió en 13 archivos `styles/components/*.css` (header, path-bar, tabs, filters, turbo-switch, footer, actions, loader, multicatedra, downloads-active, advertencia, onboarding, help-button). El `@import` de `popup/globals.css` replica el orden original para no alterar la cascada; `popup.html` no cambió. Verificado con paridad de bloques `{` (165 = 165). Ver sección Resuelto.
 
 ---
 
@@ -112,6 +112,7 @@ Inventario vivo de problemas conocidos en el código actual, ordenados por sever
 
 ## Resuelto
 
+- **`styles/components.css` monolítico (1261 líneas)** (2026-07-17). Partido en 13 archivos por componente en `styles/components/*.css`; `popup/globals.css` los reimporta en el orden original (cascada intacta) y `popup.html` no se tocó (sólo linkea `globals.css`). Verificado: paridad de bloques `{` 165 = 165.
 - **Función muerta `marcarClaseComoPendiente`** (2026-07-17). La destapó `no-unused-vars` de ESLint. Confirmado código muerto: su lógica ("sacar de la cola + volver la clase a 'pending'") ya está inline en el handler `remover_item_de_cola`, y `git log -S "marcarClaseComoPendiente("` mostró que no tenía call-sites desde el commit inicial del repo (importado en v13, ya desconectada de fábrica). Eliminada. `background.js` → v5.6.4. (Sin test unitario: `background.js` depende de `chrome.*`, fuera del alcance actual — ver Testing.)
 - **Escrituras no-atómicas a `chrome.storage.local`** (2026-07-17). Los 3 puntos de `background.js` que tocaban `listaPersistente` + `colaDescargas` + `SW_ESTADOS_PROGRESO` para un mismo cambio lógico usaban dos `.set()` separados (uno vía `persistirEstadoFondo()`), dejando una ventana donde una suspensión del SW podía desincronizarlas. Consolidados en un único `.set({...})` de las tres claves (fin de descarga, `marcarClaseComoPendiente`, `abortar_rafaga_inmediata`), siguiendo el patrón de `inyectar_items_en_cola_activa`. `background.js` → v5.6.3. (Sin test unitario: `background.js` depende de `chrome.*`, fuera del alcance actual — ver Testing.)
 - **Optimistic update sin rollback en `encolarItemsEnCaliente`** (2026-07-17). La función actualizaba `AppState.colaDescargas` + DOM + estado `'process'` y disparaba `inyectar_items_en_cola_activa` sin verificar la respuesta; si el SW no confirmaba (dormido, error de storage), la UI quedaba mostrando ítems "en cola" nunca persistidos en `background.js`. Fix: el `sendMessage` ahora tiene callback que, ante `chrome.runtime.lastError` o `status != "encolados_ok"`, revierte la cola (por `id`), restaura `estado`/`seleccionado` de los ítems y re-renderiza. `popup.js` → v5.7.1. (Sin test unitario: `popup.js` sigue bloqueado por el split de Fase 2 — ver Testing.)

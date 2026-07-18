@@ -1,0 +1,21 @@
+/* Botón de Ayuda en Cabecera */
+.btn-help-icon {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--text-md);
+  padding: 4px;
+  line-height: 1;
+  transition: color 0.15s ease, transform 0.15s ease;
+  margin-right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+
+  &:hover {
+    color: var(--accent-orange);
+    transform: scale(1.15);
+  }
+}

@@ -1,0 +1,85 @@
+/* Panel de Footer */
+.footer-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  border-top: 1px solid var(--border-color);
+  padding-top: var(--space-sm);
+  flex-shrink: 0;
+
+  .status-text {
+    font-size: var(--text-base);
+    font-weight: var(--font-semibold);
+    color: var(--text-muted);
+    text-align: center;
+    min-height: 2.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.3;
+
+    strong, span[style*="color"] {
+      color: var(--accent-error-visible) !important;
+    }
+
+    .warning-alert {
+      color: var(--accent-warning-visible) !important;
+    }
+
+    &:empty {
+      display: none !important;
+    }
+  }
+
+  .telemetry-text {
+    display: none;
+    justify-content: space-between;
+    font-size: var(--text-sm);
+    font-family: var(--font-mono);
+    font-weight: bold;
+    color: var(--text-muted);
+    background-color: var(--bg-surface);
+    padding: 5px var(--space-sm);
+    border-radius: var(--radius-xs);
+    border: 1px solid var(--border-color);
+  }
+
+  .progress-container {
+    width: 100%;
+    background-color: var(--border-color);
+    height: 6px;
+    border-radius: var(--radius-xs);
+    overflow: hidden;
+    display: none;
+
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background-color: var(--accent-orange);
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 0 6px var(--glow-orange);
+      transition: width 0.1s linear;
+
+      &::after {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-image: linear-gradient(
+          90deg,
+          transparent 0%,
+          rgba(255, 255, 255, 0.45) 50%,
+          transparent 100%
+        );
+        background-size: 80px 100%;
+        background-repeat: no-repeat;
+        animation: progress-ecg-pulse 1.5s infinite linear;
+      }
+    }
+  }
+}
+
+@keyframes progress-ecg-pulse {
+  0% { background-position: -80px 0; }
+  100% { background-position: 100% 0; }
+}

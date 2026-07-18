@@ -1,4 +1,20 @@
 @import '../styles/variables.css';
 @import '../styles/base.css';
-@import '../styles/components.css';
+
+/* Componentes (antes styles/components.css, partido por componente — ver ADR/ROADMAP).
+   El orden replica el del archivo original para preservar la cascada. */
+@import '../styles/components/header.css';
+@import '../styles/components/path-bar.css';
+@import '../styles/components/tabs.css';
+@import '../styles/components/filters.css';
+@import '../styles/components/turbo-switch.css';
+@import '../styles/components/footer.css';
+@import '../styles/components/actions.css';
+@import '../styles/components/loader.css';
+@import '../styles/components/multicatedra.css';
+@import '../styles/components/downloads-active.css';
+@import '../styles/components/advertencia.css';
+@import '../styles/components/onboarding.css';
+@import '../styles/components/help-button.css';
+
 @import '../styles/list.css';

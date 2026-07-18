@@ -1,0 +1,60 @@
+/* Header Corporativo */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 0.5rem;
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  img {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+  }
+
+  h4 {
+    font-size: var(--text-lg);
+    font-weight: var(--font-bold);
+    color: var(--text-main);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0;
+  }
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Indicador de Estado */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+
+  &.online {
+    background-color: var(--accent-green);
+    box-shadow: 0 0 6px var(--glow-green);
+  }
+
+  &.offline {
+    background-color: var(--accent-error);
+    box-shadow: 0 0 6px rgba(255, 59, 48, 0.6);
+    animation: pulse-dot-red 2s infinite ease-in-out;
+  }
+}
+
+@keyframes pulse-dot-red {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; transform: scale(1.1); }
+}

@@ -1,0 +1,68 @@
+/* ==========================================================================
+   ESTILOS COMPACTOS PARA DESCARGAS ACTIVAS (UX/UI OPTIMIZATION)
+   ========================================================================== */
+body.downloading .footer-panel {
+  gap: var(--space-xs);
+  padding-top: 0.4rem;
+}
+
+body.downloading .progress-container {
+  height: 5px;
+  margin-bottom: 0.1rem;
+}
+
+body.downloading .telemetry-text {
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  justify-content: space-between;
+  margin-bottom: 0.1rem;
+}
+
+body.downloading .status-text {
+  min-height: auto;
+  font-size: var(--text-base);
+  padding: 0.1rem 0;
+  margin: 0;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  line-height: 1.25;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+body.downloading .status-text br {
+  display: none;
+}
+
+body.downloading .status-text span {
+  font-weight: 700;
+  margin-left: 0.25rem;
+}
+
+body.downloading .cancel-box {
+  gap: var(--space-xs);
+}
+
+body.downloading .btn-cancel {
+  padding: 0.35rem;
+  font-size: var(--text-xs);
+  border-radius: var(--radius-sm);
+}
+
+/* Línea divisoria en descargas activas */
+.download-separator {
+  display: none;
+  border-top: 1px solid var(--border-color);
+  margin: 0.3rem 0;
+  width: 100%;
+}
+
+body.downloading .download-separator {
+  display: block;
+}
