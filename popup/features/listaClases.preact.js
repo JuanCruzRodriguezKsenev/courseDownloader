@@ -16,8 +16,8 @@
  *
  * Etapa 1 NO toca los ATRIBUTOS del contenedor #ui-list (.style.opacity, clase
  * .selection-mode, toggle display): Preact gestiona los hijos, no el host; esos
- * atributos siguen vanilla y se migran en la Etapa 2. Port 1:1 de renderers.js
- * (construirFilaClaseDOM / renderizarTarjetaEstado), que quedan como referencia.
+ * atributos siguen vanilla y se migran en la Etapa 2. Port 1:1 de los antiguos
+ * renderers.js construirFilaClaseDOM / renderizarTarjetaEstado (ya eliminados).
  *
  * Seguridad: `descripcion` de la card va por dangerouslySetInnerHTML (lleva
  * <br>/<strong> intencionales). El título scrapeado que se interpola en esa

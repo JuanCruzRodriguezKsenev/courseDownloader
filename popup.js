@@ -11,7 +11,7 @@
  *   por fila (atenuar/deshabilitar sin sincronizar) vive ahora en <FilaClase>. La
  *   card de escaneo "sin enlaces" también empuja al store. AppState sigue siendo la
  *   fuente de verdad; la isla es vista pura. renderers.js (construirFilaClaseDOM /
- *   renderizarTarjetaEstado) queda como referencia muerta (se borra en Etapa 2). Los
+ *   renderizarTarjetaEstado) fue eliminado por muerto (renderers.js v5.2.0). Los
  *   atributos del contenedor (opacity/.selection-mode/display) siguen vanilla (Etapa 2).
  *   Ver docs/preact-migration.md, ADR-0006.
  * CHANGELOG v5.8.3:
