@@ -1,9 +1,10 @@
 /**
- * ISLA PREACT #4 (Etapa 1) — la lista de clases de #ui-list (V1.0.0)
+ * ISLA PREACT #4 (Etapa 2) — la lista de clases de #ui-list (V1.1.0)
  * ==========================================================================
  * Isla de la migración incremental del popup a Preact (ver ADR-0006,
- * docs/preact-migration.md). Es DUEÑA de los HIJOS de #ui-list: las filas de
- * clases (pestañas Disponibles/Cola) y las tarjetas de estado (vacío/error/escaneo).
+ * docs/preact-migration.md). Es DUEÑA de #ui-list: sus HIJOS (filas de clases y
+ * tarjetas de estado) Y sus ATRIBUTOS de host (clase .selection-mode, opacidad de
+ * atenuado, y visibilidad display) — nadie más los toca (Etapa 2, V1.1.0).
  *
  * Patrón store-puente (como bannerConexion/rutaDisco): AppState sigue siendo la
  * fuente de verdad; el vanilla (popup.js renderizarListadoInterfaz) calcula un
@@ -14,10 +15,18 @@
  *   - { modo:'lista', items:[...clases], ctx:{ pestaña, sincronizado, enCurso,
  *       videoActivo, selectionMode, onCheckChange(clase,checked), onRemoverClick(clase) } }
  *
- * Etapa 1 NO toca los ATRIBUTOS del contenedor #ui-list (.style.opacity, clase
- * .selection-mode, toggle display): Preact gestiona los hijos, no el host; esos
- * atributos siguen vanilla y se migran en la Etapa 2. Port 1:1 de los antiguos
- * renderers.js construirFilaClaseDOM / renderizarTarjetaEstado (ya eliminados).
+ * Atributos del host (fuera del vm, con sus propios setters porque los empujan
+ * call-sites distintos): window.ListaClases
+ *   - setSelectionMode(bool) → clase .selection-mode en #ui-list (antes popup.js
+ *     actualizarModoSeleccion mutaba nodos.lista.classList).
+ *   - setAtenuada(bool) → opacity 0.5/'' (antes popup.js atenuaba durante la
+ *     sincronización de disco con nodos.lista.style.opacity).
+ *   - setOculta(bool) → display none/'' (antes serverConnection.js ocultaba +
+ *     vaciaba #ui-list con innerHTML/display mientras el banner ocupa su lugar;
+ *     ahora la isla devuelve null, así Preact quita los hijos sin desincronizar su
+ *     vdom contra un DOM borrado por fuera).
+ * Un useEffect refleja esos flags sobre el host real (no se cambia el CSS, que
+ * sigue keyeando sobre #ui-list.list-wrapper).
  *
  * Seguridad: `descripcion` de la card va por dangerouslySetInnerHTML (lleva
  * <br>/<strong> intencionales). El título scrapeado que se interpola en esa
@@ -27,17 +36,24 @@
 import { html, render, useState, useEffect } from '../vendor/htm-preact-standalone.module.js';
 
 const VM_INICIAL = { modo: 'card', card: null };
+const HOST_INICIAL = { selectionMode: false, atenuada: false, oculta: false };
+
+let _host = null; // el nodo #ui-list donde monta la isla (para reflejar atributos de host)
 
 const _store = {
-  estado: VM_INICIAL,
+  vm: VM_INICIAL,
+  host: HOST_INICIAL,
   _subs: new Set(),
   _emit() { this._subs.forEach((cb) => cb()); },
   suscribir(cb) { this._subs.add(cb); return () => this._subs.delete(cb); },
-  get() { return this.estado; },
+  get() { return { vm: this.vm, host: this.host }; },
   render(vm) {
-    this.estado = vm || VM_INICIAL;
+    this.vm = vm || VM_INICIAL;
     this._emit();
   },
+  setSelectionMode(v) { this.host = { ...this.host, selectionMode: !!v }; this._emit(); },
+  setAtenuada(v) { this.host = { ...this.host, atenuada: !!v }; this._emit(); },
+  setOculta(v) { this.host = { ...this.host, oculta: !!v }; this._emit(); },
 };
 
 function useListaClases() {
@@ -46,7 +62,7 @@ function useListaClases() {
   return _store.get();
 }
 
-// Port 1:1 de renderers.js renderizarTarjetaEstado.
+// Port 1:1 del antiguo renderers.js renderizarTarjetaEstado.
 export function TarjetaEstado({ tipo, titulo, descripcion, icono }) {
   return html`
     <div class="info-card ${tipo}">
@@ -56,7 +72,7 @@ export function TarjetaEstado({ tipo, titulo, descripcion, icono }) {
     </div>`;
 }
 
-// Port 1:1 de renderers.js construirFilaClaseDOM (ramas disponibles/cola).
+// Port 1:1 del antiguo renderers.js construirFilaClaseDOM (ramas disponibles/cola).
 export function FilaClase({ clase, ctx }) {
   const { pestaña, sincronizado, enCurso, videoActivo, selectionMode, onCheckChange, onRemoverClick } = ctx;
   const sel = !!clase.seleccionado;
@@ -111,7 +127,22 @@ export function FilaClase({ clase, ctx }) {
 }
 
 export function ListaClases() {
-  const vm = useListaClases();
+  const { vm, host } = useListaClases();
+
+  // Reflejar los atributos de host sobre el nodo real #ui-list (sin tocar el CSS,
+  // que sigue keyeando sobre .list-wrapper.selection-mode). Se ejecuta aunque el
+  // render devuelva null (el componente sigue montado).
+  useEffect(() => {
+    if (!_host) return;
+    _host.classList.toggle('selection-mode', host.selectionMode);
+    _host.style.opacity = host.atenuada ? '0.5' : '';
+    _host.style.display = host.oculta ? 'none' : '';
+  }, [host.selectionMode, host.atenuada, host.oculta]);
+
+  // Oculta (banner de conexión ocupando el lugar de la lista): sin hijos. Preact
+  // los quita él mismo → nadie borra el DOM por fuera (evita el desync de vdom).
+  if (host.oculta) return null;
+
   if (!vm || vm.modo === 'card') {
     return vm && vm.card ? html`<${TarjetaEstado} ...${vm.card} />` : null;
   }
@@ -120,21 +151,23 @@ export function ListaClases() {
 }
 
 export function montar(root) {
-  if (root) render(html`<${ListaClases} />`, root);
+  if (root) {
+    _host = root;
+    render(html`<${ListaClases} />`, root);
+  }
 }
 
 // Sólo para tests: reinicia el store (estado + suscriptores) entre casos.
 export function __resetStore() {
-  _store.estado = VM_INICIAL;
+  _store.vm = VM_INICIAL;
+  _store.host = HOST_INICIAL;
   _store._subs.clear();
 }
 
-// Store global para que el vanilla (popup.js) empuje el view-model.
+// Store global para que el vanilla (popup.js / serverConnection.js) empuje datos.
 if (typeof window !== 'undefined') window.ListaClases = _store;
 
 // Auto-montaje en el popup real (los tests importan los componentes, no montan acá).
-// Se monta DENTRO de #ui-list: Preact gestiona sus hijos; el vanilla sigue tocando
-// sólo los atributos del contenedor (opacity/clase/display) hasta la Etapa 2.
 if (typeof document !== 'undefined') {
   montar(document.getElementById('ui-list'));
 }

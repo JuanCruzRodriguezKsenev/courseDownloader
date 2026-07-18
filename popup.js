@@ -1,7 +1,15 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.9.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.10.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.10.0:
+ * - [ISLA #4 · Etapa 2] La isla Preact ahora es dueña también de los ATRIBUTOS del
+ *   host #ui-list. Se quitó nodos.lista: la opacidad de sincronización de disco pasó
+ *   a ListaClases.setAtenuada(bool), y la clase .selection-mode (actualizarModoSeleccion)
+ *   a ListaClases.setSelectionMode(bool). serverConnection dejó de tocar
+ *   innerHTML/display de #ui-list y usa ListaClases.setOculta(bool). La card de
+ *   conexión caída de renderizarListadoInterfaz SE CONSERVA (sigue viva para el caso
+ *   "descarga interrumpida", donde #ui-list no se oculta). Ver docs/preact-migration.md.
  * CHANGELOG v5.9.0:
  * - [ISLA #4 · Etapa 1] El pintado de #ui-list se migró a la isla Preact
  *   features/listaClases.preact.js. renderizarListadoInterfaz ya NO construye DOM:
@@ -12,8 +20,8 @@
  *   card de escaneo "sin enlaces" también empuja al store. AppState sigue siendo la
  *   fuente de verdad; la isla es vista pura. renderers.js (construirFilaClaseDOM /
  *   renderizarTarjetaEstado) fue eliminado por muerto (renderers.js v5.2.0). Los
- *   atributos del contenedor (opacity/.selection-mode/display) siguen vanilla (Etapa 2).
- *   Ver docs/preact-migration.md, ADR-0006.
+ *   atributos del contenedor (opacity/.selection-mode/display) se migraron a la isla
+ *   en la Etapa 2 (ver v5.10.0). Ver docs/preact-migration.md, ADR-0006.
  * CHANGELOG v5.8.3:
  * - [ISLA #4 · Etapa 0] Render de la lista state-driven, sin refs imperativas al
  *   DOM de las filas (prep para la migración Preact). El handler de masterCheck ya
@@ -112,7 +120,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnAction:       document.getElementById('ui-btn-action'),
     btnStartQueue:   document.getElementById('ui-btn-start-queue'),
     txtEstado:       document.getElementById('ui-msg-status'),
-    lista:           document.getElementById('ui-list'),
+    // #ui-list ya no se referencia por nodos: es dueño la isla Preact #4 (window.ListaClases).
     search:          document.getElementById('ui-search'),
     btnFilterPills:  document.getElementById('ui-btn-filter-pills'),
     filterMenu:      document.getElementById('ui-filter-menu'),
@@ -709,7 +717,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function ejecutarPaso2SincronizarDiscoVeloz() {
     configurarBotonesUX("sincronizar-disco", "", true);
     nodos.btnAction.innerHTML = `<span class="spinner-inline"></span> Sincronizando disco local...`;
-    nodos.lista.style.opacity = '0.5';
+    ListaClases.setAtenuada(true); // atenúa la lista durante la sincronización (isla dueña de #ui-list)
 
     const subcarpetaFiltro = nodos.folder.value.trim().toLowerCase();
 
@@ -772,7 +780,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       } catch (err) {
         console.error("❌ Error en empaquetado de sincronización:", err);
       } finally {
-        nodos.lista.style.opacity = '1';
+        ListaClases.setAtenuada(false);
       }
     };
 
@@ -890,11 +898,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function renderizarListadoInterfaz() {
-    // La isla Preact #4 (features/listaClases.preact.js) es dueña de los HIJOS de
-    // #ui-list. Este render ya no construye DOM: mantiene la lógica de negocio
-    // (sincronizar con la cola, filtrar, ordenar) y EMPUJA un view-model al store
-    // window.ListaClases. Los atributos del contenedor (opacity/.selection-mode/display)
-    // siguen vanilla hasta la Etapa 2.
+    // La isla Preact #4 (features/listaClases.preact.js) es dueña de #ui-list (hijos
+    // Y atributos de host, Etapa 2). Este render ya no construye DOM: mantiene la
+    // lógica de negocio (sincronizar con la cola, filtrar, ordenar) y EMPUJA un
+    // view-model al store window.ListaClases.render(vm).
 
     if (AppState.fallaConexionActiva) {
       // El título proviene del scraping del DOM de Ramón Net (contenido de terceros):
@@ -1266,16 +1273,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function actualizarModoSeleccion() {
-    if (AppState.pestañaActiva === "disponibles") {
-      nodos.lista.classList.add('selection-mode');
-      return;
-    }
-
-    if (modoSeleccionFilaActivo) {
-      nodos.lista.classList.add('selection-mode');
-    } else {
-      nodos.lista.classList.remove('selection-mode');
-    }
+    // En Disponibles el modo selección está siempre activo; en Cola depende del toggle.
+    // La isla Preact #4 es dueña de la clase .selection-mode del host #ui-list.
+    const activo = AppState.pestañaActiva === "disponibles" ? true : modoSeleccionFilaActivo;
+    ListaClases.setSelectionMode(activo);
   }
 
   function actualizarContadoresBoton() {

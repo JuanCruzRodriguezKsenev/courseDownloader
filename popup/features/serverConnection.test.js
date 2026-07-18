@@ -71,7 +71,7 @@ function montarNodos() {
 }
 
 describe('ServerConnectionFeature.crear', () => {
-  let nodos, ctx, api, suscriptor, banner;
+  let nodos, ctx, api, suscriptor, banner, lista;
 
   beforeEach(() => {
     globalThis.AppState.ráfagaEnCurso = false;
@@ -80,6 +80,10 @@ describe('ServerConnectionFeature.crear', () => {
     globalThis.RutaDisco = { mostrar: vi.fn(), cargando: vi.fn(), get: () => ({ texto: '', titulo: '' }) };
     banner = fakeBanner();
     globalThis.BannerConexion = banner;
+    // La isla #4 (window.ListaClases) es dueña de #ui-list: serverConnection le
+    // empuja setOculta(true/false) en vez de tocar nodos.lista.style.display.
+    lista = { setOculta: vi.fn() };
+    globalThis.ListaClases = lista;
     // Conexion falso: captura al suscriptor para poder emitir estados a mano.
     suscriptor = null;
     globalThis.Conexion = {
@@ -109,7 +113,7 @@ describe('ServerConnectionFeature.crear', () => {
   it('activarEstadoOfflineUI muestra el banner (store), oculta la lista y deshabilita los controles', () => {
     api.activarEstadoOfflineUI();
     expect(banner.get()).toEqual({ visible: true, tipo: 'servidor' });
-    expect(nodos.lista.style.display).toBe('none');
+    expect(lista.setOculta).toHaveBeenCalledWith(true);
     expect(nodos.folder.disabled).toBe(true);
     expect(nodos.btnExplore.disabled).toBe(true);
     expect(nodos.search.disabled).toBe(true);
@@ -175,7 +179,7 @@ describe('ServerConnectionFeature.crear', () => {
     emitir({ servidor: true });   // no vuelve a disparar
     expect(banner.ocultar).toHaveBeenCalledTimes(1);
     expect(banner.get().visible).toBe(false);
-    expect(nodos.lista.style.display).toBe('');
+    expect(lista.setOculta).toHaveBeenCalledWith(false);
     expect(ctx.onReescanearAula).toHaveBeenCalledTimes(1);
   });
 

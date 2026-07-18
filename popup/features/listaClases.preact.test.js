@@ -122,4 +122,41 @@ describe('Isla Preact: ListaClases', () => {
     await flush();
     expect(root.querySelector('.video-item').classList.contains('selected')).toBe(true);
   });
+
+  // Etapa 2: la isla es dueña de los atributos del host #ui-list.
+  it('setSelectionMode togglea la clase .selection-mode en el host', async () => {
+    window.ListaClases.setSelectionMode(true);
+    await flush();
+    expect(root.classList.contains('selection-mode')).toBe(true);
+    window.ListaClases.setSelectionMode(false);
+    await flush();
+    expect(root.classList.contains('selection-mode')).toBe(false);
+  });
+
+  it('setAtenuada aplica y quita la opacidad 0.5 del host', async () => {
+    window.ListaClases.setAtenuada(true);
+    await flush();
+    expect(root.style.opacity).toBe('0.5');
+    window.ListaClases.setAtenuada(false);
+    await flush();
+    expect(root.style.opacity).toBe('');
+  });
+
+  it('setOculta esconde el host y quita los hijos (la isla devuelve null)', async () => {
+    window.ListaClases.render({ modo: 'lista', ctx: ctxBase(), items: [
+      { id: 1, titulo: 'A', estado: 'pending', seleccionado: false },
+    ]});
+    await flush();
+    expect(items().length).toBe(1);
+
+    window.ListaClases.setOculta(true);
+    await flush();
+    expect(root.style.display).toBe('none');
+    expect(items().length).toBe(0); // Preact quitó los hijos, no un innerHTML="" externo
+
+    window.ListaClases.setOculta(false);
+    await flush();
+    expect(root.style.display).toBe('');
+    expect(items().length).toBe(1); // el vm seguía en el store → re-render
+  });
 });

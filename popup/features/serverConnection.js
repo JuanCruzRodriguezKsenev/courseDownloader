@@ -1,6 +1,11 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: CONEXIÓN AL SERVIDOR BUN (V1.9.0)
+ * CLON DOWNLOADHELPER - FEATURE: CONEXIÓN AL SERVIDOR BUN (V1.10.0)
  * ==========================================================================
+ * CHANGELOG v1.10.0:
+ * - [ISLA #4 · Etapa 2] Dejó de tocar el DOM de #ui-list directo (innerHTML="" +
+ *   style.display) para ocultar/restaurar la lista mientras el banner ocupa su lugar.
+ *   Ahora empuja ListaClases.setOculta(true/false): la isla Preact #4 devuelve null y
+ *   Preact quita los hijos, sin desincronizar su vdom contra un DOM borrado por fuera.
  * CHANGELOG v1.9.0:
  * - [MIGRACIÓN] El banner de conexión caída (.server-error-card) ya no se crea acá
  *   dentro de #ui-list: lo pinta la isla Preact #2 (features/bannerConexion.preact.js)
@@ -140,11 +145,11 @@ const ServerConnectionFeature = {
       if (nodos.btnSort) nodos.btnSort.disabled = true;
 
       // El banner lo pinta la isla Preact #2 (BannerConexion) en su propio root.
-      // La lista (#ui-list) se oculta y vacía mientras el banner ocupa su lugar
-      // (se repuebla al reconectar, en reaccionarAConexion). mostrar() es idempotente:
-      // si ya está el banner del mismo tipo, la isla no re-renderiza.
-      nodos.lista.innerHTML = "";
-      nodos.lista.style.display = "none";
+      // La lista (#ui-list) se oculta mientras el banner ocupa su lugar (se repuebla
+      // al reconectar, en reaccionarAConexion). Ocultar/vaciar lo hace la propia isla
+      // #4 vía setOculta (devuelve null → Preact quita los hijos), NO un innerHTML="" +
+      // display:none externo que desincronizaría su vdom. mostrar() es idempotente.
+      ListaClases.setOculta(true);
       BannerConexion.mostrar(tipo);
       nodos.loader.style.display = 'none';
 
@@ -211,7 +216,7 @@ const ServerConnectionFeature = {
       if (completaAntes !== true) {
         if (BannerConexion.get().visible) {
           BannerConexion.ocultar();
-          nodos.lista.style.display = ""; // restaura la lista (la repuebla el re-escaneo).
+          ListaClases.setOculta(false); // restaura la lista (la repuebla el re-escaneo).
 
           nodos.folder.disabled = false;
           nodos.btnExplore.disabled = false;
