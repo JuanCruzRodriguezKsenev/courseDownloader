@@ -2,15 +2,15 @@
 
 Explicación de los patrones que sostienen el código actual — qué problema resuelve cada uno y dónde verlo. Para decisiones sobre patrones *evaluados pero no adoptados*, ver `docs/adr/`.
 
-## IPC por acción con switch de strings
+## IPC por acción con diccionario de handlers
 
-**Dónde**: `background.js:137-358` (`chrome.runtime.onMessage.addListener`), llamado desde `popup.js` con `chrome.runtime.sendMessage({ action: "...", ...payload })`.
+**Dónde**: `background.js` (`chrome.runtime.onMessage.addListener` + el objeto `manejadoresIPC`), llamado desde `popup.js` con `chrome.runtime.sendMessage({ action: "...", ...payload })`.
 
 **Qué hace**: todo el contrato entre popup y service worker pasa por un único canal de mensajes, despachado por el campo `action` (string). Acciones soportadas hoy: `escanear_carpeta_local`, `obtener_estados_en_progreso`, `inyectar_items_en_cola_activa`, `remover_item_de_cola`, `iniciar_descarga_cola`, `activar_frenado_suave`, `abortar_rafaga_inmediata`, `limpiar_estados_progreso`.
 
 **Por qué así**: es el único mecanismo de comunicación entre contextos de ejecución aislados que ofrece la plataforma de extensiones — no hay alternativa (no se pueden compartir referencias de memoria entre popup y service worker).
 
-**Convención a seguir**: cada acción nueva se agrega como un bloque `if (request.action === "...")` que termina en `return sendResponse(...)`, dentro del IIFE async que envuelve el body del listener. El listener siempre retorna `true` de forma síncrona para mantener el canal abierto a una respuesta async.
+**Convención a seguir**: cada acción se define como un método `async accion(request, sendResponse)` dentro del diccionario `manejadoresIPC`. El listener despacha por lookup (`manejadoresIPC[request.action]`), retorna `false` si no existe, y si existe lo envuelve en un IIFE async + `try/catch` global, retornando `true` de forma síncrona para mantener el canal abierto a una respuesta async. Cada handler termina en `sendResponse(...)`.
 
 ## State ownership split (AppState / SessionState)
 

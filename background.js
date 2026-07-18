@@ -1,6 +1,14 @@
 /**
- * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V5.6.5)
+ * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V5.7.0)
  * ==========================================================================
+ * CHANGELOG v5.7.0:
+ * - [DEBT] El listener IPC (chrome.runtime.onMessage) pasó de una cadena de 8
+ *   `if (request.action === ...)` a un diccionario `manejadoresIPC {accion: handler}`
+ *   despachado por lookup. Cada handler es async (request, sendResponse); el
+ *   listener los envuelve en el mismo IIFE async + try/catch global y devuelve
+ *   `true` síncrono. Comportamiento idéntico (los handlers siguen mutando
+ *   loopActivo/controladorGraficoActivo por closure). Ver docs/TECHNICAL_DEBT.md
+ *   y docs/patterns.md §IPC.
  * CHANGELOG v5.6.5:
  * - [LOG] Una cancelación del usuario ya no se loguea como error fatal. El catch
  *   del bucle de descarga chequea state.abortadoPorUsuario ANTES de loguear: si
@@ -177,234 +185,233 @@ async function cerrarOffscreenYRevocar(blobUrl) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Handlers IPC despachados por acción (dict {accion: handler} en vez de una
+// cadena de if — ver docs/patterns.md §IPC). Cada handler es async (request,
+// sendResponse); el listener los envuelve en un IIFE async + try/catch global y
+// devuelve true síncrono para mantener el canal abierto a una respuesta async.
+// Los handlers mutan estado de módulo (loopActivo, controladorGraficoActivo) por
+// closure, igual que antes. El objeto se exporta (module.exports) para tests.
+// ─────────────────────────────────────────────────────────────────────────────
+const manejadoresIPC = {
+  // ─── ESCANEO DE CARPETA LOCAL OPTIMIZADO NATIVO ────────────────────────
+  async escanear_carpeta_local(request, sendResponse) {
+    const materiaObjetivo = request.carpeta ? request.carpeta.trim().toLowerCase() : "";
+    const limiteHorizonte = new Date();
+    limiteHorizonte.setDate(limiteHorizonte.getDate() - 30);
+
+    try {
+      const items = await chrome.downloads.search({
+        state: "complete",
+        startedAfter: limiteHorizonte.toISOString()
+      });
+
+      const nombresProcesados = (items || [])
+        .filter(item => item && item.filename)
+        .filter(item => {
+          const rutaFisicaNormalizada = item.filename.toLowerCase().replace(/\\/g, '/');
+          if (!materiaObjetivo) return true;
+          return rutaFisicaNormalizada.includes(`/${materiaObjetivo}/`);
+        })
+        .map(item => {
+          const nombreArchivoConExt = item.filename.split(/[\\/]/).pop();
+          return nombreArchivoConExt.replace(/\.[^/.]+$/, "").toLowerCase().trim();
+        })
+        .filter(nombre => nombre.length > 0);
+
+      sendResponse({ archivos: nombresProcesados });
+    } catch (e) {
+      sendResponse({ archivos: [] });
+    }
+  },
+
+  // ─── ESTADO EN PROGRESO ───────────────────────────────────────────────────
+  async obtener_estados_en_progreso(request, sendResponse) {
+    const estados = await recuperarEstadoFondo();
+    const state = await SessionState.get();
+    return sendResponse({
+      estados: estados,
+      suaveFrenado: state.frenadoSuaveSolicitado,
+      videoActual: state.videoActualTitulo,
+      colaPausadaPorError: state.colaPausadaPorError,
+      tipoDeErrorConexion: state.tipoDeErrorConexion,
+      enColaTamano: state.totalFragmentosEnVideoActual > 0 ? 1 : 0,
+      porcentaje: state.totalFragmentosEnVideoActual > 0 ? Math.floor((state.fragmentosTerminadosEnVideoActual / state.totalFragmentosEnVideoActual) * 100) : 0,
+      telemetry: {
+        bytesProcesados: state.bytesProcesadosEnVideoActual,
+        fragsTerminados: state.fragmentosTerminadosEnVideoActual,
+        totalFrags:      state.totalFragmentosEnVideoActual,
+        velocidadMbs:    state.velocidadMbsActual,
+      }
+    });
+  },
+
+  // ─── INYECCIÓN EN COLA ATÓMICA ──────────────────────────────────────────
+  async inyectar_items_en_cola_activa(request, sendResponse) {
+    const data = await chrome.storage.local.get(['listaPersistente', 'colaDescargas', 'SW_ESTADOS_PROGRESO']);
+    const listaCompleta = data.listaPersistente || [];
+    const colaDescargas = data.colaDescargas || [];
+    const estados = data.SW_ESTADOS_PROGRESO || {};
+
+    request.items.forEach(item => {
+      estados[item.titulo] = 'process';
+
+      // Asegurar inserción en el array desacoplado
+      if (!colaDescargas.some(c => c.titulo === item.titulo)) {
+        colaDescargas.push(item);
+      }
+
+      // También actualizar estado en la lista persistente local
+      const claseMatch = listaCompleta.find(c => c.titulo === item.titulo);
+      if (claseMatch) {
+        claseMatch.estado = 'process';
+        claseMatch.carpeta = item.carpeta;
+      }
+    });
+
+    await chrome.storage.local.set({
+      listaPersistente: listaCompleta,
+      colaDescargas: colaDescargas,
+      SW_ESTADOS_PROGRESO: estados
+    });
+    return sendResponse({ status: "encolados_ok" });
+  },
+
+  // ─── REMOCIÓN SILENCIOSA EN COLA ──────────────────────────────────────────
+  async remover_item_de_cola(request, sendResponse) {
+    const data = await chrome.storage.local.get(['listaPersistente', 'colaDescargas', 'SW_ESTADOS_PROGRESO']);
+    const listaCompleta = data.listaPersistente || [];
+    let colaDescargas = data.colaDescargas || [];
+    const estados = data.SW_ESTADOS_PROGRESO || {};
+
+    colaDescargas = colaDescargas.filter(c => c.titulo !== request.titulo);
+    delete estados[request.titulo];
+
+    const match = listaCompleta.find(c => c.titulo === request.titulo);
+    if (match) {
+      match.estado = 'pending';
+    }
+
+    await chrome.storage.local.set({
+      listaPersistente: listaCompleta,
+      colaDescargas: colaDescargas,
+      SW_ESTADOS_PROGRESO: estados
+    });
+    return sendResponse({ status: "removido_ok" });
+  },
+
+  // ─── INICIO DE COLA ────────────────────────────────────────────────────────
+  async iniciar_descarga_cola(request, sendResponse) {
+    const state = await SessionState.get();
+    if (!state.rafagaCorriendo) {
+      await SessionState.set({
+        rafagaCorriendo: true,
+        frenadoSuaveSolicitado: false,
+        modoTurboBunActivo: true,
+        colaPausadaPorError: false,
+        tipoDeErrorConexion: "",
+        abortadoPorUsuario: false
+      });
+
+      chrome.alarms.clear("alarma_autoheal");
+
+      if (!loopActivo) {
+        loopActivo = true;
+        procesarSiguienteElementoDeLaCola();
+      }
+    }
+    return sendResponse({ status: "rafaga_iniciada" });
+  },
+
+  // ─── FRENADO SUAVE ────────────────────────────────────────────────────────
+  async activar_frenado_suave(request, sendResponse) {
+    await SessionState.set({ frenadoSuaveSolicitado: true });
+    return sendResponse({ status: "freno_suave_recibido" });
+  },
+
+  // ─── ABORT INMEDIATO ──────────────────────────────────────────────────────
+  async abortar_rafaga_inmediata(request, sendResponse) {
+    const state = await SessionState.get();
+    const titulo = state.videoActualTitulo;
+    const sessionId = state.videoActualSessionId || "";
+
+    await SessionState.set({
+      rafagaCorriendo: false,
+      frenadoSuaveSolicitado: false,
+      videoActualTitulo: "",
+      videoActualSessionId: "",
+      colaPausadaPorError: false,
+      tipoDeErrorConexion: "",
+      abortadoPorUsuario: true
+    });
+    loopActivo = false;
+    chrome.alarms.clear("alarma_autoheal");
+
+    if (controladorGraficoActivo) {
+      try { controladorGraficoActivo.abort(); }
+      catch (e) { console.warn("⚠️ Falló el abort del controlador de gráfico activo (limpieza de fin de ráfaga):", e?.message); }
+      controladorGraficoActivo = null;
+    }
+
+    if (titulo) {
+      await BunClient.cancelarDescarga(titulo, sessionId);
+    }
+
+    // También resetear las clases en la cola a pending
+    const data = await chrome.storage.local.get(['listaPersistente', 'colaDescargas']);
+    const listaCompleta = data.listaPersistente || [];
+    const colaDescargas = data.colaDescargas || [];
+
+    colaDescargas.forEach(item => {
+      const match = listaCompleta.find(c => c.titulo === item.titulo);
+      if (match) match.estado = 'pending';
+    });
+
+    // Escritura atómica: el abort limpia el progreso (SW_ESTADOS_PROGRESO: {}) y
+    // resetea las clases de la cola a 'pending' en un solo .set(), sin ventana
+    // intermedia donde el progreso ya esté vacío pero la lista aún no reseteada.
+    await chrome.storage.local.set({
+      listaPersistente: listaCompleta,
+      colaDescargas: colaDescargas,
+      SW_ESTADOS_PROGRESO: {}
+    });
+
+    return sendResponse({ status: "abortado_ok" });
+  },
+
+  // ─── LIMPIEZA DE ESTADOS ──────────────────────────────────────────────────
+  async limpiar_estados_progreso(request, sendResponse) {
+    await SessionState.set({
+      rafagaCorriendo: false,
+      frenadoSuaveSolicitado: false,
+      videoActualTitulo: "",
+      colaPausadaPorError: false,
+      tipoDeErrorConexion: ""
+    });
+    loopActivo = false;
+    chrome.alarms.clear("alarma_autoheal");
+    await persistirEstadoFondo({});
+    await chrome.storage.local.set({ colaDescargas: [] });
+    return sendResponse({ status: "limpio_ok" });
+  }
+};
+
 // Listener principal síncrono para mantener canal IPC
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  const accionesSoportadas = [
-    "escanear_carpeta_local",
-    "obtener_estados_en_progreso",
-    "inyectar_items_en_cola_activa",
-    "remover_item_de_cola",
-    "iniciar_descarga_cola",
-    "activar_frenado_suave",
-    "abortar_rafaga_inmediata",
-    "limpiar_estados_progreso"
-  ];
-
-  if (!request || !accionesSoportadas.includes(request.action)) {
+  const manejador = request && manejadoresIPC[request.action];
+  if (!manejador) {
     return false;
   }
-  
+
   (async () => {
     try {
-      // ─── ESCANEO DE CARPETA LOCAL OPTIMIZADO NATIVO ────────────────────────
-      if (request.action === "escanear_carpeta_local") {
-        const materiaObjetivo = request.carpeta ? request.carpeta.trim().toLowerCase() : "";
-        const limiteHorizonte = new Date();
-        limiteHorizonte.setDate(limiteHorizonte.getDate() - 30);
-
-        try {
-          const items = await chrome.downloads.search({ 
-            state: "complete",
-            startedAfter: limiteHorizonte.toISOString()
-          });
-
-          const nombresProcesados = (items || [])
-            .filter(item => item && item.filename)
-            .filter(item => {
-              const rutaFisicaNormalizada = item.filename.toLowerCase().replace(/\\/g, '/');
-              if (!materiaObjetivo) return true;
-              return rutaFisicaNormalizada.includes(`/${materiaObjetivo}/`);
-            })
-            .map(item => {
-              const nombreArchivoConExt = item.filename.split(/[\\/]/).pop();
-              return nombreArchivoConExt.replace(/\.[^/.]+$/, "").toLowerCase().trim();
-            })
-            .filter(nombre => nombre.length > 0);
-
-          sendResponse({ archivos: nombresProcesados });
-        } catch (e) {
-          sendResponse({ archivos: [] });
-        }
-        return; 
-      }
-
-
-      // ─── ESTADO EN PROGRESO ───────────────────────────────────────────────────
-      if (request.action === "obtener_estados_en_progreso") {
-        const estados = await recuperarEstadoFondo();
-        const state = await SessionState.get();
-        return sendResponse({
-          estados: estados,
-          suaveFrenado: state.frenadoSuaveSolicitado,
-          videoActual: state.videoActualTitulo,
-          colaPausadaPorError: state.colaPausadaPorError,
-          tipoDeErrorConexion: state.tipoDeErrorConexion,
-          enColaTamano: state.totalFragmentosEnVideoActual > 0 ? 1 : 0,
-          porcentaje: state.totalFragmentosEnVideoActual > 0 ? Math.floor((state.fragmentosTerminadosEnVideoActual / state.totalFragmentosEnVideoActual) * 100) : 0,
-          telemetry: {
-            bytesProcesados: state.bytesProcesadosEnVideoActual,
-            fragsTerminados: state.fragmentosTerminadosEnVideoActual,
-            totalFrags:      state.totalFragmentosEnVideoActual,
-            velocidadMbs:    state.velocidadMbsActual,
-          }
-        });
-      }
-
-      // ─── INYECCIÓN EN COLA ATÓMICA ──────────────────────────────────────────
-      if (request.action === "inyectar_items_en_cola_activa") {
-        const data = await chrome.storage.local.get(['listaPersistente', 'colaDescargas', 'SW_ESTADOS_PROGRESO']);
-        const listaCompleta = data.listaPersistente || [];
-        const colaDescargas = data.colaDescargas || [];
-        const estados = data.SW_ESTADOS_PROGRESO || {};
-
-        request.items.forEach(item => {
-          estados[item.titulo] = 'process';
-          
-          // Asegurar inserción en el array desacoplado
-          if (!colaDescargas.some(c => c.titulo === item.titulo)) {
-            colaDescargas.push(item);
-          }
-          
-          // También actualizar estado en la lista persistente local
-          const claseMatch = listaCompleta.find(c => c.titulo === item.titulo);
-          if (claseMatch) {
-            claseMatch.estado = 'process';
-            claseMatch.carpeta = item.carpeta;
-          }
-        });
-
-        await chrome.storage.local.set({ 
-          listaPersistente: listaCompleta, 
-          colaDescargas: colaDescargas, 
-          SW_ESTADOS_PROGRESO: estados 
-        });
-        return sendResponse({ status: "encolados_ok" });
-      }
-
-      // ─── REMOCIÓN SILENCIOSA EN COLA ──────────────────────────────────────────
-      if (request.action === "remover_item_de_cola") {
-        const data = await chrome.storage.local.get(['listaPersistente', 'colaDescargas', 'SW_ESTADOS_PROGRESO']);
-        const listaCompleta = data.listaPersistente || [];
-        let colaDescargas = data.colaDescargas || [];
-        const estados = data.SW_ESTADOS_PROGRESO || {};
-
-        colaDescargas = colaDescargas.filter(c => c.titulo !== request.titulo);
-        delete estados[request.titulo];
-
-        const match = listaCompleta.find(c => c.titulo === request.titulo);
-        if (match) {
-          match.estado = 'pending';
-        }
-
-        await chrome.storage.local.set({ 
-          listaPersistente: listaCompleta, 
-          colaDescargas: colaDescargas, 
-          SW_ESTADOS_PROGRESO: estados 
-        });
-        return sendResponse({ status: "removido_ok" });
-      }
-
-      // ─── INICIO DE COLA ────────────────────────────────────────────────────────
-      if (request.action === "iniciar_descarga_cola") {
-        const state = await SessionState.get();
-        if (!state.rafagaCorriendo) {
-          await SessionState.set({
-            rafagaCorriendo: true,
-            frenadoSuaveSolicitado: false,
-            modoTurboBunActivo: true,
-            colaPausadaPorError: false,
-            tipoDeErrorConexion: "",
-            abortadoPorUsuario: false
-          });
-
-          chrome.alarms.clear("alarma_autoheal");
-
-          if (!loopActivo) {
-            loopActivo = true;
-            procesarSiguienteElementoDeLaCola();
-          }
-        }
-        return sendResponse({ status: "rafaga_iniciada" });
-      }
-
-      // ─── FRENADO SUAVE ────────────────────────────────────────────────────────
-      if (request.action === "activar_frenado_suave") {
-        await SessionState.set({ frenadoSuaveSolicitado: true });
-        return sendResponse({ status: "freno_suave_recibido" });
-      }
-
-      // ─── ABORT INMEDIATO ──────────────────────────────────────────────────────
-      if (request.action === "abortar_rafaga_inmediata") {
-        const state = await SessionState.get();
-        const titulo = state.videoActualTitulo;
-        const sessionId = state.videoActualSessionId || "";
-
-        await SessionState.set({
-          rafagaCorriendo: false,
-          frenadoSuaveSolicitado: false,
-          videoActualTitulo: "",
-          videoActualSessionId: "",
-          colaPausadaPorError: false,
-          tipoDeErrorConexion: "",
-          abortadoPorUsuario: true
-        });
-        loopActivo = false;
-        chrome.alarms.clear("alarma_autoheal");
-
-        if (controladorGraficoActivo) {
-          try { controladorGraficoActivo.abort(); }
-          catch (e) { console.warn("⚠️ Falló el abort del controlador de gráfico activo (limpieza de fin de ráfaga):", e?.message); }
-          controladorGraficoActivo = null;
-        }
-
-        if (titulo) {
-          await BunClient.cancelarDescarga(titulo, sessionId);
-        }
-
-        // También resetear las clases en la cola a pending
-        const data = await chrome.storage.local.get(['listaPersistente', 'colaDescargas']);
-        const listaCompleta = data.listaPersistente || [];
-        const colaDescargas = data.colaDescargas || [];
-
-        colaDescargas.forEach(item => {
-          const match = listaCompleta.find(c => c.titulo === item.titulo);
-          if (match) match.estado = 'pending';
-        });
-
-        // Escritura atómica: el abort limpia el progreso (SW_ESTADOS_PROGRESO: {}) y
-        // resetea las clases de la cola a 'pending' en un solo .set(), sin ventana
-        // intermedia donde el progreso ya esté vacío pero la lista aún no reseteada.
-        await chrome.storage.local.set({
-          listaPersistente: listaCompleta,
-          colaDescargas: colaDescargas,
-          SW_ESTADOS_PROGRESO: {}
-        });
-
-        return sendResponse({ status: "abortado_ok" });
-      }
-
-      // ─── LIMPIEZA DE ESTADOS ──────────────────────────────────────────────────
-      if (request.action === "limpiar_estados_progreso") {
-        await SessionState.set({
-          rafagaCorriendo: false,
-          frenadoSuaveSolicitado: false,
-          videoActualTitulo: "",
-          colaPausadaPorError: false,
-          tipoDeErrorConexion: ""
-        });
-        loopActivo = false;
-        chrome.alarms.clear("alarma_autoheal");
-        await persistirEstadoFondo({});
-        await chrome.storage.local.set({ colaDescargas: [] });
-        return sendResponse({ status: "limpio_ok" });
-      }
-
+      await manejador(request, sendResponse);
     } catch (errGlobal) {
       console.error("❌ [IPC-SW-ERROR] Falló procesamiento de mensaje interno:", errGlobal);
     }
   })();
 
-  return true; 
+  return true;
 });
 
 // =============================================================================
