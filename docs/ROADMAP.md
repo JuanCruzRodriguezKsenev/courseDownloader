@@ -6,6 +6,42 @@ Este documento cubre **trabajo técnico interno**, no features de producto nueva
 
 ---
 
+## Estado (2026-07-17) — sesión de saldado de deuda
+
+Se hizo una tanda para cerrar la deuda abierta (un commit atómico por ítem,
+`npm test` + `npm run lint` en verde antes de cada uno). Avanzó **5 de 7** ítems
+planificados; los 2 restantes (Fase 2) quedan pendientes.
+
+**Cerrado en esta sesión:**
+
+| Ítem | Doc de detalle | Commit |
+|---|---|---|
+| Split de `styles/components.css` → 13 archivos `styles/components/*.css` | TECHNICAL_DEBT §Resuelto | `462f81d` |
+| Borrar muerto en `renderers.js` (`construirFilaClaseDOM`/`renderizarTarjetaEstado`) | — | `84f7fe3` |
+| Listener IPC de `background.js` → dict `manejadoresIPC` | patterns §IPC, TECHNICAL_DEBT | `44ccf02` |
+| Tests del SW: `hlsEngine` (funciones puras) + handlers IPC (harness `chrome.*`) | testing.md §3 | `2987e57` |
+| Isla Preact #4 **Etapa 2** (host de `#ui-list`: selection-mode/opacity/oculta) | preact-migration §4 | `ec0d93e` |
+
+Suite: 101 → **116 tests** (12 archivos). Lint: **0 errores / 10 warnings**.
+
+**Pendiente (deuda abierta):**
+
+- **Extraer `popup/features/filters.js`** — Fase 2, abajo. Enfoque decidido: `FilterFeature.crear(ctx)`
+  pasando `filtrosActivos` (`popup.js:157`) **por referencia** en `ctx` (objeto compartido, como
+  `queue.js` recibe `nodos`) para no romper los 4 call-sites externos; unificar el filtrado de la
+  pestaña Cola —hoy duplicado dentro de `renderizarListadoInterfaz`— en un predicado compartido.
+- **Adelgazar `popup.js` / cerrar god-file** — Fase 2, abajo. Extraer clusters de bajo acoplamiento
+  (`catedra.js`, `scraping.js`) si es seguro; el motor de render/worker queda como orquestación en
+  `popup.js` (extraerlo es la cirugía más riesgosa y de menor retorno).
+- **Cobertura de tests** — falta `compilarTranscodificacionStream` (pool de workers + AES + `crypto.subtle`)
+  y el núcleo de `popup.js` post-split (ver `docs/testing.md`, `docs/TECHNICAL_DEBT.md` §Testing).
+- **Verificación manual** — probar en el navegador el flujo banner/reconexión de la Etapa 2 (no cubrible
+  headless).
+- **Fuera de alcance por decisión**: Fase 5 (`@ts-check`/TypeScript, diferida por ADR-0001) y los ítems
+  de §"Explícitamente fuera de alcance".
+
+---
+
 ## Fase 0 — Seguridad (sin dependencias)
 
 - [x] Corregir XSS en `popup.js:1012`/`:1019` (ver `docs/TECHNICAL_DEBT.md`, sección Seguridad). ✅ 2026-07-16
