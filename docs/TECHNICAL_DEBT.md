@@ -73,10 +73,10 @@ Inventario vivo de problemas conocidos en el código actual, ordenados por sever
 
 ### Cobertura de tests: parcial
 
-- **Qué pasa**: ya hay `package.json` + Vitest/jsdom, con 10 archivos de test (~101 tests). Cubiertos: `shared/utils.js` (funciones puras), `shared/conexion.js` (daemon de conexión), `shared/bunClient.js` (cliente del backend), y las features/islas del popup extraídas — `popup/features/serverConnection.js`, `queue.js`, y las islas Preact `conexionHeader`/`onboarding`/`rutaDisco`/`bannerConexion`/`listaClases`. Sigue sin cobertura: `background.js`, `background/hlsEngine.js` (requieren mocks de `chrome.*`) y el núcleo de `popup.js` aún sin extraer.
-- **Impacto**: la lógica pura, el daemon de conexión, el cliente del backend y las features/islas ya extraídas tienen red de regresión; el motor HLS y la orquestación restante de UI siguen dependiendo de pruebas manuales.
-- **Fix propuesto**: ver `docs/ROADMAP.md` — continuar con `hlsEngine.js`/`background.js` (mocks de `chrome.*`) y el resto de `popup.js` post-split.
-- **Estado**: 🟡 parcial — `shared/utils.js`, `shared/conexion.js`, `shared/bunClient.js`, `serverConnection.js`, `queue.js` y las 5 islas Preact cubiertos; `background.js`/`hlsEngine.js` y el núcleo de `popup.js` pendientes.
+- **Qué pasa**: ya hay `package.json` + Vitest/jsdom, con 12 archivos de test (~113 tests). Cubiertos: `shared/utils.js` (funciones puras), `shared/conexion.js` (daemon de conexión), `shared/bunClient.js` (cliente del backend), las features/islas del popup extraídas — `popup/features/serverConnection.js`, `queue.js`, y las islas Preact `conexionHeader`/`onboarding`/`rutaDisco`/`bannerConexion`/`listaClases` —, las funciones puras de `background/hlsEngine.js` (parseo/resolución M3U8) y los handlers IPC de `background.js` (harness con `chrome.*` mockeado). Sigue sin cobertura: el motor de descarga concurrente (`compilarTranscodificacionStream`) y el núcleo de `popup.js` aún sin extraer.
+- **Impacto**: la lógica pura, el daemon, el cliente del backend, las features/islas, el parseo M3U8 y los handlers IPC tienen red de regresión; el pool de workers de descarga y la orquestación restante de UI siguen dependiendo de pruebas manuales.
+- **Fix propuesto**: ver `docs/ROADMAP.md` — el resto de `popup.js` post-split; `compilarTranscodificacionStream` si se justifica (requiere mockear `crypto.subtle`/`BunClient` además del pool).
+- **Estado**: 🟡 parcial — cubiertos utils, conexión, bunClient, serverConnection, queue, las 5 islas Preact, hlsEngine (funciones puras) y los handlers IPC de background; pendientes `compilarTranscodificacionStream` y el núcleo de `popup.js`.
 
 ---
 

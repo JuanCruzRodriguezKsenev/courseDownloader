@@ -1,7 +1,12 @@
 /**
- * CLON DOWNLOADHELPER - MOTOR HLS CRYPTO-TRANSCODER (V1.0.3)
+ * CLON DOWNLOADHELPER - MOTOR HLS CRYPTO-TRANSCODER (V1.0.4)
  * GESTIONA LA EXTRACTIBILIDAD DE M3U8, DESCARGA CONCURRENTE Y DESCIFRADO AES-128 NATIVO
  * ==========================================================================
+ * CHANGELOG v1.0.4:
+ * - [TEST] Se agregó la rama `module.exports` (sólo Node/Vitest, no existe en el SW)
+ *   para poder testear las funciones puras de parseo/resolución M3U8
+ *   (extraerEnlaceMaestroM3u8Clasico, descargarYAnalizarIndexM3u8) sin cargar el SW.
+ *   Nuevo background/hlsEngine.test.js. Sin cambios de comportamiento en runtime.
  * CHANGELOG v1.0.3:
  * - [LOG] El worker ya no loguea ❌ "Error crítico en fragmento" ante un AbortError.
  *   Un AbortError en un worker no es un fallo del fragmento: es la consecuencia
@@ -263,6 +268,11 @@ const HlsEngine = {
 // Exportar según contexto
 if (typeof window !== "undefined") {
   window.HlsEngine = HlsEngine;
-} else {
+} else if (typeof self !== "undefined") {
   self.HlsEngine = HlsEngine;
+}
+// Rama para Node/Vitest (no existe en el SW): habilita testear las funciones puras
+// de parseo/resolución sin cargar todo el service worker.
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = HlsEngine;
 }

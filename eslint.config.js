@@ -68,9 +68,10 @@ module.exports = [
   },
 
   // Dual-export (browser/SW + import en Vitest): el footer referencia `module`
-  // (CommonJS/Node). Aplica a shared/*.js y a la feature vanilla serverConnection.
+  // (CommonJS/Node). Aplica a shared/*.js, las features vanilla, y hlsEngine.js
+  // (que sumó la rama module.exports para testear sus funciones puras).
   {
-    files: ["shared/**/*.js", "popup/features/serverConnection.js", "popup/features/queue.js"],
+    files: ["shared/**/*.js", "popup/features/serverConnection.js", "popup/features/queue.js", "background/hlsEngine.js"],
     languageOptions: { globals: { ...globals.node } },
   },
 

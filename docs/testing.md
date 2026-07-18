@@ -1,6 +1,6 @@
 # Testing
 
-**Estado actual: suite real y en crecimiento — 10 archivos de test, ~101 tests.** Existe `package.json` con Vitest + jsdom como devDependencies. Cubierto hoy: la lógica pura (`shared/utils.js`), el daemon de conexión (`shared/conexion.js`), el cliente del backend (`shared/bunClient.js`), y las features/islas del popup ya extraídas (`popup/features/serverConnection.js`, `queue.js`, y las islas Preact `conexionHeader`/`onboarding`/`rutaDisco`/`bannerConexion`/`listaClases`). El resto de este documento describe la estrategia y lo que todavía falta cubrir (principalmente `background.js`/`background/hlsEngine.js` y el núcleo de `popup.js` aún sin extraer).
+**Estado actual: suite real y en crecimiento — 12 archivos de test, ~113 tests.** Existe `package.json` con Vitest + jsdom como devDependencies. Cubierto hoy: la lógica pura (`shared/utils.js`), el daemon de conexión (`shared/conexion.js`), el cliente del backend (`shared/bunClient.js`), las features/islas del popup ya extraídas (`popup/features/serverConnection.js`, `queue.js`, y las islas Preact `conexionHeader`/`onboarding`/`rutaDisco`/`bannerConexion`/`listaClases`), las funciones puras de `background/hlsEngine.js` (parseo/resolución M3U8) y los handlers IPC de `background.js` (vía un harness que mockea `chrome.*`). El resto de este documento describe la estrategia y lo que todavía falta cubrir (el motor de descarga concurrente `compilarTranscodificacionStream` y el núcleo de `popup.js` aún sin extraer).
 
 ## Cómo correr los tests
 
@@ -36,9 +36,10 @@ Casos de borde a cubrir explícitamente para `formatTitleStructured`/`clasificar
 - `calcularMétricasProgreso` / `formatearMB` / `calcularProyeccionMB` — cálculos de telemetría, bajo riesgo pero baratos de testear.
 - `fetchConReintentos` — requiere mockear `fetch` global (`vi.stubGlobal` o similar) y un `AbortController` real para el caso de cancelación.
 
-### 3. `background.js` / `background/hlsEngine.js` — diferido
+### 3. `background.js` / `background/hlsEngine.js` — parcial
 
-Requieren mockear `chrome.storage`, `chrome.alarms`, `chrome.runtime`, `chrome.offscreen`, etc. El costo de setup es mayor (librería tipo `sinon-chrome`, o mocks manuales del namespace `chrome`). Se aborda en una fase posterior si el proyecto lo justifica — no es parte de la Fase 1.
+- **`hlsEngine.js`** (`background/hlsEngine.test.js`): cubiertas las dos funciones puras `extraerEnlaceMaestroM3u8Clasico` (HTML → URL `.m3u8`, iframe + 3 fallbacks) y `descargarYAnalizarIndexM3u8` (parseo del manifiesto + `#EXT-X-KEY` + absolutización de fragmentos), mockeando sólo la global `Utils.fetchConReintentos`. Requirió agregarle la rama `module.exports` (sólo Node, no existe en el SW). Falta `compilarTranscodificacionStream` (pool de workers + AES + `BunClient` + `crypto.subtle` — caro de aislar).
+- **`background.js`** (`background.test.js`): cubiertos los handlers IPC del dict `manejadoresIPC` (encolar/remover/estados en progreso) con un **harness manual** (`crearArea` + un `chrome` mock con store en memoria) que importa el SW sin modificar código de producción: `importScripts` se neutraliza, `chrome.*` se mockea, y el listener de `onMessage` se captura al registrarse. **No** se usa `sinon-chrome` (añade dep de runtime, contra ADR-0001). Falta el bucle de descarga (`procesarSiguienteElementoDeLaCola`) y la máquina de auto-heal.
 
 ### 4. `popup.js` — parcial: lo ya extraído está cubierto, el núcleo sigue bloqueado
 
