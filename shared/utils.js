@@ -1,7 +1,12 @@
 /**
- * CLON DOWNLOADHELPER - UTILERÍAS CRIPTOGRÁFICAS Y PERSISTENCIA (V5.9.0)
+ * CLON DOWNLOADHELPER - UTILERÍAS CRIPTOGRÁFICAS Y PERSISTENCIA (V5.9.1)
  * ARCHIVO COMPLETO — FIX CRÍTICO: ERRADICACIÓN REAL DE FILEREADER/BASE64 EN VOLCADO A DISCO
  * ==============================================================================================
+ * CHANGELOG v5.9.1:
+ * - [FIX] El timeout por-intento ya no lanza AbortError sino un Error normal ("Timeout de Nms...").
+ *   Un AbortError aguas arriba se trata como abort externo (hlsEngine.js:261 NO frena a los workers
+ *   hermanos) y se confunde con cancelación del usuario. Con el Error normal el fallo se clasifica
+ *   como real y corta en cascada. Mismo criterio que bunClient.enviarFragmentoStream (v1.2.0).
  * CHANGELOG v5.9.0:
  * - [FIX] fetchConReintentos consulta al daemon Conexion (HEAD real ~4s) en cada fallo: si
  *   confirma internet caída, corta los reintentos de inmediato en vez de quemar ~15s de backoff
@@ -409,7 +414,8 @@ const Utils = {
     let reintento = 0;
     while (true) {
       const acIntento = new AbortController();
-      const tIntento = setTimeout(() => acIntento.abort(), TIMEOUT_INTENTO_MS);
+      let porTimeout = false;
+      const tIntento = setTimeout(() => { porTimeout = true; acIntento.abort(); }, TIMEOUT_INTENTO_MS);
       // Combinamos el signal del caller (abort de usuario) con el de timeout, sin perder ninguno.
       const signalCombinado = opciones.signal
         ? AbortSignal.any([acIntento.signal, opciones.signal])
@@ -420,10 +426,17 @@ const Utils = {
           throw new Error(`HTTP error! status: ${res.status}`);
         }
         return res;
-      } catch (err) {
+      } catch (errFetch) {
         if (opciones.signal && opciones.signal.aborted) {
-          throw err; // Abortado por el usuario, no reintentar
+          throw errFetch; // Abortado por el usuario/hermano: propagar el AbortError original tal cual
         }
+        // Nuestro timeout aborta con AbortError, que aguas arriba se trata como abort externo
+        // (hlsEngine.js:261 no frena a los hermanos) y se confunde con cancelación. Lo reescribimos
+        // a un Error normal —igual que bunClient.enviarFragmentoStream (v1.2.0)— para que se
+        // clasifique como fallo real y corte en cascada.
+        const err = porTimeout
+          ? new Error(`Timeout de ${TIMEOUT_INTENTO_MS}ms al descargar fragmento: ${url}`)
+          : errFetch;
         // Sin red según el browser (ej. wifi desconectado): navigator.onLine baja casi
         // al instante. No tiene sentido quemar los reintentos con backoff (~15s) contra
         // una interfaz caída: se falla YA para que la caída se detecte rápido (el catch

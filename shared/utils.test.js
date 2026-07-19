@@ -211,7 +211,7 @@ describe('fetchConReintentos', () => {
     expect(fetchMock).toHaveBeenCalledTimes(3); // 1 inicial + 2 reintentos (el fallo del daemon no corta)
   });
 
-  it('timeout por-intento: un fetch colgado se aborta y cuenta como fallo reintentable', async () => {
+  it('timeout por-intento: un fetch colgado se aborta y se reescribe a Error normal (NO AbortError)', async () => {
     vi.stubGlobal('navigator', { onLine: true });
     vi.stubGlobal('Conexion', { verificarAhora: vi.fn().mockResolvedValue({ internet: false }) });
     // fetch colgado: sólo rechaza si le abortan el signal (simula socket sin RST).
@@ -223,9 +223,11 @@ describe('fetchConReintentos', () => {
     vi.useFakeTimers();
 
     const p = Utils.fetchConReintentos('http://x/frag.ts', {}, 4, 1000);
-    const assertion = expect(p).rejects.toThrow(/aborted/i);
+    // El timeout se reescribe a Error normal ("Timeout de ...") para no confundirlo con abort.
+    const assertion = expect(p).rejects.toThrow(/Timeout de 10000ms/);
     await vi.advanceTimersByTimeAsync(10000); // dispara el timeout por-intento
     await assertion;
+    await p.catch((e) => { expect(e.name).not.toBe('AbortError'); });
     expect(fetchMock).toHaveBeenCalledTimes(1); // daemon down → no reintenta tras el timeout
   });
 
