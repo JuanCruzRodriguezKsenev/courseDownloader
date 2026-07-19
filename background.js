@@ -1,6 +1,18 @@
 /**
- * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V5.8.0)
+ * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V5.9.0)
  * ==========================================================================
+ * CHANGELOG v5.9.0:
+ * - [FIX bug 400] Rama nueva en el catch de procesarSiguienteElementoDeLaCola para el
+ *   rechazo aplicativo 4xx del backend (errDescarga.tipoBackend==="rechazo", propagado
+ *   tras el reintento N=3 del worker — hlsEngine v1.0.6 / bunClient v1.4.0). Antes, un
+ *   400 a un fragmento se malclasificaba: /api/health respondía 200 (server vivo) → el
+ *   daemon daba tipoFalla=null → la heurística por mensaje veía "Bun" → "servidor" →
+ *   pausa+autoheal → el autoheal reanudaba → mismo 400 → LOOP INFINITO que congelaba
+ *   toda la cola. Ahora, como un 4xx es determinístico, se clasifica ANTES del daemon
+ *   (igual que "sesion"): se marca la clase 'error', se la saca de la cola con un .set()
+ *   atómico de las 3 claves (patrón del path de éxito), se emite "clase_con_error" con
+ *   título+motivo y se sigue con la próxima. Sin pausa, sin alarma. El 5xx/red conserva
+ *   el flujo pausa+autoheal. Ver docs/TECHNICAL_DEBT.md y docs/patterns.md §Circuit breaker.
  * CHANGELOG v5.8.0:
  * - [FIX] Nuevo tipo de falla "sesion": cuando se intenta descargar sin sesión
  *   iniciada en Ramón Net, HlsEngine detecta el redirect al login y lanza un error
@@ -623,6 +635,37 @@ async function procesarSiguienteElementoDeLaCola() {
       if (errDescarga?.tipoConexion === "sesion") {
         console.warn(`🔑 [SW] Descarga de "${tituloInmutableVideo}" pausada: no hay sesión activa en Ramón Net.`);
         await pausarColaPorErrorDeConexion("sesion", tituloInmutableVideo);
+        return;
+      }
+
+      // Rechazo aplicativo del backend (4xx persistente a un fragmento, tras el reintento
+      // N=3 del worker — hlsEngine v1.0.6 / bunClient v1.4.0). El server está VIVO:
+      // /api/health daría 200 y el daemon lo malclasificaría como "servidor", generando el
+      // loop pausa→autoheal→mismo 400. Un 4xx es determinístico: se salta SOLO esta clase
+      // (marcada 'error', avisando cuál) y la cola sigue con la próxima. Sin pausa, sin
+      // alarma. Se clasifica ANTES del daemon, igual que el caso "sesion".
+      if (errDescarga?.tipoBackend === "rechazo") {
+        console.warn(`⛔ [SW] El backend rechazó fragmentos de "${tituloInmutableVideo}" (HTTP ${errDescarga.httpStatus}). Se salta la clase y la cola continúa.`);
+        // Cola fresca (pudo cambiar durante la descarga); listaCompleta y estados en memoria.
+        const dataUpdate = await chrome.storage.local.get(['colaDescargas']);
+        const colaFiltrada = (dataUpdate.colaDescargas || []).filter(c => c.titulo !== tituloInmutableVideo);
+        const objPersistente = listaCompleta.find(c => c.titulo === tituloInmutableVideo);
+        if (objPersistente) objPersistente.estado = 'error';
+        const estadosUpdate = await recuperarEstadoFondo();
+        delete estadosUpdate[tituloInmutableVideo];
+        // Escritura atómica de las 3 claves (mismo patrón que el path de éxito): clase
+        // marcada 'error', fuera de la cola, sin entrada de progreso.
+        await chrome.storage.local.set({
+          listaPersistente: listaCompleta,
+          colaDescargas: colaFiltrada,
+          SW_ESTADOS_PROGRESO: estadosUpdate
+        });
+        chrome.runtime.sendMessage({
+          action: "clase_con_error",
+          titulo: tituloInmutableVideo,
+          motivo: `el backend rechazó sus fragmentos (HTTP ${errDescarga.httpStatus})`
+        }).catch(() => {});
+        setTimeout(procesarSiguienteElementoDeLaCola, 60); // seguir con la próxima
         return;
       }
 

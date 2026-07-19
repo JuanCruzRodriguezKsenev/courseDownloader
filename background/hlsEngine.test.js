@@ -142,3 +142,68 @@ describe('descargarYAnalizarIndexM3u8()', () => {
     ).rejects.toThrow(/no contiene fragmentos/);
   });
 });
+
+/**
+ * Bug 400 (loop pausa/autoheal): el worker de compilarTranscodificacionStream reintenta
+ * el envío N=3 SÓLO ante el rechazo 4xx tipado (err.tipoBackend="rechazo") y, agotado,
+ * propaga el error tipado intacto para que background.js salte SOLO esa clase. Cualquier
+ * otro error de envío se propaga en el primer intento. Se monta el harness mínimo del pool
+ * (SessionState/BunClient/controladorGraficoActivo stubeados) — un solo fragmento sin clave
+ * AES, así corre un único worker sin carrera de aborts entre hermanos.
+ */
+describe('compilarTranscodificacionStream() — reintento de rechazo 4xx (bug 400)', () => {
+  // Un solo fragmento, sin clave: passthrough directo, un único worker activo.
+  const META = { urls: ['https://cdn.test/seg0.ts'], lineaLlave: null, urlLlave: null };
+
+  beforeEach(() => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.useFakeTimers();
+    globalThis.SessionState = {
+      get: vi.fn().mockResolvedValue({
+        modoTurboBunActivo: true,
+        videoActualSessionId: 'sess1',
+        videoActualTitulo: 'Titulo X'
+      })
+    };
+    // El fetch del fragmento resuelve un buffer cualquiera (no hay clave → passthrough).
+    Utils.fetchConReintentos.mockResolvedValue({ arrayBuffer: async () => new ArrayBuffer(8) });
+    // El motor aborta este controlador global ante un fallo real de fragmento.
+    globalThis.controladorGraficoActivo = new AbortController();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    delete globalThis.SessionState;
+    delete globalThis.BunClient;
+    delete globalThis.controladorGraficoActivo;
+  });
+
+  it('4xx tipado: reintenta el envío 3 veces y propaga el error con tipoBackend/httpStatus intactos', async () => {
+    const rechazo = Object.assign(new Error('rechazado 400'), { tipoBackend: 'rechazo', httpStatus: 400 });
+    globalThis.BunClient = { enviarFragmentoStream: vi.fn().mockRejectedValue(rechazo) };
+
+    const signal = new AbortController().signal;
+    const corrida = HlsEngine.compilarTranscodificacionStream(META, signal, 'bio', 'Titulo X', {});
+    const capturado = corrida.then(() => null, e => e); // captura el rechazo sin unhandled
+    await vi.runAllTimersAsync(); // drena los 2 backoffs (300ms, 600ms)
+    const err = await capturado;
+
+    expect(BunClient.enviarFragmentoStream).toHaveBeenCalledTimes(3);
+    expect(err).toMatchObject({ tipoBackend: 'rechazo', httpStatus: 400 });
+  });
+
+  it('error NO-rechazo (ej. 5xx/red): NO se reintenta — se propaga en el primer intento', async () => {
+    const otro = Object.assign(new Error('El backend no respondió (timeout)'), { httpStatus: 503 });
+    globalThis.BunClient = { enviarFragmentoStream: vi.fn().mockRejectedValue(otro) };
+
+    const signal = new AbortController().signal;
+    const corrida = HlsEngine.compilarTranscodificacionStream(META, signal, 'bio', 'Titulo X', {});
+    const capturado = corrida.then(() => null, e => e);
+    await vi.runAllTimersAsync();
+    const err = await capturado;
+
+    expect(BunClient.enviarFragmentoStream).toHaveBeenCalledTimes(1);
+    expect(err).toBe(otro);
+    expect(err.tipoBackend).toBeUndefined();
+  });
+});

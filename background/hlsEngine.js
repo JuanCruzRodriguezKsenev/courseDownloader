@@ -1,7 +1,15 @@
 /**
- * CLON DOWNLOADHELPER - MOTOR HLS CRYPTO-TRANSCODER (V1.0.5)
+ * CLON DOWNLOADHELPER - MOTOR HLS CRYPTO-TRANSCODER (V1.0.6)
  * GESTIONA LA EXTRACTIBILIDAD DE M3U8, DESCARGA CONCURRENTE Y DESCIFRADO AES-128 NATIVO
  * ==========================================================================
+ * CHANGELOG v1.0.6:
+ * - [FIX bug 400] El worker de compilarTranscodificacionStream envuelve el envío
+ *   (BunClient.enviarFragmentoStream) en un reintento acotado (N=3, backoff 300ms·n)
+ *   SÓLO para el rechazo 4xx tipado (err.tipoBackend==="rechazo", bunClient v1.4.0).
+ *   Un 4xx es determinístico: reintentar da un margen por si fue transitorio y, agotado,
+ *   propaga el error tipado intacto → background.js (v5.9.0) salta SOLO esa clase en vez
+ *   de pausar la cola y entrar en loop pausa/autoheal. Los demás errores (red, 5xx,
+ *   AbortError) se propagan en el primer intento, como antes. Ver docs/patterns.md.
  * CHANGELOG v1.0.5:
  * - [FIX] Sin sesión iniciada en Ramón Net, la plataforma redirige la página de la
  *   clase a la raíz/login (la URL final pierde /clases-grabadas/) y devolvía la página
@@ -221,15 +229,34 @@ const HlsEngine = {
           }
 
           if (modoTurboBunActivo) {
-            // Utiliza el cliente API modular BunClient para el envío de fragmentos
-            await BunClient.enviarFragmentoStream(bloqueFinal, {
-              videoTitle: miTituloAislado,
-              chunkIndex: tarea.idx,
-              totalChunks: metadataHls.urls.length,
-              targetFolder: subcarpeta,
-              sessionId: sessionId
-            }, signal);
-            
+            // Utiliza el cliente API modular BunClient para el envío de fragmentos.
+            // Reintento acotado SÓLO para el rechazo 4xx tipado (err.tipoBackend==="rechazo",
+            // bunClient v1.4.0): un 4xx es determinístico, pero damos un pequeño margen por si
+            // fue transitorio. Agotados los N intentos, se propaga el error tipado con
+            // httpStatus intacto → el catch de background.js (v5.9.0) salta SOLO esta clase
+            // sin pausar la cola (fix del loop pausa/autoheal, bug 400). Cualquier otro error
+            // (red, 5xx, AbortError) NO se reintenta acá: se propaga en el primer intento.
+            const MAX_REINTENTOS_RECHAZO = 3;
+            let intentosRechazo = 0;
+            while (true) {
+              try {
+                await BunClient.enviarFragmentoStream(bloqueFinal, {
+                  videoTitle: miTituloAislado,
+                  chunkIndex: tarea.idx,
+                  totalChunks: metadataHls.urls.length,
+                  targetFolder: subcarpeta,
+                  sessionId: sessionId
+                }, signal);
+                break;
+              } catch (eEnvio) {
+                if (eEnvio?.tipoBackend === "rechazo" && ++intentosRechazo < MAX_REINTENTOS_RECHAZO && !signal.aborted) {
+                  await new Promise(r => setTimeout(r, 300 * intentosRechazo));
+                  continue;
+                }
+                throw eEnvio; // agotado o no-rechazo → aborta la clase vía el catch del worker
+              }
+            }
+
             bytesAcumulados += bloqueFinal.byteLength;
             bloqueFinal = null;
           } else {

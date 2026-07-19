@@ -1,7 +1,17 @@
 /**
- * CLON DOWNLOADHELPER - CLIENTE API BUN BACKEND (V1.3.0)
+ * CLON DOWNLOADHELPER - CLIENTE API BUN BACKEND (V1.4.0)
  * CENTRALIZA LAS CONSULTAS DE ESCANEO DE DISCO Y ENVIOS DE STREAMING AL SERVIDOR BUN
  * ==========================================================================
+ * CHANGELOG v1.4.0:
+ * - [FIX bug 400] enviarFragmentoStream ahora tipa el error de un rechazo 4xx del
+ *   backend: err.httpStatus = res.status y err.tipoBackend = "rechazo" (sólo 400-499).
+ *   Antes el status vivía SÓLO en el string del mensaje, así que aguas arriba no se
+ *   podía distinguir un 400 (rechazo aplicativo, server vivo) de un 503 (server
+ *   muriendo): un 400 a un fragmento se malclasificaba como caída de servidor y
+ *   entraba en loop pausa→autoheal→mismo 400. Con el error tipado, el worker
+ *   (hlsEngine v1.0.6) reintenta N=3 y background.js (v5.9.0) salta SOLO esa clase.
+ *   El 5xx NO se marca: conserva el flujo pausa+autoheal (puede ser transitorio).
+ *   Ver docs/TECHNICAL_DEBT.md y docs/patterns.md §Circuit breaker.
  * CHANGELOG v1.3.0:
  * - [CONFIG] La URL base del backend ya no es un literal hardcodeado: se puede
  *   sobreescribir SIN editar código, para tests de integración o apuntar a otro
@@ -115,7 +125,15 @@ const BunClient = {
       });
 
       if (!res.ok) {
-        throw new Error(`El backend de Bun rechazó el fragmento con código: ${res.status}`);
+        const err = new Error(`El backend de Bun rechazó el fragmento con código: ${res.status}`);
+        err.httpStatus = res.status;
+        // Un 4xx es un rechazo APLICATIVO determinístico con el server VIVO (/api/health
+        // daría 200): reintentar el mismo fragmento no lo cura. Lo tipamos (mismo criterio
+        // que err.tipoConexion="sesion") para que aguas arriba se salte SOLO esa clase sin
+        // pausar la cola, en vez de entrar al loop pausa→autoheal→mismo 400. El 5xx NO se
+        // marca: conserva el flujo actual (pausa+autoheal), puede ser un hipo transitorio.
+        if (res.status >= 400 && res.status < 500) err.tipoBackend = "rechazo";
+        throw err;
       }
       return res;
     } catch (e) {

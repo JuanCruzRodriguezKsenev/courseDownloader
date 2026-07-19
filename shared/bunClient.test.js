@@ -107,4 +107,26 @@ describe('enviarFragmentoStream()', () => {
     const err = await p;
     expect(err.name).toBe('AbortError');
   });
+
+  // Bug 400: un rechazo 4xx debe quedar TIPADO (err.tipoBackend="rechazo" + httpStatus)
+  // para que aguas arriba se salte SOLO esa clase; un 5xx NO se tipa (mantiene pausa+autoheal).
+  it('4xx: tipa el error como "rechazo" con httpStatus (rechazo aplicativo determinístico)', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 400 });
+    const err = await BunClient
+      .enviarFragmentoStream(new Uint8Array([1, 2]), headers, undefined, 10000)
+      .catch(e => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.tipoBackend).toBe('rechazo');
+    expect(err.httpStatus).toBe(400);
+  });
+
+  it('5xx: NO tipa "rechazo" (conserva el flujo pausa+autoheal), pero sí expone httpStatus', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 503 });
+    const err = await BunClient
+      .enviarFragmentoStream(new Uint8Array([1, 2]), headers, undefined, 10000)
+      .catch(e => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.tipoBackend).toBeUndefined();
+    expect(err.httpStatus).toBe(503);
+  });
 });

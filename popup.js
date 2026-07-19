@@ -1,7 +1,15 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.12.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.13.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.13.0:
+ * - [FIX bug 400] El handler "clase_con_error" ahora NOMBRA la clase saltada y limpia la
+ *   cola local. Antes mostraba un texto genérico ("Error de red en fragmentos. Saltando...")
+ *   y encima nadie emitía el mensaje (handler muerto). Con el fix del loop 4xx del backend
+ *   (background.js v5.9.0), el SW emite "clase_con_error" {titulo, motivo}: el popup marca la
+ *   clase 'error', la saca de AppState.colaDescargas, respalda, actualiza el badge y avisa
+ *   cuál se saltó y por qué (título vía textContent — regla anti-XSS de docs/security.md).
+ *   Espeja la limpieza de "clase_guardada_ok". Ver docs/TECHNICAL_DEBT.md, docs/patterns.md.
  * CHANGELOG v5.12.0:
  * - [FIX] Nuevo tipo de falla "sesion" (descargar sin sesión iniciada en Ramón Net).
  *   renderizarListadoInterfaz pinta una card dedicada ("Sesión no iniciada" 🔑) y
@@ -1168,11 +1176,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       
       if (req.action === "clase_con_error") {
-        console.error(`⚠️ [POPUP-ALERT] El Service Worker reportó un crash en: ${req.titulo}`);
+        // El SW saltó esta clase (hoy: el backend rechazó sus fragmentos con un 4xx
+        // determinístico — bug 400). NO es una caída de conexión: la cola sigue con la
+        // próxima. Espeja la limpieza de cola local de "clase_guardada_ok".
+        console.error(`⚠️ [POPUP-ALERT] El SW saltó la clase con error: ${req.titulo} (${req.motivo})`);
+        const obj = AppState.listadoClasesGlobal.find(c => c.titulo === req.titulo);
+        if (obj) { obj.estado = 'error'; obj.seleccionado = false; }
+        AppState.colaDescargas = AppState.colaDescargas.filter(c => c.titulo !== req.titulo);
+        AppState.respaldar();
+        nodos.queueBadge.textContent = AppState.colaDescargas.length;
+
         nodos.txtEstado.textContent = "";
         const spanErr = document.createElement('span');
         spanErr.className = "text-danger";
-        spanErr.textContent = `Error de red en fragmentos. Saltando...`;
+        // textContent, NUNCA innerHTML: req.titulo deriva de contenido scrapeado (regla docs/security.md).
+        spanErr.textContent = `Se saltó "${req.titulo}": ${req.motivo}.`;
         nodos.txtEstado.append(`⚠️ `, spanErr);
         setTimeout(aplicarFiltrosCruzados, 500);
       }
