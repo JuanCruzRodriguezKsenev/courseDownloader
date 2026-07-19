@@ -70,7 +70,7 @@ Encapsulado por el helper `SessionState` definido inline en `background.js`. Es 
 | `tiempoInicioVideoActual` | `number` | `0` | `performance.now()` al iniciar el video actual (para calcular velocidad). |
 | `velocidadMbsActual` | `number` | `0` | Velocidad de descarga calculada, en MB/s. |
 | `colaPausadaPorError` | `boolean` | `false` | Si la cola está pausada por un error de conexión (a Ramón Net o al backend Bun). |
-| `tipoDeErrorConexion` | `"internet" \| "servidor" \| ""` | `""` | Qué recurso falló, usado por `chrome.alarms.onAlarm` para saber qué sondear. |
+| `tipoDeErrorConexion` | `"internet" \| "servidor" \| "sesion" \| ""` | `""` | Qué recurso falló, usado por `chrome.alarms.onAlarm` para saber qué sondear. `"sesion"` (no hay sesión iniciada en Ramón Net) es un caso especial: NO lo detecta el daemon `Conexion` (la red está OK) sino `HlsEngine` por el redirect al login, y NO entra al autoheal (no se crea la alarma) — el usuario reintenta a mano tras iniciar sesión. |
 | `abortadoPorUsuario` | `boolean` | `false` | Distingue un abort explícito del usuario de un fallo real, para no reintentar tras un abort. |
 | `videoActualSessionId` | `string` | `""` | Token único (`Date.now().toString()`) por descarga, usado para vincular fragmentos al backend Bun y evitar colisiones ante cancelaciones. |
 

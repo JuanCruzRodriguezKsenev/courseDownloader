@@ -1,7 +1,25 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.10.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.12.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.12.0:
+ * - [FIX] Nuevo tipo de falla "sesion" (descargar sin sesión iniciada en Ramón Net).
+ *   renderizarListadoInterfaz pinta una card dedicada ("Sesión no iniciada" 🔑) y
+ *   actualizarContadoresBoton muestra el botón "Iniciar sesión y reintentar 🔄". El
+ *   resto fluye genérico (mostrarAlertDeConexionCaida/ejecutarReintentoDeCola). La
+ *   detección (redirect al login) y la clasificación viven en hlsEngine.js v1.0.5 /
+ *   background.js v5.8.0. Ver docs/data-model.md, docs/patterns.md.
+ * CHANGELOG v5.11.0:
+ * - [SPLIT] Los filtros y la búsqueda se extrajeron a la feature
+ *   popup/features/filters.js (FilterFeature.crear(ctx)): aplicarFiltrosCruzados,
+ *   desbanearFiltros, renderizarFiltrosMenuPopover, crearPopoverOptionDOM (privada)
+ *   y actualizarPillsUIState. popup.js las recibe por ctx (nodos + filtrosActivos
+ *   POR REFERENCIA + callbacks renderizar/actualizarContadores) y las expone como
+ *   alias locales — los call-sites no cambian. Además se unificó el predicado de
+ *   filtrado de la pestaña Cola —antes duplicado en masterCheck,
+ *   renderizarListadoInterfaz y actualizarMasterCheckState— en
+ *   _filters.coincideConFiltrosCola(clase, busqueda). Sin cambio de comportamiento.
+ *   Ver ADR-0005, ROADMAP Fase 2, filters.test.js.
  * CHANGELOG v5.10.0:
  * - [ISLA #4 · Etapa 2] La isla Preact ahora es dueña también de los ATRIBUTOS del
  *   host #ui-list. Se quitó nodos.lista: la opacidad de sincronización de disco pasó
@@ -295,6 +313,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   const encolarItemsEnCaliente = _queue.encolarItemsEnCaliente;
   const quitarItemsDeColaEnLote = _queue.quitarItemsDeColaEnLote;
   const ejecutarReintentoDeCola = _queue.ejecutarReintentoDeCola;
+
+  // Feature: filtros y búsqueda. filtrosActivos se pasa POR REFERENCIA (objeto
+  // compartido) para no romper los call-sites externos que lo mutan (conmutarPestañaA).
+  // Ver popup/features/filters.js.
+  const _filters = FilterFeature.crear({
+    nodos,
+    filtrosActivos,
+    renderizar: () => renderizarListadoInterfaz(),
+    actualizarContadores: () => actualizarContadoresBoton()
+  });
+  const coincideConFiltrosCola = _filters.coincideConFiltrosCola;
+  const aplicarFiltrosCruzados = _filters.aplicarFiltrosCruzados;
+  const desbanearFiltros = _filters.desbanearFiltros;
+  const actualizarPillsUIState = _filters.actualizarPillsUIState;
+  const renderizarFiltrosMenuPopover = _filters.renderizarFiltrosMenuPopover;
 
   nodos.btnAction.setAttribute('data-modo', 'sincronizar-disco');
 
@@ -848,14 +881,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const busqueda = nodos.search.value.toLowerCase().trim();
       
       const visibles = AppState.colaDescargas.filter(clase => {
-        const coincideTexto = clase.titulo.toLowerCase().includes(busqueda);
         const esActivo = AppState.videoActualEnTransmisiónSW === clase.titulo && AppState.ráfagaEnCurso;
-        
-        const clasif = Utils.clasificarCatedraYCarpeta(clase.titulo, clase.carpeta);
-        const coincideMateria = filtrosActivos.materias.size === 0 || filtrosActivos.materias.has(clase.carpeta.toUpperCase());
-        const coincideCatedra = filtrosActivos.catedras.size === 0 || filtrosActivos.catedras.has(clasif.catedra);
-
-        return coincideTexto && coincideMateria && coincideCatedra && !esActivo;
+        return coincideConFiltrosCola(clase, busqueda) && !esActivo;
       });
 
       visibles.forEach(c => { c.seleccionado = check; });
@@ -873,30 +900,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     actualizarContadoresBoton();
   });
 
-  function aplicarFiltrosCruzados() {
-    const busqueda = nodos.search.value.toLowerCase().trim();
-    const materiaActiva = nodos.folder.value.trim().toLowerCase();
-
-    // Recalcular siempre la visibilidad del listado global de disponibles
-    AppState.listadoClasesGlobal.forEach(clase => {
-      const coincideMateria = !clase.carpeta || (clase.carpeta.toLowerCase() === materiaActiva);
-      const coincideTexto = clase.titulo.toLowerCase().includes(busqueda);
-      const coincideEstado = filtrosActivos.estados.size === 0 || filtrosActivos.estados.has(clase.estado);
-      
-      let coincideCatedra = true;
-      if (filtrosActivos.catedras.size > 0) {
-        coincideCatedra = filtrosActivos.catedras.has(clase.catedra);
-      } else if (AppState.catedraSeleccionada && AppState.catedraSeleccionada !== "TODAS") {
-        coincideCatedra = (clase.catedra === AppState.catedraSeleccionada || clase.catedra === "COMUN");
-      }
-      
-      clase.visible = coincideMateria && coincideTexto && coincideEstado && coincideCatedra;
-    });
-
-    renderizarListadoInterfaz();
-    actualizarContadoresBoton();
-  }
-
   function renderizarListadoInterfaz() {
     // La isla Preact #4 (features/listaClases.preact.js) es dueña de #ui-list (hijos
     // Y atributos de host, Etapa 2). Este render ya no construye DOM: mantiene la
@@ -907,7 +910,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       // El título proviene del scraping del DOM de Ramón Net (contenido de terceros):
       // se escapa antes de interpolarlo porque la card usa dangerouslySetInnerHTML.
       const titulo = Utils.escaparHtml(AppState.videoFalladoParaReintento || "clase");
-      if (AppState.fallaConexionActiva === "servidor") {
+      if (AppState.fallaConexionActiva === "sesion") {
+        ListaClases.render({ modo: 'card', card: {
+          tipo: 'error',
+          titulo: 'Sesión no iniciada',
+          descripcion: `No hay una sesión activa en Ramón Net.<br>Iniciá sesión en la plataforma y tocá <strong>Reintentar</strong>.<br><br><strong>Pausado en:</strong> ${titulo}`,
+          icono: '🔑'
+        }});
+      } else if (AppState.fallaConexionActiva === "servidor") {
         ListaClases.render({ modo: 'card', card: {
           tipo: 'error',
           titulo: 'Servidor Desconectado',
@@ -939,15 +949,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (AppState.pestañaActiva === "cola") {
       const busqueda = nodos.search.value.toLowerCase().trim();
       
-      filtrados = AppState.colaDescargas.filter(clase => {
-        const coincideTexto = clase.titulo.toLowerCase().includes(busqueda);
-        
-        const clasif = Utils.clasificarCatedraYCarpeta(clase.titulo, clase.carpeta);
-        const coincideMateria = filtrosActivos.materias.size === 0 || filtrosActivos.materias.has(clase.carpeta.toUpperCase());
-        const coincideCatedra = filtrosActivos.catedras.size === 0 || filtrosActivos.catedras.has(clasif.catedra);
-
-        return coincideTexto && coincideMateria && coincideCatedra;
-      });
+      filtrados = AppState.colaDescargas.filter(clase => coincideConFiltrosCola(clase, busqueda));
 
       if (AppState.ordenAscendente !== null) {
         filtrados.sort((a, b) => {
@@ -1248,23 +1250,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(aplicarFiltrosCruzados, 100);
   }
 
-  function desbanearFiltros() {
-    nodos.search.disabled = false;
-    nodos.btnFilterPills.disabled = false;
-    nodos.masterCheck.disabled = !AppState.sincronizacionDiscoCompletada;
-    if (nodos.btnSort) nodos.btnSort.disabled = false;
-  }
-
   function actualizarMasterCheckState() {
     if (AppState.pestañaActiva === "cola") {
       const busqueda = nodos.search.value.toLowerCase().trim();
-      const visibles = AppState.colaDescargas.filter(clase => {
-        const coincideTexto = clase.titulo.toLowerCase().includes(busqueda);
-        const clasif = Utils.clasificarCatedraYCarpeta(clase.titulo, clase.carpeta);
-        const coincideMateria = filtrosActivos.materias.size === 0 || filtrosActivos.materias.has(clase.carpeta.toUpperCase());
-        const coincideCatedra = filtrosActivos.catedras.size === 0 || filtrosActivos.catedras.has(clasif.catedra);
-        return coincideTexto && coincideMateria && coincideCatedra;
-      });
+      const visibles = AppState.colaDescargas.filter(clase => coincideConFiltrosCola(clase, busqueda));
       nodos.masterCheck.checked = visibles.length > 0 && visibles.every(i => i.seleccionado);
     } else {
       const visibles = AppState.listadoClasesGlobal.filter(i => i.visible && i.estado === 'pending');
@@ -1284,9 +1273,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     actualizarModoSeleccion();
 
     if (AppState.fallaConexionActiva) {
-      const txt = AppState.fallaConexionActiva === "internet" 
-        ? "Reintentar conexión a internet 🔄" 
-        : "Reintentar conexión con servidor 🔄";
+      let txt;
+      if (AppState.fallaConexionActiva === "sesion") {
+        txt = "Iniciar sesión y reintentar 🔄";
+      } else if (AppState.fallaConexionActiva === "internet") {
+        txt = "Reintentar conexión a internet 🔄";
+      } else {
+        txt = "Reintentar conexión con servidor 🔄";
+      }
       configurarBotonesUX("reintentar-cola", txt, reintentandoColaActivo);
       nodos.btnAction.style.display = 'block';
       nodos.btnStartQueue.style.display = 'none';
@@ -1483,162 +1477,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   function aplicarSeleccionCatedra(catedraElegida, overlay) {
     aplicarSeleccionCatedraSilencioso(catedraElegida);
     overlay.remove();
-  }
-
-  function renderizarFiltrosMenuPopover() {
-    if (!nodos.filterMenu) return;
-    nodos.filterMenu.innerHTML = "";
-
-    if (AppState.pestañaActiva === "disponibles") {
-      // --- Sección Estado ---
-      const secEstado = document.createElement("div");
-      secEstado.className = "popover-section";
-      
-      const titEstado = document.createElement("div");
-      titEstado.className = "popover-section-title";
-      titEstado.textContent = "Estado";
-      secEstado.appendChild(titEstado);
-
-      const estadosDisponibles = [
-        { key: "pending", label: "Pendientes" },
-        { key: "downloaded", label: "Descargados" },
-        { key: "process", label: "En Fila" }
-      ];
-
-      estadosDisponibles.forEach(est => {
-        const opt = crearPopoverOptionDOM(est.label, filtrosActivos.estados.has(est.key), (checked) => {
-          if (checked) {
-            filtrosActivos.estados.add(est.key);
-          } else {
-            filtrosActivos.estados.delete(est.key);
-          }
-          actualizarPillsUIState();
-          aplicarFiltrosCruzados();
-        });
-        secEstado.appendChild(opt);
-      });
-      nodos.filterMenu.appendChild(secEstado);
-
-      // --- Sección Cátedra ---
-      let catedrasDetectadas = Array.from(new Set(
-        AppState.listadoClasesGlobal.map(c => c.catedra).filter(cat => cat !== "COMUN")
-      )).sort();
-
-      if (AppState.catedraSeleccionada && AppState.catedraSeleccionada !== "TODAS") {
-        catedrasDetectadas = catedrasDetectadas.filter(cat => cat === AppState.catedraSeleccionada);
-      }
-
-      if (catedrasDetectadas.length > 0) {
-        const secCatedra = document.createElement("div");
-        secCatedra.className = "popover-section";
-
-        const titCatedra = document.createElement("div");
-        titCatedra.className = "popover-section-title";
-        titCatedra.textContent = "Cátedra";
-        secCatedra.appendChild(titCatedra);
-
-        // Opción COMUN
-        const optComun = crearPopoverOptionDOM("Común", filtrosActivos.catedras.has("COMUN"), (checked) => {
-          if (checked) filtrosActivos.catedras.add("COMUN");
-          else filtrosActivos.catedras.delete("COMUN");
-          actualizarPillsUIState();
-          aplicarFiltrosCruzados();
-        });
-        secCatedra.appendChild(optComun);
-
-        catedrasDetectadas.forEach(cat => {
-          const opt = crearPopoverOptionDOM(`Cat ${cat}`, filtrosActivos.catedras.has(cat), (checked) => {
-            if (checked) filtrosActivos.catedras.add(cat);
-            else filtrosActivos.catedras.delete(cat);
-            actualizarPillsUIState();
-            aplicarFiltrosCruzados();
-          });
-          secCatedra.appendChild(opt);
-        });
-        nodos.filterMenu.appendChild(secCatedra);
-      }
-    } else {
-      // --- Vista Pestaña Cola ---
-      const materiasUnicas = new Set();
-      const catedrasUnicas = new Set();
-
-      AppState.colaDescargas.forEach(c => {
-        const clasif = Utils.clasificarCatedraYCarpeta(c.titulo, c.carpeta);
-        materiasUnicas.add(c.carpeta.toUpperCase());
-        catedrasUnicas.add(clasif.catedra);
-      });
-
-      // --- Sección Materias ---
-      if (materiasUnicas.size > 0) {
-        const secMateria = document.createElement("div");
-        secMateria.className = "popover-section";
-
-        const titMateria = document.createElement("div");
-        titMateria.className = "popover-section-title";
-        titMateria.textContent = "Materia";
-        secMateria.appendChild(titMateria);
-
-        Array.from(materiasUnicas).sort().forEach(mat => {
-          const opt = crearPopoverOptionDOM(`📁 ${mat}`, filtrosActivos.materias.has(mat), (checked) => {
-            if (checked) filtrosActivos.materias.add(mat);
-            else filtrosActivos.materias.delete(mat);
-            actualizarPillsUIState();
-            aplicarFiltrosCruzados();
-          });
-          secMateria.appendChild(opt);
-        });
-        nodos.filterMenu.appendChild(secMateria);
-      }
-
-      // --- Sección Cátedras ---
-      if (catedrasUnicas.size > 0) {
-        const secCatedra = document.createElement("div");
-        secCatedra.className = "popover-section";
-
-        const titCatedra = document.createElement("div");
-        titCatedra.className = "popover-section-title";
-        titCatedra.textContent = "Cátedra";
-        secCatedra.appendChild(titCatedra);
-
-        Array.from(catedrasUnicas).sort().forEach(cat => {
-          const label = cat === "COMUN" ? "Común" : `Cat ${cat}`;
-          const opt = crearPopoverOptionDOM(`🎓 ${label}`, filtrosActivos.catedras.has(cat), (checked) => {
-            if (checked) filtrosActivos.catedras.add(cat);
-            else filtrosActivos.catedras.delete(cat);
-            actualizarPillsUIState();
-            aplicarFiltrosCruzados();
-          });
-          secCatedra.appendChild(opt);
-        });
-        nodos.filterMenu.appendChild(secCatedra);
-      }
-    }
-  }
-
-  function crearPopoverOptionDOM(labelText, isChecked, onChange) {
-    const label = document.createElement("label");
-    label.className = "popover-option";
-
-    const check = document.createElement("input");
-    check.type = "checkbox";
-    check.checked = isChecked;
-    check.addEventListener("change", (e) => onChange(e.target.checked));
-
-    const span = document.createElement("span");
-    span.textContent = labelText;
-
-    label.append(check, span);
-    return label;
-  }
-
-  function actualizarPillsUIState() {
-    if (!nodos.btnFilterPills) return;
-    const total = filtrosActivos.estados.size + filtrosActivos.materias.size + filtrosActivos.catedras.size;
-    nodos.btnFilterPills.classList.toggle('active', total > 0);
-    const span = nodos.btnFilterPills.querySelector('span');
-    if (span) {
-      span.textContent = total > 0 ? `Filtros (${total})` : "Filtros";
-    }
   }
 
   // El onboarding (overlay, carrusel, botón de ayuda y "Seleccionar Carpeta" del tour)

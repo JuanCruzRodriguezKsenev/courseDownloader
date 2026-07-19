@@ -1,6 +1,17 @@
 /**
- * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V5.7.0)
+ * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V5.8.0)
  * ==========================================================================
+ * CHANGELOG v5.8.0:
+ * - [FIX] Nuevo tipo de falla "sesion": cuando se intenta descargar sin sesión
+ *   iniciada en Ramón Net, HlsEngine detecta el redirect al login y lanza un error
+ *   tipado (err.tipoConexion="sesion"). El catch de procesarSiguienteElementoDeLaCola
+ *   lo clasifica ANTES de consultar al daemon (que vería internet=true y lo
+ *   malclasificaría como "internet"), loguea limpio y pausa con tipo "sesion".
+ *   pausarColaPorErrorDeConexion NO crea la alarma de autoheal para "sesion" (el
+ *   daemon no puede detectar el login → reintentaría en loop); el handler de
+ *   alarma_autoheal además la limpia defensivamente si el estado es "sesion". El
+ *   usuario reintenta a mano tras iniciar sesión. Ver hlsEngine.js v1.0.5,
+ *   docs/data-model.md, docs/patterns.md.
  * CHANGELOG v5.7.0:
  * - [DEBT] El listener IPC (chrome.runtime.onMessage) pasó de una cadena de 8
  *   `if (request.action === ...)` a un diccionario `manejadoresIPC {accion: handler}`
@@ -602,6 +613,19 @@ async function procesarSiguienteElementoDeLaCola() {
         return;
       }
 
+      // Sesión no iniciada/expirada: HlsEngine detectó que la página de la clase
+      // redirigió al login. NO es un fallo de red (la conectividad está OK) ni un crash;
+      // es accionable por el usuario. Se loguea limpio y se pausa como tipo "sesion"
+      // ANTES de consultar al daemon (que reportaría internet=true y malclasificaría).
+      // pausarColaPorErrorDeConexion NO crea la alarma de autoheal para este tipo: el
+      // daemon no puede detectar el login, reintentaría en loop. El usuario reintenta
+      // manualmente tras iniciar sesión.
+      if (errDescarga?.tipoConexion === "sesion") {
+        console.warn(`🔑 [SW] Descarga de "${tituloInmutableVideo}" pausada: no hay sesión activa en Ramón Net.`);
+        await pausarColaPorErrorDeConexion("sesion", tituloInmutableVideo);
+        return;
+      }
+
       // A partir de acá es un fallo REAL (no iniciado por el usuario): ahora sí, error.
       console.error(`⚠️ [BUCLE-ERROR] Falló la descarga de "${tituloInmutableVideo}":`, errDescarga);
 
@@ -644,8 +668,13 @@ async function pausarColaPorErrorDeConexion(tipoError, titulo) {
   });
   loopActivo = false;
 
-  // Creamos alarma para auto-verificación cada 12 segundos (periodInMinutes acepta decimales)
-  chrome.alarms.create("alarma_autoheal", { periodInMinutes: 0.2 });
+  // Autoheal sólo para fallas que el daemon PUEDE detectar recuperadas (servidor/internet).
+  // El caso "sesion" no se auto-reanuda: el daemon ve la red OK, así que la alarma
+  // reintentaría en loop contra el login. El usuario reintenta a mano tras iniciar sesión.
+  if (tipoError !== "sesion") {
+    // Creamos alarma para auto-verificación cada 12 segundos (periodInMinutes acepta decimales)
+    chrome.alarms.create("alarma_autoheal", { periodInMinutes: 0.2 });
+  }
 
   chrome.runtime.sendMessage({
     action: "cola_pausada_por_error",
@@ -674,6 +703,13 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === "alarma_autoheal") {
     const state = await SessionState.get();
     if (state.colaPausadaPorError) {
+      // Guarda defensiva: el caso "sesion" no debe auto-reanudarse (el daemon no puede
+      // detectar el login). No se crea alarma para él, pero si quedó una de un estado
+      // previo, se limpia acá. El usuario reanuda a mano tras iniciar sesión.
+      if (state.tipoDeErrorConexion === "sesion") {
+        chrome.alarms.clear("alarma_autoheal");
+        return;
+      }
       try {
         // Un solo chequeo vía el daemon (fuente única de verdad) en vez de dos ramas
         // con lógicas distintas. Reanuda apenas vuelve la conexión que faltaba, según

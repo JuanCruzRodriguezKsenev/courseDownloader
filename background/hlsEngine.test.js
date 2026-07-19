@@ -11,6 +11,7 @@ import HlsEngine from './hlsEngine.js';
 // Silenciar los console.log de diagnóstico del motor durante los tests.
 beforeEach(() => {
   vi.spyOn(console, 'log').mockImplementation(() => {});
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
   globalThis.Utils = { fetchConReintentos: vi.fn() };
 });
 
@@ -65,6 +66,34 @@ describe('extraerEnlaceMaestroM3u8Clasico()', () => {
     await expect(
       HlsEngine.extraerEnlaceMaestroM3u8Clasico('https://x/clase')
     ).rejects.toThrow(/No se localizaron firmas/);
+  });
+
+  it('sin sesión: la clase redirige al login (URL final pierde /clases-grabadas/) → error tipado "sesion"', async () => {
+    const urlClase = 'https://plataforma.ramonnet.com.ar/usuario/clases-grabadas/ver/11868-474';
+    // La URL final es la raíz (login), sin el segmento de la clase; el HTML es la página de login.
+    Utils.fetchConReintentos.mockResolvedValue({
+      url: 'https://plataforma.ramonnet.com.ar/',
+      status: 200,
+      text: async () => '<html><body>Iniciá sesión</body></html>'
+    });
+
+    await expect(
+      HlsEngine.extraerEnlaceMaestroM3u8Clasico(urlClase)
+    ).rejects.toMatchObject({ tipoConexion: 'sesion' });
+  });
+
+  it('control: con sesión (la URL final conserva /clases-grabadas/) NO se marca "sesion", cae al error genérico', async () => {
+    const urlClase = 'https://plataforma.ramonnet.com.ar/usuario/clases-grabadas/ver/11868-474';
+    // Misma ruta de clase en la URL final (no hubo redirect al login), pero sin firmas de streaming.
+    Utils.fetchConReintentos.mockResolvedValue({
+      url: urlClase,
+      status: 200,
+      text: async () => '<html>sin iframe ni m3u8</html>'
+    });
+
+    const promesa = HlsEngine.extraerEnlaceMaestroM3u8Clasico(urlClase);
+    await expect(promesa).rejects.toThrow(/No se localizaron firmas/);
+    await expect(promesa).rejects.not.toMatchObject({ tipoConexion: 'sesion' });
   });
 });
 

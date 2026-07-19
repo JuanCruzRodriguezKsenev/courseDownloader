@@ -1,7 +1,15 @@
 /**
- * CLON DOWNLOADHELPER - MOTOR HLS CRYPTO-TRANSCODER (V1.0.4)
+ * CLON DOWNLOADHELPER - MOTOR HLS CRYPTO-TRANSCODER (V1.0.5)
  * GESTIONA LA EXTRACTIBILIDAD DE M3U8, DESCARGA CONCURRENTE Y DESCIFRADO AES-128 NATIVO
  * ==========================================================================
+ * CHANGELOG v1.0.5:
+ * - [FIX] Sin sesión iniciada en Ramón Net, la plataforma redirige la página de la
+ *   clase a la raíz/login (la URL final pierde /clases-grabadas/) y devolvía la página
+ *   de login sin iframe, cayendo en el error genérico "No se localizaron firmas...".
+ *   background.js lo malclasificaba como "internet" (falso "Conexión a Internet Caída").
+ *   Ahora extraerEnlaceMaestroM3u8Clasico detecta ese redirect y lanza un error tipado
+ *   (err.tipoConexion = "sesion") para que se clasifique como problema de sesión. Ver
+ *   background.js y docs/patterns.md.
  * CHANGELOG v1.0.4:
  * - [TEST] Se agregó la rama `module.exports` (sólo Node/Vitest, no existe en el SW)
  *   para poder testear las funciones puras de parseo/resolución M3U8
@@ -48,6 +56,18 @@ const HlsEngine = {
     
     const html = await res.text();
     console.log(`📡 [HLS-ENGINE] HTML recibido. Longitud: ${html.length} caracteres.`);
+
+    // Sin sesión iniciada, la plataforma redirige la página de la clase a la raíz/login:
+    // la URL final pierde el segmento /clases-grabadas/. NO es un fallo de red (la
+    // conectividad está OK) — es un problema de sesión, accionable por el usuario. Se
+    // lanza un error tipado para que background.js lo clasifique como "sesion" en vez de
+    // caer en la heurística por defecto ("internet"). Ver docs/patterns.md.
+    if (/clases-grabadas/i.test(urlClase) && !/clases-grabadas/i.test(res.url)) {
+      console.warn(`🔑 [HLS-ENGINE] La clase redirigió fuera de /clases-grabadas/ (URL final: ${res.url}). No hay sesión activa en Ramón Net.`);
+      const errSesion = new Error("SESION_NO_INICIADA: la clase redirigió al inicio/login; iniciá sesión en Ramón Net.");
+      errSesion.tipoConexion = "sesion";
+      throw errSesion;
+    }
 
     // 1. Buscar la etiqueta <iframe> que apunte a Bunny o Mediadelivery
     const regexIframe = /<iframe[^>]+src=\\?["'](https?:\/\/[^\\"']*(?:b-cdn\.net|mediadelivery\.net)[^\\"']+)/i;

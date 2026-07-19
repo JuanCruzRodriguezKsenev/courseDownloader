@@ -6,6 +6,13 @@ Este documento cubre **trabajo técnico interno**, no features de producto nueva
 
 ---
 
+## Estado (2026-07-18) — split de `popup.js` (Fase 2)
+
+Extraída `popup/features/filters.js` (`FilterFeature`) — el penúltimo corte del
+god-file. Queda **1** ítem estructural de Fase 2 (adelgazar `popup.js` a init +
+wiring / extraer clusters `catedra.js`/`scraping.js` si es seguro) más la cobertura
+de tests pendiente. Suite: 116 → **135 tests** (13 archivos; incluye la robustez de conexión sumada en paralelo). Lint: **0 errores / 10 warnings**.
+
 ## Estado (2026-07-17) — sesión de saldado de deuda
 
 Se hizo una tanda para cerrar la deuda abierta (un commit atómico por ítem,
@@ -26,10 +33,6 @@ Suite: 101 → **116 tests** (12 archivos). Lint: **0 errores / 10 warnings**.
 
 **Pendiente (deuda abierta):**
 
-- **Extraer `popup/features/filters.js`** — Fase 2, abajo. Enfoque decidido: `FilterFeature.crear(ctx)`
-  pasando `filtrosActivos` (`popup.js:157`) **por referencia** en `ctx` (objeto compartido, como
-  `queue.js` recibe `nodos`) para no romper los 4 call-sites externos; unificar el filtrado de la
-  pestaña Cola —hoy duplicado dentro de `renderizarListadoInterfaz`— en un predicado compartido.
 - **Adelgazar `popup.js` / cerrar god-file** — Fase 2, abajo. Extraer clusters de bajo acoplamiento
   (`catedra.js`, `scraping.js`) si es seguro; el motor de render/worker queda como orquestación en
   `popup.js` (extraerlo es la cirugía más riesgosa y de menor retorno).
@@ -74,7 +77,7 @@ No depende de nada de lo que sigue. Se puede hacer en cualquier momento, indepen
 - [x] Borrar código muerto (wrapper `clasificarCatedraYCarpeta`). ✅ 2026-07-16
 - [x] Extraer `popup/features/onboarding.js` (tour de bienvenida — es la feature más autocontenida, buen punto de partida de bajo riesgo). ✅
 - [x] Extraer `popup/features/serverConnection.js` (detección de estado del servidor Bun + UI offline + auto-healing). ✅ En vez de mantener el polling propio original, se introdujo el daemon `shared/conexion.js` como fuente única de verdad del estado de conexión (servidor + internet, modelo push, espejado popup↔SW por `chrome.storage.session`); la feature ahora se suscribe a él y reacciona. `background.js` también migró a consumirlo (clasificación de error + `alarma_autoheal`).
-- [ ] Extraer `popup/features/filters.js` (búsqueda, filtros por estado/materia/cátedra, popover de filtros).
+- [x] Extraer `popup/features/filters.js` (búsqueda, filtros por estado/materia/cátedra, popover de filtros). ✅ `FilterFeature.crear(ctx)` con `filtrosActivos` pasado POR REFERENCIA en `ctx` (objeto compartido, como `queue.js` recibe `nodos`), 10 tests (`filters.test.js`). Movió `aplicarFiltrosCruzados`, `desbanearFiltros`, `renderizarFiltrosMenuPopover` + `crearPopoverOptionDOM` (privada) y `actualizarPillsUIState`; unificó el predicado de filtrado de la pestaña Cola —antes duplicado en `masterCheck`, `renderizarListadoInterfaz` y `actualizarMasterCheckState`— en `coincideConFiltrosCola(clase, busqueda)`. `popup.js` → v5.11.0, `filters.js` → v1.0.0.
 - [x] Extraer `popup/features/queue.js` (cola de descarga, `encolarItemsEnCaliente`, cancelación, reintentos). ✅ 2026-07-17. `QueueFeature.crear(ctx)` con 11 tests (`queue.test.js`) contiene: mutaciones de la cola (`encolarItemsEnCaliente` + `quitarItemsDeColaEnLote`), cancelación de descarga (`solicitarFrenadoSuave` + `abortarRafagaInmediata`), arranque (`iniciarDescargaCola`) y reanudación tras caída (`ejecutarReintentoDeCola`, + el helper `verificarRedAntesDeDescargar`). Los flags de UI `verificandoConexionBoton`/`reintentandoColaActivo` siguen en `popup.js` (los lee `actualizarContadoresBoton`) y la feature los togglea por ctx. Hecho en 3 cortes verificados en runtime. `popup.js` → v5.8.2, `queue.js` → v1.2.0.
 - [ ] Dejar en `popup.js` solo: inicialización de `nodos`, wiring de listeners de alto nivel, y orquestación entre features.
 - [x] Sumar cada archivo nuevo como `<script>` en `popup/popup.html`, respetando el orden de dependencia existente (después de `shared/*.js`, antes de `popup.js`). ✅ (hecho para las features ya extraídas; repetir para `filters.js` cuando se extraiga).

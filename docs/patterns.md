@@ -73,6 +73,10 @@ Cada intento tiene además un **timeout propio de 10 s** (`AbortController` comp
 
 **Qué hace**: cuando falla una descarga por conectividad, la cola se marca `colaPausadaPorError = true` y se registra una alarma que sondea cada ~12s si el recurso caído (internet o backend Bun) volvió, reanudando la cola automáticamente si es así.
 
+**Clasificación del tipo de falla** (en el catch de `procesarSiguienteElementoDeLaCola`): primero el flag explícito `abortadoPorUsuario` (cancelación limpia, no es fallo); luego el caso `"sesion"` (ver abajo); luego el daemon `Conexion` (`tipoFalla` = `servidor`/`internet`); y si la red está OK, una heurística por mensaje (`"Bun"/"backend"` → `servidor`, si no `internet`).
+
+**Caso `"sesion"` (excepción al autoheal)**: descargar sin sesión iniciada en Ramón Net NO es un fallo de red — la plataforma redirige la página de la clase al login y el daemon `Conexion` ve la conectividad OK (lo malclasificaría como `internet`). `HlsEngine.extraerEnlaceMaestroM3u8Clasico` lo detecta porque la URL final perdió el segmento `/clases-grabadas/` y lanza un error tipado (`err.tipoConexion = "sesion"`); el catch lo clasifica ANTES de consultar al daemon. `pausarColaPorErrorDeConexion` **no crea la alarma** para este tipo (el daemon no puede detectar el login → reintentaría en loop) y el handler de `alarma_autoheal` la limpia defensivamente si el estado quedó en `"sesion"`. El popup muestra una card "Sesión no iniciada" 🔑 y el usuario reanuda a mano tras loguearse. Ver `hlsEngine.js` v1.0.5, `background.js` v5.8.0, `popup.js` v5.12.0.
+
 **Relación con el patrón formal**: es funcionalmente un circuit breaker de 2 estados (pausado/activo) en vez de 3 (CLOSED/OPEN/HALF_OPEN). Ver `docs/adr/0003-defer-circuit-breaker-and-idempotency-service.md` para por qué no se formalizó más.
 
 ## Sesiones únicas de descarga (idempotencia ad-hoc)
