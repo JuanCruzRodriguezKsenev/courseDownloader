@@ -80,6 +80,26 @@ Inventario vivo de problemas conocidos en el código actual, ordenados por sever
 
 ---
 
+## 🔴 Robustez del flujo de datos
+
+### Loop infinito pausa/autoheal ante rechazo 4xx del backend (bug activo)
+
+- **Dónde**: cadena entre `shared/bunClient.js:117-119`, `background/hlsEngine.js:225`/`:255` y `background.js:632-642`.
+- **Qué pasa** (detectado en logs reales, 2026-07-18): cuando el backend Bun responde HTTP **4xx** a un fragmento (`POST /api/bypass-stream` → 400, rechazo aplicativo con el server **vivo**), el sistema lo confunde con una caída de servidor y entra en loop. Cadena causal:
+  1. `bunClient.js:117-119` lanza un `Error` cuyo status **solo vive en el string del mensaje** (`El backend de Bun rechazó el fragmento con código: ${res.status}`) — nadie aguas arriba puede distinguir un 400 determinístico de un 503 transitorio sin parsear texto.
+  2. El worker (`hlsEngine.js:255`) lo trata como fallo de fragmento y aborta el `controladorGraficoActivo` → la clase entera falla.
+  3. El catch de `background.js:632-642` clasifica con el daemon: `Conexion.verificarAhora()` sondea `/api/health` → **200** (server vivo) → `tipoFalla=null` → cae a la heurística por mensaje, que como el string contiene "Bun" clasifica **"servidor"** → `pausarColaPorErrorDeConexion` crea `alarma_autoheal`.
+  4. El autoheal despierta, ve `/api/health` 200, reanuda la cola → el mismo fragmento vuelve a dar 400 → **loop infinito**. El usuario no puede avanzar salvo cancelar a mano.
+- **Impacto**: una sola clase con un fragmento que el backend rechaza congela **toda** la cola indefinidamente. Rompe el caso de uso principal (descarga masiva).
+- **Fix propuesto** (acordado): un 4xx es determinístico — reintentar el mismo fragmento no lo cura y no es una caída de conexión. Reintentar N=3 con backoff corto y, si persiste, **saltar solo esa clase avisando cuál falló**, siguiendo con la próxima (sin pausar, sin autoheal). El 5xx mantiene el comportamiento actual (pausa+autoheal: puede ser hipo transitorio del server). Implementación:
+  - `bunClient.js`: tipar el error 4xx (`err.tipoBackend="rechazo"` + `err.httpStatus`), como ya se hace con `err.tipoConexion="sesion"`.
+  - Reintento N en el worker (`hlsEngine.js:225`, envolviendo `enviarFragmentoStream`); agotado, propagar el error tipado.
+  - `background.js` (catch `:598-644`): rama **antes** del daemon (como el caso `"sesion"` en `:623`) → marcar la clase `'error'`, sacarla de la cola con un `.set()` atómico (patrón del path de éxito `:584-588`), emitir `clase_con_error` con `titulo`+motivo, y `procesarSiguienteElementoDeLaCola()`.
+  - Popup: el handler `clase_con_error` (`popup.js:1170-1178`) **ya existe pero nadie lo emite** y muestra texto genérico sin nombrar la clase — mejorarlo para nombrar `req.titulo`+motivo y limpiar la cola local (espejando `clase_guardada_ok` `:1156-1167`).
+- **Estado**: 🔴 abierto. Diseño de ejecución con código propuesto: ver el plan `~/.claude/plans/lazy-spinning-popcorn.md` (ítem A2). Cobertura del path nuevo prevista en los tests de `compilarTranscodificacionStream` (ver Testing).
+
+---
+
 ## 🟡 Robustez del flujo de datos
 
 ### Optimistic update sin rollback en `encolarItemsEnCaliente`
