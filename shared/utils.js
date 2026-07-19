@@ -1,7 +1,23 @@
 /**
- * CLON DOWNLOADHELPER - UTILERÍAS CRIPTOGRÁFICAS Y PERSISTENCIA (V5.7.0)
+ * CLON DOWNLOADHELPER - UTILERÍAS CRIPTOGRÁFICAS Y PERSISTENCIA (V5.9.0)
  * ARCHIVO COMPLETO — FIX CRÍTICO: ERRADICACIÓN REAL DE FILEREADER/BASE64 EN VOLCADO A DISCO
  * ==============================================================================================
+ * CHANGELOG v5.9.0:
+ * - [FIX] fetchConReintentos consulta al daemon Conexion (HEAD real ~4s) en cada fallo: si
+ *   confirma internet caída, corta los reintentos de inmediato en vez de quemar ~15s de backoff
+ *   (1+2+4+8s). Cubre el corte AGUAS ARRIBA (WAN caída con la NIC local "conectada" → navigator.onLine
+ *   sigue en true, común en Windows) que el guard v5.8.0 (sólo onLine===false) no detectaba: la
+ *   caída pasaba de ~16s a ~4-5s. Micro-cortes se toleran igual (si el HEAD pasa, se reintenta).
+ * - [FIX] Timeout por-intento (AbortController, 10s > TIMEOUT_HEAD_MS) para acotar el primer fallo
+ *   ante un socket colgado que no rechaza. Compone con opciones.signal (AbortSignal.any) sin romper
+ *   el abort del usuario: un timeout es reintentable, un abort real del usuario sigue cortando.
+ * CHANGELOG v5.8.0:
+ * - [FIX] fetchConReintentos ahora aborta los reintentos si navigator.onLine === false.
+ *   Al desconectar el wifi durante una descarga, la caída se detectaba lento (~15s+): el
+ *   fetch del fragmento fallaba y se quemaban 4 reintentos con backoff exponencial antes
+ *   de propagar el error y pausar la cola. Como navigator.onLine baja al instante ante
+ *   una interfaz caída, se corta el retry de una y la caída se detecta rápido. Sólo se
+ *   usa la forma negativa de onLine (un `true` dudoso no altera el comportamiento).
  * CHANGELOG v5.7.0:
  * - [SEGURIDAD] Nuevo helper escaparHtml() para neutralizar markup de títulos scrapeados
  *   antes de interpolarlos en strings asignados vía innerHTML. Cierra el XSS de popup.js
@@ -386,10 +402,20 @@ const Utils = {
    * Diseñado para tolerar micro-cortes de internet sin abortar la descarga de inmediato.
    */
   async fetchConReintentos(url, opciones = {}, maxReintentos = 4, delayInicial = 1000) {
+    // Backstop por intento: un socket colgado (que nunca rechaza) mantendría este fetch
+    // esperando para siempre y el bail vía daemon (más abajo) nunca correría. > TIMEOUT_HEAD_MS
+    // (4s) para no matar un fetch lento-pero-vivo antes de que el daemon vote "up".
+    const TIMEOUT_INTENTO_MS = 10000;
     let reintento = 0;
     while (true) {
+      const acIntento = new AbortController();
+      const tIntento = setTimeout(() => acIntento.abort(), TIMEOUT_INTENTO_MS);
+      // Combinamos el signal del caller (abort de usuario) con el de timeout, sin perder ninguno.
+      const signalCombinado = opciones.signal
+        ? AbortSignal.any([acIntento.signal, opciones.signal])
+        : acIntento.signal;
       try {
-        const res = await fetch(url, opciones);
+        const res = await fetch(url, { ...opciones, signal: signalCombinado });
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`);
         }
@@ -397,6 +423,32 @@ const Utils = {
       } catch (err) {
         if (opciones.signal && opciones.signal.aborted) {
           throw err; // Abortado por el usuario, no reintentar
+        }
+        // Sin red según el browser (ej. wifi desconectado): navigator.onLine baja casi
+        // al instante. No tiene sentido quemar los reintentos con backoff (~15s) contra
+        // una interfaz caída: se falla YA para que la caída se detecte rápido (el catch
+        // de background.js pausa la cola y consulta al daemon Conexion). Sólo se usa la
+        // forma NEGATIVA de onLine (confiable): un `true` dudoso NO corta reintentos.
+        if (typeof navigator !== "undefined" && navigator.onLine === false) {
+          console.warn(`📴 [FETCH-REINTENTOS] Sin red (navigator.onLine=false); no se reintenta: ${url}`);
+          throw err;
+        }
+        // navigator.onLine positivo NO es de fiar (en Windows queda en true ante un corte
+        // AGUAS ARRIBA: WAN caída con la NIC local "conectada"). Antes de quemar la escalera
+        // de backoff (~15s), le preguntamos al daemon Conexion —fuente única de verdad, HEAD
+        // real (~4s)— si internet realmente se cayó. Micro-corte real se tolera igual: si la
+        // red vuelve antes de que el HEAD falle, reporta internet=true y seguimos reintentando.
+        if (typeof Conexion !== "undefined") {
+          try {
+            const snap = await Conexion.verificarAhora();
+            if (!snap.internet) {
+              console.warn(`📴 [FETCH-REINTENTOS] Daemon confirma internet caída; no se reintenta: ${url}`);
+              throw err; // relanza el error ORIGINAL del fetch
+            }
+          } catch (e) {
+            if (e === err) throw err; // nuestro relanzamiento → propagar
+            // el propio sondeo del daemon falló por otra causa: seguir con el backoff normal
+          }
         }
         reintento++;
         if (reintento > maxReintentos) {
@@ -406,6 +458,8 @@ const Utils = {
         const delay = delayInicial * Math.pow(2, reintento - 1);
         console.warn(`⚠️ [FETCH-REINTENTOS] Intento ${reintento} fallido para ${url}. Reintentando en ${delay}ms... Error: ${err.message}`);
         await new Promise(resolve => setTimeout(resolve, delay));
+      } finally {
+        clearTimeout(tIntento);
       }
     }
   }
