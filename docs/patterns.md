@@ -56,11 +56,16 @@ Explicación de los patrones que sostienen el código actual — qué problema r
 
 ## Retry con backoff exponencial
 
-**Dónde**: `Utils.fetchConReintentos` en `shared/utils.js:369-392`.
+**Dónde**: `Utils.fetchConReintentos` en `shared/utils.js`.
 
-**Qué hace**: envuelve `fetch` con hasta 4 reintentos, con delay `delayInicial * 2^(intento-1)` entre cada uno. Respeta `AbortSignal` — si el usuario cancela, no reintenta.
+**Qué hace**: envuelve `fetch` con hasta 4 reintentos y delay `delayInicial * 2^(intento-1)` entre cada uno. Respeta `AbortSignal` — si el usuario cancela (`opciones.signal`), no reintenta. Para no "quemar" la escalera completa (~15 s) ante una caída sostenida, corta temprano en dos casos, sin sacrificar la tolerancia a micro-cortes:
 
-**Por qué así**: tolera micro-cortes de internet sin abortar la descarga completa (uno de los objetivos centrales del proyecto, ver README — "Auto-Heal").
+- **`navigator.onLine === false`** (sólo la forma NEGATIVA, confiable): si el browser ya reporta la interfaz local caída (ej. wifi apagado), falla al instante (v5.8.0).
+- **Daemon `Conexion`**: ante cada fallo, si `navigator.onLine` sigue en `true` (no confiable en Windows ante un corte **aguas arriba** — WAN caída con la NIC local "conectada"), consulta `Conexion.verificarAhora()` (HEAD real, ~4 s — ver §Daemon de estado de conexión) y corta si `internet` está caído. Un micro-corte se tolera igual: si el HEAD pasa, sigue reintentando (v5.9.0).
+
+Cada intento tiene además un **timeout propio de 10 s** (`AbortController` compuesto con el `signal` del caller vía `AbortSignal.any`) para acotar un socket colgado que nunca rechaza. Al vencer, el error se reescribe a un `Error` normal — **no** `AbortError`, que aguas arriba se confunde con cancelación/abort externo (mismo criterio que `BunClient.enviarFragmentoStream`, ver `bunClient.js` v1.2.0) (v5.9.1).
+
+**Por qué así**: tolera micro-cortes de internet sin abortar la descarga completa (uno de los objetivos centrales del proyecto, ver README — "Auto-Heal"), pero una caída sostenida se detecta en ~4-5 s en vez de ~16 s. La clasificación del fallo una vez propagado vive en §Circuit breaker.
 
 ## Circuit breaker ad-hoc (2 estados)
 
