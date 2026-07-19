@@ -13,12 +13,13 @@ Registro formal de las decisiones de arquitectura significativas del proyecto.
 
 | # | Título | Estado |
 |---|---|---|
-| [0001](0001-no-bundler-or-typescript-yet.md) | No introducir bundler ni TypeScript por ahora | Diferida |
+| [0001](0001-no-bundler-or-typescript-yet.md) | No introducir bundler ni TypeScript por ahora | Superseded by 0008 |
 | [0002](0002-reject-astro.md) | No adoptar Astro | Rechazada |
 | [0003](0003-defer-circuit-breaker-and-idempotency-service.md) | Formalizar Circuit Breaker e Idempotency Service | Diferida |
 | [0004](0004-defer-result-pattern.md) | No adoptar Result Pattern sin TypeScript | Diferida |
 | [0005](0005-feature-driven-popup-split.md) | Reorganización de `popup.js` como feature-driven | Aceptada |
 | [0006](0006-adopt-preact-islands-in-popup.md) | Adoptar Preact (islas) en el popup, sin build | Aceptada |
 | [0007](0007-dry-docs-canonical-homes.md) | Documentación DRY: un hogar canónico por concepto | Aceptada |
+| [0008](0008-arquitectura-nucleo-adaptadores.md) | Arquitectura núcleo genérico + adaptadores (hexagonal) + TypeScript | Aceptada (diseño) |
 
 Estados posibles: `Propuesta` → `Aceptada` | `Rechazada` | `Diferida` → (eventualmente) `Superseded by NNNN`.

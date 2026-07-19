@@ -102,12 +102,47 @@ No depende de nada de lo que sigue. Se puede hacer en cualquier momento, indepen
 
 ---
 
-## Fase 5 (diferida) — Chequeo de tipos
+## Fase 5 (fusionada en Fase 6) — Chequeo de tipos
 
-Ver `docs/adr/0001-no-bundler-or-typescript-yet.md`.
+La migración a TypeScript **dejó de ser un ítem suelto**: se fusionó dentro de la
+re-arquitectura de Fase 6, porque ambas comparten la conversión transversal de
+globales `window.X`/`self.X` a módulos ES y conviene tocar cada archivo una sola
+vez. Ver **`docs/adr/0008-arquitectura-nucleo-adaptadores.md`** (que supersede a
+ADR-0001) y la Fase 6 abajo. La opción intermedia de `// @ts-check` + JSDoc sin
+bundler queda descartada por la misma razón: el destino es TS-completo con puertos
+tipados.
 
-- [ ] Evaluar adoptar `// @ts-check` + JSDoc + `@types/chrome` una vez completadas las Fases 1-3.
-- [ ] Migración completa a TypeScript con bundler: **no planificada**, solo se reconsideraría ante crecimiento significativo del proyecto (más código, más de un contribuyente).
+---
+
+## Fase 6 (diferida, diseño) — Re-arquitectura núcleo + adaptadores (+ TypeScript)
+
+**Objetivo**: convertir la extensión en un **template reutilizable** vía
+arquitectura de puertos y adaptadores (hexagonal), separando el código genérico del
+específico de sitio y del específico de navegador — para re-clonar a otro
+sitio/browser cambiando solo un adaptador. La **decisión** está en **ADR-0008**; el
+**diseño de ejecución concreto** (estructura de carpetas, interfaces TS de los
+puertos, bundler, orden de migración) en **`docs/rearquitectura-diseno.md`**. Lo que
+sigue es el checklist de fases; el detalle de cada una está en ese doc.
+
+Tres capas (detalle completo + catálogo de qué migra en cada una → ADR-0008):
+
+- [ ] **Capa 1 — Núcleo genérico**: motor HLS (pool + AES), cola FIFO, daemon de
+  conexión, máquina de estado, UI/islas, `BunClient`. Invariante: no llama
+  `chrome.*` ni conoce Ramón Net.
+- [ ] **Capa 2 — Adaptador de sitio (`sitio/`)**: concentrar lo específico de Ramón
+  Net (scraper/selectores, parseo de títulos/cátedra, resolución M3U8/CDN, URL de
+  sondeo, reglas dNR, cátedra A-D) detrás de un puerto de sitio.
+- [ ] **Capa 3 — Adaptador de navegador (Chrome/MV3)**: abstraer los ~99 usos de
+  `chrome.*` (storage, IPC, alarms, tabs, scripting, downloads, offscreen, dNR)
+  detrás de puertos.
+- [ ] **TypeScript + bundler (fusionado)**: TS-completo + bundler MV3 (Vite+CRXJS o
+  WXT) como parte de la misma conversión a módulos ES. Payoff: puertos tipados +
+  `@types/chrome` + IPC con unión discriminada. Reemplaza a ADR-0001.
+
+**Nota de secuencia**: es la fase más grande y transversal del roadmap; se ejecuta
+de forma incremental (lo más aislado primero), nunca big-bang. **No forma parte de
+la tanda de saldado de deuda técnica** — esa queda en JS (Fase 2 + fix del bug 400).
+Depende de tener las Fases 1-4 cerradas (red de tests + split + ESLint) como piso.
 
 ---
 

@@ -24,6 +24,7 @@ Start at **`docs/architecture.md`**. Full map:
 - `docs/TECHNICAL_DEBT.md` — open issues backlog, with exact file/line locations.
 - `docs/ROADMAP.md` — phased plan to pay down the backlog, in dependency order.
 - `docs/preact-migration.md` — live status of the incremental Preact-islands migration of the popup (which islands are done/next, the DOM-boundary rule, and a recipe for adding one). See also ADR-0006.
+- `docs/rearquitectura-diseno.md` — execution design (the "how") for the ports-and-adapters + TypeScript re-architecture: target folder layout, port interfaces, bundler choice, migration order. The *decision* lives in ADR-0008 (supersedes ADR-0001); this is its counterpart design/status doc, like `preact-migration.md`. Not yet started.
 
 Security rule (operational summary — full policy and rationale in `docs/security.md`): scraped/third-party text must never be interpolated into `.innerHTML` unescaped. Since Preact island #4 the live list renders through `<TarjetaEstado>`/`<FilaClase>` (`listaClases.preact.js`), so escape at the `window.ListaClases` view-model boundary that feeds them. The original `popup.js` XSS is fixed (2026-07-16).
 

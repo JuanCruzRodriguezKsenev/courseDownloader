@@ -1,7 +1,7 @@
 # 0001 — No introducir bundler ni TypeScript por ahora
 
 **Fecha**: 2026-07-16
-**Estado**: Diferida
+**Estado**: Superseded by [0008](0008-arquitectura-nucleo-adaptadores.md)
 
 ## Contexto
 
@@ -29,3 +29,7 @@ No se adopta ninguna de las dos opciones de tipado todavía. Se prioriza primero
 ## Revisar cuando
 
 Haya cobertura de tests sobre `shared/utils.js` y el split de `popup.js` esté hecho (ver `docs/ROADMAP.md`, fases 1-3). En ese punto, adoptar `// @ts-check` + `@types/chrome` es la opción de menor fricción; una migración completa con bundler solo se justificaría ante crecimiento significativo del proyecto (más código, más de un contribuyente activo).
+
+---
+
+> **Superado por [ADR-0008](0008-arquitectura-nucleo-adaptadores.md)** (2026-07-19). Cumplidas las Fases 1-4 del roadmap y con la re-arquitectura de puertos-y-adaptadores obligando de todos modos a la conversión transversal de globales a módulos ES, se decidió fusionar la migración a TypeScript + bundler dentro de esa re-arquitectura, en lugar de mantenerla diferida por separado. Este ADR queda como registro histórico del razonamiento previo.
