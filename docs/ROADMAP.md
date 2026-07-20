@@ -6,6 +6,18 @@ Este documento cubre **trabajo técnico interno**, no features de producto nueva
 
 ---
 
+## Estado (2026-07-19) — tanda de saldado de deuda (Track A: bug 400 + Fase 2 + tests del pool)
+
+Tanda de 3 ítems (un commit atómico por ítem, `npm test` + `npm run lint` en verde antes de cada uno), siguiendo el plan `~/.claude/plans/lazy-spinning-popcorn.md`:
+
+| Ítem | Qué | Doc de detalle | Commit |
+|---|---|---|---|
+| A2 | Fix del **bug 400** (loop pausa/autoheal ante rechazo 4xx del backend): reintento N=3 + saltar SÓLO la clase avisando, sin pausar la cola | TECHNICAL_DEBT §Resuelto, patterns §Circuit breaker | `a53dae3` |
+| A1 | Extraer `popup/features/catedra.js` (`CatedraFeature`) — **cierra la Fase 2** del split feature-driven | ADR-0005, Fase 2 abajo | `16ecfb4` |
+| A3 | Tests del **pool de 6 workers** (`compilarTranscodificacionStream`): concurrencia, AES, turbo/blob, aborts en cascada, path 4xx | testing.md §3 | `96a2389` |
+
+Suite: 135 → **155 tests** (14 archivos). Lint: **0 errores / 10 warnings**. Con A1, la **Fase 2 queda cerrada**: el resto de `popup.js` es orquestación (init + wiring + scraping/render) que ADR-0005 define como estado final (`scraping` NO se extrae — decisión que alimenta ADR-0008/Fase 6). Pendiente en JS: nada de la deuda abierta de Track A; sigue el Track B (Fase 6, diferido, sólo diseño). Verificación e2e manual del bug 400 a cargo del usuario (backend Bun corriendo).
+
 ## Estado (2026-07-18) — split de `popup.js` (Fase 2)
 
 Extraída `popup/features/filters.js` (`FilterFeature`) — el penúltimo corte del
@@ -79,10 +91,13 @@ No depende de nada de lo que sigue. Se puede hacer en cualquier momento, indepen
 - [x] Extraer `popup/features/serverConnection.js` (detección de estado del servidor Bun + UI offline + auto-healing). ✅ En vez de mantener el polling propio original, se introdujo el daemon `shared/conexion.js` como fuente única de verdad del estado de conexión (servidor + internet, modelo push, espejado popup↔SW por `chrome.storage.session`); la feature ahora se suscribe a él y reacciona. `background.js` también migró a consumirlo (clasificación de error + `alarma_autoheal`).
 - [x] Extraer `popup/features/filters.js` (búsqueda, filtros por estado/materia/cátedra, popover de filtros). ✅ `FilterFeature.crear(ctx)` con `filtrosActivos` pasado POR REFERENCIA en `ctx` (objeto compartido, como `queue.js` recibe `nodos`), 10 tests (`filters.test.js`). Movió `aplicarFiltrosCruzados`, `desbanearFiltros`, `renderizarFiltrosMenuPopover` + `crearPopoverOptionDOM` (privada) y `actualizarPillsUIState`; unificó el predicado de filtrado de la pestaña Cola —antes duplicado en `masterCheck`, `renderizarListadoInterfaz` y `actualizarMasterCheckState`— en `coincideConFiltrosCola(clase, busqueda)`. `popup.js` → v5.11.0, `filters.js` → v1.0.0.
 - [x] Extraer `popup/features/queue.js` (cola de descarga, `encolarItemsEnCaliente`, cancelación, reintentos). ✅ 2026-07-17. `QueueFeature.crear(ctx)` con 11 tests (`queue.test.js`) contiene: mutaciones de la cola (`encolarItemsEnCaliente` + `quitarItemsDeColaEnLote`), cancelación de descarga (`solicitarFrenadoSuave` + `abortarRafagaInmediata`), arranque (`iniciarDescargaCola`) y reanudación tras caída (`ejecutarReintentoDeCola`, + el helper `verificarRedAntesDeDescargar`). Los flags de UI `verificandoConexionBoton`/`reintentandoColaActivo` siguen en `popup.js` (los lee `actualizarContadoresBoton`) y la feature los togglea por ctx. Hecho en 3 cortes verificados en runtime. `popup.js` → v5.8.2, `queue.js` → v1.2.0.
-- [ ] Dejar en `popup.js` solo: inicialización de `nodos`, wiring de listeners de alto nivel, y orquestación entre features.
-- [x] Sumar cada archivo nuevo como `<script>` en `popup/popup.html`, respetando el orden de dependencia existente (después de `shared/*.js`, antes de `popup.js`). ✅ (hecho para las features ya extraídas; repetir para `filters.js` cuando se extraiga).
+- [x] Extraer `popup/features/catedra.js` (badge de cátedra + asistente/modal multicátedra + listener del badge). ✅ 2026-07-19. `CatedraFeature.crear(ctx)` con 9 tests (`catedra.test.js`); unificó el `detectarCatedras()` antes triplicado. `popup.js` → v5.14.0, `catedra.js` → v1.0.0. **Último cluster de bajo acoplamiento extraíble** — con esto cierra la fase.
+- [x] Dejar en `popup.js` solo: inicialización de `nodos`, wiring de listeners de alto nivel, y orquestación entre features. ✅ Estado final: lo que queda (render, worker IPC, scraping) ES la orquestación que ADR-0005 define como núcleo no-extraíble. `scraping` NO se extrae por decisión (alimenta ADR-0008/Fase 6).
+- [x] Sumar cada archivo nuevo como `<script>` en `popup/popup.html`, respetando el orden de dependencia existente (después de `shared/*.js`, antes de `popup.js`). ✅
 
-**Nota de secuencia**: depende de Fase 1 — sin tests de `shared/utils.js`, no hay forma de verificar que mover código no cambió comportamiento sutilmente. Las features ya extraídas suman además sus propios tests (`serverConnection.test.js`, `conexion.test.js`, y `onboarding.preact.test.js` — el onboarding pasó de feature vanilla a isla Preact, ver `docs/preact-migration.md`).
+**Fase 2 completa** ✅ (2026-07-19): extraídas `serverConnection`, `queue`, `filters` y `catedra` (+ las islas Preact); el resto de `popup.js` es orquestación por diseño.
+
+**Nota de secuencia**: dependió de Fase 1 — sin tests de `shared/utils.js`, no había forma de verificar que mover código no cambió comportamiento sutilmente. Las features extraídas suman además sus propios tests (`serverConnection.test.js`, `queue.test.js`, `filters.test.js`, `catedra.test.js`, `conexion.test.js`, y las islas Preact — el onboarding pasó de feature vanilla a isla, ver `docs/preact-migration.md`).
 
 ---
 
