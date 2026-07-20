@@ -1,7 +1,18 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.13.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.14.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.14.0:
+ * - [SPLIT] Extraída la lógica de cátedra/multicátedra a la feature
+ *   popup/features/catedra.js (CatedraFeature.crear(ctx)): actualizarBadgeCatedra,
+ *   aplicarSeleccionCatedraSilencioso, verificarYMostrarAsistenteMulticatedra, el modal
+ *   (mostrarModalMulticatedra + aplicarSeleccionCatedra) y el listener del click en el
+ *   badge. popup.js la recibe por ctx (nodos + aplicarFiltros) y expone como alias
+ *   locales las 2 que sus call-sites llaman (actualizarBadgeCatedra en init/scraping,
+ *   verificarYMostrarAsistenteMulticatedra en scraping) — sin cambiar call-sites. El
+ *   cálculo de cátedras presentes (Array.from(new Set(...))), antes triplicado, se
+ *   unificó en detectarCatedras() dentro de la feature. Sin cambio de comportamiento.
+ *   Cierra la Fase 2 del split feature-driven (ADR-0005, ROADMAP). Ver docs/patterns.md.
  * CHANGELOG v5.13.0:
  * - [FIX bug 400] El handler "clase_con_error" ahora NOMBRA la clase saltada y limpia la
  *   cola local. Antes mostraba un texto genérico ("Error de red en fragmentos. Saltando...")
@@ -204,14 +215,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   const mostrarOnboarding = _onboardingFeature.mostrarOnboarding;
 
-  nodos.catedraBadge.addEventListener("click", () => {
-    const catedrasDetectadas = Array.from(new Set(
-      AppState.listadoClasesGlobal.map(c => c.catedra).filter(cat => cat !== "COMUN")
-    ));
-    if (catedrasDetectadas.length > 1) {
-      mostrarModalMulticatedra(catedrasDetectadas);
-    }
-  });
+  // El listener del click en el badge de cátedra vive ahora en CatedraFeature
+  // (popup/features/catedra.js), cableado en su crear() más abajo.
 
   if (nodos.btnSort) {
     nodos.btnSort.addEventListener("click", () => {
@@ -336,6 +341,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   const desbanearFiltros = _filters.desbanearFiltros;
   const actualizarPillsUIState = _filters.actualizarPillsUIState;
   const renderizarFiltrosMenuPopover = _filters.renderizarFiltrosMenuPopover;
+
+  // Feature: cátedra / multicátedra (badge + asistente de autoselección + su modal, y
+  // el listener del click en el badge). Depende de aplicarFiltrosCruzados (arriba) y se
+  // instancia antes de init/scraping, que llaman actualizarBadgeCatedra y
+  // verificarYMostrarAsistenteMulticatedra. Ver popup/features/catedra.js.
+  const _catedra = CatedraFeature.crear({
+    nodos,
+    aplicarFiltros: () => aplicarFiltrosCruzados()
+  });
+  const actualizarBadgeCatedra = _catedra.actualizarBadgeCatedra;
+  const verificarYMostrarAsistenteMulticatedra = _catedra.verificarYMostrarAsistenteMulticatedra;
 
   nodos.btnAction.setAttribute('data-modo', 'sincronizar-disco');
 
@@ -1399,103 +1415,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function actualizarBadgeCatedra() {
-    const catedrasDetectadas = Array.from(new Set(
-      AppState.listadoClasesGlobal
-        .map(c => c.catedra)
-        .filter(cat => cat !== "COMUN")
-    ));
-    const tieneMultiCatedras = catedrasDetectadas.length > 1;
-
-    if (tieneMultiCatedras && AppState.catedraSeleccionada && AppState.catedraSeleccionada !== "TODAS") {
-      nodos.catedraBadge.textContent = `Cátedra ${AppState.catedraSeleccionada}`;
-      nodos.catedraBadge.style.display = "inline-flex";
-    } else {
-      nodos.catedraBadge.style.display = "none";
-      // Si la materia no es multicátedra, forzar limpieza del estado para evitar deselecciones silenciosas
-      if (!tieneMultiCatedras && AppState.catedraSeleccionada !== null) {
-        AppState.catedraSeleccionada = null;
-        AppState.respaldar();
-      }
-    }
-  }
-
-  function aplicarSeleccionCatedraSilencioso(catedraElegida) {
-    AppState.catedraSeleccionada = catedraElegida;
-
-    AppState.listadoClasesGlobal.forEach(clase => {
-      if (clase.estado === 'pending') {
-        clase.seleccionado = (clase.catedra === catedraElegida || clase.catedra === "COMUN");
-      }
-    });
-
-    AppState.respaldar();
-    actualizarBadgeCatedra();
-    aplicarFiltrosCruzados();
-  }
-
-  function verificarYMostrarAsistenteMulticatedra() {
-    const catedrasDetectadas = Array.from(new Set(
-      AppState.listadoClasesGlobal
-        .map(c => c.catedra)
-        .filter(cat => cat !== "COMUN")
-    ));
-
-    console.log("[CATEDRA-DEBUG] Cátedras detectadas en total para el aula virtual:", catedrasDetectadas);
-
-    if (catedrasDetectadas.length > 1) {
-      if (AppState.catedraSeleccionada && AppState.catedraSeleccionada !== "TODAS" && catedrasDetectadas.includes(AppState.catedraSeleccionada)) {
-        console.log("[CATEDRA-DEBUG] -> Aplicando selección persistida:", AppState.catedraSeleccionada);
-        aplicarSeleccionCatedraSilencioso(AppState.catedraSeleccionada);
-        return;
-      }
-      console.log("[CATEDRA-DEBUG] -> Múltiples cátedras encontradas. Mostrando modal.");
-      mostrarModalMulticatedra(catedrasDetectadas);
-    } else {
-      console.log("[CATEDRA-DEBUG] -> Una o ninguna cátedra específica. Reseteando selección.");
-      AppState.catedraSeleccionada = null;
-      AppState.respaldar();
-      actualizarBadgeCatedra();
-    }
-  }
-
-  function mostrarModalMulticatedra(catedras) {
-    document.querySelector(".multicatedra-overlay")?.remove();
-
-    const overlay = document.createElement("div");
-    overlay.className = "multicatedra-overlay";
-
-    const card = document.createElement("div");
-    card.className = "multicatedra-card";
-
-    card.innerHTML = `
-      <h4>Multicátedra Detectada 🎓</h4>
-      <p>Esta aula virtual tiene videos de varias cátedras. ¿Cuál de ellas estás cursando para autoseleccionar tus videos?</p>
-    `;
-
-    const optionsDiv = document.createElement("div");
-    optionsDiv.className = "multicatedra-options";
-
-    // Ordenar alfabéticamente
-    const sortedCatedras = [...catedras].sort((a, b) => a.localeCompare(b));
-
-    sortedCatedras.forEach(cat => {
-      const btn = document.createElement("button");
-      btn.className = "btn-catedra-opt";
-      btn.textContent = `Cátedra ${cat}`;
-      btn.addEventListener("click", () => aplicarSeleccionCatedra(cat, overlay));
-      optionsDiv.appendChild(btn);
-    });
-
-    card.appendChild(optionsDiv);
-    overlay.appendChild(card);
-    document.body.appendChild(overlay);
-  }
-
-  function aplicarSeleccionCatedra(catedraElegida, overlay) {
-    aplicarSeleccionCatedraSilencioso(catedraElegida);
-    overlay.remove();
-  }
+  // La lógica de cátedra/multicátedra (actualizarBadgeCatedra, aplicarSeleccionCatedra
+  // silenciosa, verificarYMostrarAsistenteMulticatedra, el modal y el listener del badge)
+  // vive ahora en la isla/feature features/catedra.js, cableada más arriba como _catedra
+  // (window.CatedraFeature.crear). Cierra la Fase 2 del split (ADR-0005).
 
   // El onboarding (overlay, carrusel, botón de ayuda y "Seleccionar Carpeta" del tour)
   // vive ahora en la isla Preact features/onboarding.preact.js, cableada más arriba

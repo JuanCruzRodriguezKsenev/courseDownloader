@@ -18,6 +18,7 @@ const globalesDelProyecto = {
   ServerConnectionFeature: "readonly",
   QueueFeature: "readonly",
   FilterFeature: "readonly",
+  CatedraFeature: "readonly",
   BannerConexion: "readonly",
   ListaClases: "readonly",
   OnboardingFeature: "readonly",
@@ -72,7 +73,7 @@ module.exports = [
   // (CommonJS/Node). Aplica a shared/*.js, las features vanilla, y hlsEngine.js
   // (que sumó la rama module.exports para testear sus funciones puras).
   {
-    files: ["shared/**/*.js", "popup/features/serverConnection.js", "popup/features/queue.js", "popup/features/filters.js", "background/hlsEngine.js"],
+    files: ["shared/**/*.js", "popup/features/serverConnection.js", "popup/features/queue.js", "popup/features/filters.js", "popup/features/catedra.js", "background/hlsEngine.js"],
     languageOptions: { globals: { ...globals.node } },
   },
 
