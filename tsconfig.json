@@ -1,0 +1,12 @@
+{
+  // WXT genera .wxt/tsconfig.json con los paths y los tipos del navegador.
+  // Este archivo sólo lo extiende para que el editor y `tsc` los tomen.
+  // Todavía no hay archivos .ts de producción: la migración a TypeScript es una
+  // fase posterior (ver docs/rearquitectura-diseno.md).
+  "extends": "./.wxt/tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true
+  },
+  "include": [".wxt/**/*", "wxt.config.ts", "entrypoints/**/*"]
+}

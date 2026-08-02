@@ -176,11 +176,8 @@ const FacetaFeature = {
   }
 };
 
-// Exportación dual (ver docs/coding-standards.md) + module.exports para tests.
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = FacetaFeature;
-} else if (typeof window !== "undefined") {
-  window.FacetaFeature = FacetaFeature;
-} else if (typeof self !== "undefined") {
-  self.FacetaFeature = FacetaFeature;
-}
+// Exportación (ver docs/coding-standards.md). Sigue publicando el global porque el
+// resto del código vanilla lo consume sin importar; el `export` es lo que permite que
+// el bundler arme el grafo de dependencias y que Vitest importe el módulo.
+globalThis.FacetaFeature = FacetaFeature;
+export default FacetaFeature;

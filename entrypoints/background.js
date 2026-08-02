@@ -1,0 +1,31 @@
+/**
+ * ENTRYPOINT DEL SERVICE WORKER (WXT)
+ * ==========================================================================
+ * Punto de composición del SW: carga las dependencias en el orden correcto y
+ * después el orquestador. Reemplaza al `importScripts(...)` del SW clásico — el
+ * bundler arma un único archivo a partir de este grafo de imports.
+ *
+ * El orden IMPORTA y es el mismo que tenía importScripts: cada módulo se publica
+ * como global (`globalThis.X = X`) al importarse, y los que vienen después lo
+ * consumen sin importarlo. El adaptador de sitio va primero porque el daemon de
+ * conexión y el loop de descarga leen de él (ADR-0008 / ADR-0009).
+ *
+ * `background.js` va ÚLTIMO: registra los listeners de chrome.* al evaluarse, y
+ * necesita que todas las globals existan para entonces.
+ */
+import { defineBackground } from 'wxt/utils/define-background';
+
+import '../sitio/ramonnet/config.js';
+import '../sitio/ramonnet/parserTitulos.js';
+import '../sitio/ramonnet/resolverManifiesto.js';
+import '../shared/utils.js';
+import '../shared/bunClient.js';
+import '../shared/conexion.js';
+import '../shared/historialFallos.js';
+import '../background/hlsEngine.js';
+import '../background.js';
+
+// Los listeners ya quedaron registrados por los imports de arriba (top-level del SW,
+// que es lo que exige MV3). Este callback existe porque WXT lo requiere como forma
+// del entrypoint; no hay nada que hacer acá.
+export default defineBackground(() => {});

@@ -3,8 +3,14 @@
 .antigravitycli/
 _metadata/
 
-# Dev dependencies (solo para tests; la extensión no usa bundler)
+# Dev dependencies
 node_modules/
+
+# Salidas del bundler WXT (Fase 3 — ver docs/rearquitectura-diseno.md)
+#  .output/ : la extensión compilada (es lo que se carga en chrome://extensions/)
+#  .wxt/    : types y config generados por `wxt prepare`
+.output/
+.wxt/
 
 # OS temporary files
 .DS_Store
