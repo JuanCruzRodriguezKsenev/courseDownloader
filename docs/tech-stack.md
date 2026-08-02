@@ -6,14 +6,22 @@ Qué se usa, por qué, y qué alternativas se consideraron y se descartaron. Par
 
 | Capa | Tecnología | Alternativas descartadas |
 |---|---|---|
-| Extensión (popup + SW) | JS vanilla (ES2020+), sin bundler, sin framework | React/Vue/Svelte, Astro, TypeScript+Vite/CRXJS |
-| Empaquetado | Ninguno — `manifest.json` apunta a los `.js`/`.html` fuente directamente | Vite + CRXJS, WXT, Plasmo |
+| Extensión (popup + SW) | JS + TypeScript (migración incremental), islas Preact en el popup | React/Vue/Svelte, Astro |
+| Empaquetado | **WXT** (Vite) → `.output/chrome-mv3/`; el manifest lo genera `wxt.config.ts` | Vite + CRXJS, Plasmo, ninguno |
 | Descarga/streaming | `fetch` + WebCrypto (`crypto.subtle`) nativos del navegador | librería HLS.js (descartada — no la necesitás para descargar+desencriptar, solo para reproducir) |
 | Persistencia local (extensión) | `chrome.storage.local` + `chrome.storage.session` | IndexedDB (más potente pero innecesario para el volumen de datos que maneja esta extensión) |
 | Escritura de video a disco | Backend local en Bun (`ramonnet-bun-backend`, repo separado) vía streaming HTTP | `chrome.downloads` + blob en memoria (ver Turbo Mode más abajo) |
 | Testing (ver `docs/testing.md`) | Vitest + jsdom (suite activa: 10 archivos, ~101 tests) | Jest (Vitest es más rápido y no requiere config de Babel/TS aparte) |
 
-## Por qué JS vanilla sin bundler
+> **Actualizado el 2026-08-02**: las dos primeras filas cambiaron. La sección de abajo
+> ("Por qué JS vanilla sin bundler") se conserva como **registro histórico** del
+> razonamiento que valió hasta la Fase 3 — no describe el estado actual. Lo que cambió el
+> balance no fue que aquellos argumentos fueran malos, sino la re-arquitectura: la
+> conversión de globales a módulos ES había que hacerla igual para los puertos, así que el
+> bundler dejó de ser costo puro. Ver ADR-0008 (supersede a ADR-0001) y
+> `docs/rearquitectura-diseno.md`.
+
+## Por qué JS vanilla sin bundler (histórico — vigente hasta la Fase 3)
 
 La extensión completa son ~4800 líneas repartidas en ~20 archivos (sin contar tests ni el vendor de Preact). `manifest.json` carga `popup.html` (que a su vez carga `shared/*.js`, `renderers.js`, `sitio/ramonnet/*.js`, `popup.js` vía `<script>` tags en orden) y `background.js` (que carga `shared/*.js` y `background/hlsEngine.js` vía `importScripts`). No hay JSX, no hay CSS-in-JS, no hay necesidad de tree-shaking a este tamaño.
 
@@ -21,7 +29,7 @@ Agregar un framework de UI (React/Vue/Svelte) o un bundler (Vite) tendría costo
 
 **Cuándo reconsiderar**: si el proyecto crece a un tamaño donde el acoplamiento entre archivos vía variables globales se vuelve inmanejable, o si se suma más de un desarrollador activo.
 
-**Actualización (Preact sin build, ADR-0006)**: el párrafo de arriba sigue vigente para el *bundler* — no lo hay. Pero sí se adoptó **Preact + htm** para la UI del popup, vendorizado como un único ES module local (`popup/vendor/htm-preact-standalone.module.js`) cargado con `<script type="module">`. `htm` da sintaxis tipo-JSX que se parsea en runtime, así que **no hay paso de build ni transpilación** — se respeta el "cargá la carpeta y andá". Es la única dependencia de runtime, acotada al popup (el SW sigue vanilla), y se migra por islas incrementales. Ver `docs/adr/0006-adopt-preact-islands-in-popup.md`.
+**Actualización (Preact sin build, ADR-0006)**: cuando se escribió, el párrafo de arriba seguía vigente para el *bundler* — no lo había. Pero sí se adoptó **Preact + htm** para la UI del popup, vendorizado como un único ES module local (`popup/vendor/htm-preact-standalone.module.js`) cargado con `<script type="module">`. `htm` da sintaxis tipo-JSX que se parsea en runtime, así que **no hay paso de build ni transpilación** — se respeta el "cargá la carpeta y andá". Es la única dependencia de runtime, acotada al popup (el SW sigue vanilla), y se migra por islas incrementales. Ver `docs/adr/0006-adopt-preact-islands-in-popup.md`.
 
 ## Por qué Bun como backend, y no todo en el navegador (Turbo Mode)
 
@@ -40,7 +48,7 @@ Los fragmentos `.ts` de HLS vienen cifrados con AES-128 (estándar del protocolo
 
 Ver `docs/adr/` para el razonamiento completo de cada uno:
 
-- **TypeScript + bundler** — diferido, no descartado (`0001`).
+- **TypeScript + bundler** — ~~diferido~~ **adoptado** (ADR-0008 + Fases 3-4): WXT empaqueta y el núcleo se migra a TS de a un módulo por vez.
 - **Astro** — rechazado, mismatch de propósito (`0002`).
 - **Circuit Breaker formal / Idempotency Service centralizado** — diferido, ya hay una versión ad-hoc suficiente (`0003`).
 - **Result Pattern (`Result<T,E>`)** — diferido hasta tener TypeScript, pierde su valor en JS plano (`0004`).

@@ -44,9 +44,28 @@ La extensión está partida en contextos de ejecución de JS aislados que **solo
 | **Popup** | `popup.js`, `renderers.js`, `popup/features/*` (+ el adaptador `sitio/ramonnet/*`) | Toda la UI: tabs, filtros, onboarding, selección de clases. Inyecta el scraper en la pestaña activa de Ramón Net vía `chrome.scripting.executeScript`. Partes de la UI se están migrando a **islas Preact** (sin build, ES modules locales — ver `docs/adr/0006` y `docs/preact-migration.md`). |
 | **Service Worker** | `background.js`, `background/hlsEngine.js` | Único lugar donde ocurren las descargas reales. Dueño de la cola FIFO persistente y de la máquina de estados de auto-sanación ante cortes de red. Sigue 100% vanilla (no tiene DOM). |
 | **Offscreen Document** | `offscreen/offscreen.js` | Existe solo para el path legacy no-Turbo (`URL.createObjectURL` no está disponible en service workers). No se ejercita mientras Turbo Mode esté forzado a `true`. |
-| **Shared** | `shared/state.js`, `core/backend/bunClient.ts`, `shared/utils.js`, `shared/conexion.js` | Código cargado por más de una zona (`popup.html` vía `<script>`, `background.js` vía `importScripts`). No es una zona de ejecución en sí misma, es una librería común. `conexion.js` es el **daemon de estado de conexión** (fuente única, ver Modelo de estado). |
+| **Compartido** | `shared/*.js` (lo que aún no se migró), `core/**`, `sitio/**`, `plataforma/**` | Código cargado por más de una zona. No es una zona de ejecución: es la librería común, hoy en plena re-arquitectura por capas (ver abajo). `shared/conexion.js` es el **daemon de estado de conexión** (fuente única, ver Modelo de estado). |
 
 Ver `docs/patterns.md` para el detalle de cómo se comunican estas zonas y qué patrones sostienen esa comunicación.
+
+## Las capas (re-arquitectura en curso)
+
+Ortogonal a las zonas de ejecución, el código se está reorganizando en capas (ADR-0008).
+**Convive con la estructura vieja**: lo migrado está en su capa, lo que falta sigue en
+`shared/`, `popup.js` y `background.js`. El avance por fases vive en
+`docs/rearquitectura-diseno.md` §Estado de avance — ése es el doc a leer para saber qué
+sigue.
+
+| Capa | Carpeta | Regla | Estado |
+|---|---|---|---|
+| 1 — Núcleo genérico | `core/` | Cero `chrome.*`, cero Ramón Net. Todo TypeScript. Depende sólo de puertos (`core/puertos/`). | Parcial: `backend/bunClient.ts`, `historial/historialFallos.ts`, `puertos/almacenamiento.ts` |
+| 2 — Adaptador de sitio | `sitio/ramonnet/` | Todo lo específico del portal: scraper, parser de títulos, resolución del `.m3u8`, constantes, faceta, reglas dNR. | ✅ Completa |
+| 3 — Adaptador de plataforma | `plataforma/chrome/` | Único lugar que toca la API del navegador. Implementa los puertos. | Parcial: `almacenamiento.ts` |
+| Composición | `plataforma/composicion.ts` | Único lugar donde se eligen adaptadores concretos y se inyectan al núcleo. | Activa |
+| Entrypoints | `entrypoints/` | Puntos de entrada de WXT: importan en orden y no contienen lógica. | ✅ |
+
+Lo que **todavía** habla `chrome.*` directo y falta migrar: `background.js` (63 usos),
+`popup.js` (14), `shared/state.js` (9), `popup/features/queue.js` (9), `shared/conexion.js` (7).
 
 ## Flujo de una descarga, de punta a punta
 

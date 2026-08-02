@@ -276,6 +276,46 @@ riesgo asumido están en **ADR-0009** (no se repiten acá — regla DRY, ADR-000
 - **Rollback**: una rama por fase (`feat/rearq-<fase>`), sin mergear a `main` hasta verificar.
   Mientras el SW vanilla de la raíz siga siendo el activo, abortar = descartar la rama.
 
+## Cómo retomar esto en una sesión nueva
+
+Orden de lectura para llegar al frente de trabajo sin reconstruir contexto:
+
+1. **Esta tabla de avance** (abajo) — qué fase está hecha y cuál sigue.
+2. **`docs/adr/0008`** (las capas y por qué) y **`docs/adr/0009`** (cómo se elige el sitio).
+3. `docs/architecture.md` §Las capas — la foto de qué carpeta es qué y qué falta migrar.
+
+**Antes de escribir código**, correr las cuatro verificaciones que tienen que estar en
+verde y que son la red de todo lo demás:
+
+```bash
+npm test          # 187 tests en 19 archivos
+npm run lint      # 0 errores / 9 warnings (baseline)
+npx tsc --noEmit  # limpio
+npm run build     # genera .output/chrome-mv3/
+```
+
+**Deuda de verificación abierta (leer antes de seguir)**: las Fases 1 a 5a se mergearon a
+`main` **sin haber abierto nunca la extensión compilada en Chrome** — decisión explícita del
+dueño del repo, tomada con la recomendación contraria sobre la mesa. Los puntos a chequear
+están en §Verificación pendiente. Si algo aparece roto en el navegador, el sospechoso número
+uno es el empaquetado (Fase 3), no la lógica: es donde se cambió el mecanismo de carga.
+
+**El próximo paso (5b)** es migrar al puerto de almacenamiento los consumidores que quedan.
+Orden recomendado, de menor a mayor riesgo:
+
+| Archivo | Usos de `chrome.*` | Nota |
+|---|---|---|
+| `shared/state.js` | 9 | Chico y con tests indirectos. Buen primero. |
+| `shared/conexion.js` | 7 | El daemon. Sólo espejado por storage; tiene 14 tests propios. |
+| `popup/features/queue.js` | 9 | Tiene tests propios. |
+| `popup.js` | 14 | Orquestación; sin tests del núcleo. |
+| `background.js` | 63 | **El grande y el riesgoso**: loop de descarga + auto-heal, hoy SIN cobertura. Dejar para el final, y usar `AlmacenamientoEnMemoria` para escribirle tests ANTES de moverlo. |
+
+El patrón a repetir es el de la Fase 5a, que existe justamente como plantilla: el módulo
+pasa a ser una factory que recibe el puerto, la instancia se arma en
+`plataforma/composicion.ts`, y el test cambia sus mocks de `chrome.*` por
+`AlmacenamientoEnMemoria`.
+
 ## Estado de avance
 
 | Fase de migración | Estado |
