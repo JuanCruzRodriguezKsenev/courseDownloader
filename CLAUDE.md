@@ -2,6 +2,21 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> ## ⚠️ Trabajo en curso — leer esto primero
+>
+> Hay una **re-arquitectura activa** (puertos y adaptadores + TypeScript + WXT), a mitad de
+> camino: fases 1-5a hechas, 5b en adelante pendientes. Antes de tocar código:
+>
+> **Leé `docs/rearquitectura-diseno.md` §Cómo retomar esto en una sesión nueva.** Ahí está el
+> orden de lectura, el estado por fase, qué sigue y con qué riesgo, y las 4 verificaciones a
+> correr antes de empezar (`npm test` 187, `npm run lint` 0 errores, `npx tsc --noEmit`,
+> `npm run build`).
+>
+> **Deuda abierta que condiciona todo lo demás**: las fases 1-5a se mergearon a `main` sin
+> haber abierto nunca la extensión compilada en Chrome (decisión del dueño del repo, con la
+> recomendación contraria sobre la mesa). Si algo aparece roto en el navegador, el sospechoso
+> número uno es el empaquetado de la Fase 3, no la lógica.
+
 ## Project Overview
 
 RamonNet Video Downloader (Turbo Edition) is a Manifest V3 Chrome/Brave browser extension that bulk-downloads HLS-streamed recorded classes from the "Ramón Net" learning platform (`plataforma.ramonnet.com.ar`). It scrapes the class listing DOM, resolves each class's HLS `.m3u8` manifest, downloads and decrypts (AES-128-CBC) the `.ts` fragments concurrently, and streams the decrypted fragments to a companion local Bun backend server (`ramonnet-bun-backend`, a separate repo/folder not included here) running on `http://localhost:3001`, which assembles them on disk. **The extension is compiled** (since 2026-08-02, Phase 3 of the re-architecture): WXT + Vite bundle it into `.output/chrome-mv3/`, which is the folder loaded in the browser — *not* the repo root. `manifest.json` is no longer hand-written; it is generated from `wxt.config.ts`. Source is still vanilla JS + Preact islands, with the core being migrated to TypeScript incrementally (`core/`). ADR-0001 (no bundler) is superseded by ADR-0008.
