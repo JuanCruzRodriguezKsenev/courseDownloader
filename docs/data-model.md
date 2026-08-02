@@ -68,7 +68,7 @@ Escrito principalmente por `AppState.respaldar()` (`shared/state.js`) desde el p
 }
 ```
 
-`HistorialFallos.registrar()` (`shared/historialFallos.js`) es el único escritor que
+`HistorialFallos.registrar()` (`core/historial/historialFallos.ts`) es el único escritor que
 antepone y recorta la lista a 50 (los más viejos se descartan). Concurrencia aceptada: el
 SW (que registra) y el popup (que marca leídas / limpia) hacen read-modify-write sobre la
 misma clave desde contextos distintos; una colisión exacta podría perder una escritura —

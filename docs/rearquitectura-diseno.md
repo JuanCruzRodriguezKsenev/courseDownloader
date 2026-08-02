@@ -286,7 +286,9 @@ riesgo asumido están en **ADR-0009** (no se repiten acá — regla DRY, ADR-000
 | 2 — Selección de sitio: registro en runtime (ADR-0009) | ✅ Decidida (2026-08-02) |
 | 3 — WXT + TypeScript, andamiaje vacío (compilar lo actual) | 🟡 Hecha en rama `feat/rearq-fase3-wxt`, **sin verificar en navegador** |
 | 4 — `core/`: BunClient en TypeScript (+ typescript-eslint y `tsc --noEmit` en verde) | ✅ Hecha (2026-08-02) |
-| 5 — Puertos de plataforma + adaptador Chrome (corte grande, TS transversal) **+ el daemon de conexión** | ⏳ No iniciada |
+| 5a — `PuertoAlmacenamiento` + adaptador Chrome + adaptador en memoria + 1er consumidor migrado (historial de fallos) | ✅ Hecha (2026-08-02) |
+| 5b — Resto de consumidores del puerto: daemon de conexión, `AppState`, `queue`, `background.js` (63 usos) | ⏳ No iniciada |
+| 5c — `PuertoMensajeria` (IPC) + `PuertoProgramador` (alarmas) + sus adaptadores | ⏳ No iniciada |
 | 6 — Motor HLS → `core/hls/` | ⏳ No iniciada |
 | 7 — Entrypoints (composición) | ⏳ No iniciada |
 | 8 — Borrado del vanilla de la raíz | ⏳ No iniciada |

@@ -9,7 +9,7 @@ en los docs canónicos (`data-model.md`, `patterns.md`, `preact-migration.md`) c
 feature esté implementada.
 
 > **Estado**: ✅ **implementada** (2026-07-20, `background.js` v5.10.0, `manifest.json`
-> v5.2.0, `shared/historialFallos.js` v1.0.0, `popup/features/campanita.preact.js`
+> v5.2.0, `core/historial/historialFallos.ts` v1.0.0, `popup/features/campanita.preact.js`
 > v1.0.0). El detalle canónico ya vive en los docs de siempre (`data-model.md`,
 > `security.md`, `patterns.md` §Circuit breaker, `preact-migration.md` isla #5); este
 > documento queda como registro del "cómo" / rationale de ejecución.
@@ -32,7 +32,7 @@ consume para pintar UI **solo si está abierto en ese momento**. Con el popup ce
 usuario no se entera de que la cola se frenó o que se saltó una clase hasta que vuelve a
 abrirlo — y ni siquiera ahí queda historial, solo el estado actual.
 
-## 1. `shared/historialFallos.js` (nuevo, dual-export)
+## 1. `core/historial/historialFallos.ts` (nuevo, dual-export)
 
 Mismo patrón que `shared/conexion.js`/`core/backend/bunClient.ts` (cargado por `<script>`
 clásico en el popup y por `importScripts` en el SW; exporta a `module.exports` /
@@ -78,7 +78,7 @@ trade-off ya asumido por las demás claves de `chrome.storage.local` del proyect
 transacciones); la ventana es de milisegundos y el dato es un historial informativo — se
 documenta en `data-model.md` y no se mitiga.
 
-Cableado: agregar `shared/historialFallos.js` al `importScripts(...)` de
+Cableado: agregar `core/historial/historialFallos.ts` al `importScripts(...)` de
 `background.js:88` (junto a `shared/conexion.js`) y a `popup/popup.html` como `<script>`
 clásico junto a `../shared/conexion.js`. Agregar `HistorialFallos: "readonly"` a los
 globals de `eslint.config.js` (junto a `Conexion`/`BunClient`, línea ~12).
@@ -183,7 +183,7 @@ se deja sin tocar salvo preferencia en contrario.
 
 - Nuevo mount point en `.header-right` (líneas 23-34), junto a `#preact-status-dot`:
   `<span id="preact-campanita" style="display:contents"></span>`.
-- Nuevo `<script src="../shared/historialFallos.js"></script>` junto a
+- Nuevo módulo del historial (hoy `core/historial/historialFallos.ts`) cargado junto a
   `<script src="../shared/conexion.js"></script>`.
 - Nuevo `<script type="module" src="features/campanita.preact.js"></script>` al final
   del bloque de islas (después de `listaClases.preact.js`, línea ~141).
@@ -191,7 +191,7 @@ se deja sin tocar salvo preferencia en contrario.
 ## 5. `popup/features/campanita.preact.js` (isla nueva)
 
 Sigue el patrón de `bannerConexion.preact.js` (estado local propio: panel
-abierto/cerrado) pero la *fuente de datos* es `shared/historialFallos.js` (storage
+abierto/cerrado) pero la *fuente de datos* es `core/historial/historialFallos.ts` (storage
 compartido con el SW), no una store ad-hoc.
 
 - `useHistorialFallos()` — hook puente: `useState([])` para la lista + `useEffect` que
@@ -225,7 +225,7 @@ fondo/borde acorde a `variables.css`).
 
 ## 6. Tests nuevos
 
-**`shared/historialFallos.test.js`** (Vitest, sin jsdom — lógica de storage pura,
+**`core/historial/historialFallos.test.ts`** (Vitest, sin jsdom — lógica de storage pura,
 mockeando `chrome.storage.local`/`onChanged` al estilo `crearArea` de
 `background.test.js`):
 
@@ -275,7 +275,7 @@ de `conexionHeader.preact.test.js`: fake `window.HistorialFallos` con
   `chrome.notifications`.
 - **`docs/preact-migration.md`**: fila **#5 Campanita** en la tabla de islas (región
   `#preact-campanita` en el header) + párrafo en «Notas de secuencia»: primera isla
-  cuyo store-puente es un **módulo compartido con el SW** (`shared/historialFallos.js`,
+  cuyo store-puente es un **módulo compartido con el SW** (`core/historial/historialFallos.ts`,
   respaldado en `chrome.storage.local` + `onChanged`) en vez de un `window.X` efímero
   como `BannerConexion` — porque el escritor principal es el SW con el popup cerrado.
 - **`CLAUDE.md`**: (a) lista "Islands done" + `campanita (failure history bell)`;
@@ -297,14 +297,14 @@ de `conexionHeader.preact.test.js`: fake `window.HistorialFallos` con
   nueva — la isla cae bajo ADR-0006 y el módulo compartido bajo los patrones
   existentes, no hace falta ADR).
 - **Version headers**: bump + `CHANGELOG` en `background.js`, `background.test.js` y
-  `eslint.config.js` (si lleva header); `shared/historialFallos.js` y
+  `eslint.config.js` (si lleva header); `core/historial/historialFallos.ts` y
   `popup/features/campanita.preact.js` nacen en `V1.0.0` con su banner. `popup.js` no
   se toca (la campanita es aditiva, no engancha los handlers IPC existentes) — sin
   bump ahí. `popup.html` no lleva header de versión.
 
 ## Secuencia sugerida
 
-1. `shared/historialFallos.js` + su test (lógica aislada, feedback rápido).
+1. `core/historial/historialFallos.ts` + su test (lógica aislada, feedback rápido).
 2. `manifest.json` (permiso `notifications`).
 3. `background.js` (wrapper, 2 call sites, listener `onClicked`, `importScripts`)
    **+ en el mismo paso** el harness de `background.test.js` (mock de

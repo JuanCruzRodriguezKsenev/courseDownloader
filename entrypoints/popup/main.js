@@ -20,7 +20,7 @@ import '../../shared/utils.js';
 import '../../shared/state.js';
 import '../../core/backend/bunClient.ts';
 import '../../shared/conexion.js';
-import '../../shared/historialFallos.js';
+import '../../plataforma/composicion.ts';
 
 // Render vanilla + features del popup.
 import '../../renderers.js';

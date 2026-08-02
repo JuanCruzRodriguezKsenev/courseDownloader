@@ -21,7 +21,7 @@ import '../sitio/ramonnet/resolverManifiesto.js';
 import '../shared/utils.js';
 import '../core/backend/bunClient.ts';
 import '../shared/conexion.js';
-import '../shared/historialFallos.js';
+import '../plataforma/composicion.ts';
 import '../background/hlsEngine.js';
 import '../background.js';
 
