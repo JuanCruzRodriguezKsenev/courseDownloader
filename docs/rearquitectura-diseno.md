@@ -30,11 +30,12 @@ src/
     backend/               #   BunClient (contrato /api/*)
     puertos/               #   TODAS las interfaces (ver abajo)
   sitio/
-    ramonnet/              # Capa 2 — implementa PuertoSitio
-      scraper.ts           #   selectores DOM            (hoy popup/scraper.js)
+    ramonnet/              # Capa 2 — implementa PuertoSitio     ✅ YA EXISTE (en .js)
+      scraper.ts           #   selectores DOM
       parserTitulos.ts     #   formatTitleStructured / clasificarCatedraYCarpeta / parseSmartDate
-      resolverManifiesto.ts#   iframe Bunny + CDN + fallbacks regex (hoy hlsEngine)
-      config.ts            #   URL_SONDEO_INTERNET, reglas dNR, cátedras A-D
+      resolverManifiesto.ts#   iframe Bunny + CDN + fallbacks regex
+      config.ts            #   urlSondeoInternet, CDN, faceta (cátedras A-D) + las puertas
+      rules.json           #   reglas declarativeNetRequest
   plataforma/
     chrome/                # Capa 3 — implementa los puertos de navegador (99 usos chrome.*)
   ui/                      # islas Preact + features (consumen core vía puertos)
@@ -251,7 +252,7 @@ punta.
 | 0b — Primer archivo de Capa 2: `sitio/ramonnet/config.js` (descriptor de faceta) | ✅ Hecha (2026-08-02) |
 | 0c — Constantes del portal + resolución M3U8 + reglas dNR → `sitio/ramonnet/` (el motor HLS queda genérico) | ✅ Hecha (2026-08-02) |
 | 1a — Parser de títulos → `sitio/ramonnet/parserTitulos.js` (con sus 14 tests) | ✅ Hecha (2026-08-02) |
-| 1b — Scraper del DOM → `sitio/ramonnet/scraper.js` | ⏳ No iniciada |
+| 1b — Scraper del DOM → `sitio/ramonnet/scraper.js` | ✅ Hecha (2026-08-02) |
 | 2 — BunClient + daemon → `core/` | ⏳ No iniciada |
 | 3 — Puertos storage/IPC + adaptador Chrome + TS transversal | ⏳ No iniciada |
 | 4 — Motor HLS → `core/hls/` | ⏳ No iniciada |

@@ -47,7 +47,7 @@ El `popup.js` original era un único closure `DOMContentLoaded` con ~50 funcione
 
 ## Qué NO testear (por ahora)
 
-- El render de la lista de clases se migró a la isla Preact `popup/features/listaClases.preact.js`, que **sí** está cubierta con jsdom (`listaClases.preact.test.js`). Lo que queda de `renderers.js` (`pintarTelemetria`, más los ports `construirFilaClaseDOM`/`renderizarTarjetaEstado` que quedaron como referencia muerta hasta la Etapa 2 de la migración) y `popup/scraper.js` (scraping de un DOM de terceros) siguen de menor prioridad que la lógica de negocio pura. Si se testean, usar jsdom para simular el DOM.
+- El render de la lista de clases se migró a la isla Preact `popup/features/listaClases.preact.js`, que **sí** está cubierta con jsdom (`listaClases.preact.test.js`). Lo que queda de `renderers.js` (`pintarTelemetria`, más los ports `construirFilaClaseDOM`/`renderizarTarjetaEstado` que quedaron como referencia muerta hasta la Etapa 2 de la migración) y `sitio/ramonnet/scraper.js` (scraping de un DOM de terceros) siguen de menor prioridad que la lógica de negocio pura. Si se testean, usar jsdom para simular el DOM.
 - No hay necesidad de tests end-to-end automatizados (ej. Playwright) contra el backend Bun real — el golden path manual descrito en `docs/contributing.md` cumple ese rol mientras el proyecto sea de este tamaño.
 
 ## Convención de archivos de test

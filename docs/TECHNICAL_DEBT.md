@@ -11,7 +11,7 @@ Inventario vivo de problemas conocidos en el código actual, ordenados por sever
 ### XSS por interpolación sin escapar de título scrapeado
 
 - **Dónde**: `popup.js:1012` y `popup.js:1019`, dentro de `renderizarListadoInterfaz()`.
-- **Qué pasa**: `AppState.videoFalladoParaReintento` (que proviene de `SW_ESTADOS_PROGRESO.videoActual` en el service worker, que a su vez proviene del scraping del DOM de Ramón Net vía `popup/scraper.js`) se interpola sin escapar dentro de un template string HTML:
+- **Qué pasa**: `AppState.videoFalladoParaReintento` (que proviene de `SW_ESTADOS_PROGRESO.videoActual` en el service worker, que a su vez proviene del scraping del DOM de Ramón Net vía `sitio/ramonnet/scraper.js`) se interpola sin escapar dentro de un template string HTML:
   ```js
   descripcion: `...<strong>Pausado en:</strong> ${titulo}`
   ```

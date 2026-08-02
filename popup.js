@@ -703,7 +703,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        func: Scraper.escanearAulaVirtual
+        func: SitioActivo.escanearListado
       }, (resultados) => {
         clearTimeout(safetyTimeout);
 

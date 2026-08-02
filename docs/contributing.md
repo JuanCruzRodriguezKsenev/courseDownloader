@@ -16,7 +16,7 @@ Configuración de entorno local y flujo de trabajo para desarrollar sobre esta e
 
 ## Debuggear
 
-- **Popup**: clic derecho sobre el ícono de la extensión → "Inspeccionar popup" (o abrirlo y F12) para DevTools de `popup.js`/`popup/scraper.js`.
+- **Popup**: clic derecho sobre el ícono de la extensión → "Inspeccionar popup" (o abrirlo y F12) para DevTools de `popup.js`/`sitio/ramonnet/scraper.js`.
 - **Service worker**: en `chrome://extensions/`, clic en "service worker" bajo la tarjeta de la extensión, para DevTools de `background.js`/`background/hlsEngine.js`.
 
 ## Flujo de git

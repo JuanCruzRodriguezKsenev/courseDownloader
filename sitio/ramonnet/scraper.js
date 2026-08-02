@@ -1,7 +1,19 @@
 /**
- * CLON DOWNLOADHELPER - MÓDULO EXTRACCIÓN (SCRAPER) (V1.0.0)
- * ENCAPSULA LAS TAREAS DE INSPECCIÓN DE DOM E INYECCIÓN DE SCRIPTS EN LA PLATAFORMA
+ * ADAPTADOR DE SITIO — RAMÓN NET: SCRAPER DEL AULA VIRTUAL (V1.1.0)
  * ==========================================================================
+ * CHANGELOG v1.1.0:
+ * - [CAPA 2] Movido tal cual desde `popup/scraper.js`. Es 100% específico del portal
+ *   (selectores del DOM, equivalencias de materias del plan, stopwords en español), así
+ *   que su lugar es el adaptador de sitio y no la carpeta del popup. Se consume por
+ *   `SitioActivo.escanearListado`. Sin cambios de lógica. Ver ADR-0008.
+ * CHANGELOG v1.0.0:
+ * - Encapsula la inspección del DOM del aula virtual.
+ * ==========================================================================
+ * ⚠️ `escanearAulaVirtual` se INYECTA en la pestaña del portal vía
+ * chrome.scripting.executeScript: corre en el mundo aislado de LA PÁGINA, no en la
+ * extensión. Tiene que ser **autocontenida y serializable** — no puede referenciar
+ * ninguna global de la extensión (ni Utils, ni SitioRamonNet, ni constantes de este
+ * archivo). Si necesitás compartir algo con ella, pasalo por `args` de executeScript.
  */
 
 const Scraper = {
@@ -157,4 +169,11 @@ const Scraper = {
   }
 };
 
-window.Scraper = Scraper;
+// Exportación dual (ver docs/coding-standards.md) + module.exports para tests.
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = Scraper;
+} else if (typeof window !== "undefined") {
+  window.Scraper = Scraper;
+} else if (typeof self !== "undefined") {
+  self.Scraper = Scraper;
+}

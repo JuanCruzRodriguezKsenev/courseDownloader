@@ -62,7 +62,7 @@ Para realizar las descargas físicas en tu disco, la extensión se conecta con u
 * **`manifest.json`**: Declaración de la extensión (Manifest V3) y permisos requeridos (`storage`, `scripting`, `notifications`, `unlimitedStorage`).
 * **`popup/`**:
   * `popup.html`: Plantilla visual del popup (Onboarding, pestañas, buscador y footer).
-  * `scraper.js`: Algoritmo de inyección y extracción de datos del DOM de Ramón Net.
+  * `sitio/ramonnet/`: Adaptador del portal — scraper del DOM, parser de títulos, resolución del video y constantes del sitio.
   * `features/`: Módulos autocontenidos de la UI del popup (conexión, cola, e islas Preact para header, banner, ruta, onboarding, lista de clases y campanita de fallos).
 * **`popup.js`**: Orquestador principal de eventos, máquina de estados de UI y pasarela de mensajes IPC.
 * **`renderers.js`**: Renderizador optimizado de tarjetas de estado e ítems de video con soporte de checkboxes interactivos y selección múltiple.

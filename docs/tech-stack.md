@@ -15,7 +15,7 @@ Qué se usa, por qué, y qué alternativas se consideraron y se descartaron. Par
 
 ## Por qué JS vanilla sin bundler
 
-La extensión completa son ~4800 líneas repartidas en ~20 archivos (sin contar tests ni el vendor de Preact). `manifest.json` carga `popup.html` (que a su vez carga `shared/*.js`, `renderers.js`, `popup/scraper.js`, `popup.js` vía `<script>` tags en orden) y `background.js` (que carga `shared/*.js` y `background/hlsEngine.js` vía `importScripts`). No hay JSX, no hay CSS-in-JS, no hay necesidad de tree-shaking a este tamaño.
+La extensión completa son ~4800 líneas repartidas en ~20 archivos (sin contar tests ni el vendor de Preact). `manifest.json` carga `popup.html` (que a su vez carga `shared/*.js`, `renderers.js`, `sitio/ramonnet/*.js`, `popup.js` vía `<script>` tags en orden) y `background.js` (que carga `shared/*.js` y `background/hlsEngine.js` vía `importScripts`). No hay JSX, no hay CSS-in-JS, no hay necesidad de tree-shaking a este tamaño.
 
 Agregar un framework de UI (React/Vue/Svelte) o un bundler (Vite) tendría costo real — reescribir el manifest, convertir el patrón de variables globales (`window.AppState`, `self.HlsEngine`) a módulos ES, mantener un `node_modules` — sin resolver ningún problema actual del proyecto. Ver `docs/adr/0001-no-bundler-or-typescript-yet.md` y `docs/adr/0002-reject-astro.md`.
 

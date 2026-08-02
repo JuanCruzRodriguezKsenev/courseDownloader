@@ -4,7 +4,7 @@ Postura de seguridad actual del proyecto y por qué se tomó cada decisión de p
 
 ## Regla: contenido scrapeado nunca va a `.innerHTML`
 
-Todo texto que provenga de `popup/scraper.js` (títulos de clase, nombre de materia detectado, cualquier dato leído del DOM de `plataforma.ramonnet.com.ar`) debe tratarse como **no confiable**, aunque la plataforma sea de un tercero de buena fe — el contenido de esa página puede ser modificado por cualquiera con permisos de subir clases, o por un ataque de la propia plataforma.
+Todo texto que provenga de `sitio/ramonnet/scraper.js` (títulos de clase, nombre de materia detectado, cualquier dato leído del DOM de `plataforma.ramonnet.com.ar`) debe tratarse como **no confiable**, aunque la plataforma sea de un tercero de buena fe — el contenido de esa página puede ser modificado por cualquiera con permisos de subir clases, o por un ataque de la propia plataforma.
 
 - ✅ Correcto: `label.innerText = clase.titulo` (patrón usado en `renderers.js:74`, `:124`).
 - ✅ Correcto cuando el string HTML es inevitable (mezcla markup fijo + dato de terceros): escapar el dato con `Utils.escaparHtml` antes de interpolarlo — patrón aplicado en `popup.js:renderizarListadoInterfaz` al pasar el título a la tarjeta de estado (que pinta vía `.innerHTML`). Desde la isla Preact #4, la lista en vivo se pinta con los componentes `<TarjetaEstado>`/`<FilaClase>` de `popup/features/listaClases.preact.js` (las versiones de `renderers.js` quedaron como referencia muerta), así que la misma obligación de escapar aplica en el límite del view-model `window.ListaClases` que alimenta esos componentes.

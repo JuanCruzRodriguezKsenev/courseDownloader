@@ -64,6 +64,13 @@ const SitioRamonNet = {
   // HTML de la página de la clase → URL del manifiesto .m3u8.
   resolverManifiesto: (urlClase, signal) => ResolverManifiesto.resolver(urlClase, signal),
 
+  // Función que se INYECTA en la pestaña del portal (chrome.scripting.executeScript)
+  // para leer el listado de clases del DOM. Es un getter y no una arrow: hay que
+  // entregar la función cruda, porque executeScript serializa su código fuente y lo
+  // corre en la página, donde no existe ninguna global de la extensión. Envolverla
+  // rompería la inyección.
+  get escanearListado() { return Scraper.escanearAulaVirtual; },
+
   // Título crudo scrapeado → nombre canónico del archivo.
   parsearTitulo: (crudo, materiaBase, options) => ParserTitulos.formatTitleStructured(crudo, materiaBase, options),
 
