@@ -246,7 +246,8 @@ punta.
 | Diseño (este doc + ADR-0008) | ✅ Redactado (2026-07-19) |
 | 0 — Paleta a tokens (`styles/variables.css` como única fuente de color) | ✅ Hecha (2026-08-02) |
 | 0b — Primer archivo de Capa 2: `sitio/ramonnet/config.js` (descriptor de faceta) | ✅ Hecha (2026-08-02) |
-| 1 — Parsers puros → `sitio/` | ⏳ No iniciada |
+| 0c — Constantes del portal + resolución M3U8 + reglas dNR → `sitio/ramonnet/` (el motor HLS queda genérico) | ✅ Hecha (2026-08-02) |
+| 1 — Parsers puros (`formatTitleStructured`, `clasificarCatedraYCarpeta`) + scraper → `sitio/` | ⏳ No iniciada |
 | 2 — BunClient + daemon → `core/` | ⏳ No iniciada |
 | 3 — Puertos storage/IPC + adaptador Chrome + TS transversal | ⏳ No iniciada |
 | 4 — Motor HLS → `core/hls/` | ⏳ No iniciada |

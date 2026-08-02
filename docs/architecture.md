@@ -54,7 +54,7 @@ Ver `docs/patterns.md` para el detalle de cómo se comunican estas zonas y qué 
 2. **Clasificación**: cada título crudo pasa por `Utils.formatTitleStructured`/`clasificarCatedraYCarpeta` (`shared/utils.js`) para derivar nombre de archivo canónico, cátedra (A–D) y carpeta de destino.
 3. **Encolado**: el usuario selecciona clases y las agrega a la cola. `popup.js` actualiza `AppState.colaDescargas` de inmediato (optimistic update) y notifica al service worker vía `inyectar_items_en_cola_activa`.
 4. **Procesamiento** (`background.js`, `procesarSiguienteElementoDeLaCola`): toma el primer ítem FIFO de la cola persistida en `chrome.storage.local`, y:
-   - `HlsEngine.extraerEnlaceMaestroM3u8Clasico` resuelve la URL del manifiesto `.m3u8` a partir del HTML de la página de la clase.
+   - `SitioActivo.resolverManifiesto` (`sitio/ramonnet/resolverManifiesto.js`, Capa 2) resuelve la URL del manifiesto `.m3u8` a partir del HTML de la página de la clase; el motor HLS ya sólo recibe la URL resuelta.
    - `HlsEngine.descargarYAnalizarIndexM3u8` parsea el manifiesto (fragmentos + clave de cifrado `#EXT-X-KEY`).
    - `HlsEngine.compilarTranscodificacionStream` descarga los fragmentos `.ts` con un pool de 6 workers concurrentes, los descifra con AES-128-CBC (WebCrypto nativo), y los envía en streaming al backend Bun (`BunClient.enviarFragmentoStream`).
 5. **Persistencia en disco**: el backend Bun recibe cada fragmento vía `POST /api/bypass-stream` y los ensambla directamente en el filesystem del usuario — la extensión nunca mantiene el video completo en memoria.

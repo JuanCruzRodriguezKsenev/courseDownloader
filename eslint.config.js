@@ -23,6 +23,7 @@ const globalesDelProyecto = {
   // Adaptador de sitio (Capa 2 — ADR-0008): sitio/<portal>/config.js.
   SitioRamonNet: "readonly",
   SitioActivo: "readonly",
+  ResolverManifiesto: "readonly",
   BannerConexion: "readonly",
   ListaClases: "readonly",
   OnboardingFeature: "readonly",

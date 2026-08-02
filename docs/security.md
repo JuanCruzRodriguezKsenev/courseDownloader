@@ -16,7 +16,7 @@ Esta es la **fuente canónica** de la regla. `docs/coding-standards.md` la refer
 
 | Permiso | Para qué se usa |
 |---|---|
-| `declarativeNetRequest` | Bloquear requests de imagen/xhr/other a `bunnyinfra.net` (ver `rules_1.json`) — bloqueo intencional de contenido no esencial del CDN, no relacionado con el flujo de descarga. |
+| `declarativeNetRequest` | Bloquear requests de imagen/xhr/other a `bunnyinfra.net` (ver `sitio/ramonnet/rules.json`) — bloqueo intencional de contenido no esencial del CDN, no relacionado con el flujo de descarga. |
 | `downloads` | Path legacy no-Turbo (`chrome.downloads.download`), inactivo en la práctica hoy — ver `docs/tech-stack.md`. |
 | `storage` | `chrome.storage.local`/`.session` — ver `docs/data-model.md`. |
 | `scripting` | Inyectar `Scraper.escanearAulaVirtual` en la pestaña activa de Ramón Net. |
@@ -36,7 +36,7 @@ Esta es la **fuente canónica** de la regla. `docs/coding-standards.md` la refer
 
 ## `credentials: "include"` en fetches a Ramón Net
 
-`HlsEngine.extraerEnlaceMaestroM3u8Clasico` hace `fetch(..., { credentials: "include" })` contra `plataforma.ramonnet.com.ar` para reusar la cookie de sesión del usuario logueado en esa pestaña. Esto es intencional y necesario (sin la sesión, la plataforma no serviría el HTML de la clase) — no es un descuido de CSRF, porque el request es same-site respecto al dominio autenticado y está acotado por `host_permissions`.
+`ResolverManifiesto.resolver` (`sitio/ramonnet/resolverManifiesto.js`) hace `fetch(..., { credentials: "include" })` contra `plataforma.ramonnet.com.ar` para reusar la cookie de sesión del usuario logueado en esa pestaña. Esto es intencional y necesario (sin la sesión, la plataforma no serviría el HTML de la clase) — no es un descuido de CSRF, porque el request es same-site respecto al dominio autenticado y está acotado por `host_permissions`.
 
 ## Cifrado de fragmentos HLS
 

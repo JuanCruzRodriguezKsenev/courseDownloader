@@ -1,7 +1,14 @@
 /**
- * CLON DOWNLOADHELPER - MOTOR HLS CRYPTO-TRANSCODER (V1.0.6)
- * GESTIONA LA EXTRACTIBILIDAD DE M3U8, DESCARGA CONCURRENTE Y DESCIFRADO AES-128 NATIVO
+ * CLON DOWNLOADHELPER - MOTOR HLS CRYPTO-TRANSCODER (V1.1.0)
+ * DESCARGA CONCURRENTE Y DESCIFRADO AES-128 NATIVO A PARTIR DE UN .m3u8 YA RESUELTO
  * ==========================================================================
+ * CHANGELOG v1.1.0:
+ * - [CAPA 2] Se fue `extraerEnlaceMaestroM3u8Clasico` a `sitio/ramonnet/resolverManifiesto.js`
+ *   (era lo único de Ramón Net/Bunny que quedaba acá: el iframe del reproductor, el host
+ *   del CDN, la plantilla 480p y la detección de redirect al login). El motor ahora
+ *   recibe una URL .m3u8 ya resuelta y es GENÉRICO: sirve para cualquier portal con HLS
+ *   + AES-128 estándar. El caller (background.js) pide la URL a `SitioActivo.resolverManifiesto`.
+ *   Ver ADR-0008 y docs/rearquitectura-diseno.md.
  * CHANGELOG v1.0.6:
  * - [FIX bug 400] El worker de compilarTranscodificacionStream envuelve el envío
  *   (BunClient.enviarFragmentoStream) en un reintento acotado (N=3, backoff 300ms·n)
@@ -41,92 +48,6 @@
  */
 
 const HlsEngine = {
-  /**
-   * Extrae la firma de video activa del reproductor <iframe> en la página
-   */
-  async extraerEnlaceMaestroM3u8Clasico(urlClase, signal) {
-    console.log(`📡 [HLS-ENGINE] Iniciando fetch para: ${urlClase}`);
-    
-    const conectorUrl = urlClase.includes("?") ? "&" : "?";
-    const urlInmuneACache = `${urlClase}${conectorUrl}turboBuster=${Date.now()}`;
-
-    const res = await Utils.fetchConReintentos(urlInmuneACache, { 
-      signal, 
-      credentials: "include",
-      headers: {
-        "Pragma": "no-cache",
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        "Expires": "0"
-      }
-    });
-    
-    console.log(`📡 [HLS-ENGINE] Respuesta recibida. URL Final: ${res.url}, Status: ${res.status}`);
-    
-    const html = await res.text();
-    console.log(`📡 [HLS-ENGINE] HTML recibido. Longitud: ${html.length} caracteres.`);
-
-    // Sin sesión iniciada, la plataforma redirige la página de la clase a la raíz/login:
-    // la URL final pierde el segmento /clases-grabadas/. NO es un fallo de red (la
-    // conectividad está OK) — es un problema de sesión, accionable por el usuario. Se
-    // lanza un error tipado para que background.js lo clasifique como "sesion" en vez de
-    // caer en la heurística por defecto ("internet"). Ver docs/patterns.md.
-    if (/clases-grabadas/i.test(urlClase) && !/clases-grabadas/i.test(res.url)) {
-      console.warn(`🔑 [HLS-ENGINE] La clase redirigió fuera de /clases-grabadas/ (URL final: ${res.url}). No hay sesión activa en Ramón Net.`);
-      const errSesion = new Error("SESION_NO_INICIADA: la clase redirigió al inicio/login; iniciá sesión en Ramón Net.");
-      errSesion.tipoConexion = "sesion";
-      throw errSesion;
-    }
-
-    // 1. Buscar la etiqueta <iframe> que apunte a Bunny o Mediadelivery
-    const regexIframe = /<iframe[^>]+src=\\?["'](https?:\/\/[^\\"']*(?:b-cdn\.net|mediadelivery\.net)[^\\"']+)/i;
-    const matchIframe = html.match(regexIframe);
-    console.log(`📡 [HLS-ENGINE] ¿Match de etiqueta iframe?: ${matchIframe ? 'sí' : 'no'}`);
-    
-    if (matchIframe && matchIframe[1]) {
-      const iframeUrl = matchIframe[1].replace(/\\/g, ''); // Limpiar escapes
-      console.log(`📡 [HLS-ENGINE] URL del iframe activo: ${iframeUrl}`);
-      
-      const hashMatch = iframeUrl.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
-      if (hashMatch) {
-        const activeHash = hashMatch[0];
-        const finalUrl = `https://vz-c3e7bda8-f29.b-cdn.net/${activeHash}/480p/video.m3u8`;
-        console.log(`📡 [HLS-ENGINE] Hash iframe: ${activeHash}. URL: ${finalUrl}`);
-        return finalUrl;
-      }
-    }
-
-    console.log(`📡 [HLS-ENGINE] No se detectó iframe activo. Aplicando fallbacks...`);
-
-    // Fallback 1: Coincidencia directa de m3u8.
-    const matchesDirectos = html.match(/https:\/\/[^\s"'<>]+\.m3u8[^\s"'<>]*/gi);
-    if (matchesDirectos && matchesDirectos.length > 0) {
-      const finalUrl = matchesDirectos[matchesDirectos.length - 1].replace(/["']/g, '').trim();
-      console.log(`📡 [HLS-ENGINE] Fallback directo: ${finalUrl}`);
-      return finalUrl;
-    }
-    
-    // Fallback 2: Coincidencia de hashes de Bunny (primer match como fallback)
-    const regexBunnyHash = /(https:\/\/vz-[^\s"'<>\\\/]+\.b-cdn\.net\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi;
-    const matchesHash = html.match(regexBunnyHash);
-    if (matchesHash && matchesHash.length > 0) {
-      const urlBaseConHash = matchesHash[0];
-      const finalUrl = `${urlBaseConHash}/480p/video.m3u8`;
-      console.log(`📡 [HLS-ENGINE] Fallback Bunny Hash: ${finalUrl}`);
-      return finalUrl;
-    }
-
-    // Fallback 3: Coincidencia de m3u8 en scripts ocultos
-    const regexScriptOculto = /https?:\\\/\\\/[^\s"'<>\\#]+\.m3u8[^\s"'<>\\#]*/gi;
-    const matchesScript = html.match(regexScriptOculto);
-    if (matchesScript && matchesScript.length > 0) {
-      const finalUrl = matchesScript[matchesScript.length - 1].replace(/\\\//g, '/').replace(/["']/g, '').trim();
-      console.log(`📡 [HLS-ENGINE] Fallback script oculto: ${finalUrl}`);
-      return finalUrl;
-    }
-    
-    throw new Error("No se localizaron firmas de streaming válidas en Ramón Net.");
-  },
-
   /**
    * Descarga y parsea el manifiesto HLS .m3u8
    */

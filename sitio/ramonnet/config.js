@@ -36,6 +36,31 @@
 const SitioRamonNet = {
   id: "ramonnet",
 
+  // --- Endpoints y marcadores del portal ---------------------------------------
+  // Origen del portal. Lo usa el daemon de conexión como sonda de "hay internet":
+  // es deliberadamente el sitio objetivo y no un genérico tipo google.com — lo que
+  // importa no es tener red, sino poder llegar A ESTE portal.
+  urlSondeoInternet: "https://plataforma.ramonnet.com.ar",
+
+  // Segmento de la ruta que identifica la página de una clase grabada. Si la URL
+  // final de un fetch lo pierde, el portal redirigió al login (no hay sesión).
+  marcaRutaClase: "clases-grabadas",
+
+  // --- CDN de video (Bunny) -----------------------------------------------------
+  cdn: {
+    // Hosts que puede tener el <iframe> del reproductor embebido.
+    hostsIframe: ["b-cdn.net", "mediadelivery.net"],
+    // Zona de Bunny de este portal: con el UUID del video alcanza para armar la URL.
+    plantillaM3u8: (hash) => `https://vz-c3e7bda8-f29.b-cdn.net/${hash}/480p/video.m3u8`,
+    // Calidad que se descarga (la plantilla de arriba ya la fija).
+    calidad: "480p",
+  },
+
+  // Resolución del manifiesto .m3u8 desde el HTML de la clase. La implementación
+  // vive en sitio/ramonnet/resolverManifiesto.js (se referencia perezosamente para
+  // no depender del orden de carga); el núcleo la consume por esta puerta.
+  resolverManifiesto: (urlClase, signal) => ResolverManifiesto.resolver(urlClase, signal),
+
   faceta: {
     id: "catedra",
     etiqueta: "Cátedra",        // título de la sección de filtros

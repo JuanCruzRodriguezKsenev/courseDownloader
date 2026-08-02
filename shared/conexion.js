@@ -1,6 +1,11 @@
 /**
- * CLON DOWNLOADHELPER - DAEMON DE ESTADO DE CONEXIÓN (V1.0.2)
+ * CLON DOWNLOADHELPER - DAEMON DE ESTADO DE CONEXIÓN (V1.1.0)
  * ==========================================================================
+ * CHANGELOG v1.1.0:
+ * - [CAPA 2] URL_SONDEO_INTERNET pasó de constante hardcodeada a getter que lee
+ *   `SitioActivo.urlSondeoInternet` (sitio/ramonnet/config.js), con fallback al valor
+ *   de siempre para los tests que cargan este módulo aislado. El daemon queda genérico:
+ *   a qué portal sondear lo decide el adaptador de sitio. Ver ADR-0008.
  * CHANGELOG v1.0.2:
  * - [OBS] Log en cada transición de estado de conexión (edge-triggered, bajo ruido)
  *   para depurar caídas/recuperaciones tanto en el popup como en el SW.
@@ -33,7 +38,14 @@
 
 const Conexion = {
   CLAVE_STORAGE: "estadoConexion",
-  URL_SONDEO_INTERNET: "https://plataforma.ramonnet.com.ar",
+  // La sonda de internet apunta al portal objetivo, no a un host genérico: lo que
+  // importa no es tener red sino poder llegar AL SITIO. Por eso la URL la declara el
+  // adaptador de sitio (Capa 2, ADR-0008) y no este daemon, que es genérico. El
+  // fallback existe sólo para los tests, que cargan este módulo aislado.
+  get URL_SONDEO_INTERNET() {
+    return (typeof SitioActivo !== "undefined" && SitioActivo.urlSondeoInternet)
+      || "https://plataforma.ramonnet.com.ar";
+  },
   INTERVALO_SONDEO_MS: 3000,
   TIMEOUT_HEAD_MS: 4000,
 

@@ -29,7 +29,7 @@
       {
         "id": "ruleset_1",
         "enabled": true,
-        "path": "rules_1.json"
+        "path": "sitio/ramonnet/rules.json"
       }
     ]
   },

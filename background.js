@@ -1,6 +1,11 @@
 /**
- * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V5.10.1)
+ * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V5.11.0)
  * ==========================================================================
+ * CHANGELOG v5.11.0:
+ * - [CAPA 2] El SW ahora carga el adaptador de sitio primero (importScripts de
+ *   sitio/ramonnet/config.js + resolverManifiesto.js) y la resolución del .m3u8 se
+ *   pide a `SitioActivo.resolverManifiesto(...)` en vez de a HlsEngine, que quedó
+ *   genérico (v1.1.0). Ver ADR-0008 y docs/rearquitectura-diseno.md.
  * CHANGELOG v5.10.1:
  * - [FIX] El aviso de fallos (v5.10.0) frenaba la cola y no mostraba notificaciones si
  *   chrome.notifications no estaba disponible (permiso no aplicado hasta recargar la
@@ -110,7 +115,9 @@
  * ==========================================================================
  */
 
-importScripts('shared/utils.js', 'shared/bunClient.js', 'shared/conexion.js', 'shared/historialFallos.js', 'background/hlsEngine.js');
+// El adaptador de sitio (Capa 2) va primero: el daemon de conexión y el loop de descarga
+// leen de él la URL de sondeo y la resolución del manifiesto. Ver ADR-0008.
+importScripts('sitio/ramonnet/config.js', 'sitio/ramonnet/resolverManifiesto.js', 'shared/utils.js', 'shared/bunClient.js', 'shared/conexion.js', 'shared/historialFallos.js', 'background/hlsEngine.js');
 
 // Helper para encapsular el estado en almacenamiento de sesión (persistente al SW, volátil al navegador)
 const SessionState = {
@@ -515,7 +522,9 @@ async function procesarSiguienteElementoDeLaCola() {
     controladorGraficoActivo = new AbortController();
 
     try {
-      const urlM3u8Descubierta = await HlsEngine.extraerEnlaceMaestroM3u8Clasico(elementoActual.urlInterna, controladorGraficoActivo.signal);
+      // La resolución del .m3u8 es específica del portal (iframe del reproductor, CDN):
+      // vive en el adaptador de sitio, no en el motor HLS, que ya es genérico.
+      const urlM3u8Descubierta = await SitioActivo.resolverManifiesto(elementoActual.urlInterna, controladorGraficoActivo.signal);
       
       const currentState = await SessionState.get();
       if (!currentState.rafagaCorriendo) return;
