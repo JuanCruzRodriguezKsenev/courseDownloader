@@ -2,16 +2,23 @@
   "name": "ramonnet-video-downloader",
   "version": "0.0.0",
   "private": true,
-  "description": "Herramientas de desarrollo (tests) para la extensión RamonNet Video Downloader. La extensión en sí no usa bundler ni dependencias de runtime — ver docs/adr/0001-no-bundler-or-typescript-yet.md.",
+  "description": "Extensión RamonNet Video Downloader. Empaquetada con WXT (ver docs/rearquitectura-diseno.md); la carpeta a cargar en el navegador es .output/chrome-mv3/.",
   "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "zip": "wxt zip",
+    "postinstall": "wxt prepare",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint ."
   },
   "devDependencies": {
+    "@types/chrome": "^0.2.5",
     "eslint": "^9.39.5",
     "globals": "^17.7.0",
     "jsdom": "^25.0.1",
-    "vitest": "^2.1.8"
+    "typescript": "^7.0.2",
+    "vitest": "^2.1.8",
+    "wxt": "^0.21.3"
   }
 }

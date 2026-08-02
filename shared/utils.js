@@ -311,13 +311,8 @@ const Utils = {
   }
 };
 
-// Exportación — module-pattern del proyecto (ver docs/coding-standards.md),
-// extendido con module.exports para poder testear las funciones puras en Node/Vitest.
-// En el browser/SW `module` es undefined, así que ese branch no se toca ahí.
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = Utils;
-} else if (typeof window !== "undefined") {
-  window.Utils = Utils;
-} else if (typeof self !== "undefined") {
-  self.Utils = Utils;
-}
+// Exportación (ver docs/coding-standards.md). Sigue publicando el global porque el
+// resto del código vanilla lo consume sin importar; el `export` es lo que permite que
+// el bundler arme el grafo de dependencias y que Vitest importe el módulo.
+globalThis.Utils = Utils;
+export default Utils;

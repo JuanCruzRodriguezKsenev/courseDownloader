@@ -32,15 +32,20 @@ const globalesDelProyecto = {
 };
 
 module.exports = [
-  // No lintear dependencias, el PoC descartable, ni el vendor de Preact.
-  { ignores: ["node_modules/**", "prototype/**", "popup/vendor/**"] },
+  // No lintear dependencias, el PoC descartable, el vendor de Preact ni las salidas
+  // del bundler. Los .ts (hoy sólo wxt.config.ts) quedan fuera hasta que la migración
+  // a TypeScript traiga su parser — ver docs/rearquitectura-diseno.md.
+  { ignores: ["node_modules/**", "prototype/**", "popup/vendor/**", ".output/**", ".wxt/**", "**/*.ts"] },
 
   // Base común a todo el JS de la extensión.
   {
     files: ["**/*.js"],
     languageOptions: {
       ecmaVersion: 2023,
-      sourceType: "script",
+      // Desde la Fase 3 (WXT) TODO el código de la extensión son módulos ES: cada
+      // archivo exporta su objeto y el bundler arma el grafo. Los globals siguen
+      // existiendo como side-effect (globalThis.X = X) para no tocar los consumidores.
+      sourceType: "module",
       globals: {
         ...globals.browser,
         ...globals.serviceworker,
@@ -56,11 +61,11 @@ module.exports = [
     },
   },
 
-  // Contextos que consumen los globals cross-archivo (SW por importScripts,
-  // popup por <script>). importScripts sólo existe en el SW pero declararlo
+  // Contextos que consumen los globals cross-archivo publicados por los módulos
+  // (globalThis.X = X). importScripts sólo existe en el SW clásico pero declararlo
   // acá es inocuo para el popup (no lo usa).
   {
-    files: ["background.js", "background/**/*.js", "shared/**/*.js", "sitio/**/*.js", "popup.js", "popup/**/*.js", "renderers.js"],
+    files: ["background.js", "background/**/*.js", "shared/**/*.js", "sitio/**/*.js", "popup.js", "popup/**/*.js", "renderers.js", "entrypoints/**/*.js"],
     languageOptions: {
       globals: { ...globalesDelProyecto, importScripts: "readonly" },
     },
@@ -75,24 +80,10 @@ module.exports = [
     },
   },
 
-  // Dual-export (browser/SW + import en Vitest): el footer referencia `module`
-  // (CommonJS/Node). Aplica a shared/*.js, las features vanilla, y hlsEngine.js
-  // (que sumó la rama module.exports para testear sus funciones puras).
-  {
-    files: ["shared/**/*.js", "sitio/**/*.js", "popup/features/serverConnection.js", "popup/features/queue.js", "popup/features/filters.js", "popup/features/faceta.js", "background/hlsEngine.js"],
-    languageOptions: { globals: { ...globals.node } },
-  },
-
   // El propio config de ESLint corre en Node (CommonJS).
   {
     files: ["eslint.config.js"],
     languageOptions: { sourceType: "commonjs", globals: { ...globals.node } },
-  },
-
-  // Islas Preact: módulos ES reales (import desde el vendor).
-  {
-    files: ["popup/features/*.preact.js"],
-    languageOptions: { sourceType: "module" },
   },
 
   // Tests: módulos ES (import desde 'vitest') sobre Node.

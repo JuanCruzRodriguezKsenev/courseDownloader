@@ -234,13 +234,8 @@ const HlsEngine = {
 };
 
 // Exportar según contexto
-if (typeof window !== "undefined") {
-  window.HlsEngine = HlsEngine;
-} else if (typeof self !== "undefined") {
-  self.HlsEngine = HlsEngine;
-}
-// Rama para Node/Vitest (no existe en el SW): habilita testear las funciones puras
-// de parseo/resolución sin cargar todo el service worker.
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = HlsEngine;
-}
+// Exportación (ver docs/coding-standards.md). Sigue publicando el global porque el
+// resto del código vanilla lo consume sin importar; el `export` es lo que permite que
+// el bundler arme el grafo de dependencias y que Vitest importe el módulo.
+globalThis.HlsEngine = HlsEngine;
+export default HlsEngine;

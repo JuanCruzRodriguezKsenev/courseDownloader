@@ -126,13 +126,10 @@ const SitioRamonNet = {
 // archivo de sitio que se carga en popup.html.
 const SitioActivo = SitioRamonNet;
 
-// Exportación dual (ver docs/coding-standards.md) + module.exports para tests.
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = { SitioRamonNet, SitioActivo };
-} else if (typeof window !== "undefined") {
-  window.SitioRamonNet = SitioRamonNet;
-  window.SitioActivo = SitioActivo;
-} else if (typeof self !== "undefined") {
-  self.SitioRamonNet = SitioRamonNet;
-  self.SitioActivo = SitioActivo;
-}
+// Exportación (ver docs/coding-standards.md). Sigue publicando el global porque el
+// resto del código vanilla lo consume sin importar; el `export` es lo que permite que
+// el bundler arme el grafo de dependencias y que Vitest importe el módulo.
+globalThis.SitioRamonNet = SitioRamonNet;
+globalThis.SitioActivo = SitioActivo;
+export { SitioRamonNet, SitioActivo };
+export default SitioActivo;

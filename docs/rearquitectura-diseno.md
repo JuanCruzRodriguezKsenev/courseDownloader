@@ -276,7 +276,7 @@ riesgo asumido están en **ADR-0009** (no se repiten acá — regla DRY, ADR-000
 | 0 — Paleta a tokens (`styles/variables.css` como única fuente de color) | ✅ Hecha (2026-08-02) |
 | 1 — **Capa 2 completa** (faceta, constantes, resolución M3U8, dNR, parser, scraper) | ✅ Hecha (2026-08-02) |
 | 2 — Selección de sitio: registro en runtime (ADR-0009) | ✅ Decidida (2026-08-02) |
-| 3 — WXT + TypeScript, andamiaje vacío (compilar lo actual) | ⏳ No iniciada |
+| 3 — WXT + TypeScript, andamiaje vacío (compilar lo actual) | 🟡 Hecha en rama `feat/rearq-fase3-wxt`, **sin verificar en navegador** |
 | 4 — `core/`: BunClient + daemon | ⏳ No iniciada |
 | 5 — Puertos de plataforma + adaptador Chrome (corte grande, TS transversal) | ⏳ No iniciada |
 | 6 — Motor HLS → `core/hls/` | ⏳ No iniciada |
@@ -294,3 +294,17 @@ Chrome**. Antes de seguir conviene confirmar, con la extensión recargada:
    ruta aparece en la tarjeta de la extensión en `chrome://extensions/`).
 3. El escaneo del aula (ejercita `SitioActivo.escanearListado` inyectado con executeScript).
 4. Un aula multicátedra: modal, badge y filtro por faceta con los estilos renombrados.
+
+Y en la rama `feat/rearq-fase3-wxt`, además de lo anterior sobre el build (`npm run build`
+→ cargar `.output/chrome-mv3/`):
+
+5. Que el **service worker arranque sin excepción** (`chrome://extensions/` → "service
+   worker" → consola). Es lo más delicado del empaquetado: el SW compilado es clásico,
+   así que `importScripts` existe igual y sólo la guarda por `typeof Utils` evita que
+   intente cargar rutas que en `.output/` no están.
+6. Que el **popup renderice completo** (islas Preact incluidas): pasó de ~15 `<script>`
+   sueltos a un único módulo con imports; si el orden se rompiera, fallaría alguna global.
+7. Que el **CSS se vea igual**. El minificador del build rechazó un `@keyframes` anidado
+   dentro de una regla (inválido, Chrome lo toleraba) y hubo que sacarlo al nivel
+   superior en `styles/components/filters.css`: verificar la animación del popover de
+   filtros.
