@@ -210,19 +210,57 @@ configuración final):
 
 ## Orden de migración (incremental — nunca big-bang)
 
-1. **Parsers puros → `sitio/ramonnet/`** (`parserTitulos`, `resolverManifiesto`): sin
-   `chrome.*`, con los 39 tests de caracterización ya existentes como red.
-2. **`BunClient` + lógica del daemon → `core/`**: fetch puro, ya testeados.
-3. **`PuertoAlmacenamiento` + `PuertoMensajeria`** + adaptador Chrome: el corte transversal
-   grande — conversión de globales `window.X`/`self.X` a módulos ES + TS de cada archivo al
-   tocarlo, **una sola pasada por archivo** (por eso TS va fusionado, no aparte).
-4. **Motor HLS → `core/hls/`** consumiendo puertos (llega con el pool ya testeado, si se
-   ejecutó A3 del roadmap antes).
-5. **`background.js` y `popup.js`** quedan como composición en `entrypoints/` (inyectan los
-   adaptadores concretos en el núcleo).
-6. **Sustitución y borrado del código vanilla de la raíz** — recién cuando los módulos de
-   `src/` tengan **paridad de tests** con lo que reemplazan. Es un paso propio, no el efecto
-   colateral del paso 5.
+**Fase 1 — Capa 2 completa, sin bundler. ✅ HECHA (2026-08-02).** Todo lo de Ramón Net vive
+en `sitio/ramonnet/` (`config.js` con el descriptor de faceta + constantes + las puertas,
+`parserTitulos.js`, `resolverManifiesto.js`, `scraper.js`, `rules.json`). `Utils`, `HlsEngine`
+y el daemon `Conexion` quedaron genéricos. Se hizo **en JS vanilla a propósito**: prueba el
+corte núcleo/sitio sin pagar todavía el paso de build, y no se re-toca al migrar a TS.
+
+**Fase 2 — Decisión de empaquetado. ⛔ BLOQUEA A TODO LO DE ABAJO.** No es trabajo de código:
+hay que elegir **cómo se selecciona el sitio activo** (ver "Cómo se elige el sitio" abajo).
+Una build por portal implica configuración de bundler por target; un registro en runtime
+implica cargar N adaptadores y pedirle permisos al usuario para N dominios. Esto define la
+forma de `wxt.config.ts` y del manifest, así que arrancar sin decidirlo es re-hacer la Fase 3.
+
+**Fase 3 — WXT + TypeScript, andamiaje vacío.** Instalar, configurar, y compilar **el código
+actual tal cual** a `.output/chrome-mv3/`, sin mover lógica. Termina cuando esa carpeta se
+carga en Chrome y hace el golden path. Es el punto de no retorno del flujo de desarrollo
+(cambia qué carpeta se carga), así que va en su propia rama y no se mergea sin verificar.
+
+**Fase 4 — `core/`: BunClient + daemon de conexión.** Fetch puro, ya testeados, sin `chrome.*`:
+es el corte más barato para estrenar el pipeline de TS con red de tests.
+
+**Fase 5 — Puertos de plataforma + adaptador Chrome (el corte grande).** `PuertoAlmacenamiento`
+y `PuertoMensajeria` con su adaptador, convirtiendo las globales `window.X`/`self.X` a módulos
+ES **y** a TS en la misma pasada por archivo (por eso TS va fusionado y no aparte). Es donde
+está el payoff de cobertura: con adaptadores en memoria, la cola y el auto-heal —hoy sin tests
+por diseño— pasan a ser testeables sin navegador.
+
+**Fase 6 — Motor HLS → `core/hls/`** consumiendo puertos (llega con el pool ya testeado).
+
+**Fase 7 — `background.js` y `popup.js`** quedan como composición en `entrypoints/` (inyectan
+los adaptadores concretos en el núcleo).
+
+**Fase 8 — Sustitución y borrado del código vanilla de la raíz** — recién cuando los módulos de
+`src/` tengan **paridad de tests** con lo que reemplazan. Es un paso propio, no el efecto
+colateral de la Fase 7.
+
+### Cómo se elige el sitio activo (la decisión de la Fase 2)
+
+Hoy `SitioActivo = SitioRamonNet` es una constante en `config.js`. Para más de un portal hay
+dos caminos, y **no son equivalentes en lo que le piden al usuario**:
+
+| | Una build por portal | Registro en runtime |
+|---|---|---|
+| Manifest | `host_permissions` sólo del portal de esa build | Los de TODOS los portales soportados |
+| Instalación | Una extensión por portal | Una sola |
+| Chrome Web Store | Permisos justificables uno a uno | Pide permisos que el usuario quizá nunca use — señal de rechazo en review |
+| Complejidad | Config de bundler por target (WXT lo hace nativo) | Detección del sitio + carga condicional del adaptador |
+
+**Recomendación: una build por portal.** El manifest es estático y `declarativeNetRequest` +
+`host_permissions` son específicos del sitio por definición; pedir permisos de N portales para
+usar uno es exactamente lo que hace sospechosa a una extensión. Falta que el dueño del repo lo
+confirme — cuando lo haga, va como **ADR nuevo** (no editar ADR-0008).
 
 **Por qué este orden y no "bundler + UI primero":** arrancar por los parsers puros deja la
 extensión funcionando y testeada en cada corte, y no toca el manifest hasta el final. El orden
@@ -249,11 +287,23 @@ punta.
 |---|---|
 | Diseño (este doc + ADR-0008) | ✅ Redactado (2026-07-19) |
 | 0 — Paleta a tokens (`styles/variables.css` como única fuente de color) | ✅ Hecha (2026-08-02) |
-| 0b — Primer archivo de Capa 2: `sitio/ramonnet/config.js` (descriptor de faceta) | ✅ Hecha (2026-08-02) |
-| 0c — Constantes del portal + resolución M3U8 + reglas dNR → `sitio/ramonnet/` (el motor HLS queda genérico) | ✅ Hecha (2026-08-02) |
-| 1a — Parser de títulos → `sitio/ramonnet/parserTitulos.js` (con sus 14 tests) | ✅ Hecha (2026-08-02) |
-| 1b — Scraper del DOM → `sitio/ramonnet/scraper.js` | ✅ Hecha (2026-08-02) |
-| 2 — BunClient + daemon → `core/` | ⏳ No iniciada |
-| 3 — Puertos storage/IPC + adaptador Chrome + TS transversal | ⏳ No iniciada |
-| 4 — Motor HLS → `core/hls/` | ⏳ No iniciada |
-| 5 — Entrypoints (composición) | ⏳ No iniciada |
+| 1 — **Capa 2 completa** (faceta, constantes, resolución M3U8, dNR, parser, scraper) | ✅ Hecha (2026-08-02) |
+| 2 — Decisión de empaquetado (una build por portal vs. registro en runtime) | ⛔ Pendiente del dueño del repo — bloquea 3-8 |
+| 3 — WXT + TypeScript, andamiaje vacío (compilar lo actual) | ⏳ No iniciada |
+| 4 — `core/`: BunClient + daemon | ⏳ No iniciada |
+| 5 — Puertos de plataforma + adaptador Chrome (corte grande, TS transversal) | ⏳ No iniciada |
+| 6 — Motor HLS → `core/hls/` | ⏳ No iniciada |
+| 7 — Entrypoints (composición) | ⏳ No iniciada |
+| 8 — Borrado del vanilla de la raíz | ⏳ No iniciada |
+
+## Verificación pendiente en navegador
+
+La Fase 1 se hizo con la suite en verde en cada corte, pero **nada de esto se probó en
+Chrome**. Antes de seguir conviene confirmar, con la extensión recargada:
+
+1. Una descarga real de punta a punta (ejercita `resolverManifiesto` + el parser de títulos +
+   el nombre de archivo en disco).
+2. Que el ruleset `declarativeNetRequest` carga desde `sitio/ramonnet/rules.json` (un error de
+   ruta aparece en la tarjeta de la extensión en `chrome://extensions/`).
+3. El escaneo del aula (ejercita `SitioActivo.escanearListado` inyectado con executeScript).
+4. Un aula multicátedra: modal, badge y filtro por faceta con los estilos renombrados.

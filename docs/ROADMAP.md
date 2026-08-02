@@ -6,6 +6,11 @@ Este documento cubre **trabajo técnico interno**, no features de producto nueva
 
 ---
 
+> **Re-arquitectura núcleo/adaptadores (Track B)**: su plan por fases vive en
+> `docs/rearquitectura-diseno.md` §Orden de migración, no acá (regla DRY, ADR-0007).
+> Estado al 2026-08-02: Capa 2 completa en vanilla; lo que sigue está bloqueado por una
+> decisión de empaquetado (una build por portal vs. registro en runtime).
+
 ## Estado (2026-07-19) — tanda de saldado de deuda (Track A: bug 400 + Fase 2 + tests del pool)
 
 Tanda de 3 ítems (un commit atómico por ítem, `npm test` + `npm run lint` en verde antes de cada uno), siguiendo el plan `~/.claude/plans/lazy-spinning-popcorn.md`:
