@@ -18,7 +18,7 @@
   padding: 1.25rem;
   width: 85%;
   max-width: 290px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-modal);
   text-align: center;
   display: flex;
   flex-direction: column;

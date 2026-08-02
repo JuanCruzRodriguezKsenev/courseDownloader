@@ -35,7 +35,7 @@
 .spinner-inline {
   width: 12px;
   height: 12px;
-  border: 2px solid rgba(120, 120, 120, 0.35);
+  border: 2px solid var(--spinner-track);
   border-top-color: var(--accent-orange);
   border-radius: 50%;
   animation: spin-nitro 0.8s linear infinite;

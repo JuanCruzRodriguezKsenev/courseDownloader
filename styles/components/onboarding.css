@@ -20,7 +20,7 @@
   padding: 1.5rem 1.25rem 1.25rem;
   width: 88%;
   max-width: 330px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 12px 30px rgba(var(--shadow-rgb), 0.45);
   display: flex;
   flex-direction: column;
   position: relative;
@@ -73,7 +73,7 @@
 .onboarding-icon {
   font-size: 2.8rem;
   margin-bottom: 0.8rem;
-  filter: drop-shadow(0 0 8px rgba(255, 107, 0, 0.25));
+  filter: drop-shadow(0 0 8px rgba(var(--accent-orange-rgb), 0.25));
   animation: pulse-icon 2s infinite ease-in-out;
 }
 
@@ -180,13 +180,13 @@
 
   &.error {
     color: var(--accent-error-visible);
-    background-color: rgba(255, 59, 48, 0.1);
-    border: 1px solid rgba(255, 59, 48, 0.2);
+    background-color: rgba(var(--accent-error-rgb), 0.1);
+    border: 1px solid rgba(var(--accent-error-rgb), 0.2);
   }
 
   &.success {
     color: var(--accent-green);
-    background-color: rgba(48, 209, 88, 0.1);
-    border: 1px solid rgba(48, 209, 88, 0.2);
+    background-color: rgba(var(--accent-green-rgb), 0.1);
+    border: 1px solid rgba(var(--accent-green-rgb), 0.2);
   }
 }

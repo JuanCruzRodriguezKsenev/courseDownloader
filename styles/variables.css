@@ -17,6 +17,28 @@
   --accent-error-visible: #FF3B30;
   --accent-warning-visible: #FF9500;
 
+  /* CANALES RGB
+     Para colores translúcidos: rgba(var(--accent-error-rgb), 0.2).
+     Existen porque un token de color ya resuelto (#FF3B30) no se puede usar dentro
+     de rgba(); sin estos canales, cada hoja terminaba re-escribiendo el literal a
+     mano — que es como se colaron un naranja (255,107,0) y un rojo (220,53,69)
+     que NO eran los de la marca. Regla: ninguna hoja de componente escribe un
+     color literal; si falta uno, se agrega acá. */
+  --accent-orange-rgb: 255, 94, 0;   /* = --accent-orange  #FF5E00 */
+  --accent-error-rgb: 255, 59, 48;   /* = --accent-error   #FF3B30 */
+  --accent-green-rgb: 48, 209, 88;   /* = --accent-green   #30D158 */
+  --shadow-rgb: 0, 0, 0;             /* tinte de TODAS las sombras */
+  --shine-rgb: 255, 255, 255;        /* barrido del gradiente del footer */
+
+  /* ELEVACIÓN COMPARTIDA
+     Sólo las sombras que usa más de un componente. La geometría del resto vive en
+     su hoja (es layout, no marca); lo global es el tinte, vía --shadow-rgb. */
+  --shadow-bar: 0 1px 3px rgba(var(--shadow-rgb), 0.02);      /* barras: filtros, ruta */
+  --shadow-modal: 0 10px 25px rgba(var(--shadow-rgb), 0.35);  /* modales: advertencia, multicátedra */
+
+  /* PIEZAS SUELTAS CON COLOR PROPIO */
+  --spinner-track: rgba(120, 120, 120, 0.35);  /* gris neutro del spinner inline */
+
   /* BORDER RADIUS TOKENS */
   --radius-xs: 4px;
   --radius-sm: 6px;

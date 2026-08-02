@@ -56,7 +56,7 @@
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 6px 20px rgba(var(--shadow-rgb), 0.18);
 }
 
 .campanita-panel-head {
@@ -138,7 +138,7 @@
 /* La caída de conexión (servidor/internet) usa el rojo de error; "sesion" el naranja. */
 .campanita-chip.servidor,
 .campanita-chip.internet {
-  background: rgba(255, 59, 48, var(--alpha-badge));
+  background: rgba(var(--accent-error-rgb), var(--alpha-badge));
   color: var(--accent-error-visible);
 }
 

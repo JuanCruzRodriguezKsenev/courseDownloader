@@ -59,6 +59,27 @@ Esto es necesario porque el mismo archivo (`shared/*.js`) se carga tanto en el p
 - Los errores de `chrome.storage`/`chrome.runtime` se chequean explícitamente vía `chrome.runtime.lastError` dentro del callback, no vía try/catch (es el patrón que exige la API de callbacks de `chrome.*`) — ver `shared/state.js:66-68` como referencia.
 - `catch (e) {}` completamente silenciosos deben evitarse — como mínimo, un `console.warn` con el mensaje del error. Los 3 casos que había se resolvieron (ver `docs/TECHNICAL_DEBT.md`, sección Resuelto); mantené la regla en código nuevo.
 
+## CSS: los colores viven sólo en `styles/variables.css`
+
+**Regla: ninguna hoja de componente (ni ningún `.style.color = "..."` en JS) contiene un color literal.** Si falta un color, se agrega como token en `styles/variables.css` y se consume con `var(--token)`. El objetivo es que cambiar la paleta —re-brandear la extensión para otro portal— sea editar **un** archivo, no rastrear literales por 13 hojas.
+
+Para colores translúcidos no alcanza el token de color ya resuelto (`#FF3B30` no se puede meter dentro de `rgba()`), así que existen los **canales RGB**: `--accent-orange-rgb`, `--accent-error-rgb`, `--accent-green-rgb`, `--shadow-rgb`, `--shine-rgb`. Se usan así:
+
+```css
+border-color: rgba(var(--accent-error-rgb), 0.2);
+box-shadow: 0 4px 16px rgba(var(--shadow-rgb), 0.12);
+```
+
+Cada canal está pareado con su token de color y el comentario en `variables.css` lo indica; si cambiás uno, cambiá el otro. La ausencia de esta regla es cómo se colaron un naranja (`255,107,0`) y un rojo (`220,53,69`) que **no** eran los de la marca, invisibles en revisión pero visibles al cambiar la paleta.
+
+De la **geometría** de las sombras sólo se tokeniza la que comparten varios componentes (`--shadow-bar`, `--shadow-modal`); el resto queda en su hoja, porque es layout, no marca. Lo global es el tinte (`--shadow-rgb`).
+
+Chequeo rápido antes de un PR que toque estilos:
+
+```bash
+grep -rnE '#[0-9a-fA-F]{3,8}\b|rgba?\([0-9]' styles/ --include=*.css | grep -v variables.css   # debe estar vacío
+```
+
 ## Seguridad al pintar contenido de terceros en el DOM
 
 Los títulos de clase y cualquier otro texto scrapeado de Ramón Net **no son confiables** — deben pintarse con `.textContent`/`.innerText`, nunca interpolados en un string que se asigna a `.innerHTML`. Ver `docs/security.md` para el detalle y el caso conocido donde esto se violó (`docs/TECHNICAL_DEBT.md`).

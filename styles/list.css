@@ -48,13 +48,13 @@
   &:hover {
     border-color: var(--text-muted);
     transform: translateY(-0.5px);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+    box-shadow: 0 2px 6px rgba(var(--shadow-rgb), 0.02);
   }
 
   &.selected {
-    border-color: rgba(255, 94, 0, 0.15);
+    border-color: rgba(var(--accent-orange-rgb), 0.15);
     border-left-color: var(--accent-orange);
-    background-color: rgba(255, 94, 0, 0.03);
+    background-color: rgba(var(--accent-orange-rgb), 0.03);
   }
 
   input[type="checkbox"] {
@@ -99,7 +99,7 @@
 
   &.remove-action {
     color: var(--accent-error);
-    border-color: rgba(220, 53, 69, 0.2);
+    border-color: rgba(var(--accent-error-rgb), 0.2);
 
     &:hover {
       background-color: var(--accent-error);
@@ -154,7 +154,7 @@
   .server-error-icon {
     font-size: 1.8rem;
     margin-bottom: 0.4rem;
-    filter: drop-shadow(0 2px 6px rgba(255, 59, 48, 0.15));
+    filter: drop-shadow(0 2px 6px rgba(var(--accent-error-rgb), 0.15));
     animation: pulse-icon 2s infinite ease-in-out;
   }
 
@@ -226,7 +226,7 @@
   .info-card-icon {
     font-size: 1.8rem;
     margin-bottom: 0.4rem;
-    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.05));
+    filter: drop-shadow(0 2px 6px rgba(var(--shadow-rgb), 0.05));
   }
 
   h5 {
@@ -247,17 +247,17 @@
 
   /* Modificadores de Estado */
   &.info {
-    border-color: rgba(255, 107, 0, 0.3);
+    border-color: rgba(var(--accent-orange-rgb), 0.3);
     h5 { color: var(--accent-orange); }
   }
 
   &.error {
-    border-color: rgba(255, 59, 48, 0.3);
+    border-color: rgba(var(--accent-error-rgb), 0.3);
     h5 { color: var(--accent-error-visible); }
   }
 
   &.success {
-    border-color: rgba(48, 209, 88, 0.3);
+    border-color: rgba(var(--accent-green-rgb), 0.3);
     h5 { color: var(--accent-green); }
   }
 }

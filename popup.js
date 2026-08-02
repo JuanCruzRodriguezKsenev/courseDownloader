@@ -1162,7 +1162,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (req.compiling && !AppState.modoTurboBun) {
           nodos.txtEstado.innerHTML = "";
           const spanComp = document.createElement('span');
-          spanComp.style.color = "#ffc107";
+          spanComp.style.color = "var(--accent-warning-visible)";
           spanComp.textContent = `Guardando en /${nodos.folder.value}/ por favor espere...`;
           nodos.txtEstado.append("⚙️ Compilando archivo final...", document.createElement('br'), spanComp);
         } else if (!req.compiling) {

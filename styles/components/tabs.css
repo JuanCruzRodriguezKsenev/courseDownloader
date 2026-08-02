@@ -28,15 +28,15 @@
     &.active {
       color: var(--text-main);
       background-color: var(--bg-main);
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+      box-shadow: 0 2px 6px rgba(var(--shadow-rgb), 0.05);
 
       @media (prefers-color-scheme: dark) {
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 2px 6px rgba(var(--shadow-rgb), 0.3);
       }
 
       .tab-counter {
         background-color: var(--accent-orange);
-        color: #ffffff;
+        color: var(--text-on-orange);
       }
     }
   }

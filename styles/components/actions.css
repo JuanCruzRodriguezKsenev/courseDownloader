@@ -11,7 +11,7 @@
   transition: transform 0.2s var(--ease-elastic),
               box-shadow 0.2s var(--ease-elastic),
               background-color 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 4px rgba(var(--shadow-rgb), 0.04);
 
   &:active {
     transform: scale(0.98);
@@ -53,7 +53,7 @@
 
     &:hover:not(:disabled) {
       background-color: var(--accent-error-hover);
-      box-shadow: 0 4px 12px rgba(255, 59, 48, 0.2), 0 0 4px var(--accent-error);
+      box-shadow: 0 4px 12px rgba(var(--accent-error-rgb), 0.2), 0 0 4px var(--accent-error);
     }
   }
 
@@ -134,7 +134,7 @@
 
     &:hover {
       background-color: var(--accent-error-hover);
-      box-shadow: 0 4px 10px rgba(255, 59, 48, 0.2);
+      box-shadow: 0 4px 10px rgba(var(--accent-error-rgb), 0.2);
     }
   }
 }
