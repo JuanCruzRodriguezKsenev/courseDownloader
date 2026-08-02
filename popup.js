@@ -196,7 +196,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     speed:           document.getElementById('ui-tel-speed'),
     frags:           document.getElementById('ui-tel-frags'),
     btnExplore:      document.getElementById('ui-btn-explore'),
-    catedraBadge:    document.getElementById('ui-catedra-badge'),
+    facetaBadge:    document.getElementById('ui-faceta-badge'),
     // El texto de la ruta (#preact-pc-path) lo posee la isla Preact
     // features/rutaDisco.preact.js; se empuja vía window.RutaDisco (no hay ref nodos.*).
     btnSort:         document.getElementById('ui-btn-sort'),
@@ -366,7 +366,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // (arriba) y se instancia antes de init/scraping, que llaman actualizarBadgeFaceta y
   // verificarYMostrarAsistenteFaceta. Ver popup/features/faceta.js + sitio/ramonnet/config.js.
   const _faceta = FacetaFeature.crear({
-    badge: nodos.catedraBadge,
+    badge: nodos.facetaBadge,
     sitio: SitioActivo,
     aplicarFiltros: () => aplicarFiltrosCruzados()
   });
@@ -679,7 +679,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     nodos.loaderTxt.textContent = "Escaneando entorno de Ramón Net...";
     nodos.loader.style.display = 'flex';
     // Ocultar badge de cátedra al iniciar un nuevo escaneo para evitar estados inconsistentes
-    nodos.catedraBadge.style.display = "none";
+    nodos.facetaBadge.style.display = "none";
 
     const safetyTimeout = setTimeout(() => {
       nodos.loader.style.display = 'none';

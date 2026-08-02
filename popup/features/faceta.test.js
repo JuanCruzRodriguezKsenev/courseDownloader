@@ -14,8 +14,8 @@ import FacetaFeature from './faceta.js';
 import { SitioRamonNet } from '../../sitio/ramonnet/config.js';
 
 function crearFeature(overrides = {}) {
-  document.body.innerHTML = `<span id="ui-catedra-badge" style="display:none"></span>`;
-  const badge = document.getElementById('ui-catedra-badge');
+  document.body.innerHTML = `<span id="ui-faceta-badge" style="display:none"></span>`;
+  const badge = document.getElementById('ui-faceta-badge');
   const aplicarFiltros = vi.fn();
   const feature = FacetaFeature.crear({ badge, aplicarFiltros, sitio: SitioRamonNet, ...overrides });
   return { feature, badge, aplicarFiltros };
@@ -33,7 +33,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   delete globalThis.AppState;
-  document.querySelector('.multicatedra-overlay')?.remove();
+  document.querySelector('.faceta-overlay')?.remove();
 });
 
 describe('FacetaFeature.actualizarBadge', () => {
@@ -46,6 +46,7 @@ describe('FacetaFeature.actualizarBadge', () => {
 
     expect(badge.style.display).toBe('inline-flex');
     expect(badge.textContent).toBe('Cátedra A');
+    expect(badge.title).toBe('Hacé click para cambiar de Cátedra');
   });
 
   it('un solo valor: oculta el badge y limpia la selección huérfana', () => {
@@ -104,9 +105,9 @@ describe('FacetaFeature.verificarYMostrarAsistente', () => {
 
     feature.verificarYMostrarAsistente();
 
-    const overlay = document.querySelector('.multicatedra-overlay');
+    const overlay = document.querySelector('.faceta-overlay');
     expect(overlay).not.toBeNull();
-    const labels = [...overlay.querySelectorAll('.btn-catedra-opt')].map(b => b.textContent);
+    const labels = [...overlay.querySelectorAll('.btn-faceta-opt')].map(b => b.textContent);
     expect(labels).toEqual(['Cátedra A', 'Cátedra B', 'Cátedra C']); // ordenadas
   });
 
@@ -116,7 +117,7 @@ describe('FacetaFeature.verificarYMostrarAsistente', () => {
 
     feature.verificarYMostrarAsistente();
 
-    const card = document.querySelector('.multicatedra-card');
+    const card = document.querySelector('.faceta-card');
     expect(card.querySelector('h4').textContent).toBe(SitioRamonNet.faceta.modal.titulo);
     expect(card.querySelector('p').textContent).toBe(SitioRamonNet.faceta.modal.descripcion);
   });
@@ -131,7 +132,7 @@ describe('FacetaFeature.verificarYMostrarAsistente', () => {
 
     feature.verificarYMostrarAsistente();
 
-    expect(document.querySelector('.multicatedra-overlay')).toBeNull();
+    expect(document.querySelector('.faceta-overlay')).toBeNull();
     expect(AppState.listadoClasesGlobal[0].seleccionado).toBe(true);
     expect(aplicarFiltros).toHaveBeenCalled();
   });
@@ -144,7 +145,7 @@ describe('FacetaFeature.verificarYMostrarAsistente', () => {
     feature.verificarYMostrarAsistente();
 
     expect(AppState.catedraSeleccionada).toBeNull();
-    expect(document.querySelector('.multicatedra-overlay')).toBeNull();
+    expect(document.querySelector('.faceta-overlay')).toBeNull();
   });
 });
 
@@ -157,17 +158,17 @@ describe('FacetaFeature — click en el badge y modal', () => {
     const { badge, aplicarFiltros } = crearFeature();
 
     badge.click();
-    const overlay = document.querySelector('.multicatedra-overlay');
+    const overlay = document.querySelector('.faceta-overlay');
     expect(overlay).not.toBeNull();
 
     // Elegir "Cátedra B" aplica la selección y remueve el overlay.
-    const botones = [...overlay.querySelectorAll('.btn-catedra-opt')];
+    const botones = [...overlay.querySelectorAll('.btn-faceta-opt')];
     botones.find(b => b.textContent === 'Cátedra B').click();
 
     expect(AppState.catedraSeleccionada).toBe('B');
     expect(AppState.listadoClasesGlobal[1].seleccionado).toBe(true);
     expect(aplicarFiltros).toHaveBeenCalled();
-    expect(document.querySelector('.multicatedra-overlay')).toBeNull();
+    expect(document.querySelector('.faceta-overlay')).toBeNull();
   });
 
   it('click en el badge con un solo valor no abre modal', () => {
@@ -176,7 +177,7 @@ describe('FacetaFeature — click en el badge y modal', () => {
 
     badge.click();
 
-    expect(document.querySelector('.multicatedra-overlay')).toBeNull();
+    expect(document.querySelector('.faceta-overlay')).toBeNull();
   });
 });
 
@@ -217,12 +218,12 @@ describe('FacetaFeature — con el descriptor de OTRO sitio', () => {
 
     feature.verificarYMostrarAsistente();
 
-    const overlay = document.querySelector('.multicatedra-overlay');
+    const overlay = document.querySelector('.faceta-overlay');
     expect(overlay.querySelector('h4').textContent).toBe('Varias comisiones');
-    const labels = [...overlay.querySelectorAll('.btn-catedra-opt')].map(b => b.textContent);
+    const labels = [...overlay.querySelectorAll('.btn-faceta-opt')].map(b => b.textContent);
     expect(labels).toEqual(['Comisión 1', 'Comisión 2']); // 'GENERAL' no es una opción
 
-    overlay.querySelectorAll('.btn-catedra-opt')[0].click();
+    overlay.querySelectorAll('.btn-faceta-opt')[0].click();
 
     expect(AppState.comisionSeleccionada).toBe('1');
     expect(AppState.catedraSeleccionada).toBeNull();                 // no tocó la clave del otro sitio

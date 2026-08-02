@@ -119,13 +119,13 @@ const FacetaFeature = {
     }
 
     function mostrarModal(valores) {
-      document.querySelector(".multicatedra-overlay")?.remove();
+      document.querySelector(".faceta-overlay")?.remove();
 
       const overlay = document.createElement("div");
-      overlay.className = "multicatedra-overlay";
+      overlay.className = "faceta-overlay";
 
       const card = document.createElement("div");
-      card.className = "multicatedra-card";
+      card.className = "faceta-card";
 
       // El copy sale del descriptor del sitio (no es contenido scrapeado), pero se
       // pinta con textContent igual: el descriptor es DATO, no markup literal de este
@@ -137,11 +137,11 @@ const FacetaFeature = {
       card.append(titulo, descripcion);
 
       const optionsDiv = document.createElement("div");
-      optionsDiv.className = "multicatedra-options";
+      optionsDiv.className = "faceta-options";
 
       [...valores].sort(faceta.ordenar).forEach(valor => {
         const btn = document.createElement("button");
-        btn.className = "btn-catedra-opt";
+        btn.className = "btn-faceta-opt";
         btn.textContent = faceta.etiquetar(valor);
         btn.addEventListener("click", () => {
           aplicarSeleccionSilenciosa(valor);
@@ -154,6 +154,10 @@ const FacetaFeature = {
       overlay.appendChild(card);
       document.body.appendChild(overlay);
     }
+
+    // El tooltip también sale del descriptor: era el último string del sitio que
+    // quedaba escrito a mano en popup.html.
+    badge.title = `Hacé click para cambiar de ${faceta.etiqueta}`;
 
     // Click en el badge: si hay varios valores presentes, reabre el modal de elección.
     badge.addEventListener("click", () => {
