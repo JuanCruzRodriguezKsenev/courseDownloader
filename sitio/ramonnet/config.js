@@ -46,6 +46,19 @@ const SitioRamonNet = {
   // final de un fetch lo pierde, el portal redirigió al login (no hay sesión).
   marcaRutaClase: "clases-grabadas",
 
+  // Host del portal + los dos derivados que necesita el resto del código: reconocer
+  // si una pestaña pertenece al sitio, y el patrón de match para chrome.tabs.query.
+  // Estaban hardcodeados en 5 lugares entre popup.js y background.js.
+  host: "plataforma.ramonnet.com.ar",
+  esPaginaDelSitio(url) {
+    return typeof url === "string" && url.includes(this.host);
+  },
+  get patronPestañas() { return `https://${this.host}/*`; },
+
+  // Página del listado de clases: la usa el onboarding para mandar al usuario al
+  // lugar correcto del portal.
+  get urlListado() { return `https://${this.host}/usuario/${this.marcaRutaClase}`; },
+
   // --- CDN de video (Bunny) -----------------------------------------------------
   cdn: {
     // Hosts que puede tener el <iframe> del reproductor embebido.

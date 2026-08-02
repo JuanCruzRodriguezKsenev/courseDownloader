@@ -7,6 +7,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import QueueFeature from './queue.js';
+import { SitioActivo } from '../../sitio/ramonnet/config.js';
 
 let sendMessage;
 
@@ -55,6 +56,8 @@ function crearFeature(overrides = {}) {
 }
 
 beforeEach(() => {
+  // El chequeo de red previo sondea la URL que declara el adaptador de sitio.
+  globalThis.SitioActivo = SitioActivo;
   sendMessage = vi.fn();
   globalThis.chrome = { runtime: { sendMessage, lastError: null } };
   globalThis.AppState = {

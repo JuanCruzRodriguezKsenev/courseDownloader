@@ -91,7 +91,7 @@ export function Onboarding() {
             <div class="onboarding-slide">
               <div class="onboarding-icon">🌐</div>
               <h3>Página Correcta</h3>
-              <p>Usá la extensión dentro del listado de clases de tu materia en Ramón Net para detectar los videos: <a href="https://plataforma.ramonnet.com.ar/usuario/clases-grabadas" target="_blank" class="onboarding-link">Ir a Clases Grabadas 🌐</a></p>
+              <p>Usá la extensión dentro del listado de clases de tu materia en Ramón Net para detectar los videos: <a href=${window.SitioActivo.urlListado} target="_blank" class="onboarding-link">Ir a Clases Grabadas 🌐</a></p>
             </div>
             <div class="onboarding-slide">
               <div class="onboarding-icon">🔍</div>

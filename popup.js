@@ -378,7 +378,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Forzar re-escaneo automático si la pestaña de Ramón Net cambia de dirección o se recarga
   chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status === 'complete' && tab.active && tab.url && tab.url.includes("plataforma.ramonnet.com.ar")) {
+    if (changeInfo.status === 'complete' && tab.active && SitioActivo.esPaginaDelSitio(tab.url)) {
       console.log("🔄 [POPUP] Pestaña Ramón Net actualizada. Re-escaneando...");
       if (!AppState.fallaConexionActiva) {
         ejecutarPaso1EscaneoRamonAutomatico();
@@ -390,7 +390,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   chrome.tabs.onActivated.addListener((activeInfo) => {
     chrome.tabs.get(activeInfo.tabId, (tab) => {
       if (chrome.runtime.lastError || !tab) return;
-      if (tab.active && tab.url && tab.url.includes("plataforma.ramonnet.com.ar")) {
+      if (tab.active && SitioActivo.esPaginaDelSitio(tab.url)) {
         console.log("🔄 [POPUP] Pestaña Ramón Net enfocada. Re-escaneando...");
         if (!AppState.fallaConexionActiva) {
           ejecutarPaso1EscaneoRamonAutomatico();
@@ -688,7 +688,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 6000);
 
     chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-      if (!tab || !tab.url.includes("plataforma.ramonnet.com.ar")) {
+      if (!tab || !SitioActivo.esPaginaDelSitio(tab.url)) {
         clearTimeout(safetyTimeout);
         nodos.txtEstado.textContent = "⚠️ No estás en Ramón Net.";
         configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);

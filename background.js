@@ -882,12 +882,12 @@ if (typeof chrome !== "undefined" && chrome.notifications && chrome.notification
   chrome.notifications.onClicked.addListener(async (notificationId) => {
     chrome.notifications.clear(notificationId);
     try {
-      const [tab] = await chrome.tabs.query({ url: "https://plataforma.ramonnet.com.ar/*" });
+      const [tab] = await chrome.tabs.query({ url: SitioActivo.patronPestañas });
       if (tab) {
         await chrome.tabs.update(tab.id, { active: true });
         await chrome.windows.update(tab.windowId, { focused: true });
       } else {
-        await chrome.tabs.create({ url: "https://plataforma.ramonnet.com.ar/" });
+        await chrome.tabs.create({ url: SitioActivo.urlSondeoInternet });
       }
     } catch (e) {
       console.warn("[SW] No se pudo enfocar/abrir la pestaña de Ramón Net:", e);

@@ -8,6 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { montar, __resetStore } from './onboarding.preact.js';
+import { SitioActivo } from '../../sitio/ramonnet/config.js';
 
 // Daemon Conexion falso: get() devuelve el estado actual; emit() lo cambia y notifica.
 function fakeConexion(inicial = { servidor: false, internet: true }) {
@@ -37,6 +38,8 @@ describe('Isla Preact: Onboarding', () => {
     conexion = fakeConexion({ servidor: false, internet: true });
     globalThis.window.Conexion = conexion;
     globalThis.window.AppState = { tutorialCompletado: false, respaldar: vi.fn() };
+    // El slide "Página Correcta" linkea a la URL que declara el adaptador de sitio.
+    globalThis.window.SitioActivo = SitioActivo;
     montar(root);
     await flush(); // deja correr el useEffect que suscribe al store ANTES de operar.
   });

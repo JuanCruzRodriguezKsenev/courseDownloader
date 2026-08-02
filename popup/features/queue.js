@@ -74,7 +74,7 @@ const QueueFeature = {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout
       try {
-        await fetch("https://plataforma.ramonnet.com.ar", {
+        await fetch(SitioActivo.urlSondeoInternet, {
           method: "HEAD",
           mode: "no-cors",
           cache: "no-store",
