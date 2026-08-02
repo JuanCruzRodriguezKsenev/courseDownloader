@@ -4,6 +4,7 @@
 // comparte vía importScripts (SW) y <script> (popup), sin bundler.
 // Ver docs/ROADMAP.md Fase 4.
 const globals = require("globals");
+const tseslint = require("typescript-eslint");
 
 // Objetos que un archivo expone en window/self y otro consume como global
 // (patrón dual-export del proyecto — docs/coding-standards.md).
@@ -33,9 +34,22 @@ const globalesDelProyecto = {
 
 module.exports = [
   // No lintear dependencias, el PoC descartable, el vendor de Preact ni las salidas
-  // del bundler. Los .ts (hoy sólo wxt.config.ts) quedan fuera hasta que la migración
-  // a TypeScript traiga su parser — ver docs/rearquitectura-diseno.md.
-  { ignores: ["node_modules/**", "prototype/**", "popup/vendor/**", ".output/**", ".wxt/**", "**/*.ts"] },
+  // del bundler.
+  { ignores: ["node_modules/**", "prototype/**", "popup/vendor/**", ".output/**", ".wxt/**"] },
+
+  // TypeScript (núcleo migrado + config del bundler). Mismas reglas que el JS: la red
+  // es mínima a propósito. `no-undef` se apaga porque en TS lo cubre el compilador y
+  // acá daría falsos positivos con los tipos globales del DOM/chrome.
+  ...tseslint.configs.recommended.map((c) => ({ ...c, files: ["**/*.ts"] })),
+  {
+    files: ["**/*.ts"],
+    rules: {
+      "no-undef": "off",
+      eqeqeq: ["warn", "smart"],
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+      "no-unused-vars": "off",
+    },
+  },
 
   // Base común a todo el JS de la extensión.
   {

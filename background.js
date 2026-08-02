@@ -117,16 +117,10 @@
 
 // El adaptador de sitio (Capa 2) va primero: el daemon de conexión y el loop de descarga
 // leen de él la URL de sondeo y la resolución del manifiesto. Ver ADR-0008.
-// Carga de dependencias del SW. Bajo guarda porque hay dos mundos:
-//  - SW clásico (se carga la raíz del repo sin build): importScripts trae los módulos.
-//  - SW empaquetado por WXT: las dependencias ya las importó entrypoints/background.js
-//    como módulos ES antes de este archivo, y esas rutas NO existen en .output/.
-// La guarda NO puede ser sólo `typeof importScripts === "function"`: WXT genera un SW
-// CLÁSICO, así que importScripts existe igual y el bundle intentaría cargar rutas
-// inexistentes → excepción al arrancar el SW. Se chequea que las globals falten.
-if (typeof importScripts === "function" && typeof Utils === "undefined") {
-  importScripts('sitio/ramonnet/config.js', 'sitio/ramonnet/parserTitulos.js', 'sitio/ramonnet/resolverManifiesto.js', 'shared/utils.js', 'shared/bunClient.js', 'shared/conexion.js', 'shared/historialFallos.js', 'background/hlsEngine.js');
-}
+// Las dependencias del SW las carga `entrypoints/background.js` como módulos ES antes
+// de este archivo (el bundler arma el grafo). Acá no queda nada que importar: el
+// `importScripts(...)` que había existía para el SW clásico que se cargaba desde la raíz
+// del repo, camino que desapareció al empaquetar con WXT (Fase 3).
 
 // Helper para encapsular el estado en almacenamiento de sesión (persistente al SW, volátil al navegador)
 const SessionState = {

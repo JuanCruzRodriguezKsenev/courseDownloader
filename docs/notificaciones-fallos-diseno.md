@@ -34,7 +34,7 @@ abrirlo — y ni siquiera ahí queda historial, solo el estado actual.
 
 ## 1. `shared/historialFallos.js` (nuevo, dual-export)
 
-Mismo patrón que `shared/conexion.js`/`shared/bunClient.js` (cargado por `<script>`
+Mismo patrón que `shared/conexion.js`/`core/backend/bunClient.ts` (cargado por `<script>`
 clásico en el popup y por `importScripts` en el SW; exporta a `module.exports` /
 `window` / `self`). Fuente de verdad en `chrome.storage.local` bajo la clave
 `historialFallos` (NO `.session`: debe sobrevivir reinicios, igual que

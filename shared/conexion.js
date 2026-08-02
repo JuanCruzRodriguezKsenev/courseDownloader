@@ -32,7 +32,7 @@
  * único valor y, al despertar, arrancan desde el último estado conocido.
  *
  * Se carga tanto en el popup (window) como en el SW (self, vía importScripts).
- * Depende del global BunClient (shared/bunClient.js).
+ * Depende del global BunClient (core/backend/bunClient.ts).
  * ==========================================================================
  */
 

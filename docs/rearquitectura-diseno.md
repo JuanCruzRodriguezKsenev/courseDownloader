@@ -227,8 +227,16 @@ actual tal cual** a `.output/chrome-mv3/`, sin mover lógica. Termina cuando esa
 carga en Chrome y hace el golden path. Es el punto de no retorno del flujo de desarrollo
 (cambia qué carpeta se carga), así que va en su propia rama y no se mergea sin verificar.
 
-**Fase 4 — `core/`: BunClient + daemon de conexión.** Fetch puro, ya testeados, sin `chrome.*`:
-es el corte más barato para estrenar el pipeline de TS con red de tests.
+**Fase 4 — `core/`: BunClient. ✅ HECHA (2026-08-02).** Movido a `core/backend/bunClient.ts`,
+en TypeScript, con sus 11 tests. Es el corte más barato para estrenar el pipeline de TS: cero
+`chrome.*`, cero Ramón Net, fetch puro.
+
+> **Corrección del plan**: esta fase decía "BunClient **+ daemon de conexión**" asumiendo que
+> ambos eran puros. El daemon **no lo es**: `shared/conexion.js` espeja su estado en
+> `chrome.storage.session` y escucha `chrome.storage.onChanged` (3 call-sites). Meterlo en
+> `core/` hoy violaría el invariante de la capa, y partirlo en store puro + daemon acoplado
+> sin tener el puerto de almacenamiento significa tocarlo dos veces. **Se mueve en la Fase 5**,
+> junto con el puerto.
 
 **Fase 5 — Puertos de plataforma + adaptador Chrome (el corte grande).** `PuertoAlmacenamiento`
 y `PuertoMensajeria` con su adaptador, convirtiendo las globales `window.X`/`self.X` a módulos
@@ -277,8 +285,8 @@ riesgo asumido están en **ADR-0009** (no se repiten acá — regla DRY, ADR-000
 | 1 — **Capa 2 completa** (faceta, constantes, resolución M3U8, dNR, parser, scraper) | ✅ Hecha (2026-08-02) |
 | 2 — Selección de sitio: registro en runtime (ADR-0009) | ✅ Decidida (2026-08-02) |
 | 3 — WXT + TypeScript, andamiaje vacío (compilar lo actual) | 🟡 Hecha en rama `feat/rearq-fase3-wxt`, **sin verificar en navegador** |
-| 4 — `core/`: BunClient + daemon | ⏳ No iniciada |
-| 5 — Puertos de plataforma + adaptador Chrome (corte grande, TS transversal) | ⏳ No iniciada |
+| 4 — `core/`: BunClient en TypeScript (+ typescript-eslint y `tsc --noEmit` en verde) | ✅ Hecha (2026-08-02) |
+| 5 — Puertos de plataforma + adaptador Chrome (corte grande, TS transversal) **+ el daemon de conexión** | ⏳ No iniciada |
 | 6 — Motor HLS → `core/hls/` | ⏳ No iniciada |
 | 7 — Entrypoints (composición) | ⏳ No iniciada |
 | 8 — Borrado del vanilla de la raíz | ⏳ No iniciada |

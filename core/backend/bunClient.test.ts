@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 /**
- * Tests de BunClient.obtenerRutaServidor (shared/bunClient.js).
+ * Tests de BunClient (core/backend/bunClient.ts).
  * Foco: el timeout duro que evita que un servidor colgado congele al poller del
  * daemon de conexión (regresión del bug "dice conectado estando apagado").
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import BunClient from './bunClient.js';
+import BunClient from './bunClient.ts';
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -32,11 +32,11 @@ describe('obtenerRutaServidor()', () => {
 
   it('rechaza (no se cuelga) cuando el fetch nunca resuelve: el timeout lo aborta', async () => {
     // Simula el server "colgado": el fetch sólo termina si se dispara el abort.
-    globalThis.fetch = vi.fn((url, opts) => new Promise((_, reject) => {
+    globalThis.fetch = vi.fn((_url, opts) => new Promise((_resolve, reject) => {
       opts.signal.addEventListener('abort', () =>
         reject(new DOMException('The operation was aborted.', 'AbortError'))
       );
-    }));
+    })) as unknown as typeof fetch;
     // timeout corto para no demorar el test; el abort debe rechazar la promesa.
     await expect(BunClient.obtenerRutaServidor({ timeoutMs: 20 })).rejects.toThrow();
   });
@@ -88,7 +88,7 @@ describe('enviarFragmentoStream()', () => {
   }));
 
   it('ante timeout lanza un Error de backend, NO un AbortError (para que el SW pause la cola)', async () => {
-    globalThis.fetch = fetchQueCuelga();
+    globalThis.fetch = fetchQueCuelga() as unknown as typeof fetch;
     const err = await BunClient
       .enviarFragmentoStream(new Uint8Array([1, 2]), headers, undefined, 20)
       .catch(e => e);
@@ -98,7 +98,7 @@ describe('enviarFragmentoStream()', () => {
   });
 
   it('propaga el AbortError del usuario tal cual (cancelación limpia)', async () => {
-    globalThis.fetch = fetchQueCuelga();
+    globalThis.fetch = fetchQueCuelga() as unknown as typeof fetch;
     const userController = new AbortController();
     const p = BunClient
       .enviarFragmentoStream(new Uint8Array([1]), headers, userController.signal, 10000)

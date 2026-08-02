@@ -19,7 +19,7 @@ import '../sitio/ramonnet/config.js';
 import '../sitio/ramonnet/parserTitulos.js';
 import '../sitio/ramonnet/resolverManifiesto.js';
 import '../shared/utils.js';
-import '../shared/bunClient.js';
+import '../core/backend/bunClient.ts';
 import '../shared/conexion.js';
 import '../shared/historialFallos.js';
 import '../background/hlsEngine.js';

@@ -4,12 +4,11 @@ Esta extensión no tiene un pipeline de CI/CD ni un entorno de "producción" en 
 
 ## La extensión (Chrome/Brave)
 
-**Estado actual**: distribución manual vía "Cargar descomprimida" (`chrome://extensions/`) — ver el paso a paso en el `README.md` raíz (esa sección sí sigue siendo la guía correcta para usuarios finales no técnicos).
+**Estado actual**: distribución manual vía "Cargar descomprimida" (`chrome://extensions/`) apuntando a `.output/chrome-mv3/` — ver el paso a paso en el `README.md` raíz.
 
-No hay:
-- Publicación en Chrome Web Store (no evaluado todavía).
-- Empaquetado `.crx`/`.zip` versionado automáticamente.
-- Firma de extensión.
+No hay publicación en la Store, empaquetado `.crx` versionado ni firma. Sí hay build:
+desde la Fase 3 la extensión se compila con WXT y lo que se carga es `.output/chrome-mv3/`
+(`npm run build`), no la raíz del repo. `npm run zip` produce un `.zip` si alguna vez hace falta.
 
 **No se publica en la Chrome Web Store — y no está planeado hacerlo.** Es una extensión de uso **personal**: se carga descomprimida, para un solo usuario. Esto no es un "todavía no", es una restricción de diseño confirmada (2026-08-02), y **cambia el signo de varias decisiones técnicas**: no se ponderan la review de la Store, la optics de pedir permisos amplios ante usuarios desconocidos, ni el empaquetado/firma. El primer caso concreto fue la selección de sitio de la re-arquitectura multi-portal: descartar "una build por portal" a favor del registro en runtime (ver `docs/adr/0009-registro-de-sitios-en-runtime.md`). Lo que **sí** sigue valiendo con todo el peso: la seguridad real frente a contenido scrapeado (`docs/security.md`) y que la extensión se usa a diario y no puede quedar rota.
 
@@ -23,11 +22,11 @@ Repositorio separado, no incluido en este monorepo. Requisitos documentados en e
 
 La extensión depende de que este servidor esté corriendo para cualquier operación de descarga real (Turbo Mode, ver `docs/tech-stack.md`) — sin él, `BunClient` falla en el primer `fetch` y la cola se pausa automáticamente vía el circuit breaker ad-hoc (`docs/patterns.md`).
 
-**Fuera de alcance de este documento**: el deployment/build del backend Bun en sí vive en su propio repo — este documento solo cubre el contrato de integración desde el lado de la extensión (puerto, endpoints esperados, ver `shared/bunClient.js` y `docs/architecture.md`).
+**Fuera de alcance de este documento**: el deployment/build del backend Bun en sí vive en su propio repo — este documento solo cubre el contrato de integración desde el lado de la extensión (puerto, endpoints esperados, ver `core/backend/bunClient.ts` y `docs/architecture.md`).
 
 ### Contrato de endpoints (lado extensión)
 
-Lo que la extensión **espera** del backend, derivado de `shared/bunClient.js` (esa es la fuente de verdad ejecutable: si cambia, esta tabla se actualiza en el mismo PR). El host base es `http://localhost:3001` por defecto, sobreescribible sin editar código vía `globalThis.RAMONNET_BUN_BASE_URL` o `BunClient.configurarBaseUrl(url)`.
+Lo que la extensión **espera** del backend, derivado de `core/backend/bunClient.ts` (esa es la fuente de verdad ejecutable: si cambia, esta tabla se actualiza en el mismo PR). El host base es `http://localhost:3001` por defecto, sobreescribible sin editar código vía `globalThis.RAMONNET_BUN_BASE_URL` o `BunClient.configurarBaseUrl(url)`.
 
 | Método + ruta | Entrada | Respuesta que consume la extensión |
 |---|---|---|
@@ -44,4 +43,4 @@ Lo que la extensión **espera** del backend, derivado de `shared/bunClient.js` (
 
 ## Versionado
 
-`manifest.json` tiene un campo `version` (actualmente `5.2.0`) que no está atado a ningún proceso automático de release — se bumpea manualmente. No hay changelog centralizado a nivel de release; el historial de cambios vive disperso en los banners de versión por archivo (ver `docs/coding-standards.md`) y en `git log`.
+La versión (actualmente `5.2.0`) vive en `wxt.config.ts` y de ahí la toma el manifest generado; no está atada a ningún proceso automático de release — se bumpea a mano. No hay changelog centralizado a nivel de release; el historial de cambios vive disperso en los banners de versión por archivo (ver `docs/coding-standards.md`) y en `git log`.

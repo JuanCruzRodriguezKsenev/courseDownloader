@@ -33,25 +33,41 @@ La mayoría de los archivos tienen un comentario de banner al inicio con número
 
 **Regla**: al hacer un cambio de comportamiento no trivial en un archivo que ya tiene este banner, bumpear la versión y agregar una línea de changelog describiendo el fix — no dejar el cambio sin documentar en el propio archivo. Para cambios triviales (typos, formato) no hace falta.
 
-## Sin framework, sin bundler — module pattern por objeto global
+## Módulos ES + global publicado como side-effect
 
-Salvo las islas Preact (ver abajo), no hay `import`/`export` de ES modules. Cada archivo define un objeto (`AppState`, `Utils`, `BunClient`, `HlsEngine`, `Conexion`, `Renderers`, `Scraper`) y lo expone condicionalmente según el contexto:
+Desde la Fase 3 (empaquetado con WXT) **todo el código de la extensión son módulos ES**:
+el bundler arma el grafo desde los entrypoints. Pero los consumidores siguen leyendo los
+objetos como globals, así que cada módulo hace las dos cosas:
 
 ```js
-if (typeof window !== "undefined") {
-  window.NombreDelModulo = NombreDelModulo;
-} else {
-  self.NombreDelModulo = NombreDelModulo;
-}
+// Exportación (ver docs/coding-standards.md). Sigue publicando el global porque el
+// resto del código vanilla lo consume sin importar; el `export` es lo que permite que
+// el bundler arme el grafo de dependencias y que Vitest importe el módulo.
+globalThis.NombreDelModulo = NombreDelModulo;
+export default NombreDelModulo;
 ```
 
-Esto es necesario porque el mismo archivo (`shared/*.js`) se carga tanto en el popup (contexto `window`) como en el service worker (contexto `self`, sin `window`). **Regla**: todo módulo nuevo en `shared/` debe seguir este mismo patrón de exportación dual si va a usarse desde ambos contextos. Los módulos testeados agregan además un branch `module.exports` para Node/Vitest (ver `docs/testing.md`).
+**Por qué las dos y no sólo el import**: convertir los ~200 call-sites que hoy escriben
+`Utils.x` / `BunClient.y` a imports explícitos es un refactor transversal que merece su
+propio paso; publicar el global mantiene a todos esos call-sites funcionando sin tocarlos.
+El `export` es lo que hace que el módulo exista para el bundler y para los tests.
 
-**Excepción — islas Preact**: los archivos `popup/features/*.preact.js` sí usan `import`/`export` de ES modules reales (se cargan con `<script type="module">` y toman Preact/htm de `popup/vendor/htm-preact-standalone.module.js`). Conviven con el patrón de objeto global, pero siguen las reglas de `docs/preact-migration.md`, no las de esta sección.
+**Regla**: un módulo nuevo lleva ese footer. Si el archivo es de un contexto único (una
+isla Preact, un entrypoint), alcanza con el `export` — el global es sólo para lo que se
+consume desde otros archivos sin importarlo.
+
+**Orden de evaluación**: como nadie importa a nadie explícitamente, el orden lo fija el
+entrypoint (`entrypoints/popup/main.js`, `entrypoints/background.js`), que importa los
+módulos en la secuencia correcta. **Un módulo nuevo que otros consuman hay que agregarlo
+ahí, en el punto correcto de la cadena** — si no, su global no existe cuando lo buscan.
+
+**TypeScript**: el núcleo migrado (`core/`) ya está en `.ts` con el mismo footer
+(`(globalThis as Record<string, unknown>).X = X; export default X`). La migración es
+incremental — ver `docs/rearquitectura-diseno.md`.
 
 ## Orden de carga de scripts
 
-`popup.html` carga los `<script>` en un orden de dependencia explícito (shared → renderers/scraper → popup.js). `background.js` usa `importScripts('shared/utils.js', 'shared/bunClient.js', 'background/hlsEngine.js')` al inicio del archivo. **Regla**: cualquier archivo nuevo debe agregarse en el punto correcto de esa cadena — si depende de `Utils`, va después de `shared/utils.js`; si `Utils` va a depender de él, va antes.
+Los dos entrypoints (`entrypoints/popup/main.js` y `entrypoints/background.js`) importan los módulos en un orden de dependencia explícito: adaptador de sitio → núcleo compartido → features → orquestador → islas Preact. **Regla**: cualquier archivo nuevo debe agregarse en el punto correcto de esa cadena — si depende de `Utils`, va después de `shared/utils.js`; si `Utils` va a depender de él, va antes.
 
 ## Manejo de errores
 

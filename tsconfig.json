@@ -8,5 +8,5 @@
     "strict": true,
     "noEmit": true
   },
-  "include": [".wxt/**/*", "wxt.config.ts", "entrypoints/**/*"]
+  "include": [".wxt/**/*", "wxt.config.ts", "entrypoints/**/*", "core/**/*"]
 }
