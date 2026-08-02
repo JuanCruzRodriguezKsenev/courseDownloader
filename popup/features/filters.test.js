@@ -5,7 +5,7 @@
  * filtrado cruzado del listado de disponibles (aplicarFiltrosCruzados), el badge
  * del botón de filtros (actualizarPillsUIState), la (re)habilitación de controles
  * (desbanearFiltros) y el armado del popover (renderizarFiltrosMenuPopover).
- * Mockea AppState + Utils + nodos. filtrosActivos se pasa por referencia.
+ * Mockea AppState + ParserTitulos + nodos. filtrosActivos se pasa por referencia.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import FilterFeature from './filters.js';
@@ -52,8 +52,10 @@ beforeEach(() => {
     pestañaActiva: 'disponibles',
     catedraSeleccionada: null,
   };
-  // clasificarCatedraYCarpeta: derivamos la cátedra de una propiedad puesta en el mock.
-  globalThis.Utils = {
+  // El valor de la faceta para los items de la COLA lo deriva el adaptador de sitio
+  // re-parseando el título (SitioRamonNet.clasificarCarpeta → ParserTitulos). Acá se
+  // stubea el parser: lo que se testea es el filtrado, no el parseo.
+  globalThis.ParserTitulos = {
     clasificarCatedraYCarpeta: (titulo, carpeta) => ({ catedra: 'COMUN', carpeta }),
   };
 });
@@ -73,8 +75,8 @@ describe('FilterFeature.coincideConFiltrosCola', () => {
     expect(feature.coincideConFiltrosCola({ titulo: 'x', carpeta: 'quimica' }, '')).toBe(false);
   });
 
-  it('respeta el filtro de cátedra (vía Utils.clasificarCatedraYCarpeta)', () => {
-    Utils.clasificarCatedraYCarpeta = (t, c) => ({ catedra: 'A', carpeta: c });
+  it('respeta el filtro de faceta (derivada por el adaptador de sitio)', () => {
+    ParserTitulos.clasificarCatedraYCarpeta = (t, c) => ({ catedra: 'A', carpeta: c });
     const { feature, filtrosActivos } = crearFeature();
     filtrosActivos.valoresFaceta.add('A');
     expect(feature.coincideConFiltrosCola({ titulo: 'x', carpeta: 'biologia' }, '')).toBe(true);
@@ -187,7 +189,7 @@ describe('FilterFeature.renderizarFiltrosMenuPopover', () => {
   });
 
   it('en Cola arma Materia + Cátedra derivadas de la cola', () => {
-    Utils.clasificarCatedraYCarpeta = (t, c) => ({ catedra: 'A', carpeta: c });
+    ParserTitulos.clasificarCatedraYCarpeta = (t, c) => ({ catedra: 'A', carpeta: c });
     const { feature, nodos } = crearFeature();
     AppState.pestañaActiva = 'cola';
     AppState.colaDescargas = [{ titulo: 'x', carpeta: 'biologia' }];

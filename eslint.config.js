@@ -24,6 +24,7 @@ const globalesDelProyecto = {
   SitioRamonNet: "readonly",
   SitioActivo: "readonly",
   ResolverManifiesto: "readonly",
+  ParserTitulos: "readonly",
   BannerConexion: "readonly",
   ListaClases: "readonly",
   OnboardingFeature: "readonly",

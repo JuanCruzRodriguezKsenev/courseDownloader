@@ -51,7 +51,7 @@ Ver `docs/patterns.md` para el detalle de cómo se comunican estas zonas y qué 
 ## Flujo de una descarga, de punta a punta
 
 1. **Scraping**: el usuario abre el popup con la pestaña de Ramón Net activa. `popup.js` inyecta `Scraper.escanearAulaVirtual` (definida en `popup/scraper.js`) en esa pestaña, que lee el DOM y devuelve la lista de clases visibles + la materia detectada.
-2. **Clasificación**: cada título crudo pasa por `Utils.formatTitleStructured`/`clasificarCatedraYCarpeta` (`shared/utils.js`) para derivar nombre de archivo canónico, cátedra (A–D) y carpeta de destino.
+2. **Clasificación**: cada título crudo pasa por `SitioActivo.parsearTitulo`/`.clasificarCarpeta` (`sitio/ramonnet/parserTitulos.js`, Capa 2) para derivar nombre de archivo canónico, cátedra (A–D) y carpeta de destino.
 3. **Encolado**: el usuario selecciona clases y las agrega a la cola. `popup.js` actualiza `AppState.colaDescargas` de inmediato (optimistic update) y notifica al service worker vía `inyectar_items_en_cola_activa`.
 4. **Procesamiento** (`background.js`, `procesarSiguienteElementoDeLaCola`): toma el primer ítem FIFO de la cola persistida en `chrome.storage.local`, y:
    - `SitioActivo.resolverManifiesto` (`sitio/ramonnet/resolverManifiesto.js`, Capa 2) resuelve la URL del manifiesto `.m3u8` a partir del HTML de la página de la clase; el motor HLS ya sólo recibe la URL resuelta.

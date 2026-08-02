@@ -56,10 +56,19 @@ const SitioRamonNet = {
     calidad: "480p",
   },
 
-  // Resolución del manifiesto .m3u8 desde el HTML de la clase. La implementación
-  // vive en sitio/ramonnet/resolverManifiesto.js (se referencia perezosamente para
-  // no depender del orden de carga); el núcleo la consume por esta puerta.
+  // --- Puertas al resto del adaptador -------------------------------------------
+  // Las implementaciones viven en archivos hermanos y se referencian perezosamente
+  // (arrow functions) para no depender del orden de carga de los <script>/importScripts.
+  // El núcleo y la UI consumen SIEMPRE por estas puertas, nunca los módulos directo.
+
+  // HTML de la página de la clase → URL del manifiesto .m3u8.
   resolverManifiesto: (urlClase, signal) => ResolverManifiesto.resolver(urlClase, signal),
+
+  // Título crudo scrapeado → nombre canónico del archivo.
+  parsearTitulo: (crudo, materiaBase, options) => ParserTitulos.formatTitleStructured(crudo, materiaBase, options),
+
+  // Título crudo + materia → { catedra, carpeta } donde se guarda.
+  clasificarCarpeta: (crudo, materiaBase) => ParserTitulos.clasificarCatedraYCarpeta(crudo, materiaBase),
 
   faceta: {
     id: "catedra",
@@ -74,8 +83,8 @@ const SitioRamonNet = {
     leer: (clase) => clase.catedra,
     // Los items de la COLA no llevan el campo: se re-deriva del título con el parser
     // del sitio. Que esta derivación viva acá es justamente el punto — la UI genérica
-    // no sabe que existe `Utils.clasificarCatedraYCarpeta`.
-    leerDeCola: (clase) => Utils.clasificarCatedraYCarpeta(clase.titulo, clase.carpeta).catedra,
+    // no sabe que existe un parser de títulos.
+    leerDeCola: (clase) => SitioRamonNet.clasificarCarpeta(clase.titulo, clase.carpeta).catedra,
 
     // Etiqueta larga: badge de la cabecera y botones del modal ("Cátedra A").
     etiquetar: (valor) => (valor === "COMUN" ? "Común" : `Cátedra ${valor}`),

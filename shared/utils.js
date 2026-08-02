@@ -1,7 +1,16 @@
 /**
- * CLON DOWNLOADHELPER - UTILERÍAS CRIPTOGRÁFICAS Y PERSISTENCIA (V5.9.1)
+ * CLON DOWNLOADHELPER - UTILERÍAS CRIPTOGRÁFICAS Y PERSISTENCIA (V6.0.0)
  * ARCHIVO COMPLETO — FIX CRÍTICO: ERRADICACIÓN REAL DE FILEREADER/BASE64 EN VOLCADO A DISCO
  * ==============================================================================================
+ * CHANGELOG v6.0.0:
+ * - [CAPA 2] Se fueron a `sitio/ramonnet/parserTitulos.js` las 3 funciones del parser de
+ *   títulos (parseSmartDate, clasificarCatedraYCarpeta, formatTitleStructured) con sus
+ *   constantes de regex: eran lo específico de Ramón Net (materias del plan, formato
+ *   "SEM mes-día", cátedras A-D) dentro de un módulo "compartido". Los 14 tests de
+ *   caracterización se mudaron con ellas. Este archivo queda GENÉRICO: sanitizado de
+ *   nombres, escapado HTML, acentos, AES, blob, fetch con reintentos y telemetría.
+ *   Los call-sites pasan por `SitioActivo.parsearTitulo` / `.clasificarCarpeta`.
+ *   Ver ADR-0008 y docs/rearquitectura-diseno.md.
  * CHANGELOG v5.9.1:
  * - [FIX] El timeout por-intento ya no lanza AbortError sino un Error normal ("Timeout de Nms...").
  *   Un AbortError aguas arriba se trata como abort externo (hlsEngine.js:261 NO frena a los workers
@@ -50,19 +59,6 @@ const ACCENT_MAP = {
 };
 const REGEX_ACCENTS = /[áäâàéëêèíïîìóöôòúüûùÁÄÂÀÉËÊÈÍÏÎÌÓÖÔÒÚÜÛÙ]/g;
 
-const REGEX_SEM_FECHA = /\bSEM\s+(\d{1,2})[-/](\d{1,2})\b/i;
-const REGEX_FECHA_COMPLETA = /\b(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})\b/;
-const REGEX_FECHA_SIMPLE = /\b(\d{1,2})[-/](\d{1,2})\b/;
-
-const REGEX_MATERIA_DETECTION = /\b(ANATO|ANATOMIA|BIOLOGIA|BIO|HISTOLOGIA|HISTO|EMBRIOLOGIA|EMBR|EMBRIO|FISIOLOGIA|FISIO|QUIMICA|QUIM)\b/i;
-const REGEX_CLASE = /\bCLASE\s*(\d+)\b/i;
-const REGEX_PARTE = /\bPARTE\s*(\d+|[A-Z]|[IVXLCDM]+)\b/i;
-
-const REGEX_CLEAN_SPACES = /\s+/g;
-const REGEX_CLEAN_HUERFANOS_START = /^\s*[-_()\s.\|]+\s*/;
-const REGEX_CLEAN_HUERFANOS_END = /\s*[-_()\s.\|]+\s*$/;
-const REGEX_SANITIZAR_DETALLES = /[^a-zA-Z0-9 _\-().ñÑ]/g;
-
 const Utils = {
   /**
    * Sanitiza títulos para usarlos como nombres de archivo válidos en el OS
@@ -96,169 +92,6 @@ const Utils = {
   quitarAcentos(str) {
     if (!str) return "";
     return str.replace(REGEX_ACCENTS, match => ACCENT_MAP[match] || match);
-  },
-
-  /**
-   * Parser inteligente de fecha que previene desajustes de orden (día/mes vs mes/día)
-   */
-  parseSmartDate(num1Str, num2Str) {
-    const num1 = parseInt(num1Str, 10);
-    const num2 = parseInt(num2Str, 10);
-    let day, month;
-    
-    if (num1 > 12 && num2 <= 12) {
-      day = num1;
-      month = num2;
-    } else if (num2 > 12 && num1 <= 12) {
-      day = num2;
-      month = num1;
-    } else {
-      day = num1;
-      month = num2;
-    }
-    
-    return {
-      day: String(day).padStart(2, '0'),
-      month: String(month).padStart(2, '0')
-    };
-  },
-
-  /**
-   * Identifica la cátedra (A, B, C, D) y carpeta de materia basada en el título y materia de referencia
-   */
-  clasificarCatedraYCarpeta(tituloClase, materiaBase) {
-    const tituloUpper = this.quitarAcentos(tituloClase.toUpperCase().trim());
-    const materiaLower = materiaBase.toLowerCase().trim();
-
-    const matchExplicit = tituloUpper.match(/\b(?:CATEDRA|CAT|COMISION|COMISIÓN|COM)\s+([A-D])\b/i);
-    if (matchExplicit) {
-      return { catedra: matchExplicit[1].toUpperCase(), carpeta: materiaLower };
-    }
-
-    const matchMateriaLetra = tituloUpper.match(/\b(?:ANATO|ANATOMIA|BIOLOGIA|BIO|HISTOLOGIA|HISTO|EMBRIOLOGIA|EMBRIO|EMBR|FISIOLOGIA|FISIO|QUIMICA|QUIM)\s+([A-D])\b/i);
-    if (matchMateriaLetra) {
-      return { catedra: matchMateriaLetra[1].toUpperCase(), carpeta: materiaLower };
-    }
-
-    const matchGeneral = tituloUpper.match(/\b([A-Z]+)\s+([A-D])\b/);
-    if (matchGeneral) {
-      const sigla = matchGeneral[1].toLowerCase();
-      const letra = matchGeneral[2].toUpperCase();
-      if (materiaLower.includes(sigla) || sigla.startsWith(materiaLower.substring(0, 3))) {
-        return { catedra: letra, carpeta: materiaLower };
-      }
-    }
-
-    return { catedra: "COMUN", carpeta: materiaLower };
-  },
-
-  /**
-   * Formatea títulos en base a la jerarquía estructurada fiel de Ramón Net
-   * Formato: SEM [mes]-[dia] - [materia] [catedra] - CLASE [n] - PARTE [m] - [detalle]
-   */
-  formatTitleStructured(originalText, materiaBase = "biologia", options = {}) {
-    const opts = {
-      abbreviate: true,
-      cleanBody: true,
-      forcePrefix: true,
-      ...options
-    };
-
-    let text = this.quitarAcentos(originalText.trim());
-    
-    let datePrefix = "SEM 00-00";
-    let dateFound = false;
-    
-    const matchSem = text.match(REGEX_SEM_FECHA);
-    const matchFC = text.match(REGEX_FECHA_COMPLETA);
-    const matchFS = text.match(REGEX_FECHA_SIMPLE);
-
-    const match = matchSem || matchFC || matchFS;
-    if (match) {
-      const parsed = this.parseSmartDate(match[1], match[2]);
-      datePrefix = `SEM ${parsed.month}-${parsed.day}`;
-      dateFound = true;
-    }
-
-    // Limpiar todas las fechas encontradas en el texto para evitar duplicados (ej: fechas en nuevas líneas)
-    if (opts.cleanBody) {
-      text = text
-        .replace(REGEX_SEM_FECHA, "")
-        .replace(REGEX_FECHA_COMPLETA, "")
-        .replace(REGEX_FECHA_SIMPLE, "");
-    }
-
-    const clasif = this.clasificarCatedraYCarpeta(originalText, materiaBase);
-    let catedra = clasif.catedra !== "COMUN" ? clasif.catedra : "";
-    if (catedra && opts.cleanBody) {
-      // Usar lookahead negativo para evitar matchear la C de "Cátedra" al limpiar la letra de la cátedra
-      const regexCat = new RegExp(`\\b(?:CATEDRA|CÁTEDRA|CAT|COMISION|COMISIÓN|COM)?\\s*\\b${catedra}(?![a-zA-ZáéíóúÁÉÍÓÚüÜñÑ])`, "i");
-      text = text.replace(regexCat, "");
-    }
-
-    let materiaStr = "";
-    const matchMateria = text.match(REGEX_MATERIA_DETECTION);
-    if (matchMateria) {
-      materiaStr = matchMateria[1].toUpperCase();
-      if (opts.cleanBody) {
-        const regexMat = new RegExp(`\\b${materiaStr}\\b`, "i");
-        text = text.replace(regexMat, "");
-      }
-    } else {
-      materiaStr = materiaBase.toUpperCase();
-    }
-    
-    let materiaAbbrev = materiaStr;
-    if (opts.abbreviate) {
-      if (materiaStr.includes("ANATO") || materiaStr.includes("ANATOMIA")) materiaAbbrev = "ANATO";
-      else if (materiaStr.includes("BIOL") || materiaStr.includes("BIO")) materiaAbbrev = "BIO";
-      else if (materiaStr.includes("HISTO")) materiaAbbrev = "HISTO";
-      else if (materiaStr.includes("EMBR")) materiaAbbrev = "EMBRIO";
-      else if (materiaStr.includes("FISIO")) materiaAbbrev = "FISIO";
-      else if (materiaStr.includes("QUIM")) materiaAbbrev = "QUIM";
-      else materiaAbbrev = materiaStr.substring(0, 5);
-    }
-
-    let claseStr = "";
-    const matchClase = text.match(REGEX_CLASE);
-    if (matchClase) {
-      claseStr = `CLASE ${matchClase[1]}`;
-      if (opts.cleanBody) text = text.replace(REGEX_CLASE, "");
-    }
-
-    let parteStr = "";
-    const matchParte = text.match(REGEX_PARTE);
-    if (matchParte) {
-      parteStr = `PARTE ${matchParte[1].toUpperCase()}`;
-      if (opts.cleanBody) text = text.replace(REGEX_PARTE, "");
-    }
-
-    let detalles = text
-      .replace(REGEX_SANITIZAR_DETALLES, "_")
-      .replace(REGEX_CLEAN_SPACES, " ")
-      .replace(REGEX_CLEAN_HUERFANOS_START, "") 
-      .replace(REGEX_CLEAN_HUERFANOS_END, "") 
-      .trim();
-
-    if (detalles) {
-      detalles = detalles.toUpperCase();
-    }
-
-    let partesFinales = [];
-    
-    if (dateFound || opts.forcePrefix) {
-      partesFinales.push(datePrefix);
-    }
-    
-    let matCat = catedra ? `${materiaAbbrev} ${catedra}` : materiaAbbrev;
-    partesFinales.push(matCat);
-    
-    if (claseStr) partesFinales.push(claseStr);
-    if (parteStr) partesFinales.push(parteStr);
-    if (detalles) partesFinales.push(detalles);
-
-    const resultadoFinal = partesFinales.join(" - ");
-    return this.quitarAcentos(resultadoFinal);
   },
 
   /**

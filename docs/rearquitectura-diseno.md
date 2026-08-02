@@ -6,9 +6,12 @@ La **decisión** y su justificación viven en `docs/adr/0008-arquitectura-nucleo
 objetivo, interfaces de los puertos, elección de bundler y orden de migración. Es el
 equivalente de `docs/preact-migration.md` pero para el corte núcleo/adaptadores.
 
-> **Estado**: diseño aceptado, **ejecución no iniciada**. No forma parte de la tanda de
-> saldado de deuda técnica (esa queda en JS — ver `docs/ROADMAP.md` Fase 2 y el bug 400 en
-> `docs/TECHNICAL_DEBT.md`). Se ejecuta después, incremental, en fases (abajo).
+> **Estado (2026-08-02)**: diseño aceptado y **ejecución arrancada por la Capa 2** — el
+> adaptador de sitio `sitio/ramonnet/` ya existe y concentra el descriptor de faceta, las
+> constantes del portal, la resolución del `.m3u8` y el parser de títulos; el motor HLS y el
+> daemon de conexión quedaron genéricos. Sigue **todo en JS vanilla y sin bundler**: las
+> Capas 1/3 (puertos + adaptador de navegador) y TypeScript/WXT no empezaron, y son las que
+> traen el paso de build. Ver la tabla de avance al final.
 
 ## Objetivo en una línea
 
@@ -107,7 +110,7 @@ ser la **firma** del puerto; un adaptador de sitio nuevo no compila si le falta
 `resolverManifiesto`; y el catálogo IPC tipado cierra la clase de bugs "handler que nadie
 emite".
 
-> **Caveat al tipar `Catedra`:** hoy `Utils.clasificarCatedraYCarpeta` devuelve
+> **Caveat al tipar `Catedra`:** hoy `ParserTitulos.clasificarCatedraYCarpeta` devuelve
 > `matchExplicit[1].toUpperCase()` — la letra **que capturó la regex**, sin validar que caiga
 > en A-D; sólo el `"COMUN"` del fallback es un literal garantizado (`shared/utils.js`). Tipar
 > el retorno como unión no es gratis: obliga a **validar el rango en el adaptador de sitio** y
@@ -247,7 +250,8 @@ punta.
 | 0 — Paleta a tokens (`styles/variables.css` como única fuente de color) | ✅ Hecha (2026-08-02) |
 | 0b — Primer archivo de Capa 2: `sitio/ramonnet/config.js` (descriptor de faceta) | ✅ Hecha (2026-08-02) |
 | 0c — Constantes del portal + resolución M3U8 + reglas dNR → `sitio/ramonnet/` (el motor HLS queda genérico) | ✅ Hecha (2026-08-02) |
-| 1 — Parsers puros (`formatTitleStructured`, `clasificarCatedraYCarpeta`) + scraper → `sitio/` | ⏳ No iniciada |
+| 1a — Parser de títulos → `sitio/ramonnet/parserTitulos.js` (con sus 14 tests) | ✅ Hecha (2026-08-02) |
+| 1b — Scraper del DOM → `sitio/ramonnet/scraper.js` | ⏳ No iniciada |
 | 2 — BunClient + daemon → `core/` | ⏳ No iniciada |
 | 3 — Puertos storage/IPC + adaptador Chrome + TS transversal | ⏳ No iniciada |
 | 4 — Motor HLS → `core/hls/` | ⏳ No iniciada |

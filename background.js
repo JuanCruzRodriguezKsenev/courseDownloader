@@ -117,7 +117,7 @@
 
 // El adaptador de sitio (Capa 2) va primero: el daemon de conexión y el loop de descarga
 // leen de él la URL de sondeo y la resolución del manifiesto. Ver ADR-0008.
-importScripts('sitio/ramonnet/config.js', 'sitio/ramonnet/resolverManifiesto.js', 'shared/utils.js', 'shared/bunClient.js', 'shared/conexion.js', 'shared/historialFallos.js', 'background/hlsEngine.js');
+importScripts('sitio/ramonnet/config.js', 'sitio/ramonnet/parserTitulos.js', 'sitio/ramonnet/resolverManifiesto.js', 'shared/utils.js', 'shared/bunClient.js', 'shared/conexion.js', 'shared/historialFallos.js', 'background/hlsEngine.js');
 
 // Helper para encapsular el estado en almacenamiento de sesión (persistente al SW, volátil al navegador)
 const SessionState = {

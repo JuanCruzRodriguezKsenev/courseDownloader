@@ -25,7 +25,7 @@ Escrito principalmente por `AppState.respaldar()` (`shared/state.js`) desde el p
 {
   id: string,
   numeroOriginal: number,       // orden en que apareció en el scraping
-  titulo: string,                 // título canónico ya formateado (ver Utils.formatTitleStructured)
+  titulo: string,                 // título canónico ya formateado (ver ParserTitulos.formatTitleStructured)
   urlInterna: string,             // URL de la página de la clase en Ramón Net
   carpeta: string,                // subcarpeta de destino (materia, lowercase)
   catedra?: "A"|"B"|"C"|"D"|"COMUN",

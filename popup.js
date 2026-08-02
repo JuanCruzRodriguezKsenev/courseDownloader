@@ -750,8 +750,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           } else {
             const nuevasClases = enlaces.map((item, idx) => {
               const materiaBase = nodos.folder.value.trim();
-              const tituloFinalEstandar = Utils.formatTitleStructured(item.texto, materiaBase);
-              const clasif = Utils.clasificarCatedraYCarpeta(item.texto, materiaBase);
+              const tituloFinalEstandar = SitioActivo.parsearTitulo(item.texto, materiaBase);
+              const clasif = SitioActivo.clasificarCarpeta(item.texto, materiaBase);
 
               return {
                 id: idx + Date.now(), // ID único dinámico para evitar colisiones con clases persistidas
