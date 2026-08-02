@@ -69,6 +69,13 @@ Inventario vivo de problemas conocidos en el código actual, ordenados por sever
 
 ---
 
+### Sondeo de red ad-hoc en `queue.js` (duplica al daemon `Conexion`)
+
+- **Dónde**: `popup/features/queue.js` → `verificarRedAntesDeDescargar()`.
+- **Qué pasa**: hace su propio `fetch(HEAD)` con `AbortController` + timeout de 4s contra el portal antes de arrancar/reanudar la cola. Eso es exactamente lo que ya hace `Conexion._chequearInternet()` cada 3s, y **viola la regla operativa** que el propio proyecto documenta en `docs/patterns.md` §Daemon de estado de conexión ("nunca agregar sondeos ad-hoc en otro lado — consumir el daemon"). Detectado el 2026-08-02 al rutear el host por el adaptador de sitio.
+- **Por qué importa**: dos fuentes de verdad sobre "hay internet" pueden discrepar (el daemon dice caído y este chequeo deja arrancar, o al revés), y son 4s de latencia extra en el arranque de cada ráfaga sobre información que el daemon ya tiene fresca.
+- **Por qué no se arregló en el mismo commit**: reemplazarlo por `Conexion.verificarAhora()`/`get()` **cambia la semántica de arranque** (deja de ser un sondeo sincrónico dedicado y pasa a leer estado compartido), así que necesita su propio commit y verificación en el navegador — no entra como efecto colateral de un refactor de acoplamiento.
+
 ## 🟡 Testing
 
 ### Cobertura de tests: parcial
