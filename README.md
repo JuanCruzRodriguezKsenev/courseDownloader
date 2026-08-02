@@ -32,11 +32,18 @@ Para realizar las descargas físicas en tu disco, la extensión se conecta con u
 2. Ejecutá el archivo **`iniciar.bat`**.
 3. Verás una ventana de consola esperando conexiones en el puerto `3001`. *Podés minimizar la consola y dejarla corriendo en segundo plano*.
 
-### 2. Instalar la Extensión en el Navegador
-1. Abrí Chrome o Brave y navegá a `chrome://extensions/`.
-2. Activá el **Modo de desarrollador** (esquina superior derecha).
-3. Hacé clic en **Cargar descomprimida** (Load unpacked) y seleccioná la carpeta raíz de este repositorio (`videoDownloader`).
-4. Fijá el ícono de la extensión en tu barra de herramientas.
+### 2. Compilar e Instalar la Extensión en el Navegador
+> La extensión ahora se **compila** (antes se cargaba el repo tal cual). Hace falta [Node.js](https://nodejs.org/).
+
+1. En la carpeta del repo: `npm install` (sólo la primera vez) y después `npm run build`.
+   Eso genera la carpeta **`.output/chrome-mv3/`**.
+2. Abrí Chrome o Brave y navegá a `chrome://extensions/`.
+3. Activá el **Modo de desarrollador** (esquina superior derecha).
+4. Hacé clic en **Cargar descomprimida** (Load unpacked) y seleccioná **`.output/chrome-mv3/`**
+   (NO la raíz del repositorio).
+5. Fijá el ícono de la extensión en tu barra de herramientas.
+
+Tras cambiar código: `npm run build` y recargar la extensión desde su tarjeta.
 
 ### 3. Configuración Inicial (Primer Uso)
 1. Hacé clic en el ícono de la extensión. Se desplegará el **Welcome Tour**.

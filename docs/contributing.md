@@ -6,13 +6,19 @@ Configuración de entorno local y flujo de trabajo para desarrollar sobre esta e
 
 - Chrome o Brave con "Modo de desarrollador" habilitable en `chrome://extensions/`.
 - El backend local en Bun (`ramonnet-bun-backend`, repo separado) corriendo en `http://localhost:3001` para poder probar descargas de punta a punta — ver `docs/deployment.md`.
-- No hace falta Node.js para *cargar* la extensión (no hay build step — el navegador lee los `.js`/`.html` fuente directo). Sí hace falta Node.js para correr la suite de tests (`npm test`, Vitest + jsdom) y el linter (`npm run lint`, ESLint) — ver `docs/testing.md`.
+- **Node.js es obligatorio**: desde la Fase 3 de la re-arquitectura la extensión se **compila** (WXT). Ya no se carga la raíz del repo — el navegador lee `.output/chrome-mv3/`, que produce `npm run build`. Node también corre la suite (`npm test`, Vitest + jsdom) y el linter (`npm run lint`).
 
 ## Cargar la extensión en modo desarrollo
 
-1. `chrome://extensions/` → activar "Modo de desarrollador" (esquina superior derecha).
-2. "Cargar descomprimida" → seleccionar la carpeta raíz de este repo.
-3. Después de **cualquier** cambio de código, hacer clic en el ícono de recarga de la tarjeta de la extensión — ni el popup ni el service worker tienen hot-reload.
+1. `npm install` (la primera vez; el `postinstall` corre `wxt prepare` y genera `.wxt/`).
+2. `npm run build` → genera `.output/chrome-mv3/`.
+3. `chrome://extensions/` → activar "Modo de desarrollador" (esquina superior derecha).
+4. "Cargar descomprimida" → seleccionar **`.output/chrome-mv3/`**, NO la raíz del repo.
+5. Después de cada cambio: `npm run build` + clic en el ícono de recarga de la tarjeta.
+
+Alternativa con recarga automática: `npm run dev` levanta WXT en modo desarrollo (HMR del
+popup y recarga del service worker). Los comandos vienen de `wxt.config.ts`; el `manifest.json`
+ya no se escribe a mano — lo genera el build.
 
 ## Debuggear
 
