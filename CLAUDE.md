@@ -29,6 +29,8 @@ Start at **`docs/architecture.md`**. Full map:
 
 Security rule (operational summary — full policy and rationale in `docs/security.md`): scraped/third-party text must never be interpolated into `.innerHTML` unescaped. Since Preact island #4 the live list renders through `<TarjetaEstado>`/`<FilaClase>` (`listaClases.preact.js`), so escape at the `window.ListaClases` view-model boundary that feeds them. The original `popup.js` XSS is fixed (2026-07-16).
 
+**This is a personal extension — it is never going to be published to the Chrome Web Store.** It's loaded unpacked, for a single user. Treat that as a design constraint, not a "not yet": **do not weigh Web Store review, permission optics toward unknown users, or packaging/signing** when evaluating trade-offs. (It already flipped one decision — see ADR-0009, where "one build per portal" was dropped in favour of a runtime site registry.) What *does* still carry full weight: real security around scraped content (`docs/security.md`), and that the extension is used daily and must not be left broken.
+
 ## Development Workflow
 
 The shipped extension is unpacked, hand-written JS loaded directly by the browser — no build tool. A dev-only Vitest suite plus a dev-only ESLint (both never shipped, no build step) exist for the source:

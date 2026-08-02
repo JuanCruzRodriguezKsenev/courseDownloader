@@ -216,11 +216,11 @@ en `sitio/ramonnet/` (`config.js` con el descriptor de faceta + constantes + las
 y el daemon `Conexion` quedaron genéricos. Se hizo **en JS vanilla a propósito**: prueba el
 corte núcleo/sitio sin pagar todavía el paso de build, y no se re-toca al migrar a TS.
 
-**Fase 2 — Decisión de empaquetado. ⛔ BLOQUEA A TODO LO DE ABAJO.** No es trabajo de código:
-hay que elegir **cómo se selecciona el sitio activo** (ver "Cómo se elige el sitio" abajo).
-Una build por portal implica configuración de bundler por target; un registro en runtime
-implica cargar N adaptadores y pedirle permisos al usuario para N dominios. Esto define la
-forma de `wxt.config.ts` y del manifest, así que arrancar sin decidirlo es re-hacer la Fase 3.
+**Fase 2 — Decisión de selección de sitio. ✅ RESUELTA (2026-08-02, ADR-0009).** Se eligió
+**registro en runtime**: una sola extensión que resuelve el adaptador a partir de la URL. La
+recomendación previa de este doc ("una build por portal") se apoyaba sobre todo en la review
+de la Chrome Web Store, criterio que **no aplica** — la extensión es personal y no se publica
+(ver `docs/deployment.md`). Ya no bloquea nada.
 
 **Fase 3 — WXT + TypeScript, andamiaje vacío.** Instalar, configurar, y compilar **el código
 actual tal cual** a `.output/chrome-mv3/`, sin mover lógica. Termina cuando esa carpeta se
@@ -245,30 +245,17 @@ los adaptadores concretos en el núcleo).
 `src/` tengan **paridad de tests** con lo que reemplazan. Es un paso propio, no el efecto
 colateral de la Fase 7.
 
-### Cómo se elige el sitio activo (la decisión de la Fase 2)
+### Cómo se elige el sitio activo — resuelto
 
-Hoy `SitioActivo = SitioRamonNet` es una constante en `config.js`. Para más de un portal hay
-dos caminos, y **no son equivalentes en lo que le piden al usuario**:
+`SitioActivo` deja de ser una constante y pasa a resolverse por URL contra un registro de
+adaptadores (`SITIOS.find(s => s.esPaginaDelSitio(url))`). El popup resuelve con la URL de la
+pestaña activa; el service worker resuelve **por ítem de la cola** (`urlInterna`), no una vez
+global — la cola es persistente y puede mezclar portales, y resolver una sola vez descargaría
+un ítem con el parser y el CDN equivocados.
 
-| | Una build por portal | Registro en runtime |
-|---|---|---|
-| Manifest | `host_permissions` sólo del portal de esa build | Los de TODOS los portales soportados |
-| Instalación | Una extensión por portal | Una sola |
-| Chrome Web Store | Permisos justificables uno a uno | Pide permisos que el usuario quizá nunca use — señal de rechazo en review |
-| Complejidad | Config de bundler por target (WXT lo hace nativo) | Detección del sitio + carga condicional del adaptador |
-
-**Recomendación: una build por portal.** El manifest es estático y `declarativeNetRequest` +
-`host_permissions` son específicos del sitio por definición; pedir permisos de N portales para
-usar uno es exactamente lo que hace sospechosa a una extensión. Falta que el dueño del repo lo
-confirme — cuando lo haga, va como **ADR nuevo** (no editar ADR-0008).
-
-**Por qué este orden y no "bundler + UI primero":** arrancar por los parsers puros deja la
-extensión funcionando y testeada en cada corte, y no toca el manifest hasta el final. El orden
-inverso (montar WXT + migrar islas a `.tsx` antes que la lógica) llega antes a algo vistoso,
-pero pone el paso de build y la regeneración del manifest en la posición donde un fallo
-bloquea el uso diario de la extensión. Si igual se prefiere ese orden, la condición es hacerlo
-en una rama larga y no mergear hasta que el `.output/` cargue y descargue una clase de punta a
-punta.
+Sigue siendo estático y hay que editarlo a mano al sumar un portal: los `host_permissions` del
+manifest y su ruleset `declarativeNetRequest`. El detalle completo, las alternativas y el
+riesgo asumido están en **ADR-0009** (no se repiten acá — regla DRY, ADR-0007).
 
 **Reglas de ejecución** (aplican a cualquier orden):
 
@@ -288,7 +275,7 @@ punta.
 | Diseño (este doc + ADR-0008) | ✅ Redactado (2026-07-19) |
 | 0 — Paleta a tokens (`styles/variables.css` como única fuente de color) | ✅ Hecha (2026-08-02) |
 | 1 — **Capa 2 completa** (faceta, constantes, resolución M3U8, dNR, parser, scraper) | ✅ Hecha (2026-08-02) |
-| 2 — Decisión de empaquetado (una build por portal vs. registro en runtime) | ⛔ Pendiente del dueño del repo — bloquea 3-8 |
+| 2 — Selección de sitio: registro en runtime (ADR-0009) | ✅ Decidida (2026-08-02) |
 | 3 — WXT + TypeScript, andamiaje vacío (compilar lo actual) | ⏳ No iniciada |
 | 4 — `core/`: BunClient + daemon | ⏳ No iniciada |
 | 5 — Puertos de plataforma + adaptador Chrome (corte grande, TS transversal) | ⏳ No iniciada |

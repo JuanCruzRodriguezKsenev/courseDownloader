@@ -11,7 +11,7 @@ No hay:
 - Empaquetado `.crx`/`.zip` versionado automáticamente.
 - Firma de extensión.
 
-**Si en el futuro se evalúa publicar en Chrome Web Store**: revisar `manifest.json` contra los requisitos de la Chrome Web Store (política de permisos, descripción, iconos en los tamaños requeridos — ya están presentes en `icons/`), y considerar en ese momento si conviene introducir un bundler (ver `docs/adr/0001-no-bundler-or-typescript-yet.md`) para minificar antes de subir el paquete. No es parte del roadmap actual (`docs/ROADMAP.md`).
+**No se publica en la Chrome Web Store — y no está planeado hacerlo.** Es una extensión de uso **personal**: se carga descomprimida, para un solo usuario. Esto no es un "todavía no", es una restricción de diseño confirmada (2026-08-02), y **cambia el signo de varias decisiones técnicas**: no se ponderan la review de la Store, la optics de pedir permisos amplios ante usuarios desconocidos, ni el empaquetado/firma. El primer caso concreto fue la selección de sitio de la re-arquitectura multi-portal: descartar "una build por portal" a favor del registro en runtime (ver `docs/adr/0009-registro-de-sitios-en-runtime.md`). Lo que **sí** sigue valiendo con todo el peso: la seguridad real frente a contenido scrapeado (`docs/security.md`) y que la extensión se usa a diario y no puede quedar rota.
 
 ## El backend Bun (`ramonnet-bun-backend`)
 

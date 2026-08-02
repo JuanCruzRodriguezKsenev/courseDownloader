@@ -21,5 +21,6 @@ Registro formal de las decisiones de arquitectura significativas del proyecto.
 | [0006](0006-adopt-preact-islands-in-popup.md) | Adoptar Preact (islas) en el popup, sin build | Aceptada |
 | [0007](0007-dry-docs-canonical-homes.md) | Documentación DRY: un hogar canónico por concepto | Aceptada |
 | [0008](0008-arquitectura-nucleo-adaptadores.md) | Arquitectura núcleo genérico + adaptadores (hexagonal) + TypeScript | Aceptada (diseño) |
+| [0009](0009-registro-de-sitios-en-runtime.md) | Selección del sitio en runtime (registro por URL), no una build por portal | Aceptada |
 
 Estados posibles: `Propuesta` → `Aceptada` | `Rechazada` | `Diferida` → (eventualmente) `Superseded by NNNN`.
