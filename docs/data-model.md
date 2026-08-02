@@ -17,6 +17,7 @@ Escrito principalmente por `AppState.respaldar()` (`shared/state.js`) desde el p
 | `ordenAscendente` | `boolean \| null` | popup | Orden de la lista: `true`=ascendente, `false`=descendente, `null`=FIFO natural (solo aplica en la pestaña Cola). |
 | `tutorialCompletado` | `boolean` | popup | Si el onboarding ya se completó/saltó. |
 | `SW_ESTADOS_PROGRESO` | `Record<string, EstadoClase>` | SW (`persistirEstadoFondo`) | Mapa `titulo → estado` de progreso, espejo liviano para que el popup pueda reconciliar sin pedir el detalle completo. |
+| `historialFallos` | `HistorialFallo[]` (ver abajo) | SW (`registrarFallo` → `HistorialFallos.registrar`), popup (marcar leídas / limpiar) | Historial acotado (últimos 50, más-reciente-primero) de fallos terminales de descarga (rechazo 4xx / sesión / servidor / internet). Fuente de la campanita del popup; la escribe el SW aun con el popup cerrado. |
 
 ### `Clase` (elemento de `listaPersistente`)
 
@@ -53,6 +54,25 @@ Escrito principalmente por `AppState.respaldar()` (`shared/state.js`) desde el p
 ```ts
 "pending" | "process" | "downloaded"
 ```
+
+### `HistorialFallo` (elemento de `historialFallos`)
+
+```ts
+{
+  id: string,        // `${Date.now()}-${random}` — no hay clave natural
+  tipo: "rechazo" | "sesion" | "servidor" | "internet",
+  titulo: string,    // título de la clase en curso al fallar
+  motivo: string,    // texto humano del fallo (plano, se muestra tal cual)
+  ts: number,        // Date.now() del fallo
+  leido: boolean     // false al insertar; el popup lo pone true al "marcar leídas"
+}
+```
+
+`HistorialFallos.registrar()` (`shared/historialFallos.js`) es el único escritor que
+antepone y recorta la lista a 50 (los más viejos se descartan). Concurrencia aceptada: el
+SW (que registra) y el popup (que marca leídas / limpia) hacen read-modify-write sobre la
+misma clave desde contextos distintos; una colisión exacta podría perder una escritura —
+mismo trade-off sin transacciones que el resto de las claves, y el dato es informativo.
 
 ## `chrome.storage.session` — volátil, sobrevive a la suspensión del Service Worker pero no a un reinicio del navegador
 

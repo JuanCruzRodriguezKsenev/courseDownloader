@@ -1,7 +1,11 @@
 /**
- * CLON DOWNLOADHELPER - MAQUINARIA DE ESTADO CENTRAL (V5.2.0)
+ * CLON DOWNLOADHELPER - MAQUINARIA DE ESTADO CENTRAL (V5.2.1)
  * CENTRALIZA MUTACIONES, PERSISTENCIA EN STORAGE E IPC DE FORMA DESACOPLADA
  * ==============================================================================================
+ * CHANGELOG v5.2.1:
+ * - [FIX] inicializarSincronizacionStorage normaliza un estado 'error' heredado de storage
+ *   viejo (fix bug 400 previo, ya revertido) a 'pending' al cargar, para que esas clases
+ *   sean re-encolables y se rendericen bien. Ver background.js v5.10.1, docs/notificaciones-fallos-diseno.md.
  * CHANGELOG v5.2.0:
  * - [FIX] limpiarSesionLocal: ahora resetea listadoClasesGlobal y ráfagaEnCurso en memoria.
  *   Antes solo limpiaba el storage, dejando el estado en memoria inconsistente si el popup
@@ -36,7 +40,13 @@ const AppState = {
         'ordenAscendente',
         'tutorialCompletado'
       ], (data) => {
-        this.listadoClasesGlobal = data.listaPersistente || [];
+        // Normalización defensiva: un estado 'error' heredado de storage viejo (el fix del
+        // bug 400 lo usó al principio, ya revertido a 'pending') no lo reconoce el resto del
+        // popup — se lo trata como 'pending' para que sea re-encolable y se renderice bien.
+        // Ver docs/notificaciones-fallos-diseno.md.
+        this.listadoClasesGlobal = (data.listaPersistente || []).map(
+          c => (c && c.estado === 'error') ? { ...c, estado: 'pending' } : c
+        );
         this.colaDescargas = data.colaDescargas || [];
         this.sincronizacionDiscoCompletada = data.faseDiscoOk || false;
         this.catedraSeleccionada = data.catedraElegida || null;

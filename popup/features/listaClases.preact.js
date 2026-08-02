@@ -1,5 +1,11 @@
 /**
- * ISLA PREACT #4 (Etapa 2) — la lista de clases de #ui-list (V1.1.0)
+ * ISLA PREACT #4 (Etapa 2) — la lista de clases de #ui-list (V1.1.1)
+ * ==========================================================================
+ * CHANGELOG v1.1.1:
+ * - [FIX] badgeCls cae a 'pending' para cualquier estado que no sea downloaded/process
+ *   (sólo esos tres tienen CSS). Antes, una clase con estado 'error' heredado de storage
+ *   viejo pintaba un `badge error` sin regla → render roto. Ahora es tolerante y alineado
+ *   con el texto del badge. El estado 'error' ya no se genera (ver background.js v5.10.1).
  * ==========================================================================
  * Isla de la migración incremental del popup a Preact (ver ADR-0006,
  * docs/preact-migration.md). Es DUEÑA de #ui-list: sus HIJOS (filas de clases y
@@ -100,7 +106,11 @@ export function FilaClase({ clase, ctx }) {
     : html`<div class="checkbox-placeholder"></div>`;
 
   if (disponibles) {
-    const badgeCls = !sincronizado ? 'pending' : clase.estado;
+    // Sólo hay CSS para pending/process/downloaded: cualquier otro estado (ej. un 'error'
+    // heredado de storage viejo) cae a 'pending', alineado con el texto del badge de abajo.
+    const badgeCls = (!sincronizado || (clase.estado !== 'downloaded' && clase.estado !== 'process'))
+      ? 'pending'
+      : clase.estado;
     const badgeTxt = !sincronizado
       ? 'Sin verificar'
       : (clase.estado === 'downloaded' ? 'Descargado' : (clase.estado === 'process' ? 'En Fila' : 'Pendiente'));

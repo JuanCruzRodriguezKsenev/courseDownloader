@@ -11,6 +11,7 @@ const globalesDelProyecto = {
   Utils: "readonly",
   BunClient: "readonly",
   Conexion: "readonly",
+  HistorialFallos: "readonly",
   HlsEngine: "readonly",
   AppState: "readonly",
   Renderers: "readonly",

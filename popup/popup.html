@@ -27,6 +27,9 @@
       </div>
       <div class="header-right">
         <button id="ui-btn-help" class="btn-help-icon" title="Ver guía de uso y ayuda">❓</button>
+        <!-- Isla Preact #5: la campanita de fallos la renderiza features/campanita.preact.js
+             (derivada del módulo compartido HistorialFallos). display:contents => sin afectar el flex. -->
+        <span id="preact-campanita" style="display:contents"></span>
         <!-- Isla Preact #1: el puntito de estado lo renderiza features/conexionHeader.preact.js
              (derivado del daemon Conexion). display:contents => el wrapper no afecta el layout flex. -->
         <span id="preact-status-dot" style="display:contents"></span>
@@ -123,6 +126,7 @@
   <script src="../shared/state.js"></script>
   <script src="../shared/bunClient.js"></script>
   <script src="../shared/conexion.js"></script>
+  <script src="../shared/historialFallos.js"></script>
   <script src="scraper.js"></script>
   <script src="../renderers.js"></script>
   <script src="features/serverConnection.js"></script>
@@ -139,5 +143,6 @@
   <script type="module" src="features/rutaDisco.preact.js"></script>
   <script type="module" src="features/bannerConexion.preact.js"></script>
   <script type="module" src="features/listaClases.preact.js"></script>
+  <script type="module" src="features/campanita.preact.js"></script>
 </body>
 </html>

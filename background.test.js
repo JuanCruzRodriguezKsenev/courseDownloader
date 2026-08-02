@@ -44,6 +44,7 @@ beforeAll(async () => {
   globalThis.BunClient = { cancelarDescarga: async () => {} };
   globalThis.Conexion = {};
   globalThis.HlsEngine = {};
+  globalThis.HistorialFallos = { registrar: async () => ({ id: 'x' }) };
 
   const noopEvent = { addListener: () => {} };
   globalThis.chrome = {
@@ -52,6 +53,7 @@ beforeAll(async () => {
       onInstalled: noopEvent,
       onMessage: { addListener: (cb) => { listener = cb; } },
       sendMessage: () => {},
+      getURL: (p) => p,
     },
     storage: {
       local: crearArea(() => store.local),
@@ -59,6 +61,9 @@ beforeAll(async () => {
     },
     alarms: { onAlarm: noopEvent, clear: async () => {}, create: () => {} },
     downloads: { search: async () => [] },
+    // El listener de onClicked se registra al cargar el SW; create/clear sólo se
+    // usan dentro de registrarFallo/onClicked, que estos tests IPC no invocan.
+    notifications: { onClicked: noopEvent, create: () => {}, clear: () => {} },
   };
 
   await import('./background.js');

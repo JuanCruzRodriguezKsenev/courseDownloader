@@ -20,9 +20,10 @@ Esta es la **fuente canónica** de la regla. `docs/coding-standards.md` la refer
 | `downloads` | Path legacy no-Turbo (`chrome.downloads.download`), inactivo en la práctica hoy — ver `docs/tech-stack.md`. |
 | `storage` | `chrome.storage.local`/`.session` — ver `docs/data-model.md`. |
 | `scripting` | Inyectar `Scraper.escanearAulaVirtual` en la pestaña activa de Ramón Net. |
-| `tabs` | Detectar la pestaña activa de Ramón Net y escuchar sus cambios de URL/carga. |
+| `tabs` | Detectar la pestaña activa de Ramón Net y escuchar sus cambios de URL/carga; además, enfocar (o abrir) esa pestaña al clickear la notificación nativa de fallo (`chrome.notifications.onClicked` en `background.js`). |
 | `offscreen` | Documento offscreen para generar Object URLs fuera del contexto del service worker (path legacy no-Turbo). |
 | `alarms` | Alarma de auto-sanación (`alarma_autoheal`) — ver `docs/patterns.md`. |
+| `notifications` | Notificación nativa del SO ante un fallo terminal de la cola (clase saltada / cola pausada), disparada por `registrarFallo` en `background.js` — ver `docs/patterns.md` §Circuit breaker. El título de la clase (contenido scrapeado) viaja como **texto plano**; la API `chrome.notifications` no renderiza HTML, así que no introduce un vector de XSS. |
 | `unlimitedStorage` | Evita el límite por defecto de `chrome.storage.local` (5MB), relevante si `listaPersistente`/`colaDescargas` crecen con muchas clases. |
 
 ### `host_permissions`

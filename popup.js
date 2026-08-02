@@ -1,7 +1,14 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.14.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.15.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.15.0:
+ * - [FIX] El handler "clase_con_error" ahora vuelve la clase rechazada a 'pending' (antes
+ *   'error'). El estado 'error' no lo reconocía el resto del popup: los filtros de
+ *   selección/encolado piden 'pending' (no se podía re-encolar) y no hay CSS .badge.error
+ *   (render roto). Ahora la clase se ve como una pendiente normal y es re-encolable; el
+ *   fallo se comunica por la campanita + notificación. Espejo del SW en background.js
+ *   v5.10.1. Ver docs/notificaciones-fallos-diseno.md.
  * CHANGELOG v5.14.0:
  * - [SPLIT] Extraída la lógica de cátedra/multicátedra a la feature
  *   popup/features/catedra.js (CatedraFeature.crear(ctx)): actualizarBadgeCatedra,
@@ -1194,10 +1201,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (req.action === "clase_con_error") {
         // El SW saltó esta clase (hoy: el backend rechazó sus fragmentos con un 4xx
         // determinístico — bug 400). NO es una caída de conexión: la cola sigue con la
-        // próxima. Espeja la limpieza de cola local de "clase_guardada_ok".
-        console.error(`⚠️ [POPUP-ALERT] El SW saltó la clase con error: ${req.titulo} (${req.motivo})`);
+        // próxima. Espeja la limpieza de cola local de "clase_guardada_ok". La clase vuelve
+        // a 'pending' (no 'error'): se ve como una pendiente normal y es re-encolable — el
+        // fallo se comunica por la campanita + la notificación, no por un estado de fila.
+        console.error(`⚠️ [POPUP-ALERT] El SW saltó la clase: ${req.titulo} (${req.motivo})`);
         const obj = AppState.listadoClasesGlobal.find(c => c.titulo === req.titulo);
-        if (obj) { obj.estado = 'error'; obj.seleccionado = false; }
+        if (obj) { obj.estado = 'pending'; obj.seleccionado = false; }
         AppState.colaDescargas = AppState.colaDescargas.filter(c => c.titulo !== req.titulo);
         AppState.respaldar();
         nodos.queueBadge.textContent = AppState.colaDescargas.length;

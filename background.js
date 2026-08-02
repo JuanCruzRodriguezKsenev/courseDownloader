@@ -1,6 +1,31 @@
 /**
- * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V5.9.0)
+ * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V5.10.1)
  * ==========================================================================
+ * CHANGELOG v5.10.1:
+ * - [FIX] El aviso de fallos (v5.10.0) frenaba la cola y no mostraba notificaciones si
+ *   chrome.notifications no estaba disponible (permiso no aplicado hasta recargar la
+ *   extensión desde la tarjeta). Causa: la maquinaria de descarga dependía sin protección
+ *   de la API de notificaciones. Ahora: registrarFallo es a prueba de balas (try/catch en
+ *   historial + notificación, nunca propaga); dispararNotificacionFallo guarda la
+ *   existencia de chrome.notifications, usa iconUrl absoluta (chrome.runtime.getURL) y
+ *   loguea lastError; en la rama "rechazo" el aviso corre DESPUÉS del sendMessage+setTimeout
+ *   (la cola sigue aun si el aviso falla); el listener onClicked se registra con guarda para
+ *   no romper la carga del SW. Ver docs/notificaciones-fallos-diseno.md.
+ * - [FIX] La clase rechazada por el 4xx vuelve a 'pending' (antes 'error'): el estado
+ *   'error' no lo reconocía el resto del popup (filtros de selección/encolado piden
+ *   'pending', y no hay CSS .badge.error) → la clase quedaba con render roto y sin poder
+ *   re-encolarse. Ahora se ve como pendiente normal y es re-encolable; el fallo se
+ *   comunica por la campanita + notificación. Espejo en popup.js v5.15.0.
+ * CHANGELOG v5.10.0:
+ * - [NUEVO] Aviso de fallos: registrarFallo(tipo, titulo, motivo) es el choke point
+ *   único que (a) persiste el fallo en el historial (shared/historialFallos.js →
+ *   chrome.storage.local, fuente de la campanita del popup) y (b) dispara una
+ *   notificación nativa del SO. Se llama desde 2 lugares que cubren los 4 tipos:
+ *   la rama del rechazo 4xx (tipo "rechazo", clase saltada) y
+ *   pausarColaPorErrorDeConexion (tipos "sesion"/"servidor"/"internet"). Nuevo
+ *   listener chrome.notifications.onClicked: enfoca (o abre) la pestaña de Ramón Net.
+ *   Requiere el permiso "notifications" (manifest v5.2.0). Ver
+ *   docs/notificaciones-fallos-diseno.md, docs/patterns.md §Circuit breaker.
  * CHANGELOG v5.9.0:
  * - [FIX bug 400] Rama nueva en el catch de procesarSiguienteElementoDeLaCola para el
  *   rechazo aplicativo 4xx del backend (errDescarga.tipoBackend==="rechazo", propagado
@@ -85,7 +110,7 @@
  * ==========================================================================
  */
 
-importScripts('shared/utils.js', 'shared/bunClient.js', 'shared/conexion.js', 'background/hlsEngine.js');
+importScripts('shared/utils.js', 'shared/bunClient.js', 'shared/conexion.js', 'shared/historialFallos.js', 'background/hlsEngine.js');
 
 // Helper para encapsular el estado en almacenamiento de sesión (persistente al SW, volátil al navegador)
 const SessionState = {
@@ -642,30 +667,37 @@ async function procesarSiguienteElementoDeLaCola() {
       // N=3 del worker — hlsEngine v1.0.6 / bunClient v1.4.0). El server está VIVO:
       // /api/health daría 200 y el daemon lo malclasificaría como "servidor", generando el
       // loop pausa→autoheal→mismo 400. Un 4xx es determinístico: se salta SOLO esta clase
-      // (marcada 'error', avisando cuál) y la cola sigue con la próxima. Sin pausa, sin
-      // alarma. Se clasifica ANTES del daemon, igual que el caso "sesion".
+      // y la cola sigue con la próxima. Sin pausa, sin alarma. Se clasifica ANTES del
+      // daemon, igual que el caso "sesion". La clase vuelve a 'pending' (no queda un estado
+      // 'error' que el resto del popup no reconoce): se ve como una pendiente normal y es
+      // re-encolable. El fallo se comunica por la campanita + la notificación nativa.
       if (errDescarga?.tipoBackend === "rechazo") {
         console.warn(`⛔ [SW] El backend rechazó fragmentos de "${tituloInmutableVideo}" (HTTP ${errDescarga.httpStatus}). Se salta la clase y la cola continúa.`);
         // Cola fresca (pudo cambiar durante la descarga); listaCompleta y estados en memoria.
         const dataUpdate = await chrome.storage.local.get(['colaDescargas']);
         const colaFiltrada = (dataUpdate.colaDescargas || []).filter(c => c.titulo !== tituloInmutableVideo);
         const objPersistente = listaCompleta.find(c => c.titulo === tituloInmutableVideo);
-        if (objPersistente) objPersistente.estado = 'error';
+        if (objPersistente) objPersistente.estado = 'pending';
         const estadosUpdate = await recuperarEstadoFondo();
         delete estadosUpdate[tituloInmutableVideo];
-        // Escritura atómica de las 3 claves (mismo patrón que el path de éxito): clase
-        // marcada 'error', fuera de la cola, sin entrada de progreso.
+        // Escritura atómica de las 3 claves (mismo patrón que el path de éxito): clase de
+        // vuelta a 'pending', fuera de la cola, sin entrada de progreso.
         await chrome.storage.local.set({
           listaPersistente: listaCompleta,
           colaDescargas: colaFiltrada,
           SW_ESTADOS_PROGRESO: estadosUpdate
         });
+        const motivoRechazo = `el backend rechazó sus fragmentos (HTTP ${errDescarga.httpStatus})`;
         chrome.runtime.sendMessage({
           action: "clase_con_error",
           titulo: tituloInmutableVideo,
-          motivo: `el backend rechazó sus fragmentos (HTTP ${errDescarga.httpStatus})`
+          motivo: motivoRechazo
         }).catch(() => {});
         setTimeout(procesarSiguienteElementoDeLaCola, 60); // seguir con la próxima
+        // Aviso persistente + notificación nativa (best-effort, DESPUÉS de garantizar la
+        // continuación de la cola; registrarFallo no propaga). El popup abierto ya
+        // reaccionó al IPC de arriba; el historial cubre el caso cerrado.
+        registrarFallo("rechazo", tituloInmutableVideo, motivoRechazo);
         return;
       }
 
@@ -703,6 +735,61 @@ async function notificarFrenoSuaveExitoso() {
   chrome.runtime.sendMessage({ action: "cola_completamente_vacia", suaveFrenado: true }).catch(() => {});
 }
 
+// Choke point único de aviso de fallos: persiste el fallo en el historial (para la
+// campanita del popup, aun con el popup cerrado) y dispara una notificación nativa.
+// Copy por tipo — cada tipo debe tener un título distinto para que la notificación
+// sea escaneable de un vistazo.
+const TITULOS_NOTIF_FALLO = {
+  rechazo: "Clase saltada",
+  sesion: "Sesión expirada",
+  servidor: "Servidor desconectado",
+  internet: "Sin conexión a internet"
+};
+const MOTIVOS_PAUSA = {
+  sesion: "no hay sesión activa en Ramón Net",
+  servidor: "se perdió la conexión con el servidor local",
+  internet: "se perdió la conexión a internet"
+};
+
+// A prueba de balas: ni el historial ni la notificación pueden propagar una excepción.
+// El aviso es un efecto secundario best-effort — la salud de la cola NUNCA debe depender
+// de que funcione (regresión v5.10.0: un chrome.notifications ausente frenaba la cola).
+async function registrarFallo(tipo, titulo, motivo) {
+  try {
+    await HistorialFallos.registrar(tipo, titulo, motivo);
+  } catch (e) {
+    console.warn("[SW] No se pudo registrar el fallo en el historial:", e);
+  }
+  dispararNotificacionFallo(tipo, titulo, motivo);
+}
+
+function dispararNotificacionFallo(tipo, titulo, motivo) {
+  try {
+    if (typeof chrome === "undefined" || !chrome.notifications || !chrome.notifications.create) {
+      console.warn("[SW] chrome.notifications no disponible (¿falta recargar la extensión desde la tarjeta tras sumar el permiso 'notifications'?).");
+      return;
+    }
+    // notificationId "" (auto-generado): cada fallo es un evento distinto y debe apilarse.
+    chrome.notifications.create("", {
+      type: "basic",
+      // URL absoluta vía getURL: la ruta relativa "icons/..." puede no resolver en el SW
+      // (falla silenciosa "Unable to download all specified images").
+      iconUrl: chrome.runtime.getURL("icons/icon128.png"),
+      title: TITULOS_NOTIF_FALLO[tipo] || "Fallo en la descarga",
+      message: titulo ? `"${titulo}": ${motivo}` : motivo,
+      priority: 2
+    }, () => {
+      // La API reporta el motivo real por lastError (no por throw): queda logueado para
+      // diagnóstico si la notificación no se muestra pese a recargar bien la extensión.
+      if (chrome.runtime.lastError) {
+        console.warn("[SW] La notificación no se pudo mostrar:", chrome.runtime.lastError.message);
+      }
+    });
+  } catch (e) {
+    console.warn("[SW] Error creando la notificación de fallo:", e);
+  }
+}
+
 async function pausarColaPorErrorDeConexion(tipoError, titulo) {
   await SessionState.set({
     colaPausadaPorError: true,
@@ -710,6 +797,10 @@ async function pausarColaPorErrorDeConexion(tipoError, titulo) {
     rafagaCorriendo: false
   });
   loopActivo = false;
+
+  // Aviso (historial + notificación nativa) tras persistir la pausa: que quede el
+  // estado es lo crítico; el aviso es secundario y no debe abortar la pausa si falla.
+  registrarFallo(tipoError, titulo, MOTIVOS_PAUSA[tipoError] || "error de conexión").catch(() => {});
 
   // Autoheal sólo para fallas que el daemon PUEDE detectar recuperadas (servidor/internet).
   // El caso "sesion" no se auto-reanuda: el daemon ve la red OK, así que la alarma
@@ -773,3 +864,24 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     }
   }
 });
+
+// Click en la notificación nativa de fallo → enfocar la pestaña de Ramón Net (o abrirla
+// si no hay ninguna). Da un follow-up accionable: el usuario revisa/reintenta la clase.
+// La guarda evita que un chrome.notifications ausente tire durante la evaluación del SW
+// (rompería la carga entera del service worker).
+if (typeof chrome !== "undefined" && chrome.notifications && chrome.notifications.onClicked) {
+  chrome.notifications.onClicked.addListener(async (notificationId) => {
+    chrome.notifications.clear(notificationId);
+    try {
+      const [tab] = await chrome.tabs.query({ url: "https://plataforma.ramonnet.com.ar/*" });
+      if (tab) {
+        await chrome.tabs.update(tab.id, { active: true });
+        await chrome.windows.update(tab.windowId, { focused: true });
+      } else {
+        await chrome.tabs.create({ url: "https://plataforma.ramonnet.com.ar/" });
+      }
+    } catch (e) {
+      console.warn("[SW] No se pudo enfocar/abrir la pestaña de Ramón Net:", e);
+    }
+  });
+}

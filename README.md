@@ -9,6 +9,7 @@ Extensión de Chrome/Brave de alto rendimiento diseñada para descargar clases g
 * **Descarga Multi-Worker Segmentada**: Utiliza un motor de red concurrente personalizado con 6 workers paralelos para acelerar la descarga de fragmentos HLS, mejorando el rendimiento entre un 15% y 30%.
 * **Escritura Progresiva (Anti-Crash)**: Los videos se transmiten y ensamblan directamente en disco mediante un búfer físico de ventana deslizable (`.part`), manteniendo el consumo de memoria RAM inferior a 15 MB para cualquier tamaño de archivo.
 * **Auto-Heal (Auto-sanación)**: Recuperación automática ante micro-cortes de internet o caídas temporales de red, pausando la cola de forma segura y reanudando la descarga en el fragmento exacto donde se interrumpió una vez restablecida la conexión.
+* **Avisos de Fallos (Notificación + Campanita)**: Ante un fallo terminal de la cola (una clase saltada por rechazo del servidor, o la cola pausada por caída de sesión/servidor/internet), la extensión emite una **notificación nativa del sistema** —aunque el popup esté cerrado— y guarda el fallo en una **campanita** persistente en la cabecera, con un panel de historial (últimos 50) que se puede marcar como leído o limpiar.
 * **Sesiones Únicas de Descarga**: Vinculación de tokens de red únicos (`session-id`) entre el navegador y el backend local, evitando fragmentos huérfanos en disco y colisiones por cancelaciones abruptas.
 * **Organización Inteligente**: La extensión deduce y estandariza los nombres de las clases (Semanas, Materias, Cátedras) de forma automática. Crea la estructura de directorios en tu PC sin necesidad de intervención manual.
 * **Cola de Descarga Desacoplada**: La lista de descargas en cola se mantiene intacta en el storage local de la extensión, permitiendo cambiar de materia, re-escanear aulas o cerrar pestañas mientras el Service Worker gestiona las descargas de fondo.
@@ -58,11 +59,11 @@ Para realizar las descargas físicas en tu disco, la extensión se conecta con u
 
 ## 📁 Estructura del Repositorio
 
-* **`manifest.json`**: Declaración de la extensión (Manifest V3) y permisos requeridos (`storage`, `scripting`, `unlimitedStorage`).
+* **`manifest.json`**: Declaración de la extensión (Manifest V3) y permisos requeridos (`storage`, `scripting`, `notifications`, `unlimitedStorage`).
 * **`popup/`**:
   * `popup.html`: Plantilla visual del popup (Onboarding, pestañas, buscador y footer).
   * `scraper.js`: Algoritmo de inyección y extracción de datos del DOM de Ramón Net.
-  * `features/`: Módulos autocontenidos de la UI del popup (conexión, cola, e islas Preact para header, banner, ruta, onboarding y lista de clases).
+  * `features/`: Módulos autocontenidos de la UI del popup (conexión, cola, e islas Preact para header, banner, ruta, onboarding, lista de clases y campanita de fallos).
 * **`popup.js`**: Orquestador principal de eventos, máquina de estados de UI y pasarela de mensajes IPC.
 * **`renderers.js`**: Renderizador optimizado de tarjetas de estado e ítems de video con soporte de checkboxes interactivos y selección múltiple.
 * **`background/`**:
