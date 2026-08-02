@@ -11,7 +11,7 @@ Escrito principalmente por `AppState.respaldar()` (`shared/state.js`) desde el p
 | `listaPersistente` | `Clase[]` (ver abajo) | popup (`AppState.respaldar`), SW (varios handlers IPC) | Lista completa de clases scrapeadas de la última sesión, con su estado actual. |
 | `colaDescargas` | `ColaItem[]` (ver abajo) | popup, SW | Cola FIFO desacoplada de descarga — separada de `listaPersistente` para poder sobrevivir a cambios de materia/pestaña sin perder el progreso. |
 | `faseDiscoOk` | `boolean` | popup | Si ya se corrió una sincronización con el disco (vía `escanear_carpeta_local`) en esta sesión. |
-| `catedraElegida` | `string \| null` | popup | Cátedra (A–D) seleccionada por el usuario cuando hay multi-cátedra detectada. |
+| `catedraElegida` | `string \| null` | popup | Cátedra (A–D) seleccionada por el usuario cuando hay multi-cátedra detectada. La UI ya no nombra esta clave: la declara el adaptador de sitio (`sitio/ramonnet/config.js`, `faceta.claveEstado` → `AppState.catedraSeleccionada`). Si algún día se generaliza el nombre en storage, hace falta migración. |
 | `ocultarAdvExplorar` | `boolean` | popup | Preferencia: no volver a mostrar el aviso al explorar carpeta. |
 | `ocultarAdvAula` | `boolean` | popup | Preferencia: no volver a mostrar el aviso al cambiar de aula. |
 | `ordenAscendente` | `boolean \| null` | popup | Orden de la lista: `true`=ascendente, `false`=descendente, `null`=FIFO natural (solo aplica en la pestaña Cola). |

@@ -9,6 +9,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import FilterFeature from './filters.js';
+import { SitioRamonNet } from '../../sitio/ramonnet/config.js';
 
 function montarNodos() {
   document.body.innerHTML = `
@@ -31,10 +32,11 @@ function montarNodos() {
 
 function crearFeature(overrides = {}) {
   const nodos = montarNodos();
-  const filtrosActivos = { estados: new Set(), materias: new Set(), catedras: new Set() };
+  const filtrosActivos = { estados: new Set(), materias: new Set(), valoresFaceta: new Set() };
   const ctx = {
     nodos,
     filtrosActivos,
+    sitio: SitioRamonNet,
     renderizar: vi.fn(),
     actualizarContadores: vi.fn(),
     ...overrides,
@@ -74,10 +76,10 @@ describe('FilterFeature.coincideConFiltrosCola', () => {
   it('respeta el filtro de cátedra (vía Utils.clasificarCatedraYCarpeta)', () => {
     Utils.clasificarCatedraYCarpeta = (t, c) => ({ catedra: 'A', carpeta: c });
     const { feature, filtrosActivos } = crearFeature();
-    filtrosActivos.catedras.add('A');
+    filtrosActivos.valoresFaceta.add('A');
     expect(feature.coincideConFiltrosCola({ titulo: 'x', carpeta: 'biologia' }, '')).toBe(true);
-    filtrosActivos.catedras.clear();
-    filtrosActivos.catedras.add('B');
+    filtrosActivos.valoresFaceta.clear();
+    filtrosActivos.valoresFaceta.add('B');
     expect(feature.coincideConFiltrosCola({ titulo: 'x', carpeta: 'biologia' }, '')).toBe(false);
   });
 });

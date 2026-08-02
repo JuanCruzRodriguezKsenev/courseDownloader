@@ -1,7 +1,17 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.15.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.16.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.16.0:
+ * - [CAPA 2] Se saca de acá el vocabulario del sitio: CatedraFeature pasó a ser la
+ *   FacetaFeature genérica (popup/features/faceta.js) y qué ES la faceta lo aporta
+ *   sitio/ramonnet/config.js (SitioActivo), que se le inyecta por ctx igual que a
+ *   FilterFeature. Los dos bloques que decidían la autoselección repitiendo
+ *   'catedraSeleccionada !== "TODAS" && catedra !== "COMUN"' ahora llaman a
+ *   perteneceASeleccionFaceta(clase). Renombres: actualizarBadgeCatedra →
+ *   actualizarBadgeFaceta, verificarYMostrarAsistenteMulticatedra →
+ *   verificarYMostrarAsistenteFaceta, filtrosActivos.catedras → .valoresFaceta.
+ *   Sin cambio de comportamiento. Ver ADR-0008 y docs/rearquitectura-diseno.md.
  * CHANGELOG v5.15.0:
  * - [FIX] El handler "clase_con_error" ahora vuelve la clase rechazada a 'pending' (antes
  *   'error'). El estado 'error' no lo reconocía el resto del popup: los filtros de
@@ -201,7 +211,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const filtrosActivos = {
     estados: new Set(),
     materias: new Set(),
-    catedras: new Set()
+    valoresFaceta: new Set()
   };
 
   // --- Isla Preact #3: Onboarding (welcome tour) — features/onboarding.preact.js ---
@@ -222,8 +232,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   const mostrarOnboarding = _onboardingFeature.mostrarOnboarding;
 
-  // El listener del click en el badge de cátedra vive ahora en CatedraFeature
-  // (popup/features/catedra.js), cableado en su crear() más abajo.
+  // El listener del click en el badge de la faceta vive ahora en FacetaFeature
+  // (popup/features/faceta.js), cableado en su crear() más abajo.
 
   if (nodos.btnSort) {
     nodos.btnSort.addEventListener("click", () => {
@@ -340,6 +350,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const _filters = FilterFeature.crear({
     nodos,
     filtrosActivos,
+    sitio: SitioActivo,
     renderizar: () => renderizarListadoInterfaz(),
     actualizarContadores: () => actualizarContadoresBoton()
   });
@@ -349,16 +360,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   const actualizarPillsUIState = _filters.actualizarPillsUIState;
   const renderizarFiltrosMenuPopover = _filters.renderizarFiltrosMenuPopover;
 
-  // Feature: cátedra / multicátedra (badge + asistente de autoselección + su modal, y
-  // el listener del click en el badge). Depende de aplicarFiltrosCruzados (arriba) y se
-  // instancia antes de init/scraping, que llaman actualizarBadgeCatedra y
-  // verificarYMostrarAsistenteMulticatedra. Ver popup/features/catedra.js.
-  const _catedra = CatedraFeature.crear({
-    nodos,
+  // Feature: faceta del listado (badge + asistente de autoselección + su modal, y el
+  // listener del click en el badge). Genérica: qué ES la faceta —en Ramón Net, la
+  // cátedra— lo aporta el descriptor del sitio activo. Depende de aplicarFiltrosCruzados
+  // (arriba) y se instancia antes de init/scraping, que llaman actualizarBadgeFaceta y
+  // verificarYMostrarAsistenteFaceta. Ver popup/features/faceta.js + sitio/ramonnet/config.js.
+  const _faceta = FacetaFeature.crear({
+    badge: nodos.catedraBadge,
+    sitio: SitioActivo,
     aplicarFiltros: () => aplicarFiltrosCruzados()
   });
-  const actualizarBadgeCatedra = _catedra.actualizarBadgeCatedra;
-  const verificarYMostrarAsistenteMulticatedra = _catedra.verificarYMostrarAsistenteMulticatedra;
+  const actualizarBadgeFaceta = _faceta.actualizarBadge;
+  const verificarYMostrarAsistenteFaceta = _faceta.verificarYMostrarAsistente;
+  const perteneceASeleccionFaceta = _faceta.perteneceASeleccion;
 
   nodos.btnAction.setAttribute('data-modo', 'sincronizar-disco');
 
@@ -433,7 +447,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     await AppState.inicializarSincronizacionStorage();
     actualizarIconoSorteo();
-    actualizarBadgeCatedra();
+    actualizarBadgeFaceta();
     nodos.queueBadge.textContent = AppState.colaDescargas.length;
 
     // Primera vez: el tutorial va PRIMERO y solo. El estado del servidor dentro del
@@ -637,7 +651,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Limpiar filtros activos y cerrar el menú
     filtrosActivos.estados.clear();
     filtrosActivos.materias.clear();
-    filtrosActivos.catedras.clear();
+    filtrosActivos.valoresFaceta.clear();
     actualizarPillsUIState();
     if (nodos.filterMenu) nodos.filterMenu.style.display = 'none';
     if (nodos.btnFilterPills) nodos.btnFilterPills.classList.remove('open');
@@ -705,7 +719,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (AppState.listadoClasesGlobal.length > 0) {
               desbanearFiltros();
               aplicarFiltrosCruzados();
-              actualizarBadgeCatedra();
+              actualizarBadgeFaceta();
             }
           });
           return;
@@ -763,7 +777,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             nodos.masterCheck.checked = false;
             renderizarListadoInterfaz();
             // Mostrar asistente de autoselección si es multicátedra
-            verificarYMostrarAsistenteMulticatedra();
+            verificarYMostrarAsistenteFaceta();
             // Auto-sincronizar inmediatamente
             ejecutarPaso2SincronizarDiscoVeloz();
           }
@@ -788,13 +802,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     AppState.listadoClasesGlobal.forEach(clase => {
       if (clase.estado !== 'process') {
         clase.estado = 'pending';
-        let debeSeleccionar = true;
-        if (AppState.catedraSeleccionada && AppState.catedraSeleccionada !== "TODAS") {
-          if (clase.catedra !== AppState.catedraSeleccionada && clase.catedra !== "COMUN") {
-            debeSeleccionar = false;
-          }
-        }
-        clase.seleccionado = debeSeleccionar;
+        clase.seleccionado = perteneceASeleccionFaceta(clase);
       }
     });
 
@@ -822,13 +830,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           clase.estado = yaExiste ? 'downloaded' : 'pending';
           
-          let debeSeleccionar = !yaExiste;
-          if (AppState.catedraSeleccionada && AppState.catedraSeleccionada !== "TODAS") {
-            if (clase.catedra !== AppState.catedraSeleccionada && clase.catedra !== "COMUN") {
-              debeSeleccionar = false;
-            }
-          }
-          clase.seleccionado = debeSeleccionar; 
+          clase.seleccionado = !yaExiste && perteneceASeleccionFaceta(clase);
         });
 
         AppState.sincronizacionDiscoCompletada = true;
@@ -1424,10 +1426,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // La lógica de cátedra/multicátedra (actualizarBadgeCatedra, aplicarSeleccionCatedra
-  // silenciosa, verificarYMostrarAsistenteMulticatedra, el modal y el listener del badge)
-  // vive ahora en la isla/feature features/catedra.js, cableada más arriba como _catedra
-  // (window.CatedraFeature.crear). Cierra la Fase 2 del split (ADR-0005).
+  // La lógica de la faceta (badge, autoselección silenciosa, asistente, modal y el
+  // listener del badge) vive en features/faceta.js, cableada más arriba como _faceta
+  // (window.FacetaFeature.crear) con el descriptor de SitioActivo. Cerró la Fase 2 del
+  // split (ADR-0005) y es la primera pieza de la Capa 2 (ADR-0008).
 
   // El onboarding (overlay, carrusel, botón de ayuda y "Seleccionar Carpeta" del tour)
   // vive ahora en la isla Preact features/onboarding.preact.js, cableada más arriba

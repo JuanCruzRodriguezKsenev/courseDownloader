@@ -122,22 +122,6 @@ const AppState = {
     });
   },
 
-  aplicarFiltroDeVisibilidad(termino, filtroStatus) {
-    const busqueda = termino.toLowerCase().trim();
-    return this.listadoClasesGlobal.filter(clase => {
-      const coincideTexto = clase.titulo.toLowerCase().includes(busqueda);
-      const coincideEstado = (filtroStatus === 'all') || (clase.estado === filtroStatus);
-      
-      let coincideCatedra = true;
-      if (this.catedraSeleccionada && this.catedraSeleccionada !== "TODAS") {
-        coincideCatedra = (clase.catedra === this.catedraSeleccionada || clase.catedra === "COMUN");
-      }
-      
-      clase.visible = coincideTexto && coincideEstado && coincideCatedra;
-      return clase.visible;
-    });
-  },
-
   conmutarSeleccionMasiva(marcarTodos, clasesVisibles) {
     clasesVisibles.forEach(clase => {
       if (clase.estado === 'pending') {

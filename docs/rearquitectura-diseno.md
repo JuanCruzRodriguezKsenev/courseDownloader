@@ -124,8 +124,16 @@ porque hoy las islas Preact mezclan ambas cosas. Dos categorías:
   cátedra; se alimentan sólo de stores del núcleo (`Conexion`, cola). Candidatos directos:
   `conexionHeader` (StatusDot), `bannerConexion`, `rutaDisco`, `onboarding`.
 - **De sitio** (`sitio/ramonnet/ui/`): reciben datos ya formateados por el adaptador de Capa 2
-  y muestran conceptos propios del portal. Candidatos: `<FilaClase>` (badge de cátedra A-D) y
-  el modal multicátedra de `catedra.js`.
+  y muestran conceptos propios del portal. Candidato principal: `<FilaClase>` (badge de
+  cátedra A-D).
+
+> **Ya ejecutado (2026-08-02)**: el modal multicátedra + el badge resultaron ser el caso más
+> fácil de los dos, porque el mecanismo (preguntar una vez por el eje de clasificación,
+> autoseleccionar, filtrar) es genérico y sólo el vocabulario era del sitio. En vez de partir
+> el componente en dos se parametrizó: `popup/features/faceta.js` es genérico y
+> `sitio/ramonnet/config.js` aporta el descriptor. **Es el patrón a preferir cuando lo
+> específico del sitio son datos y no estructura** — parametrizar sale más barato que duplicar
+> el componente, y se verifica con un test que corre la misma feature con otro descriptor.
 
 El corte se ve mejor en `listaClases.preact.js`, que hoy contiene las dos mitades: la
 estructura de lista/selección/tabs es genérica, y `<FilaClase>` + el badge de cátedra son de
@@ -236,6 +244,8 @@ punta.
 | Fase de migración | Estado |
 |---|---|
 | Diseño (este doc + ADR-0008) | ✅ Redactado (2026-07-19) |
+| 0 — Paleta a tokens (`styles/variables.css` como única fuente de color) | ✅ Hecha (2026-08-02) |
+| 0b — Primer archivo de Capa 2: `sitio/ramonnet/config.js` (descriptor de faceta) | ✅ Hecha (2026-08-02) |
 | 1 — Parsers puros → `sitio/` | ⏳ No iniciada |
 | 2 — BunClient + daemon → `core/` | ⏳ No iniciada |
 | 3 — Puertos storage/IPC + adaptador Chrome + TS transversal | ⏳ No iniciada |

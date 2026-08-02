@@ -19,7 +19,10 @@ const globalesDelProyecto = {
   ServerConnectionFeature: "readonly",
   QueueFeature: "readonly",
   FilterFeature: "readonly",
-  CatedraFeature: "readonly",
+  FacetaFeature: "readonly",
+  // Adaptador de sitio (Capa 2 — ADR-0008): sitio/<portal>/config.js.
+  SitioRamonNet: "readonly",
+  SitioActivo: "readonly",
   BannerConexion: "readonly",
   ListaClases: "readonly",
   OnboardingFeature: "readonly",
@@ -55,7 +58,7 @@ module.exports = [
   // popup por <script>). importScripts sólo existe en el SW pero declararlo
   // acá es inocuo para el popup (no lo usa).
   {
-    files: ["background.js", "background/**/*.js", "shared/**/*.js", "popup.js", "popup/**/*.js", "renderers.js"],
+    files: ["background.js", "background/**/*.js", "shared/**/*.js", "sitio/**/*.js", "popup.js", "popup/**/*.js", "renderers.js"],
     languageOptions: {
       globals: { ...globalesDelProyecto, importScripts: "readonly" },
     },
@@ -74,7 +77,7 @@ module.exports = [
   // (CommonJS/Node). Aplica a shared/*.js, las features vanilla, y hlsEngine.js
   // (que sumó la rama module.exports para testear sus funciones puras).
   {
-    files: ["shared/**/*.js", "popup/features/serverConnection.js", "popup/features/queue.js", "popup/features/filters.js", "popup/features/catedra.js", "background/hlsEngine.js"],
+    files: ["shared/**/*.js", "sitio/**/*.js", "popup/features/serverConnection.js", "popup/features/queue.js", "popup/features/filters.js", "popup/features/faceta.js", "background/hlsEngine.js"],
     languageOptions: { globals: { ...globals.node } },
   },
 
