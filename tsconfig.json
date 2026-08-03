@@ -1,12 +1,23 @@
 {
   // WXT genera .wxt/tsconfig.json con los paths y los tipos del navegador.
   // Este archivo sólo lo extiende para que el editor y `tsc` los tomen.
-  // Todavía no hay archivos .ts de producción: la migración a TypeScript es una
-  // fase posterior (ver docs/rearquitectura-diseno.md).
+  //
+  // OJO con `include`: `allowJs` está en false y los dos entrypoints son .js, así que
+  // `tsc` los saltea y con ellos todo el grafo de imports. Cada carpeta con .ts de
+  // producción tiene que estar listada ACÁ o queda sin typechequear en silencio — es lo
+  // que pasaba con shared/ y plataforma/ desde la Fase 5b. Al agregar una carpeta nueva
+  // con .ts (ej. core/hls/ en la Fase 6, si cuelga de otra raíz), sumala a la lista.
   "extends": "./.wxt/tsconfig.json",
   "compilerOptions": {
     "strict": true,
     "noEmit": true
   },
-  "include": [".wxt/**/*", "wxt.config.ts", "entrypoints/**/*", "core/**/*"]
+  "include": [
+    ".wxt/**/*",
+    "wxt.config.ts",
+    "entrypoints/**/*",
+    "core/**/*",
+    "shared/**/*",
+    "plataforma/**/*"
+  ]
 }

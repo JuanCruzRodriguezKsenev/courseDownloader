@@ -2,7 +2,7 @@
 
 Inventario vivo de problemas conocidos en el código actual, ordenados por severidad. Cada ítem indica ubicación exacta, impacto y la solución propuesta. Este documento se actualiza a medida que se resuelven o aparecen nuevos hallazgos — no es un snapshot histórico (para eso está el changelog de cada archivo y el historial de git).
 
-Última auditoría: 2026-08-02.
+Última auditoría: 2026-08-03.
 
 **Lo que está abierto vive en la sección de abajo, y nada más.** Todo lo que sigue después
 (Seguridad, Mantenibilidad, Testing, Robustez, Menores) está ✅ resuelto y se conserva como
@@ -95,6 +95,14 @@ Cuando aparezca un hallazgo nuevo, va acá arriba con su `**Estado**` explícito
 - **Impacto**: la lógica pura, el daemon, el cliente del backend, las features/islas, el parseo M3U8, el pool de descarga y los handlers IPC tienen red de regresión; sólo la orquestación restante de UI y el bucle/auto-heal del SW dependen de pruebas manuales.
 - **Fix propuesto**: ver `docs/ROADMAP.md`. El núcleo de `popup.js` (init + wiring + scraping/render) queda como orquestación no-extraíble por ADR-0005 → verificación manual/e2e; el bucle del SW se cubriría al re-arquitecturar el motor sobre puertos (ADR-0008/Fase 6).
 - **Estado**: 🟢 cubierto lo abordable en JS (2026-07-19) — utils, conexión, bunClient, serverConnection, queue, filters, catedra, las 5 islas Preact, hlsEngine (funciones puras + pool `compilarTranscodificacionStream`) y los handlers IPC de background. Lo pendiente (núcleo de `popup.js`, bucle/auto-heal del SW) es manual/e2e por diseño hasta la re-arquitectura de Fase 6.
+
+### `tsc --noEmit` typechequeaba sólo `core/` (agujero silencioso en una de las 4 compuertas)
+
+- **Dónde**: `tsconfig.json`, el campo `include`.
+- **Qué pasaba**: la lista era `[".wxt/**/*", "wxt.config.ts", "entrypoints/**/*", "core/**/*"]`. Como `allowJs` está en `false` y los dos entrypoints son `.js`, `tsc` los salteaba y con ellos todo el grafo de imports, así que `shared/` y `plataforma/` **nunca entraban**. `npx tsc --noEmit --listFiles` lo confirmó: 11 archivos del repo, todos de `core/`.
+- **Impacto**: desde la Fase 5b, `shared/state.ts`, `shared/conexion.ts`, `plataforma/chrome/almacenamiento.ts`, `plataforma/chrome/mensajeria.ts` y `plataforma/composicion.ts` —justo lo recién migrado— pasaban la compuerta sin que nadie los mirara. La compuerta daba verde igual, que es lo peor de este tipo de agujero: no se nota. Lint sí los cubría (ESLint no depende de `include`), así que el hueco era el typecheck, no el análisis estático entero.
+- **Fix aplicado**: sumar `"shared/**/*"` y `"plataforma/**/*"` al `include`, más un comentario en el archivo explicando que la cobertura **no** es automática y que cada carpeta nueva con `.ts` hay que listarla. Salió limpio sin tocar una línea de código de producción: 11 → 18 archivos typechequeados, 0 errores.
+- **Estado**: ✅ resuelto (2026-08-03). Al agregar `.ts` bajo una raíz nueva (ej. `core/hls/` si cuelga de otro lado en la Fase 6), verificar con `npx tsc --noEmit --listFiles` que efectivamente entró.
 
 ---
 

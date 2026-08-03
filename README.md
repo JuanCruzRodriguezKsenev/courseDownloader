@@ -66,19 +66,21 @@ Tras cambiar código: `npm run build` y recargar la extensión desde su tarjeta.
 
 ## 📁 Estructura del Repositorio
 
-* **`manifest.json`**: Declaración de la extensión (Manifest V3) y permisos requeridos (`storage`, `scripting`, `notifications`, `unlimitedStorage`).
-* **`popup/`**:
-  * `popup.html`: Plantilla visual del popup (Onboarding, pestañas, buscador y footer).
-  * `sitio/ramonnet/`: Adaptador del portal — scraper del DOM, parser de títulos, resolución del video y constantes del sitio.
-  * `features/`: Módulos autocontenidos de la UI del popup (conexión, cola, e islas Preact para header, banner, ruta, onboarding, lista de clases y campanita de fallos).
+> Los fuentes viven en la **raíz** del repo (`srcDir: '.'`); lo que la extensión carga es
+> `.output/chrome-mv3/`, generado por `npm run build`. Detalle técnico completo en
+> `docs/architecture.md`.
+
+* **`wxt.config.ts`**: Configuración del empaquetado y **origen del `manifest.json`** (permisos, hosts, dNR, iconos). El manifest ya no se escribe a mano: se genera desde acá.
+* **`entrypoints/`**: Los puntos de entrada que detecta WXT — `popup/index.html` (plantilla visual del popup), `popup/main.js` y `background.js`. Estos dos últimos son sólo listas de imports, y **su orden importa**: cada módulo se publica como global al evaluarse y los siguientes lo consumen.
 * **`popup.js`**: Orquestador principal de eventos, máquina de estados de UI y pasarela de mensajes IPC.
-* **`renderers.js`**: Renderizador optimizado de tarjetas de estado e ítems de video con soporte de checkboxes interactivos y selección múltiple.
-* **`background/`**:
-  * `hlsEngine.js`: Motor de red concurrente de descarga y re-ensamblado de fragmentos de video `.ts`.
+* **`popup/features/`**: Módulos autocontenidos de la UI del popup (conexión, cola, filtros, faceta) e islas Preact (header, banner, ruta, onboarding, lista de clases y campanita de fallos).
+* **`renderers.js`**: Renderizador de la telemetría de descarga (el render de la lista se mudó a la isla Preact `listaClases`).
 * **`background.js`**: Service Worker de segundo plano que gestiona la cola de descargas persistente y responde a las alarmas de auto-sanación.
-* **`shared/`**:
-  * `state.ts`: Maquinaria de estado centralizada (`AppState`) con persistencia en storage.
-  * `core/backend/bunClient.ts`: Cliente de comunicación HTTP con el backend de Bun (núcleo genérico, TypeScript).
-  * `conexion.ts`: Daemon de estado de conexión (servidor + internet), fuente única consumida por popup y Service Worker.
-  * `utils.js`: Funciones comunes de sanitización, clasificación de cátedras y normalización de títulos de video.
-* **`styles/`**: Sistema de tokens de diseño visual (Colores OLED, radios, espaciados, tipografías y pulso ECG animado).
+* **`background/hlsEngine.js`**: Motor de red concurrente de descarga y descifrado de fragmentos de video `.ts` (6 workers en paralelo).
+* **`core/`**: Núcleo genérico en TypeScript, sin nada del navegador ni del portal — los puertos (`puertos/`), el cliente del backend Bun (`backend/bunClient.ts`) y el historial de fallos (`historial/`).
+* **`plataforma/`**: La única capa que toca la API del navegador — adaptadores de `chrome.*` (`chrome/`) y la raíz de composición (`composicion.ts`), donde se arman e inyectan las instancias.
+* **`sitio/ramonnet/`**: Adaptador del portal — scraper del DOM, parser de títulos, resolución del `.m3u8` y constantes del sitio.
+* **`shared/`**: Código compartido entre contextos — `state.ts` (`AppState`, estado del popup con persistencia), `conexion.ts` (daemon de conexión servidor + internet, fuente única para popup y Service Worker) y `utils.js` (sanitización, descifrado AES, reintentos y telemetría).
+* **`public/`**: Archivos que se copian tal cual al build (iconos, el documento *offscreen* del camino legacy y el ruleset `declarativeNetRequest` del sitio).
+* **`styles/`**: Sistema de tokens de diseño visual (Colores OLED, radios, espaciados, tipografías y pulso ECG animado) más un archivo por componente en `components/`.
+* **`docs/`**: Documentación técnica mantenida como código — arranca por `docs/architecture.md`.
