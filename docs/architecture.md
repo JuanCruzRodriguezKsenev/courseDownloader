@@ -60,12 +60,13 @@ sigue.
 |---|---|---|---|
 | 1 — Núcleo genérico | `core/` | Cero `chrome.*`, cero Ramón Net. Todo TypeScript. Depende sólo de puertos (`core/puertos/`). | Parcial: `backend/bunClient.ts`, `historial/historialFallos.ts`, `puertos/almacenamiento.ts` |
 | 2 — Adaptador de sitio | `sitio/ramonnet/` | Todo lo específico del portal: scraper, parser de títulos, resolución del `.m3u8`, constantes, faceta, reglas dNR. | ✅ Completa |
-| 3 — Adaptador de plataforma | `plataforma/chrome/` | Único lugar que toca la API del navegador. Implementa los puertos. | Parcial: `almacenamiento.ts` |
+| 3 — Adaptador de plataforma | `plataforma/chrome/` | Único lugar que toca la API del navegador. Implementa los puertos. | Parcial: `almacenamiento.ts`, `mensajeria.ts` |
 | Composición | `plataforma/composicion.ts` | Único lugar donde se eligen adaptadores concretos y se inyectan al núcleo. | Activa |
 | Entrypoints | `entrypoints/` | Puntos de entrada de WXT: importan en orden y no contienen lógica. | ✅ |
 
-Lo que **todavía** habla `chrome.*` directo y falta migrar: `background.js` (63 usos),
-`popup.js` (14), `popup/features/queue.js` (9).
+Lo que **todavía** habla `chrome.*` directo y falta migrar: `background.js` (63 usos) y
+`popup.js` (9 de IPC + `scripting`/`tabs`). `popup/features/queue.js` ya no: sus 9 usos eran
+todos `chrome.runtime` y pasaron al `PuertoMensajeria` en la Fase 5c.
 
 `shared/state.ts` fue el primero de la Fase 5b: ya no toca `chrome.storage` (recibe el puerto
 por inyección). Le queda un solo uso de `chrome.*`, el `sendMessage` de

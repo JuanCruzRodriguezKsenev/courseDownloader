@@ -8,7 +8,7 @@
 
 | Verificación | Baseline esperado |
 |---|---|
-| `npm test` | 20 archivos, 203 tests, todo en verde |
+| `npm test` | 21 archivos, 213 tests, todo en verde |
 | `npm run lint` | **0 errores**, 6 warnings |
 | `npx tsc --noEmit` | sin salida (limpio) |
 | `npm run build` | compila a `.output/chrome-mv3/` |

@@ -1,6 +1,15 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: COLA DE DESCARGA (V1.3.0)
+ * CLON DOWNLOADHELPER - FEATURE: COLA DE DESCARGA (V1.4.0)
  * ==========================================================================
+ * CHANGELOG v1.4.0:
+ * - [FASE 5C] Los 9 usos de chrome.runtime pasan al PuertoMensajeria, que llega por
+ *   ctx.mensajeria. Cada call-site declara ahora su intención: `enviar()` donde la
+ *   respuesta importa (inyección en cola, abort) y `notificar()` donde es fire-and-forget
+ *   (frenado suave, arranque). Sin cambios de comportamiento — en particular, la
+ *   restauración del panel tras el abort sigue ocurriendo AUNQUE el SW no conteste
+ *   (antes: callback que Chrome invoca igual con lastError; ahora: .finally()).
+ *   El módulo sigue en JS: el puerto le llega por ctx, así que no lo importa
+ *   composicion.ts y no lo alcanza la restricción de allowJs.
  * CHANGELOG v1.3.0:
  * - [FIX] verificarRedAntesDeDescargar deja de sondear por su cuenta: hacía su
  *   propio fetch(HEAD) + AbortController de 4s contra el portal, duplicando al
@@ -59,6 +68,8 @@
  *   - ctx.renderizar()          : re-render del listado (renderizarListadoInterfaz, popup.js).
  *   - ctx.setVerificandoConexion(bool) / ctx.setReintentandoCola(bool): togglean los
  *                                 flags de UI que sigue leyendo actualizarContadoresBoton (popup.js).
+ *   - ctx.mensajeria            : PuertoMensajeria (Fase 5c). Es el ÚNICO canal de IPC de
+ *                                 esta feature; no debe volver a aparecer chrome.runtime acá.
  *
  * Expone: encolarItemsEnCaliente, quitarItemsDeColaEnLote, solicitarFrenadoSuave,
  *         abortarRafagaInmediata, iniciarDescargaCola, ejecutarReintentoDeCola.
@@ -76,6 +87,7 @@ const QueueFeature = {
       renderizar,
       setVerificandoConexion,
       setReintentandoCola,
+      mensajeria,
     } = ctx;
 
     // Chequeo de red previo a arrancar/reanudar. NO sondea por su cuenta: le pide
@@ -126,31 +138,33 @@ const QueueFeature = {
       AppState.respaldar();
       aplicarFiltros();
 
-      // El SW responde { status: "encolados_ok" } tras persistir; si falla (SW dormido,
-      // error de storage) el canal se cierra sin respuesta y queda chrome.runtime.lastError.
-      // En cualquiera de esos casos revertimos el optimistic update para no dejar la UI
-      // mostrando ítems "en cola" que nunca se persistieron en background.js.
-      chrome.runtime.sendMessage({
-        action: "inyectar_items_en_cola_activa",
-        items: nuevosEncolados
-      }, (respuesta) => {
-        if (chrome.runtime.lastError || !respuesta || respuesta.status !== "encolados_ok") {
-          console.warn(
-            '[popup] La inyección en cola no se confirmó; revirtiendo optimistic update:',
-            chrome.runtime.lastError?.message || `respuesta inesperada: ${JSON.stringify(respuesta)}`
-          );
-          // Rollback: sacar sólo lo que agregamos (por id, robusto ante encolados intermedios)
-          AppState.colaDescargas = AppState.colaDescargas.filter(item => !idsNuevos.has(item.id));
-          estadoPrevioItems.forEach(({ ref, estado, seleccionado }) => {
-            ref.estado = estado;
-            ref.seleccionado = seleccionado;
-          });
-          nodos.queueBadge.textContent = AppState.colaDescargas.length;
-          nodos.txtEstado.textContent = `⚠️ No se pudieron agregar las clases a la Fila. Reintentá.`;
-          AppState.respaldar();
-          aplicarFiltros();
-        }
-      });
+      // Rollback del optimistic update: saca sólo lo que agregamos (por id, robusto ante
+      // encolados intermedios) y restaura estado/selección de los ítems tocados.
+      const revertirInyeccion = (motivo) => {
+        console.warn('[popup] La inyección en cola no se confirmó; revirtiendo optimistic update:', motivo);
+        AppState.colaDescargas = AppState.colaDescargas.filter(item => !idsNuevos.has(item.id));
+        estadoPrevioItems.forEach(({ ref, estado, seleccionado }) => {
+          ref.estado = estado;
+          ref.seleccionado = seleccionado;
+        });
+        nodos.queueBadge.textContent = AppState.colaDescargas.length;
+        nodos.txtEstado.textContent = `⚠️ No se pudieron agregar las clases a la Fila. Reintentá.`;
+        AppState.respaldar();
+        aplicarFiltros();
+      };
+
+      // El SW responde { status: "encolados_ok" } tras persistir. Dos modos de fallo, mismo
+      // desenlace: que el canal falle (SW dormido → el puerto rechaza) o que conteste algo
+      // inesperado. En ambos revertimos, para no dejar la UI mostrando ítems "en cola" que
+      // nunca se persistieron en background.js.
+      mensajeria
+        .enviar({ action: "inyectar_items_en_cola_activa", items: nuevosEncolados })
+        .then((respuesta) => {
+          if (!respuesta || respuesta.status !== "encolados_ok") {
+            revertirInyeccion(`respuesta inesperada: ${JSON.stringify(respuesta)}`);
+          }
+        })
+        .catch((err) => revertirInyeccion(err?.message || String(err)));
     }
 
     function quitarItemsDeColaEnLote(items) {
@@ -184,14 +198,13 @@ const QueueFeature = {
       AppState.respaldar();
       actualizarContadores();
 
-      const promesas = items.map(c => {
-        return new Promise(resolve => {
-          chrome.runtime.sendMessage({
-            action: "remover_item_de_cola",
-            titulo: c.titulo
-          }, resolve);
-        });
-      });
+      // El re-render se hace cuando el SW terminó de procesar TODAS las remociones. Un fallo
+      // de canal no debe frenar el re-render (la UI local ya se actualizó arriba), así que
+      // cada envío absorbe su error — igual que antes, cuando el callback de Chrome resolvía
+      // la promesa con undefined incluso habiendo lastError.
+      const promesas = items.map(c =>
+        mensajeria.enviar({ action: "remover_item_de_cola", titulo: c.titulo }).catch(() => undefined)
+      );
 
       Promise.all(promesas).then(() => {
         setTimeout(aplicarFiltros, 100);
@@ -210,15 +223,22 @@ const QueueFeature = {
       spanDesc.textContent = AppState.videoActualEnTransmisiónSW || "Video actual";
       nodos.txtEstado.append("Frenando al terminar:", document.createElement('br'), spanDesc);
 
-      chrome.runtime.sendMessage({ action: "activar_frenado_suave" });
+      mensajeria.notificar({ action: "activar_frenado_suave" });
     }
 
     // Detención dura: aborta la ráfaga ya, preservando la fila. Restaura el panel
     // del popup (callback de popup.js) cuando el SW confirma el abort.
     function abortarRafagaInmediata() {
-      chrome.runtime.sendMessage({ action: "abortar_rafaga_inmediata" }, () => {
-        onRestaurarPanel("🛑 Descargas detenidas. Fila preservada.", false);
-      });
+      // .finally y no .then: el panel se restaura CONTESTE O NO el SW. Es el
+      // comportamiento que ya había (Chrome invoca el callback igual, con lastError) y hay
+      // que conservarlo: si el SW está dormido, dejar el panel congelado sería peor que
+      // restaurarlo de más.
+      mensajeria
+        .enviar({ action: "abortar_rafaga_inmediata" })
+        .catch(() => undefined)
+        .finally(() => {
+          onRestaurarPanel("🛑 Descargas detenidas. Fila preservada.", false);
+        });
     }
 
     // Arranque de la cola: verifica red, congela la UI en "descargando" y avisa
@@ -240,7 +260,7 @@ const QueueFeature = {
       }
 
       congelarUI(cola[0].titulo, 0, null);
-      chrome.runtime.sendMessage({ action: "iniciar_descarga_cola" });
+      mensajeria.notificar({ action: "iniciar_descarga_cola" });
     }
 
     // Reanudación tras una caída: verifica red, limpia el estado de falla y
@@ -275,7 +295,7 @@ const QueueFeature = {
       actualizarContadores();
 
       nodos.txtEstado.textContent = "⏳ Conectando y reanudando fila...";
-      chrome.runtime.sendMessage({ action: "iniciar_descarga_cola" });
+      mensajeria.notificar({ action: "iniciar_descarga_cola" });
     }
 
     return {

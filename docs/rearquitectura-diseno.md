@@ -318,6 +318,7 @@ Orden recomendado, de menor a mayor riesgo:
 | Archivo | Usos de `chrome.*` | Nota |
 |---|---|---|
 | ~~`shared/state.js`~~ → `shared/state.ts` | 9 → 1 | ✅ Hecho (2026-08-02). Pasó a TS + factory `crearAppState(puerto)`, instanciada en `composicion.ts`. El uso que queda es el `sendMessage` de `sincronizarConBackground()`: IPC, no storage. **Corrección al plan**: acá decía "con tests indirectos" y era falso — los tests del popup mockean `globalThis.AppState` entero, así que no tenía **ninguna** cobertura real. Se le escribieron 13 tests propios contra `AlmacenamientoEnMemoria` como parte del corte. |
+| `popup/features/queue.js` | 9, **todos IPC** | ⚠️ **No era 5b.** Sus 9 usos son `chrome.runtime`, no `chrome.storage`: el puerto de almacenamiento no le aplica. Migrado en la **Fase 5c** (2026-08-03) sobre `PuertoMensajeria`. Lo mismo vale para `popup.js` (9 IPC + scripting/tabs, 0 storage). Esta tabla contaba `chrome.*` en total, y eso los hacía parecer consumidores del puerto de storage. **El único que queda para 5b es `background.js`** (22 de sus usos son storage). |
 | ~~`shared/conexion.js`~~ → `shared/conexion.ts` | 7 → 0 | ✅ Hecho (2026-08-02). TS + factory `crearConexion(puerto)`; el espejado cross-contexto va por el ámbito de sesión del puerto. `BunClient` pasó de global sniffeada a import (los dos son módulos del núcleo). Sus tests dejaron de mockear `chrome.*`: ahora levantan **dos daemons sobre el mismo `AlmacenamientoEnMemoria`**, que es el espejado popup↔SW ejercitado de verdad y no simulado (14 → 16 tests). **No se mudó a `core/`** aunque ya no le quede `chrome.*`: todavía lee el global `SitioActivo` para la URL de sondeo, y `composicion.ts` no puede inyectársela porque `config.js` es `.js` (`allowJs: false`). Se muda cuando ese archivo pase a TS. |
 | `popup/features/queue.js` | 9 | Tiene tests propios. |
 | `popup.js` | 14 | Orquestación; sin tests del núcleo. |
@@ -328,11 +329,15 @@ pasa a ser una factory que recibe el puerto, la instancia se arma en
 `plataforma/composicion.ts`, y el test cambia sus mocks de `chrome.*` por
 `AlmacenamientoEnMemoria`.
 
-**Restricción que descubrió `state.js` y aplica a todo lo que falta**: `allowJs` está en
-`false`, así que un `.ts` **no puede importar un `.js`**. Como el patrón exige que
-`composicion.ts` (que es `.ts`) importe al módulo, migrar un consumidor al puerto obliga a
-convertirlo a TypeScript **en el mismo corte**. No son dos pasos que se puedan separar: la
-migración al puerto y la migración a TS van juntas, archivo por archivo.
+**Restricción que descubrió `state.js`**: `allowJs` está en `false`, así que un `.ts` **no
+puede importar un `.js`**. Cuando el patrón exige que `composicion.ts` (que es `.ts`) importe
+al módulo, migrarlo al puerto obliga a convertirlo a TypeScript **en el mismo corte**.
+
+**Pero sólo aplica a los módulos que instancia la composición.** Lo aclaró `queue.js` en la
+Fase 5c: a esa feature la instancia `popup.js` (`QueueFeature.crear(ctx)`), no
+`composicion.ts`, así que el puerto le entra por `ctx` y el archivo pudo quedarse en JS. La
+regla real es: **si `composicion.ts` tiene que importarlo, va a TS; si lo recibe por `ctx`, no
+hace falta**. Eso deja los cortes de las features del popup mucho más chicos.
 
 **Y una advertencia sobre el orden de carga**: cuando un módulo deja de publicar su propio
 global al evaluarse y pasa a que lo publique `composicion.ts`, su import del entrypoint se
@@ -352,7 +357,7 @@ en el tramo intermedio (en `state.js` no pasaba: `conexion.js` y `bunClient.ts` 
 | 4 — `core/`: BunClient en TypeScript (+ typescript-eslint y `tsc --noEmit` en verde) | ✅ Hecha (2026-08-02) |
 | 5a — `PuertoAlmacenamiento` + adaptador Chrome + adaptador en memoria + 1er consumidor migrado (historial de fallos) | ✅ Hecha (2026-08-02) |
 | 5b — Resto de consumidores del puerto: daemon de conexión, `AppState`, `queue`, `background.js` (63 usos) | 🟡 En curso — `AppState` ✅ y `Conexion` ✅ (2026-08-02, `shared/state.ts` + `shared/conexion.ts`); faltan `queue.js`, `popup.js`, `background.js` |
-| 5c — `PuertoMensajeria` (IPC) + `PuertoProgramador` (alarmas) + sus adaptadores | ⏳ No iniciada |
+| 5c — `PuertoMensajeria` (IPC) + `PuertoProgramador` (alarmas) + sus adaptadores | 🟡 En curso — `PuertoMensajeria` ✅ con sus dos adaptadores y `queue.js` migrado (2026-08-03); faltan `popup.js` y el `PuertoProgramador` |
 | 6 — Motor HLS → `core/hls/` | ⏳ No iniciada |
 | 7 — Entrypoints (composición) | ⏳ No iniciada |
 | 8 — Borrado del vanilla de la raíz | ⏳ No iniciada |
