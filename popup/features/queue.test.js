@@ -7,7 +7,6 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import QueueFeature from './queue.js';
-import { SitioActivo } from '../../sitio/ramonnet/config.js';
 
 let sendMessage;
 
@@ -55,9 +54,31 @@ function crearFeature(overrides = {}) {
   return { feature, ctx, nodos };
 }
 
+// Snapshot del daemon como lo devuelve Conexion.verificarAhora()/get().
+function estadoConexion({ internet = true, servidor = true } = {}) {
+  return {
+    servidor,
+    internet,
+    listo: true,
+    completa: servidor && internet,
+    tipoFalla: !servidor ? 'servidor' : (!internet ? 'internet' : null),
+  };
+}
+
+// El chequeo previo al arranque delega en el daemon (v1.3.0): se stubea Conexion,
+// no fetch. Devuelve el mock para poder afirmar sobre él.
+function stubConexion(opts) {
+  globalThis.Conexion = { verificarAhora: vi.fn().mockResolvedValue(estadoConexion(opts)) };
+  return globalThis.Conexion;
+}
+
 beforeEach(() => {
-  // El chequeo de red previo sondea la URL que declara el adaptador de sitio.
-  globalThis.SitioActivo = SitioActivo;
+  // Desde v1.3.0 la feature no toca SitioActivo: el sondeo (y con él la URL del
+  // portal) es asunto del daemon.
+  stubConexion();
+  // Ningún camino de la feature debería sondear por su cuenta: si algo llama a
+  // fetch, el test falla en vez de pegarle a la red real.
+  globalThis.fetch = vi.fn(() => { throw new Error('la feature no debe hacer fetch propio'); });
   sendMessage = vi.fn();
   globalThis.chrome = { runtime: { sendMessage, lastError: null } };
   globalThis.AppState = {
@@ -191,7 +212,7 @@ describe('QueueFeature.abortarRafagaInmediata', () => {
 
 describe('QueueFeature.iniciarDescargaCola', () => {
   it('con red OK: congela la UI y avisa al SW', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({}); // HEAD OK => red disponible
+    const conexion = stubConexion({ internet: true });
     AppState.colaDescargas = [{ titulo: 'A' }];
     const { feature, ctx } = crearFeature();
 
@@ -202,10 +223,13 @@ describe('QueueFeature.iniciarDescargaCola', () => {
     expect(ctx.congelarUI).toHaveBeenCalledWith('A', 0, null);
     expect(sendMessage).toHaveBeenCalledWith({ action: 'iniciar_descarga_cola' });
     expect(ctx.mostrarAlerta).not.toHaveBeenCalled();
+    // El chequeo va por el daemon, no por un sondeo propio.
+    expect(conexion.verificarAhora).toHaveBeenCalled();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
   it('sin red: muestra el alert y NO arranca', async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error('sin red'));
+    stubConexion({ internet: false });
     AppState.colaDescargas = [{ titulo: 'A' }];
     const { feature, ctx } = crearFeature();
 
@@ -216,8 +240,19 @@ describe('QueueFeature.iniciarDescargaCola', () => {
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
+  it('con el servidor caído pero internet OK: arranca igual (el gate mira SÓLO internet)', async () => {
+    stubConexion({ internet: true, servidor: false });
+    AppState.colaDescargas = [{ titulo: 'A' }];
+    const { feature, ctx } = crearFeature();
+
+    await feature.iniciarDescargaCola();
+
+    expect(ctx.congelarUI).toHaveBeenCalledWith('A', 0, null);
+    expect(sendMessage).toHaveBeenCalledWith({ action: 'iniciar_descarga_cola' });
+    expect(ctx.mostrarAlerta).not.toHaveBeenCalled();
+  });
+
   it('con la cola vacía no hace nada', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({});
     AppState.colaDescargas = [];
     const { feature, ctx } = crearFeature();
 
@@ -230,7 +265,7 @@ describe('QueueFeature.iniciarDescargaCola', () => {
 
 describe('QueueFeature.ejecutarReintentoDeCola', () => {
   it('con red OK: limpia la falla, restaura el panel y reanuda', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({});
+    stubConexion({ internet: true });
     AppState.colaDescargas = [{ titulo: 'A' }];
     AppState.fallaConexionActiva = 'internet';
     AppState.videoFalladoParaReintento = 'A';
@@ -247,7 +282,7 @@ describe('QueueFeature.ejecutarReintentoDeCola', () => {
   });
 
   it('sin red: muestra el alert y NO reanuda', async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error('sin red'));
+    stubConexion({ internet: false });
     AppState.colaDescargas = [{ titulo: 'A' }];
     const { feature, ctx } = crearFeature();
 

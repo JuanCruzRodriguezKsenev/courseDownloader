@@ -1,6 +1,17 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: COLA DE DESCARGA (V1.2.0)
+ * CLON DOWNLOADHELPER - FEATURE: COLA DE DESCARGA (V1.3.0)
  * ==========================================================================
+ * CHANGELOG v1.3.0:
+ * - [FIX] verificarRedAntesDeDescargar deja de sondear por su cuenta: hacía su
+ *   propio fetch(HEAD) + AbortController de 4s contra el portal, duplicando al
+ *   daemon Conexion (que ya sondea cada 3s) y violando la regla operativa de
+ *   docs/patterns.md §Daemon de estado de conexión. Ahora delega en
+ *   Conexion.verificarAhora() y lee .internet del snapshot. Dos consecuencias
+ *   buscadas: una sola fuente de verdad sobre "hay internet" (antes podían
+ *   discrepar) y se va la latencia extra del sondeo propio al arrancar cada
+ *   ráfaga. Se mantiene verificarAhora() en vez de get() para conservar la
+ *   semántica de chequeo fresco al arrancar; el gate sigue mirando SÓLO
+ *   .internet para no cambiar qué bloquea el arranque.
  * CHANGELOG v1.2.0:
  * - [SPLIT] Último corte: el arranque de descarga (iniciarDescargaCola) y la
  *   reanudación tras caída (ejecutarReintentoDeCola) pasan a QueueFeature, junto
@@ -67,25 +78,19 @@ const QueueFeature = {
       setReintentandoCola,
     } = ctx;
 
-    // Chequeo de red previo a arrancar/reanudar: HEAD a la plataforma con timeout.
-    // navigator.onLine descarta el caso obvio sin pegarle a la red.
+    // Chequeo de red previo a arrancar/reanudar. NO sondea por su cuenta: le pide
+    // al daemon un chequeo fresco y lee su resultado (regla operativa de
+    // docs/patterns.md §Daemon de estado de conexión — el daemon es el único que
+    // sondea). Se usa verificarAhora() y no get() a propósito: conserva la
+    // semántica de "verificar justo antes de arrancar" en vez de leer un estado
+    // de hasta INTERVALO_SONDEO_MS de antigüedad.
+    //
+    // El snapshot trae servidor + internet, pero acá se mira SÓLO internet: el
+    // gate de arranque es el mismo de siempre y la caída de servidor tiene su
+    // propio camino (banner/daemon), no bloquea desde acá.
     async function verificarRedAntesDeDescargar() {
-      if (!navigator.onLine) return false;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout
-      try {
-        await fetch(SitioActivo.urlSondeoInternet, {
-          method: "HEAD",
-          mode: "no-cors",
-          cache: "no-store",
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-        return true;
-      } catch (e) {
-        clearTimeout(timeoutId);
-        return false;
-      }
+      const estado = await Conexion.verificarAhora();
+      return estado.internet;
     }
 
     function encolarItemsEnCaliente(items) {
