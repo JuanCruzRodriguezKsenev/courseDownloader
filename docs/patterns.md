@@ -33,9 +33,19 @@ callback que corría "siempre" tiene que seguir corriendo siempre — con el pue
 `.finally()`, no `.then()`. `abortarRafagaInmediata` depende de esto: si el panel del popup sólo
 se restaurara ante respuesta exitosa, con el SW dormido quedaría congelado para siempre.
 
-**Referencia**: `popup/features/queue.js` es el primer consumidor migrado (los seis call-sites,
-uno de cada forma). El adaptador de navegador es `plataforma/chrome/mensajeria.ts`; el de tests,
-`core/puertos/mensajeriaEnMemoria.ts`.
+**Lado receptor**: `onMensaje(cb)` devuelve la **función de baja**, no hay que guardarse la
+referencia al listener para pasársela después a `removeListener`. `popup.js` lo usa así para el
+oyente del worker (`desengancharOyenteWorker`), que se engancha y desengancha varias veces por
+sesión. Si el manejador devuelve `true`, el canal queda abierto para responder async — misma
+convención que `chrome.runtime.onMessage`.
+
+**Referencia**: `popup/features/queue.js` fue el primer consumidor migrado (seis call-sites, uno
+de cada forma) y `popup.js` el segundo (los dos envíos + el oyente). El adaptador de navegador
+es `plataforma/chrome/mensajeria.ts`; el de tests, `core/puertos/mensajeriaEnMemoria.ts`.
+
+**Ojo con el conteo de `chrome.*` al migrar**: `chrome.runtime.lastError` no implica IPC. Es el
+mecanismo de error de toda la API de callbacks de `chrome.*`, así que los que quedan en
+`popup.js` son de `tabs`/`scripting` y no se tocan hasta que existan esos puertos.
 
 ## State ownership split (AppState / SessionState)
 

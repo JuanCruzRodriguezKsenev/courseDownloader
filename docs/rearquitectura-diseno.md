@@ -357,7 +357,7 @@ en el tramo intermedio (en `state.js` no pasaba: `conexion.js` y `bunClient.ts` 
 | 4 — `core/`: BunClient en TypeScript (+ typescript-eslint y `tsc --noEmit` en verde) | ✅ Hecha (2026-08-02) |
 | 5a — `PuertoAlmacenamiento` + adaptador Chrome + adaptador en memoria + 1er consumidor migrado (historial de fallos) | ✅ Hecha (2026-08-02) |
 | 5b — Resto de consumidores del puerto: daemon de conexión, `AppState`, `queue`, `background.js` (63 usos) | 🟡 En curso — `AppState` ✅ y `Conexion` ✅ (2026-08-02, `shared/state.ts` + `shared/conexion.ts`); faltan `queue.js`, `popup.js`, `background.js` |
-| 5c — `PuertoMensajeria` (IPC) + `PuertoProgramador` (alarmas) + sus adaptadores | 🟡 En curso — `PuertoMensajeria` ✅ con sus dos adaptadores y `queue.js` migrado (2026-08-03); faltan `popup.js` y el `PuertoProgramador` |
+| 5c — `PuertoMensajeria` (IPC) + `PuertoProgramador` (alarmas) + sus adaptadores | 🟡 En curso — `PuertoMensajeria` ✅ con sus dos adaptadores; migrados `queue.js` y `popup.js` (2026-08-03). Falta el `PuertoProgramador` (alarmas del auto-heal) y el lado receptor en `background.js` |
 | 6 — Motor HLS → `core/hls/` | ⏳ No iniciada |
 | 7 — Entrypoints (composición) | ⏳ No iniciada |
 | 8 — Borrado del vanilla de la raíz | ⏳ No iniciada |

@@ -64,9 +64,14 @@ sigue.
 | Composición | `plataforma/composicion.ts` | Único lugar donde se eligen adaptadores concretos y se inyectan al núcleo. | Activa |
 | Entrypoints | `entrypoints/` | Puntos de entrada de WXT: importan en orden y no contienen lógica. | ✅ |
 
-Lo que **todavía** habla `chrome.*` directo y falta migrar: `background.js` (63 usos) y
-`popup.js` (9 de IPC + `scripting`/`tabs`). `popup/features/queue.js` ya no: sus 9 usos eran
-todos `chrome.runtime` y pasaron al `PuertoMensajeria` en la Fase 5c.
+Lo que **todavía** habla `chrome.*` directo y falta migrar: `background.js` (63 usos) y, en
+`popup.js`, lo que no es IPC — `chrome.tabs` (4) y `chrome.scripting` (1), que esperan sus
+propios puertos. El IPC del popup ya está migrado: `popup.js` y `popup/features/queue.js`
+pasaron al `PuertoMensajeria` en la Fase 5c.
+
+> Cuidado al contar: los `chrome.runtime.lastError` que quedan en `popup.js` son de los
+> callbacks de `tabs`/`scripting`, no de mensajería. `lastError` es el mecanismo de error de
+> **toda** la API de callbacks de `chrome.*`, no sólo del IPC.
 
 `shared/state.ts` fue el primero de la Fase 5b: ya no toca `chrome.storage` (recibe el puerto
 por inyección). Le queda un solo uso de `chrome.*`, el `sendMessage` de
