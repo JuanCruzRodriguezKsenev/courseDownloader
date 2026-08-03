@@ -1,6 +1,18 @@
 /**
- * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V5.11.0)
+ * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V6.0.0)
  * ==========================================================================
+ * CHANGELOG v6.0.0:
+ * - [FASE 5B] Los 14 call-sites de chrome.storage (local + session) pasan al
+ *   PuertoAlmacenamiento, que llega como global `Almacenamiento` publicado por
+ *   plataforma/composicion.ts. El SW ya no toca chrome.storage: SessionState, la cola
+ *   persistente y SW_ESTADOS_PROGRESO van todos por el puerto. Único ajuste de forma:
+ *   SessionState.get normaliza la clave a lista, porque el puerto pide siempre string[]
+ *   (chrome.storage aceptaba string/array/undefined); el camino sin clave leía justo las
+ *   de defaults, así que es equivalente. Sin cambios de comportamiento: los 17 tests de
+ *   background.test.js —incluidos los 12 de caracterización del bucle y el auto-heal
+ *   escritos ANTES de esta migración— pasan sin tocar una sola aserción.
+ *   Lo que sigue en chrome.* acá: runtime (IPC), alarms, notifications, tabs, windows,
+ *   downloads y offscreen, cada uno esperando su puerto. Ver docs/rearquitectura-diseno.md.
  * CHANGELOG v5.11.0:
  * - [CAPA 2] El SW ahora carga el adaptador de sitio primero (importScripts de
  *   sitio/ramonnet/config.js + resolverManifiesto.js) y la resolución del .m3u8 se
@@ -141,24 +153,27 @@ const SessionState = {
   },
 
   async get(key) {
-    const data = await chrome.storage.session.get(key);
+    // El puerto pide siempre una lista de claves (chrome.storage aceptaba string, array o
+    // undefined). La normalización es equivalente: el camino sin `key` sólo leía las claves
+    // que están en defaults, que es justo lo que se pide acá.
+    const claves = typeof key === 'string' ? [key] : (key || Object.keys(this.defaults));
+    const data = await Almacenamiento.obtenerSesion(claves);
     if (typeof key === 'string') {
       return data[key] ?? this.defaults[key];
     }
     const result = {};
-    const keys = key || Object.keys(this.defaults);
-    keys.forEach(k => {
+    claves.forEach(k => {
       result[k] = data[k] ?? this.defaults[k];
     });
     return result;
   },
 
   async set(updates) {
-    await chrome.storage.session.set(updates);
+    await Almacenamiento.guardarSesion(updates);
   },
 
   async clear() {
-    await chrome.storage.session.remove(Object.keys(this.defaults));
+    await Almacenamiento.borrarSesion(Object.keys(this.defaults));
   }
 };
 
@@ -189,11 +204,11 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 });
 
 async function persistirEstadoFondo(estados) {
-  await chrome.storage.local.set({ SW_ESTADOS_PROGRESO: estados });
+  await Almacenamiento.guardarLocal({ SW_ESTADOS_PROGRESO: estados });
 }
 
 async function recuperarEstadoFondo() {
-  const data = await chrome.storage.local.get(['SW_ESTADOS_PROGRESO']);
+  const data = await Almacenamiento.obtenerLocal(['SW_ESTADOS_PROGRESO']);
   return data.SW_ESTADOS_PROGRESO || {};
 }
 
@@ -306,7 +321,7 @@ const manejadoresIPC = {
 
   // ─── INYECCIÓN EN COLA ATÓMICA ──────────────────────────────────────────
   async inyectar_items_en_cola_activa(request, sendResponse) {
-    const data = await chrome.storage.local.get(['listaPersistente', 'colaDescargas', 'SW_ESTADOS_PROGRESO']);
+    const data = await Almacenamiento.obtenerLocal(['listaPersistente', 'colaDescargas', 'SW_ESTADOS_PROGRESO']);
     const listaCompleta = data.listaPersistente || [];
     const colaDescargas = data.colaDescargas || [];
     const estados = data.SW_ESTADOS_PROGRESO || {};
@@ -327,7 +342,7 @@ const manejadoresIPC = {
       }
     });
 
-    await chrome.storage.local.set({
+    await Almacenamiento.guardarLocal({
       listaPersistente: listaCompleta,
       colaDescargas: colaDescargas,
       SW_ESTADOS_PROGRESO: estados
@@ -337,7 +352,7 @@ const manejadoresIPC = {
 
   // ─── REMOCIÓN SILENCIOSA EN COLA ──────────────────────────────────────────
   async remover_item_de_cola(request, sendResponse) {
-    const data = await chrome.storage.local.get(['listaPersistente', 'colaDescargas', 'SW_ESTADOS_PROGRESO']);
+    const data = await Almacenamiento.obtenerLocal(['listaPersistente', 'colaDescargas', 'SW_ESTADOS_PROGRESO']);
     const listaCompleta = data.listaPersistente || [];
     let colaDescargas = data.colaDescargas || [];
     const estados = data.SW_ESTADOS_PROGRESO || {};
@@ -350,7 +365,7 @@ const manejadoresIPC = {
       match.estado = 'pending';
     }
 
-    await chrome.storage.local.set({
+    await Almacenamiento.guardarLocal({
       listaPersistente: listaCompleta,
       colaDescargas: colaDescargas,
       SW_ESTADOS_PROGRESO: estados
@@ -416,7 +431,7 @@ const manejadoresIPC = {
     }
 
     // También resetear las clases en la cola a pending
-    const data = await chrome.storage.local.get(['listaPersistente', 'colaDescargas']);
+    const data = await Almacenamiento.obtenerLocal(['listaPersistente', 'colaDescargas']);
     const listaCompleta = data.listaPersistente || [];
     const colaDescargas = data.colaDescargas || [];
 
@@ -428,7 +443,7 @@ const manejadoresIPC = {
     // Escritura atómica: el abort limpia el progreso (SW_ESTADOS_PROGRESO: {}) y
     // resetea las clases de la cola a 'pending' en un solo .set(), sin ventana
     // intermedia donde el progreso ya esté vacío pero la lista aún no reseteada.
-    await chrome.storage.local.set({
+    await Almacenamiento.guardarLocal({
       listaPersistente: listaCompleta,
       colaDescargas: colaDescargas,
       SW_ESTADOS_PROGRESO: {}
@@ -449,7 +464,7 @@ const manejadoresIPC = {
     loopActivo = false;
     chrome.alarms.clear("alarma_autoheal");
     await persistirEstadoFondo({});
-    await chrome.storage.local.set({ colaDescargas: [] });
+    await Almacenamiento.guardarLocal({ colaDescargas: [] });
     return sendResponse({ status: "limpio_ok" });
   }
 };
@@ -488,7 +503,7 @@ async function procesarSiguienteElementoDeLaCola() {
   }
 
   try {
-    const data = await chrome.storage.local.get(['listaPersistente', 'colaDescargas']);
+    const data = await Almacenamiento.obtenerLocal(['listaPersistente', 'colaDescargas']);
     const listaCompleta = data.listaPersistente || [];
     const colaDescargas = data.colaDescargas || [];
 
@@ -617,7 +632,7 @@ async function procesarSiguienteElementoDeLaCola() {
       const postWriteState = await SessionState.get();
       if (!postWriteState.rafagaCorriendo) return;
 
-      const dataUpdate = await chrome.storage.local.get(['colaDescargas']);
+      const dataUpdate = await Almacenamiento.obtenerLocal(['colaDescargas']);
       let colaActual = dataUpdate.colaDescargas || [];
       colaActual = colaActual.filter(c => c.titulo !== tituloInmutableVideo);
 
@@ -630,7 +645,7 @@ async function procesarSiguienteElementoDeLaCola() {
       // Escritura atómica: las tres claves describen el estado de la misma clase
       // (descargada → fuera de la cola, marcada 'downloaded', sin entrada de progreso).
       // Consolidadas en un solo .set() para que una suspensión del SW no las desincronice.
-      await chrome.storage.local.set({
+      await Almacenamiento.guardarLocal({
         listaPersistente: listaCompleta,
         colaDescargas: colaActual,
         SW_ESTADOS_PROGRESO: estadosUpdate
@@ -686,7 +701,7 @@ async function procesarSiguienteElementoDeLaCola() {
       if (errDescarga?.tipoBackend === "rechazo") {
         console.warn(`⛔ [SW] El backend rechazó fragmentos de "${tituloInmutableVideo}" (HTTP ${errDescarga.httpStatus}). Se salta la clase y la cola continúa.`);
         // Cola fresca (pudo cambiar durante la descarga); listaCompleta y estados en memoria.
-        const dataUpdate = await chrome.storage.local.get(['colaDescargas']);
+        const dataUpdate = await Almacenamiento.obtenerLocal(['colaDescargas']);
         const colaFiltrada = (dataUpdate.colaDescargas || []).filter(c => c.titulo !== tituloInmutableVideo);
         const objPersistente = listaCompleta.find(c => c.titulo === tituloInmutableVideo);
         if (objPersistente) objPersistente.estado = 'pending';
@@ -694,7 +709,7 @@ async function procesarSiguienteElementoDeLaCola() {
         delete estadosUpdate[tituloInmutableVideo];
         // Escritura atómica de las 3 claves (mismo patrón que el path de éxito): clase de
         // vuelta a 'pending', fuera de la cola, sin entrada de progreso.
-        await chrome.storage.local.set({
+        await Almacenamiento.guardarLocal({
           listaPersistente: listaCompleta,
           colaDescargas: colaFiltrada,
           SW_ESTADOS_PROGRESO: estadosUpdate

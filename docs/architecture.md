@@ -64,10 +64,22 @@ sigue.
 | Composición | `plataforma/composicion.ts` | Único lugar donde se eligen adaptadores concretos y se inyectan al núcleo. | Activa |
 | Entrypoints | `entrypoints/` | Puntos de entrada de WXT: importan en orden y no contienen lógica. | ✅ |
 
-Lo que **todavía** habla `chrome.*` directo y falta migrar: `background.js` (63 usos) y, en
-`popup.js`, lo que no es IPC — `chrome.tabs` (4) y `chrome.scripting` (1), que esperan sus
-propios puertos. El IPC del popup ya está migrado: `popup.js` y `popup/features/queue.js`
-pasaron al `PuertoMensajeria` en la Fase 5c.
+**El `PuertoAlmacenamiento` ya no tiene consumidores pendientes**: con `background.js`
+migrado (Fase 5b, 2026-08-03) no queda ni un `chrome.storage` en el proyecto.
+
+Lo que **todavía** habla `chrome.*` directo, por API y no por archivo:
+
+| API | Dónde | Puerto que espera |
+|---|---|---|
+| `runtime` (IPC) | `background.js` (lado receptor) | `PuertoMensajeria` ✅ existe — falta migrar el receptor |
+| `alarms` | `background.js` (auto-heal) | `PuertoProgramador` (diseñado, sin construir) |
+| `notifications` | `background.js` | sin diseñar |
+| `tabs` / `windows` | `background.js`, `popup.js` | `PuertoTabs` (diseñado, sin construir) |
+| `scripting` | `popup.js` | `PuertoInyeccion` (diseñado, sin construir) |
+| `downloads` / `offscreen` | `background.js` | sólo el camino legacy no-Turbo (hoy inalcanzable) |
+
+El IPC del popup ya está migrado: `popup.js` y `popup/features/queue.js` pasaron al
+`PuertoMensajeria` en la Fase 5c.
 
 > Cuidado al contar: los `chrome.runtime.lastError` que quedan en `popup.js` son de los
 > callbacks de `tabs`/`scripting`, no de mensajería. `lastError` es el mecanismo de error de

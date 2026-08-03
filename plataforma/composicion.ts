@@ -22,6 +22,10 @@ import { crearConexion } from "../shared/conexion";
 
 /** Adaptadores de plataforma activos en esta build. */
 export const almacenamiento = AlmacenamientoChrome;
+// Publicado como global porque `background.js` (todavía vanilla) lo consume así: el SW no lo
+// importa desde acá, lo recibe. Cuando el SW sea composición (Fase 7), esto se va.
+(globalThis as Record<string, unknown>).Almacenamiento = almacenamiento;
+
 export const mensajeria = MensajeriaChrome;
 // Publicado como global porque `popup.js` (todavía vanilla) se lo pasa por `ctx` a las
 // features que lo necesitan. Cuando popup.js sea composición (Fase 7), esto se va.
