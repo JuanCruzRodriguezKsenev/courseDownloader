@@ -39,32 +39,37 @@ async function esperarA(cond, descripcion = 'condición', limiteMs = 2000) {
   throw new Error(`Timeout esperando: ${descripcion}`);
 }
 
-/** Crea un área de storage (local/session) con semántica tipo chrome.storage. */
-function crearArea(getBucket) {
+/**
+ * Implementación del PuertoAlmacenamiento sobre el objeto `store` del harness.
+ *
+ * A propósito NO se usa acá `AlmacenamientoEnMemoria` (el adaptador real de core/): estos son
+ * tests de CARACTERIZACIÓN, y cambiar al mismo tiempo el código bajo prueba y la forma de
+ * sembrar/inspeccionar el estado anularía su valor — no podrían distinguir "la migración
+ * cambió el comportamiento" de "cambió el harness". Los tests siguen sembrando y leyendo
+ * `store.local`/`store.session` igual que antes de la migración. El contrato del puerto en sí
+ * ya está cubierto, aparte, en `core/puertos/almacenamientoEnMemoria.test.ts`.
+ */
+function crearAlmacenamientoDePrueba() {
+  const leer = (bucket, claves) => {
+    const o = {};
+    claves.forEach(k => { if (k in bucket) o[k] = bucket[k]; });
+    return o;
+  };
   return {
-    get: async (keys) => {
-      const src = getBucket();
-      if (keys == null) return { ...src };
-      if (typeof keys === 'string') return (keys in src) ? { [keys]: src[keys] } : {};
-      if (Array.isArray(keys)) {
-        const o = {};
-        keys.forEach(k => { if (k in src) o[k] = src[k]; });
-        return o;
-      }
-      // forma objeto {clave: default}
-      const o = {};
-      Object.keys(keys).forEach(k => { o[k] = (k in src) ? src[k] : keys[k]; });
-      return o;
-    },
-    set: async (obj) => { Object.assign(getBucket(), obj); },
-    remove: async (keys) => {
-      (Array.isArray(keys) ? keys : [keys]).forEach(k => delete getBucket()[k]);
-    },
+    obtenerLocal: async (claves) => leer(store.local, claves),
+    guardarLocal: async (valores) => { Object.assign(store.local, valores); },
+    borrarLocal: async (claves) => { claves.forEach(k => delete store.local[k]); },
+    obtenerSesion: async (claves) => leer(store.session, claves),
+    guardarSesion: async (valores) => { Object.assign(store.session, valores); },
+    borrarSesion: async (claves) => { claves.forEach(k => delete store.session[k]); },
+    onCambio: () => () => {},
   };
 }
 
 beforeAll(async () => {
   globalThis.importScripts = () => {};
+  // Puerto de almacenamiento (Fase 5b): lo publica plataforma/composicion.ts en producción.
+  globalThis.Almacenamiento = crearAlmacenamientoDePrueba();
   globalThis.performance = globalThis.performance || { now: () => Date.now() };
   globalThis.Utils = {
     // Sólo lo que usa el bucle de descarga (el resto está cubierto en utils.test.js).
@@ -105,10 +110,9 @@ beforeAll(async () => {
       sendMessage: (msg) => { mensajesEnviados.push(msg); return Promise.resolve(); },
       getURL: (p) => p,
     },
-    storage: {
-      local: crearArea(() => store.local),
-      session: crearArea(() => store.session),
-    },
+    // El SW ya no toca chrome.storage: todo pasa por el puerto. Si algo vuelve a usarlo,
+    // que explote en vez de pasar en silencio.
+    get storage() { throw new Error('el SW no debe usar chrome.storage: va por Almacenamiento'); },
     alarms: {
       onAlarm: { addListener: (cb) => { oyenteAlarma = cb; } },
       clear: (n) => { alarmas.limpiadas.push(n); },

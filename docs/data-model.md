@@ -1,6 +1,6 @@
 # Modelo de datos
 
-Esta extensión no tiene base de datos — el equivalente es el esquema de `chrome.storage`. Este documento es la fuente de verdad de qué claves existen, en qué storage viven, su forma, y quién las escribe/lee. Si agregás o cambiás una clave, actualizá esta tabla en el mismo cambio.
+Esta extensión no tiene base de datos — el equivalente es el esquema de `chrome.storage`. **Ningún módulo lo toca directo desde la Fase 5b**: todo el acceso pasa por el `PuertoAlmacenamiento` y su adaptador (`plataforma/chrome/almacenamiento.ts`). Los nombres de clave y ámbitos de esta tabla son igualmente la fuente de verdad — describen lo que el adaptador escribe. Este documento es la fuente de verdad de qué claves existen, en qué storage viven, su forma, y quién las escribe/lee. Si agregás o cambiás una clave, actualizá esta tabla en el mismo cambio.
 
 ## `chrome.storage.local` — persistente entre reinicios del navegador
 
@@ -98,4 +98,4 @@ Encapsulado por el helper `SessionState` definido inline en `background.js`. Es 
 
 - **`AppState` (popup) y `SessionState` (SW) no comparten memoria** — solo se reconcilian vía el mensaje `obtener_estados_en_progreso`. Ningún código del popup debe asumir que `AppState.listadoClasesGlobal[i].estado` refleja el estado real sin haber pasado por esa reconciliación primero.
 - **`colaDescargas` es la fuente de verdad del orden de descarga**, ordenada por `fechaEncolado`. `listaPersistente[i].estado` se deriva de si el título está presente en `colaDescargas`, no al revés.
-- Las escrituras que tocan más de una de estas claves relacionadas dentro de una misma operación lógica (ej. mover un ítem de `pending` a `process`, que toca `listaPersistente` + `colaDescargas` + `SW_ESTADOS_PROGRESO`) deben hacerse en un único `chrome.storage.local.set({...})` — ver el ítem "Escrituras no-atómicas" en `docs/TECHNICAL_DEBT.md` para los lugares donde esto todavía no se respeta.
+- Las escrituras que tocan más de una de estas claves relacionadas dentro de una misma operación lógica (ej. mover un ítem de `pending` a `process`, que toca `listaPersistente` + `colaDescargas` + `SW_ESTADOS_PROGRESO`) deben hacerse en **una sola llamada** a `guardarLocal({...})`. Desde la Fase 5b eso dejó de ser una convención escrita en comentarios: es la firma del `PuertoAlmacenamiento` (`core/puertos/almacenamiento.ts`), que documenta el invariante en el contrato. Los 3 puntos que lo violaban se consolidaron en 2026-07-17 (ver "Escrituras no-atómicas" en `docs/TECHNICAL_DEBT.md`, ya resuelto).

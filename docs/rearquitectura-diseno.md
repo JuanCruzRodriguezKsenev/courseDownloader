@@ -322,7 +322,7 @@ Orden recomendado, de menor a mayor riesgo:
 | ~~`shared/conexion.js`~~ → `shared/conexion.ts` | 7 → 0 | ✅ Hecho (2026-08-02). TS + factory `crearConexion(puerto)`; el espejado cross-contexto va por el ámbito de sesión del puerto. `BunClient` pasó de global sniffeada a import (los dos son módulos del núcleo). Sus tests dejaron de mockear `chrome.*`: ahora levantan **dos daemons sobre el mismo `AlmacenamientoEnMemoria`**, que es el espejado popup↔SW ejercitado de verdad y no simulado (14 → 16 tests). **No se mudó a `core/`** aunque ya no le quede `chrome.*`: todavía lee el global `SitioActivo` para la URL de sondeo, y `composicion.ts` no puede inyectársela porque `config.js` es `.js` (`allowJs: false`). Se muda cuando ese archivo pase a TS. |
 | `popup/features/queue.js` | 9 | Tiene tests propios. |
 | `popup.js` | 14 | Orquestación; sin tests del núcleo. |
-| `background.js` | 63 | **El grande y el riesgoso**: loop de descarga + auto-heal, hoy SIN cobertura. Dejar para el final, y usar `AlmacenamientoEnMemoria` para escribirle tests ANTES de moverlo. |
+| ~~`background.js`~~ | 22 de storage → 0 | ✅ Hecho (2026-08-03), en dos commits separados a propósito. **Primero los tests**: 12 de caracterización del bucle de descarga y el auto-heal (lo que este doc pedía), que fijaron el comportamiento actual. **Después la migración**, con esos tests como criterio de no-regresión: pasaron sin tocar una sola aserción. Quedó en JS —lo carga el entrypoint, no lo importa `composicion.ts`, así que recibe el puerto como global y no lo alcanza la regla de `allowJs`. Detalle de forma: `SessionState.get` normaliza la clave a lista porque el puerto pide siempre `string[]`. |
 
 El patrón a repetir es el de la Fase 5a, que existe justamente como plantilla: el módulo
 pasa a ser una factory que recibe el puerto, la instancia se arma en
@@ -356,7 +356,7 @@ en el tramo intermedio (en `state.js` no pasaba: `conexion.js` y `bunClient.ts` 
 | 3 — WXT + TypeScript, andamiaje vacío (compilar lo actual) | ✅ Hecha (2026-08-02), mergeada y **verificada en navegador** (2026-08-02) |
 | 4 — `core/`: BunClient en TypeScript (+ typescript-eslint y `tsc --noEmit` en verde) | ✅ Hecha (2026-08-02) |
 | 5a — `PuertoAlmacenamiento` + adaptador Chrome + adaptador en memoria + 1er consumidor migrado (historial de fallos) | ✅ Hecha (2026-08-02) |
-| 5b — Resto de consumidores del puerto: daemon de conexión, `AppState`, `queue`, `background.js` (63 usos) | 🟡 En curso — `AppState` ✅ y `Conexion` ✅ (2026-08-02, `shared/state.ts` + `shared/conexion.ts`); faltan `queue.js`, `popup.js`, `background.js` |
+| 5b — `PuertoAlmacenamiento`: adaptadores + **todos** los consumidores | ✅ **Completa** (2026-08-03) — historial de fallos, `AppState`, daemon de conexión y `background.js`. No queda ni un `chrome.storage` en el proyecto. (`queue.js` figuraba acá por error: sus usos eran IPC → Fase 5c.) |
 | 5c — `PuertoMensajeria` (IPC) + `PuertoProgramador` (alarmas) + sus adaptadores | 🟡 En curso — `PuertoMensajeria` ✅ con sus dos adaptadores; migrados `queue.js` y `popup.js` (2026-08-03). Falta el `PuertoProgramador` (alarmas del auto-heal) y el lado receptor en `background.js` |
 | 6 — Motor HLS → `core/hls/` | ⏳ No iniciada |
 | 7 — Entrypoints (composición) | ⏳ No iniciada |

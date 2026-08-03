@@ -13,8 +13,9 @@ const globalesDelProyecto = {
   BunClient: "readonly",
   Conexion: "readonly",
   HistorialFallos: "readonly",
-  // Puerto de mensajería (Fase 5c): lo publica plataforma/composicion.ts y popup.js se lo
-  // pasa por ctx a las features. Ver core/puertos/mensajeria.ts.
+  // Puertos (Fases 5b/5c): los publica plataforma/composicion.ts. Almacenamiento lo consume
+  // background.js; Mensajeria, popup.js (que se lo pasa por ctx a las features).
+  Almacenamiento: "readonly",
   Mensajeria: "readonly",
   HlsEngine: "readonly",
   AppState: "readonly",
