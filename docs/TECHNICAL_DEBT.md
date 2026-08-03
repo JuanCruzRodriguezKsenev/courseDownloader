@@ -2,7 +2,35 @@
 
 Inventario vivo de problemas conocidos en el código actual, ordenados por severidad. Cada ítem indica ubicación exacta, impacto y la solución propuesta. Este documento se actualiza a medida que se resuelven o aparecen nuevos hallazgos — no es un snapshot histórico (para eso está el changelog de cada archivo y el historial de git).
 
-Última auditoría: 2026-07-19.
+Última auditoría: 2026-08-02.
+
+**Lo que está abierto vive en la sección de abajo, y nada más.** Todo lo que sigue después
+(Seguridad, Mantenibilidad, Testing, Robustez, Menores) está ✅ resuelto y se conserva como
+registro fechado: sirve para entender por qué el código está como está, no como lista de
+pendientes. Un ítem con fecha describe el estado **de esa fecha** — si nombra un archivo o una
+ruta que desde entonces se movió, no se corrige hacia atrás.
+
+---
+
+## 🔴 Abierto
+
+### Sondeo de red ad-hoc en `queue.js` (duplica al daemon `Conexion`)
+
+- **Dónde**: `popup/features/queue.js` → `verificarRedAntesDeDescargar()` (definida en `:72`, único call-site en `:228`).
+- **Qué pasa**: hace su propio `fetch(HEAD)` con `AbortController` + timeout de 4s contra el portal antes de arrancar/reanudar la cola. Eso es exactamente lo que ya hace `Conexion._chequearInternet()` cada 3s, y **viola la regla operativa** que el propio proyecto documenta en `docs/patterns.md` §Daemon de estado de conexión ("nunca agregar sondeos ad-hoc en otro lado — consumir el daemon"). Detectado el 2026-08-02 al rutear el host por el adaptador de sitio.
+- **Por qué importa**: dos fuentes de verdad sobre "hay internet" pueden discrepar (el daemon dice caído y este chequeo deja arrancar, o al revés), y son 4s de latencia extra en el arranque de cada ráfaga sobre información que el daemon ya tiene fresca.
+- **Agravante**: su primera línea corta por `if (!navigator.onLine) return false;`. En Windows, `navigator.onLine` **se queda en `true` ante una caída de WAN upstream** (el adaptador local sigue "conectado"), así que la guarda no detecta el corte que dice detectar. La función está mal en las dos direcciones: puede dejar arrancar durante un corte real y además duplica al daemon. Consumir `Conexion.get()` arregla ambas de una.
+- **Fix propuesto**: reemplazar el cuerpo por una lectura del daemon (`Conexion.get()`, o `verificarAhora()` si se quiere forzar un sondeo fresco antes de la ráfaga) y borrar el `fetch` + el chequeo de `navigator.onLine`.
+- **Por qué no se arregló en el mismo commit que lo destapó**: reemplazarlo por `Conexion.verificarAhora()`/`get()` **cambia la semántica de arranque** (deja de ser un sondeo sincrónico dedicado y pasa a leer estado compartido), así que necesita su propio commit y verificación en el navegador — no entra como efecto colateral de un refactor de acoplamiento.
+- **Estado**: 🔴 abierto (detectado 2026-08-02).
+
+### Deuda de verificación: las Fases 1-5a nunca se abrieron en Chrome
+
+- **Dónde**: no es un archivo — es el estado de `main`.
+- **Qué pasa**: la re-arquitectura (puertos y adaptadores + TypeScript + WXT) lleva las fases 1 a 5a mergeadas a `main` con la suite, el lint, el `tsc` y el `build` en verde en cada corte, pero **sin haber cargado nunca la extensión compilada en el navegador**. Decisión explícita del dueño del repo, tomada con la recomendación contraria sobre la mesa.
+- **Impacto**: las cuatro verificaciones automáticas no cubren nada del empaquetado — orden de carga de los globals en los entrypoints, rutas del `public/` copiado, generación del manifest, carga del ruleset dNR. Si algo aparece roto en el navegador, el sospechoso número uno es la Fase 3 (donde cambió el mecanismo de carga), no la lógica.
+- **Fix propuesto**: correr el checklist concreto de `docs/rearquitectura-diseno.md` §Verificación pendiente en navegador (descarga real punta a punta, carga del ruleset dNR, escaneo del aula, aula multicátedra), con `npm run build` + recarga de `.output/chrome-mv3/`.
+- **Estado**: 🔴 abierto. Es el riesgo vivo más grande del proyecto y bloquea en la práctica a la Fase 5b: migrar más consumidores encima de una base sin verificar agranda el radio de búsqueda cuando algo falle.
 
 ---
 
@@ -69,13 +97,6 @@ Inventario vivo de problemas conocidos en el código actual, ordenados por sever
 
 ---
 
-### Sondeo de red ad-hoc en `queue.js` (duplica al daemon `Conexion`)
-
-- **Dónde**: `popup/features/queue.js` → `verificarRedAntesDeDescargar()`.
-- **Qué pasa**: hace su propio `fetch(HEAD)` con `AbortController` + timeout de 4s contra el portal antes de arrancar/reanudar la cola. Eso es exactamente lo que ya hace `Conexion._chequearInternet()` cada 3s, y **viola la regla operativa** que el propio proyecto documenta en `docs/patterns.md` §Daemon de estado de conexión ("nunca agregar sondeos ad-hoc en otro lado — consumir el daemon"). Detectado el 2026-08-02 al rutear el host por el adaptador de sitio.
-- **Por qué importa**: dos fuentes de verdad sobre "hay internet" pueden discrepar (el daemon dice caído y este chequeo deja arrancar, o al revés), y son 4s de latencia extra en el arranque de cada ráfaga sobre información que el daemon ya tiene fresca.
-- **Por qué no se arregló en el mismo commit**: reemplazarlo por `Conexion.verificarAhora()`/`get()` **cambia la semántica de arranque** (deja de ser un sondeo sincrónico dedicado y pasa a leer estado compartido), así que necesita su propio commit y verificación en el navegador — no entra como efecto colateral de un refactor de acoplamiento.
-
 ## 🟡 Testing
 
 ### Cobertura de tests: parcial
@@ -91,7 +112,7 @@ Inventario vivo de problemas conocidos en el código actual, ordenados por sever
 
 ### Loop infinito pausa/autoheal ante rechazo 4xx del backend
 
-- **Dónde**: cadena entre `shared/bunClient.js:117-119`, `background/hlsEngine.js:225`/`:255` y `background.js:632-642`.
+- **Dónde**: cadena entre el cliente del backend (entonces `shared/bunClient.js:117-119`, hoy `core/backend/bunClient.ts`), `background/hlsEngine.js:225`/`:255` y `background.js:632-642`.
 - **Qué pasa** (detectado en logs reales, 2026-07-18): cuando el backend Bun responde HTTP **4xx** a un fragmento (`POST /api/bypass-stream` → 400, rechazo aplicativo con el server **vivo**), el sistema lo confunde con una caída de servidor y entra en loop. Cadena causal:
   1. `bunClient.js:117-119` lanza un `Error` cuyo status **solo vive en el string del mensaje** (`El backend de Bun rechazó el fragmento con código: ${res.status}`) — nadie aguas arriba puede distinguir un 400 determinístico de un 503 transitorio sin parsear texto.
   2. El worker (`hlsEngine.js:255`) lo trata como fallo de fragmento y aborta el `controladorGraficoActivo` → la clase entera falla.
@@ -133,7 +154,7 @@ Inventario vivo de problemas conocidos en el código actual, ordenados por sever
 |---|---|---|---|
 | Sin linter (ESLint) configurado | proyecto completo | No se detectan variables no usadas, `==` vs `===`, código muerto adicional | ✅ resuelto (2026-07-17) — `eslint.config.js` + `npm run lint`; 0 errores, 11 warnings iniciales |
 | `catch (e) {}` silenciosos (3 casos) | `background.js:147`, `background.js:325` y `background/hlsEngine.js:219` (los dos últimos, `abort()` del controlador de gráfico activo) | Dificulta debug si falla el abort/limpieza de recursos | ✅ resuelto (2026-07-17) — ahora `console.warn` con contexto |
-| URL de backend hardcodeada | `shared/bunClient.js` (`baseUrl`) | No se puede apuntar a otro host/puerto sin editar código; relevante si se agregan tests de integración contra el backend real | ✅ resuelto (2026-07-17) — hook liviano: `configurarBaseUrl(url)` + global `RAMONNET_BUN_BASE_URL`; default intacto. `bunClient.js` → v1.3.0 |
+| URL de backend hardcodeada | entonces `shared/bunClient.js` (`baseUrl`), hoy `core/backend/bunClient.ts` | No se puede apuntar a otro host/puerto sin editar código; relevante si se agregan tests de integración contra el backend real | ✅ resuelto (2026-07-17) — hook liviano: `configurarBaseUrl(url)` + global `RAMONNET_BUN_BASE_URL`; default intacto. `bunClient.js` → v1.3.0 |
 
 ---
 
