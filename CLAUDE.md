@@ -5,7 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > ## ⚠️ Trabajo en curso — leer esto primero
 >
 > Hay una **re-arquitectura activa** (puertos y adaptadores + TypeScript + WXT), a mitad de
-> camino: fases 1-5a hechas, 5b en adelante pendientes. Antes de tocar código:
+> camino: **fases 0-5b completas, 5c a medias, 6-8 sin arrancar** (al 2026-08-03). Antes de
+> tocar código:
 >
 > **Leé `docs/rearquitectura-diseno.md` §Cómo retomar esto en una sesión nueva.** Ahí está el
 > orden de lectura, el estado por fase, qué sigue y con qué riesgo, y las 4 verificaciones a
@@ -13,11 +14,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > las cuatro tienen que quedar en verde; los números esperados de cada una viven en
 > `docs/testing.md`, no acá).
 >
-> **Verificado en navegador el 2026-08-02.** Durante un tiempo las fases 1-5a estuvieron en
-> `main` sin que nadie hubiera abierto la extensión compilada en Chrome; ese checklist ya se
-> corrió y pasó, así que la Fase 5b arranca sobre una base verificada. Si aun así aparece algo
-> roto en el navegador, el sospechoso número uno sigue siendo el empaquetado de la Fase 3 (es
-> donde cambió el mecanismo de carga), no la lógica.
+> **Todo lo mergeado está verificado en navegador** (2026-08-02 y 2026-08-03). Hubo un tiempo
+> en que las fases 1-5a estaban en `main` sin que nadie hubiera abierto la extensión compilada
+> en Chrome; esa deuda se cerró, y desde entonces **la regla es una rama por corte y no se
+> mergea sin que el dueño lo pruebe en el navegador** — la suite no cubre el empaquetado ni el
+> núcleo de `popup.js`. Si aun así aparece algo roto en el navegador, el sospechoso número uno
+> sigue siendo el empaquetado de la Fase 3 (es donde cambió el mecanismo de carga), no la
+> lógica.
 
 ## Project Overview
 

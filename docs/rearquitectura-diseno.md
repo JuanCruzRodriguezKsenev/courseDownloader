@@ -312,22 +312,43 @@ sobre una base verificada** — la condición que faltaba. Si aun así aparece a
 navegador, el sospechoso número uno sigue siendo el empaquetado (Fase 3): es donde se cambió
 el mecanismo de carga.
 
-**El próximo paso (5b)** es migrar al puerto de almacenamiento los consumidores que quedan.
-Orden recomendado, de menor a mayor riesgo:
+### Registro de la Fase 5b (cerrada el 2026-08-03)
+
+Consumidores del puerto de almacenamiento, en el orden en que se migraron:
 
 | Archivo | Usos de `chrome.*` | Nota |
 |---|---|---|
 | ~~`shared/state.js`~~ → `shared/state.ts` | 9 → 1 | ✅ Hecho (2026-08-02). Pasó a TS + factory `crearAppState(puerto)`, instanciada en `composicion.ts`. El uso que queda es el `sendMessage` de `sincronizarConBackground()`: IPC, no storage. **Corrección al plan**: acá decía "con tests indirectos" y era falso — los tests del popup mockean `globalThis.AppState` entero, así que no tenía **ninguna** cobertura real. Se le escribieron 13 tests propios contra `AlmacenamientoEnMemoria` como parte del corte. |
 | `popup/features/queue.js` | 9, **todos IPC** | ⚠️ **No era 5b.** Sus 9 usos son `chrome.runtime`, no `chrome.storage`: el puerto de almacenamiento no le aplica. Migrado en la **Fase 5c** (2026-08-03) sobre `PuertoMensajeria`. Lo mismo vale para `popup.js` (9 IPC + scripting/tabs, 0 storage). Esta tabla contaba `chrome.*` en total, y eso los hacía parecer consumidores del puerto de storage. **El único que queda para 5b es `background.js`** (22 de sus usos son storage). |
 | ~~`shared/conexion.js`~~ → `shared/conexion.ts` | 7 → 0 | ✅ Hecho (2026-08-02). TS + factory `crearConexion(puerto)`; el espejado cross-contexto va por el ámbito de sesión del puerto. `BunClient` pasó de global sniffeada a import (los dos son módulos del núcleo). Sus tests dejaron de mockear `chrome.*`: ahora levantan **dos daemons sobre el mismo `AlmacenamientoEnMemoria`**, que es el espejado popup↔SW ejercitado de verdad y no simulado (14 → 16 tests). **No se mudó a `core/`** aunque ya no le quede `chrome.*`: todavía lee el global `SitioActivo` para la URL de sondeo, y `composicion.ts` no puede inyectársela porque `config.js` es `.js` (`allowJs: false`). Se muda cuando ese archivo pase a TS. |
-| `popup/features/queue.js` | 9 | Tiene tests propios. |
-| `popup.js` | 14 | Orquestación; sin tests del núcleo. |
 | ~~`background.js`~~ | 22 de storage → 0 | ✅ Hecho (2026-08-03), en dos commits separados a propósito. **Primero los tests**: 12 de caracterización del bucle de descarga y el auto-heal (lo que este doc pedía), que fijaron el comportamiento actual. **Después la migración**, con esos tests como criterio de no-regresión: pasaron sin tocar una sola aserción. Quedó en JS —lo carga el entrypoint, no lo importa `composicion.ts`, así que recibe el puerto como global y no lo alcanza la regla de `allowJs`. Detalle de forma: `SessionState.get` normaliza la clave a lista porque el puerto pide siempre `string[]`. |
 
 El patrón a repetir es el de la Fase 5a, que existe justamente como plantilla: el módulo
 pasa a ser una factory que recibe el puerto, la instancia se arma en
 `plataforma/composicion.ts`, y el test cambia sus mocks de `chrome.*` por
 `AlmacenamientoEnMemoria`.
+
+### El próximo paso (al 2026-08-03)
+
+Lo que sigue, de menor a mayor riesgo. **Empezar por el primero**: desbloquea dos mudanzas que
+hoy no se pueden hacer.
+
+| Qué | Por qué / qué desbloquea |
+|---|---|
+| **`sitio/ramonnet/config.js` → TypeScript** | Es el tapón. Con él en TS, `composicion.ts` puede importarlo e **inyectar la URL de sondeo**, y ahí recién `shared/conexion.ts` se muda a `core/conexion/`. `shared/state.ts` está en la misma situación (le falta el puerto de mensajería para su `sincronizarConBackground`). Los dos ya no tienen `chrome.*`: lo único que los retiene en `shared/` es esto. |
+| **Lado receptor de IPC en `background.js`** (cierra 5c) | El `PuertoMensajeria` ya tiene `onMensaje` y está testeado; falta usarlo en el `chrome.runtime.onMessage` del SW. `background.js` ya tiene red de tests (17). |
+| **`PuertoProgramador`** (cierra 5c) | Las alarmas del auto-heal (`chrome.alarms`). Interfaz esbozada arriba. Las 4 ramas del auto-heal ya están cubiertas por tests, así que hay con qué verificar. |
+| **Fase 6 — motor HLS a `core/hls/`** | Llega con el pool ya testeado. |
+| **Fases 7 y 8** | Entrypoints como composición, y borrado del vanilla de la raíz (sólo con paridad de tests). |
+
+Sin puerto todavía y sin urgencia: `notifications`, `tabs`/`windows`, `scripting`, y el camino
+legacy `downloads`/`offscreen` (hoy inalcanzable, ver `docs/tech-stack.md` §Por qué Bun).
+
+**Regla de proceso que se consolidó ejecutando 5b/5c y conviene mantener**: una rama por corte,
+los 4 chequeos en verde, **el dueño verifica en Chrome**, y recién ahí el merge. La suite no
+cubre el empaquetado ni el núcleo de `popup.js`. Para `background.js` se agregó un paso más que
+vale la pena repetir en cualquier archivo sin cobertura: **escribir primero los tests de
+caracterización, migrar después**, y exigir que pasen sin tocar ninguna aserción.
 
 **Restricción que descubrió `state.js`**: `allowJs` está en `false`, así que un `.ts` **no
 puede importar un `.js`**. Cuando el patrón exige que `composicion.ts` (que es `.ts`) importe

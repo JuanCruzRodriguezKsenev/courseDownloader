@@ -14,11 +14,11 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 ## 🔴 Abierto
 
-**Nada abierto hoy (2026-08-02).** Los dos ítems que había —el sondeo ad-hoc de `queue.js` y
-la deuda de verificación de las Fases 1-5a— se cerraron el mismo día; están en la sección
-Resuelto. El próximo trabajo planificado no es deuda sino la **Fase 5b** de la
-re-arquitectura (`docs/rearquitectura-diseno.md`), que ahora sí arranca sobre una base
-verificada en navegador.
+**Nada abierto (última revisión: 2026-08-03).** Los dos ítems que hubo —el sondeo ad-hoc de
+`queue.js` y la deuda de verificación de las Fases 1-5a— se cerraron el 2026-08-02; están en la
+sección Resuelto. Lo que sigue **no es deuda**: es la re-arquitectura en curso, y su estado por
+fase vive en `docs/rearquitectura-diseno.md` (tabla de avance + §Cómo retomar). No dupliques
+acá el avance de las fases.
 
 Cuando aparezca un hallazgo nuevo, va acá arriba con su `**Estado**` explícito.
 
