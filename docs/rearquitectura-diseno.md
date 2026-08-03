@@ -288,11 +288,15 @@ Orden de lectura para llegar al frente de trabajo sin reconstruir contexto:
 verde y que son la red de todo lo demás:
 
 ```bash
-npm test          # 187 tests en 19 archivos
-npm run lint      # 0 errores / 9 warnings (baseline)
-npx tsc --noEmit  # limpio
+npm test
+npm run lint
+npx tsc --noEmit
 npm run build     # genera .output/chrome-mv3/
 ```
+
+Los números esperados de cada una (cantidad de tests, warnings tolerados) están en
+`docs/testing.md` §Baseline de las verificaciones, que es su hogar canónico — acá no se
+repiten para que no puedan quedar desfasados.
 
 **Deuda de verificación abierta (leer antes de seguir)**: las Fases 1 a 5a se mergearon a
 `main` **sin haber abierto nunca la extensión compilada en Chrome** — decisión explícita del
