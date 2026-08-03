@@ -13,10 +13,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > las cuatro tienen que quedar en verde; los números esperados de cada una viven en
 > `docs/testing.md`, no acá).
 >
-> **Deuda abierta que condiciona todo lo demás**: las fases 1-5a se mergearon a `main` sin
-> haber abierto nunca la extensión compilada en Chrome (decisión del dueño del repo, con la
-> recomendación contraria sobre la mesa). Si algo aparece roto en el navegador, el sospechoso
-> número uno es el empaquetado de la Fase 3, no la lógica.
+> **Verificado en navegador el 2026-08-02.** Durante un tiempo las fases 1-5a estuvieron en
+> `main` sin que nadie hubiera abierto la extensión compilada en Chrome; ese checklist ya se
+> corrió y pasó, así que la Fase 5b arranca sobre una base verificada. Si aun así aparece algo
+> roto en el navegador, el sospechoso número uno sigue siendo el empaquetado de la Fase 3 (es
+> donde cambió el mecanismo de carga), no la lógica.
 
 ## Project Overview
 

@@ -298,11 +298,13 @@ Los números esperados de cada una (cantidad de tests, warnings tolerados) está
 `docs/testing.md` §Baseline de las verificaciones, que es su hogar canónico — acá no se
 repiten para que no puedan quedar desfasados.
 
-**Deuda de verificación abierta (leer antes de seguir)**: las Fases 1 a 5a se mergearon a
-`main` **sin haber abierto nunca la extensión compilada en Chrome** — decisión explícita del
-dueño del repo, tomada con la recomendación contraria sobre la mesa. Los puntos a chequear
-están en §Verificación pendiente. Si algo aparece roto en el navegador, el sospechoso número
-uno es el empaquetado (Fase 3), no la lógica: es donde se cambió el mecanismo de carga.
+**Verificación en navegador: hecha (2026-08-02)**. Durante un tiempo las Fases 1 a 5a
+estuvieron en `main` sin que nadie hubiera abierto la extensión compilada en Chrome (decisión
+explícita del dueño del repo, con la recomendación contraria sobre la mesa). El checklist de
+§Verificación pendiente ya se corrió sobre `.output/chrome-mv3/` y pasó, así que **5b arranca
+sobre una base verificada** — la condición que faltaba. Si aun así aparece algo roto en el
+navegador, el sospechoso número uno sigue siendo el empaquetado (Fase 3): es donde se cambió
+el mecanismo de carga.
 
 **El próximo paso (5b)** es migrar al puerto de almacenamiento los consumidores que quedan.
 Orden recomendado, de menor a mayor riesgo:
@@ -328,7 +330,7 @@ pasa a ser una factory que recibe el puerto, la instancia se arma en
 | 0 — Paleta a tokens (`styles/variables.css` como única fuente de color) | ✅ Hecha (2026-08-02) |
 | 1 — **Capa 2 completa** (faceta, constantes, resolución M3U8, dNR, parser, scraper) | ✅ Hecha (2026-08-02) |
 | 2 — Selección de sitio: registro en runtime (ADR-0009) | ✅ Decidida (2026-08-02) |
-| 3 — WXT + TypeScript, andamiaje vacío (compilar lo actual) | 🟡 Hecha en rama `feat/rearq-fase3-wxt`, **sin verificar en navegador** |
+| 3 — WXT + TypeScript, andamiaje vacío (compilar lo actual) | ✅ Hecha (2026-08-02), mergeada y **verificada en navegador** (2026-08-02) |
 | 4 — `core/`: BunClient en TypeScript (+ typescript-eslint y `tsc --noEmit` en verde) | ✅ Hecha (2026-08-02) |
 | 5a — `PuertoAlmacenamiento` + adaptador Chrome + adaptador en memoria + 1er consumidor migrado (historial de fallos) | ✅ Hecha (2026-08-02) |
 | 5b — Resto de consumidores del puerto: daemon de conexión, `AppState`, `queue`, `background.js` (63 usos) | ⏳ No iniciada |
@@ -337,10 +339,13 @@ pasa a ser una factory que recibe el puerto, la instancia se arma en
 | 7 — Entrypoints (composición) | ⏳ No iniciada |
 | 8 — Borrado del vanilla de la raíz | ⏳ No iniciada |
 
-## Verificación pendiente en navegador
+## Verificación en navegador — ✅ corrida y pasada (2026-08-02)
 
-La Fase 1 se hizo con la suite en verde en cada corte, pero **nada de esto se probó en
-Chrome**. Antes de seguir conviene confirmar, con la extensión recargada:
+Esta lista nació como deuda: las fases se hicieron con la suite en verde en cada corte, pero
+nada de esto se había probado en Chrome. **Se corrió el 2026-08-02 sobre `.output/chrome-mv3/`
+y pasó**, junto con el fix del sondeo ad-hoc de `queue.js`. Se conserva como **checklist de
+regresión**: es lo que hay que volver a mirar después de cada fase que toque empaquetado,
+entrypoints o el adaptador de sitio. Los puntos, con la extensión recargada:
 
 1. Una descarga real de punta a punta (ejercita `resolverManifiesto` + el parser de títulos +
    el nombre de archivo en disco).
@@ -349,8 +354,8 @@ Chrome**. Antes de seguir conviene confirmar, con la extensión recargada:
 3. El escaneo del aula (ejercita `SitioActivo.escanearListado` inyectado con executeScript).
 4. Un aula multicátedra: modal, badge y filtro por faceta con los estilos renombrados.
 
-Y en la rama `feat/rearq-fase3-wxt`, además de lo anterior sobre el build (`npm run build`
-→ cargar `.output/chrome-mv3/`):
+Y lo específico del build de la Fase 3 (`npm run build` → cargar `.output/chrome-mv3/`; la
+rama `feat/rearq-fase3-wxt` ya está mergeada, esto es hoy el camino normal):
 
 5. Que el **service worker arranque sin excepción** (`chrome://extensions/` → "service
    worker" → consola). Es lo más delicado del empaquetado: el SW compilado es clásico,
