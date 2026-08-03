@@ -1,16 +1,29 @@
 # Testing
 
-**Estado actual: suite real y en crecimiento — 19 archivos de test, 187 tests.** Existe `package.json` con Vitest + jsdom como devDependencies. Cubierto hoy: la lógica pura (`shared/utils.js`), el daemon de conexión (`shared/conexion.js`), el cliente del backend (`core/backend/bunClient.ts`, primer test en TypeScript), el historial de fallos (`core/historial/historialFallos.ts`, ya sin mocks de `chrome.*`: usa el adaptador en memoria del puerto), las features/islas del popup ya extraídas (`popup/features/serverConnection.js`, `queue.js`, `filters.js`, `faceta.js`, y las islas Preact `conexionHeader`/`onboarding`/`rutaDisco`/`bannerConexion`/`listaClases`/`campanita`), y de `background/hlsEngine.js` tanto las funciones puras (parseo/resolución M3U8) como el **pool de 6 workers** `compilarTranscodificacionStream` (concurrencia, AES, streaming turbo/blob, aborts en cascada, y el path de reintento 4xx del bug 400), más los handlers IPC de `background.js` (vía un harness que mockea `chrome.*`). Lo que todavía falta cubrir es el núcleo de `popup.js` aún sin extraer (init + wiring + orquestación de scraping/render) y el bucle de descarga `procesarSiguienteElementoDeLaCola` + la máquina de auto-heal del SW — por diseño quedan a la verificación manual/e2e (ver `docs/contributing.md`).
+**Estado actual: suite real y en crecimiento** (los números exactos, en la tabla de baseline de abajo). Existe `package.json` con Vitest + jsdom como devDependencies. Cubierto hoy: la lógica pura (`shared/utils.js`), el daemon de conexión (`shared/conexion.js`), el cliente del backend (`core/backend/bunClient.ts`, primer test en TypeScript), el historial de fallos (`core/historial/historialFallos.ts`, ya sin mocks de `chrome.*`: usa el adaptador en memoria del puerto), las features/islas del popup ya extraídas (`popup/features/serverConnection.js`, `queue.js`, `filters.js`, `faceta.js`, y las islas Preact `conexionHeader`/`onboarding`/`rutaDisco`/`bannerConexion`/`listaClases`/`campanita`), y de `background/hlsEngine.js` tanto las funciones puras (parseo/resolución M3U8) como el **pool de 6 workers** `compilarTranscodificacionStream` (concurrencia, AES, streaming turbo/blob, aborts en cascada, y el path de reintento 4xx del bug 400), más los handlers IPC de `background.js` (vía un harness que mockea `chrome.*`). Lo que todavía falta cubrir es el núcleo de `popup.js` aún sin extraer (init + wiring + orquestación de scraping/render) y el bucle de descarga `procesarSiguienteElementoDeLaCola` + la máquina de auto-heal del SW — por diseño quedan a la verificación manual/e2e (ver `docs/contributing.md`).
+
+## Baseline de las verificaciones
+
+**Este doc es el hogar canónico de estos números** (convención DRY, ver `docs/adr/0007-dry-docs-canonical-homes.md`): `CLAUDE.md` y el resto apuntan acá en vez de repetirlos. Si agregás tests o un archivo nuevo, el número se actualiza **acá**, en el mismo cambio.
+
+| Verificación | Baseline esperado |
+|---|---|
+| `npm test` | 19 archivos, 187 tests, todo en verde |
+| `npm run lint` | **0 errores**, 9 warnings |
+| `npx tsc --noEmit` | sin salida (limpio) |
+| `npm run build` | compila a `.output/chrome-mv3/` |
+
+Un error de lint es una regresión; los 9 warnings son deuda conocida (ver `docs/TECHNICAL_DEBT.md`).
 
 ## Cómo correr los tests
 
 ```
-npm install      # una sola vez (instala Vitest + jsdom en node_modules/, gitignorado)
+npm install      # una sola vez (instala las devDependencies en node_modules/, gitignorado)
 npm test         # corre todo una vez (vitest run)
 npm run test:watch  # modo watch durante desarrollo
 ```
 
-La extensión en sí sigue sin bundler ni dependencias de runtime: `package.json` existe sólo para las herramientas de test (ver `docs/adr/0001-no-bundler-or-typescript-yet.md`).
+La extensión **sí** se empaqueta desde la Fase 3 de la re-arquitectura (WXT + Vite → `.output/chrome-mv3/`) y el núcleo se está migrando a TypeScript: ADR-0008 reemplazó a `docs/adr/0001-no-bundler-or-typescript-yet.md`. Lo que sigue siendo cierto es que la extensión no tiene dependencias de **runtime** — todo `package.json` es tooling (Vitest, ESLint, `tsc`, WXT).
 
 ## Stack elegido
 
