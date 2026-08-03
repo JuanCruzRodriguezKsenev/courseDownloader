@@ -24,7 +24,7 @@ Explicación de los patrones que sostienen el código actual — qué problema r
 
 ## Daemon de estado de conexión (fuente única, push/subscribe)
 
-**Dónde**: `shared/conexion.js` (`Conexion`), cargado tanto en el popup como en el SW.
+**Dónde**: `shared/conexion.ts` (`Conexion`), cargado tanto en el popup como en el SW.
 
 **Qué hace**: centraliza TODA la detección de conexión (servidor Bun + internet) en un único poller. El resto del código no chequea conexión por su cuenta: sólo lee (`Conexion.get()` → `{servidor, internet, completa, tipoFalla}`) o se suscribe a los cambios (`Conexion.suscribir(cb)`, edge-triggered: notifica sólo en transición). El estado se espeja entre popup y SW vía `chrome.storage.session`, así ambos contextos convergen. En el popup el poller corre con `setInterval`; en el SW, que no sobrevive la suspensión, se dispara desde el handler de `chrome.alarms`.
 

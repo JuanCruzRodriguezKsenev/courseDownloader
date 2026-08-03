@@ -17,6 +17,7 @@
 import AlmacenamientoChrome from "./chrome/almacenamiento";
 import { crearHistorialFallos } from "../core/historial/historialFallos";
 import { crearAppState } from "../shared/state";
+import { crearConexion } from "../shared/conexion";
 
 /** Adaptador de plataforma activo en esta build. */
 export const almacenamiento = AlmacenamientoChrome;
@@ -33,3 +34,12 @@ export const HistorialFallos = crearHistorialFallos(almacenamiento);
  */
 export const AppState = crearAppState(almacenamiento);
 (globalThis as Record<string, unknown>).AppState = AppState;
+
+/**
+ * El daemon de conexión SÍ corre en los dos contextos, y a propósito: popup y SW mantienen
+ * cada uno su instancia y convergen espejando por el ámbito de sesión del puerto. Quién
+ * llama a `iniciar()` no se decide acá — el popup arranca su poller y el SW verifica desde
+ * `chrome.alarms` (setInterval no sobrevive la suspensión del service worker).
+ */
+export const Conexion = crearConexion(almacenamiento);
+(globalThis as Record<string, unknown>).Conexion = Conexion;

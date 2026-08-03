@@ -237,6 +237,12 @@ en TypeScript, con sus 11 tests. Es el corte más barato para estrenar el pipeli
 > `core/` hoy violaría el invariante de la capa, y partirlo en store puro + daemon acoplado
 > sin tener el puerto de almacenamiento significa tocarlo dos veces. **Se mueve en la Fase 5**,
 > junto con el puerto.
+>
+> **Epílogo (5b, 2026-08-02)**: el desacople del daemon ya se hizo — `shared/conexion.ts` no
+> tiene `chrome.*`. Pero la mudanza a `core/` **sigue pendiente**, y por un motivo distinto al
+> previsto: no es el storage sino la URL de sondeo, que lee del global `SitioActivo` (Capa 2).
+> Inyectarla desde la composición choca con `allowJs: false` — `composicion.ts` no puede
+> importar `config.js`. Se destraba cuando el adaptador de sitio pase a TypeScript.
 
 **Fase 5 — Puertos de plataforma + adaptador Chrome (el corte grande).** `PuertoAlmacenamiento`
 y `PuertoMensajeria` con su adaptador, convirtiendo las globales `window.X`/`self.X` a módulos
@@ -312,7 +318,7 @@ Orden recomendado, de menor a mayor riesgo:
 | Archivo | Usos de `chrome.*` | Nota |
 |---|---|---|
 | ~~`shared/state.js`~~ → `shared/state.ts` | 9 → 1 | ✅ Hecho (2026-08-02). Pasó a TS + factory `crearAppState(puerto)`, instanciada en `composicion.ts`. El uso que queda es el `sendMessage` de `sincronizarConBackground()`: IPC, no storage. **Corrección al plan**: acá decía "con tests indirectos" y era falso — los tests del popup mockean `globalThis.AppState` entero, así que no tenía **ninguna** cobertura real. Se le escribieron 13 tests propios contra `AlmacenamientoEnMemoria` como parte del corte. |
-| `shared/conexion.js` | 7 | El daemon. Sólo espejado por storage; tiene 14 tests propios. |
+| ~~`shared/conexion.js`~~ → `shared/conexion.ts` | 7 → 0 | ✅ Hecho (2026-08-02). TS + factory `crearConexion(puerto)`; el espejado cross-contexto va por el ámbito de sesión del puerto. `BunClient` pasó de global sniffeada a import (los dos son módulos del núcleo). Sus tests dejaron de mockear `chrome.*`: ahora levantan **dos daemons sobre el mismo `AlmacenamientoEnMemoria`**, que es el espejado popup↔SW ejercitado de verdad y no simulado (14 → 16 tests). **No se mudó a `core/`** aunque ya no le quede `chrome.*`: todavía lee el global `SitioActivo` para la URL de sondeo, y `composicion.ts` no puede inyectársela porque `config.js` es `.js` (`allowJs: false`). Se muda cuando ese archivo pase a TS. |
 | `popup/features/queue.js` | 9 | Tiene tests propios. |
 | `popup.js` | 14 | Orquestación; sin tests del núcleo. |
 | `background.js` | 63 | **El grande y el riesgoso**: loop de descarga + auto-heal, hoy SIN cobertura. Dejar para el final, y usar `AlmacenamientoEnMemoria` para escribirle tests ANTES de moverlo. |
@@ -345,7 +351,7 @@ en el tramo intermedio (en `state.js` no pasaba: `conexion.js` y `bunClient.ts` 
 | 3 — WXT + TypeScript, andamiaje vacío (compilar lo actual) | ✅ Hecha (2026-08-02), mergeada y **verificada en navegador** (2026-08-02) |
 | 4 — `core/`: BunClient en TypeScript (+ typescript-eslint y `tsc --noEmit` en verde) | ✅ Hecha (2026-08-02) |
 | 5a — `PuertoAlmacenamiento` + adaptador Chrome + adaptador en memoria + 1er consumidor migrado (historial de fallos) | ✅ Hecha (2026-08-02) |
-| 5b — Resto de consumidores del puerto: daemon de conexión, `AppState`, `queue`, `background.js` (63 usos) | 🟡 En curso — `AppState` ✅ (2026-08-02, `shared/state.ts`); faltan `conexion.js`, `queue.js`, `popup.js`, `background.js` |
+| 5b — Resto de consumidores del puerto: daemon de conexión, `AppState`, `queue`, `background.js` (63 usos) | 🟡 En curso — `AppState` ✅ y `Conexion` ✅ (2026-08-02, `shared/state.ts` + `shared/conexion.ts`); faltan `queue.js`, `popup.js`, `background.js` |
 | 5c — `PuertoMensajeria` (IPC) + `PuertoProgramador` (alarmas) + sus adaptadores | ⏳ No iniciada |
 | 6 — Motor HLS → `core/hls/` | ⏳ No iniciada |
 | 7 — Entrypoints (composición) | ⏳ No iniciada |
