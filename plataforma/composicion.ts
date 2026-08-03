@@ -15,12 +15,17 @@
  * de `chrome.*` se instancia acá con su adaptador.
  */
 import AlmacenamientoChrome from "./chrome/almacenamiento";
+import MensajeriaChrome from "./chrome/mensajeria";
 import { crearHistorialFallos } from "../core/historial/historialFallos";
 import { crearAppState } from "../shared/state";
 import { crearConexion } from "../shared/conexion";
 
-/** Adaptador de plataforma activo en esta build. */
+/** Adaptadores de plataforma activos en esta build. */
 export const almacenamiento = AlmacenamientoChrome;
+export const mensajeria = MensajeriaChrome;
+// Publicado como global porque `popup.js` (todavía vanilla) se lo pasa por `ctx` a las
+// features que lo necesitan. Cuando popup.js sea composición (Fase 7), esto se va.
+(globalThis as Record<string, unknown>).Mensajeria = mensajeria;
 
 export const HistorialFallos = crearHistorialFallos(almacenamiento);
 (globalThis as Record<string, unknown>).HistorialFallos = HistorialFallos;

@@ -338,7 +338,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     congelarUI: (titulo, pct, tel) => congelarUIPorDescargaActiva(titulo, pct, tel),
     renderizar: () => renderizarListadoInterfaz(),
     setVerificandoConexion: (v) => { verificandoConexionBoton = v; },
-    setReintentandoCola: (v) => { reintentandoColaActivo = v; }
+    setReintentandoCola: (v) => { reintentandoColaActivo = v; },
+    // PuertoMensajeria (Fase 5c): lo publica plataforma/composicion.ts. La feature ya no
+    // toca chrome.runtime; el IPC entra por acá.
+    mensajeria: Mensajeria
   });
   const encolarItemsEnCaliente = _queue.encolarItemsEnCaliente;
   const quitarItemsDeColaEnLote = _queue.quitarItemsDeColaEnLote;

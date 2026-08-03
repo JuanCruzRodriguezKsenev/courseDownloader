@@ -12,6 +12,31 @@ Explicación de los patrones que sostienen el código actual — qué problema r
 
 **Convención a seguir**: cada acción se define como un método `async accion(request, sendResponse)` dentro del diccionario `manejadoresIPC`. El listener despacha por lookup (`manejadoresIPC[request.action]`), retorna `false` si no existe, y si existe lo envuelve en un IIFE async + `try/catch` global, retornando `true` de forma síncrona para mantener el canal abierto a una respuesta async. Cada handler termina en `sendResponse(...)`.
 
+**Lado emisor: `PuertoMensajeria` (Fase 5c)**. Quien *manda* mensajes ya no llama a
+`chrome.runtime.sendMessage`, sino al puerto (`core/puertos/mensajeria.ts`), que separa lo que
+esa API mezclaba en una sola firma:
+
+- **`enviar(m)`** — espera respuesta y **rechaza** si el canal falla (receptor dormido o
+  ausente). Para cuando la respuesta cambia lo que hacés: la inyección en cola revierte su
+  optimistic update si no llega el `encolados_ok`.
+- **`notificar(m)`** — fire-and-forget, **nunca rechaza**. Para los avisos donde no hay nada
+  que decidir con la respuesta (`activar_frenado_suave`, `iniciar_descarga_cola`).
+
+**Por qué importa**: con `sendMessage` la diferencia entre "espero respuesta" y "no me importa"
+era *si alguien pasó callback o no*, y omitirlo por descuido no fallaba nunca de forma visible.
+Esa ambigüedad es exactamente el bug del optimistic update sin rollback (ver
+`docs/TECHNICAL_DEBT.md` §Resuelto). Ahora es una elección explícita en cada call-site.
+
+**Regla al migrar un call-site**: si el código de hoy pasa callback, mirá **qué hace ese
+callback ante un fallo de canal**. Chrome lo invoca igual (con `lastError` seteado), así que un
+callback que corría "siempre" tiene que seguir corriendo siempre — con el puerto eso es
+`.finally()`, no `.then()`. `abortarRafagaInmediata` depende de esto: si el panel del popup sólo
+se restaurara ante respuesta exitosa, con el SW dormido quedaría congelado para siempre.
+
+**Referencia**: `popup/features/queue.js` es el primer consumidor migrado (los seis call-sites,
+uno de cada forma). El adaptador de navegador es `plataforma/chrome/mensajeria.ts`; el de tests,
+`core/puertos/mensajeriaEnMemoria.ts`.
+
 ## State ownership split (AppState / SessionState)
 
 **Dónde**: `shared/state.ts` (`AppState`, vive en el popup) vs. el objeto `SessionState` definido inline en `background.js` (vive en el service worker).

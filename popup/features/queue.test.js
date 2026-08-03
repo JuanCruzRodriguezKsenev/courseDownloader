@@ -7,8 +7,10 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import QueueFeature from './queue.js';
+import { MensajeriaEnMemoria } from '../../core/puertos/mensajeriaEnMemoria.ts';
 
-let sendMessage;
+let mensajeria;
+let desregistrar;
 
 function montarNodos() {
   document.body.innerHTML = `
@@ -48,6 +50,7 @@ function crearFeature(overrides = {}) {
     renderizar: vi.fn(),
     setVerificandoConexion: vi.fn(),
     setReintentandoCola: vi.fn(),
+    mensajeria,
     ...overrides,
   };
   const feature = QueueFeature.crear(ctx);
@@ -72,6 +75,23 @@ function stubConexion(opts) {
   return globalThis.Conexion;
 }
 
+/** Registra un "SW" que contesta lo indicado a todo mensaje. */
+function responderCon(respuesta) {
+  desregistrar?.();
+  desregistrar = mensajeria.onMensaje((_m, responder) => {
+    responder(respuesta);
+  });
+}
+
+/** Simula el SW dormido: sin manejador, `enviar()` rechaza (como el lastError de Chrome). */
+function sinReceptor() {
+  desregistrar?.();
+  desregistrar = null;
+}
+
+/** Deja correr las cadenas de promesas del IPC (antes el callback era síncrono). */
+const flush = () => new Promise((r) => setTimeout(r, 0));
+
 beforeEach(() => {
   // Desde v1.3.0 la feature no toca SitioActivo: el sondeo (y con él la URL del
   // portal) es asunto del daemon.
@@ -79,8 +99,11 @@ beforeEach(() => {
   // Ningún camino de la feature debería sondear por su cuenta: si algo llama a
   // fetch, el test falla en vez de pegarle a la red real.
   globalThis.fetch = vi.fn(() => { throw new Error('la feature no debe hacer fetch propio'); });
-  sendMessage = vi.fn();
-  globalThis.chrome = { runtime: { sendMessage, lastError: null } };
+  mensajeria = new MensajeriaEnMemoria();
+  // Por defecto el SW contesta OK. Los tests que necesitan "SW dormido" usan sinReceptor().
+  responderCon({ status: 'encolados_ok' });
+  // La feature ya no debe tocar chrome.runtime: si lo hace, explota en vez de pasar.
+  globalThis.chrome = { runtime: { get sendMessage() { throw new Error('la feature no debe usar chrome.runtime'); } } };
   globalThis.AppState = {
     colaDescargas: [],
     listadoClasesGlobal: [],
@@ -91,9 +114,8 @@ beforeEach(() => {
 });
 
 describe('QueueFeature.encolarItemsEnCaliente', () => {
-  it('agrega a la cola, marca process y persiste cuando el SW confirma', () => {
-    // El SW responde OK de forma síncrona.
-    sendMessage.mockImplementation((_msg, cb) => cb({ status: 'encolados_ok' }));
+  it('agrega a la cola, marca process y persiste cuando el SW confirma', async () => {
+    responderCon({ status: 'encolados_ok' });
     const { feature, ctx, nodos } = crearFeature();
 
     const item = { id: 1, numeroOriginal: 3, titulo: 'A', urlInterna: 'u', estado: 'pending', seleccionado: true };
@@ -107,25 +129,20 @@ describe('QueueFeature.encolarItemsEnCaliente', () => {
     expect(nodos.queueBadge.textContent).toBe('1');
     expect(AppState.respaldar).toHaveBeenCalled();
     expect(ctx.aplicarFiltros).toHaveBeenCalled();
-    expect(sendMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'inyectar_items_en_cola_activa' }),
-      expect.any(Function)
-    );
-    // Éxito => sin rollback.
+    expect(mensajeria.enviados[0]).toMatchObject({ action: 'inyectar_items_en_cola_activa' });
+    // Éxito => sin rollback (la confirmación llega en microtask).
+    await flush();
     expect(console.warn).not.toHaveBeenCalled();
+    expect(AppState.colaDescargas).toHaveLength(1);
   });
 
-  it('revierte el optimistic update si el SW no confirma (lastError)', () => {
-    // El SW no confirma: hay chrome.runtime.lastError al invocar el callback.
-    sendMessage.mockImplementation((_msg, cb) => {
-      chrome.runtime.lastError = { message: 'canal cerrado' };
-      cb(undefined);
-      chrome.runtime.lastError = null; // Chrome lo limpia tras el callback.
-    });
+  it('revierte el optimistic update si el canal falla (SW dormido)', async () => {
+    sinReceptor(); // sin manejador => enviar() rechaza, como el lastError de Chrome
     const { feature, nodos } = crearFeature();
 
     const item = { id: 7, titulo: 'B', urlInterna: 'u', estado: 'pending', seleccionado: true };
     feature.encolarItemsEnCaliente([item]);
+    await flush();
 
     // Rollback completo: cola vacía, estado y selección restaurados, badge en 0.
     expect(AppState.colaDescargas).toHaveLength(0);
@@ -135,11 +152,12 @@ describe('QueueFeature.encolarItemsEnCaliente', () => {
     expect(console.warn).toHaveBeenCalled();
   });
 
-  it('revierte también si el status no es "encolados_ok"', () => {
-    sendMessage.mockImplementation((_msg, cb) => cb({ status: 'error_raro' }));
+  it('revierte también si el status no es "encolados_ok"', async () => {
+    responderCon({ status: 'error_raro' });
     const { feature } = crearFeature();
 
     feature.encolarItemsEnCaliente([{ id: 9, titulo: 'C', urlInterna: 'u', estado: 'pending', seleccionado: false }]);
+    await flush();
 
     expect(AppState.colaDescargas).toHaveLength(0);
     expect(console.warn).toHaveBeenCalled();
@@ -148,7 +166,7 @@ describe('QueueFeature.encolarItemsEnCaliente', () => {
 
 describe('QueueFeature.quitarItemsDeColaEnLote', () => {
   it('saca el lote de la cola, vuelve las clases a pending y las remueve en el SW', async () => {
-    sendMessage.mockImplementation((_msg, cb) => cb({ status: 'removido_ok' }));
+    responderCon({ status: 'removido_ok' });
     AppState.colaDescargas = [{ titulo: 'A' }, { titulo: 'B' }];
     AppState.listadoClasesGlobal = [
       { titulo: 'A', estado: 'process', visible: true, seleccionado: false },
@@ -168,10 +186,7 @@ describe('QueueFeature.quitarItemsDeColaEnLote', () => {
     expect(ctx.resetSeleccionFila).toHaveBeenCalled();
     expect(ctx.actualizarContadores).toHaveBeenCalled();
     expect(AppState.respaldar).toHaveBeenCalled();
-    expect(sendMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'remover_item_de_cola', titulo: 'A' }),
-      expect.any(Function)
-    );
+    expect(mensajeria.enviados).toContainEqual({ action: 'remover_item_de_cola', titulo: 'A' });
 
     // aplicarFiltros se dispara diferido (Promise.all + setTimeout 100ms).
     await new Promise(r => setTimeout(r, 150));
@@ -190,22 +205,31 @@ describe('QueueFeature.solicitarFrenadoSuave', () => {
     expect(AppState.banderaFrenadoSolicitado).toBe(true);
     expect(nodos.txtEstado.textContent).toContain('Frenando al terminar:');
     expect(nodos.txtEstado.textContent).toContain('Clase X');
-    expect(sendMessage).toHaveBeenCalledWith({ action: 'activar_frenado_suave' });
+    expect(mensajeria.accionesEnviadas()).toContain('activar_frenado_suave');
   });
 });
 
 describe('QueueFeature.abortarRafagaInmediata', () => {
-  it('avisa al SW y restaura el panel cuando el SW confirma', () => {
-    sendMessage.mockImplementation((_msg, cb) => cb({ status: 'abortado_ok' }));
+  it('avisa al SW y restaura el panel cuando el SW confirma', async () => {
+    responderCon({ status: 'abortado_ok' });
     const onRestaurarPanel = vi.fn();
     const { feature } = crearFeature({ onRestaurarPanel });
 
     feature.abortarRafagaInmediata();
+    await flush();
 
-    expect(sendMessage).toHaveBeenCalledWith(
-      { action: 'abortar_rafaga_inmediata' },
-      expect.any(Function)
-    );
+    expect(mensajeria.enviados).toContainEqual({ action: 'abortar_rafaga_inmediata' });
+    expect(onRestaurarPanel).toHaveBeenCalledWith('🛑 Descargas detenidas. Fila preservada.', false);
+  });
+
+  it('restaura el panel AUNQUE el SW no conteste (si no, queda congelado)', async () => {
+    sinReceptor();
+    const onRestaurarPanel = vi.fn();
+    const { feature } = crearFeature({ onRestaurarPanel });
+
+    feature.abortarRafagaInmediata();
+    await flush();
+
     expect(onRestaurarPanel).toHaveBeenCalledWith('🛑 Descargas detenidas. Fila preservada.', false);
   });
 });
@@ -221,7 +245,7 @@ describe('QueueFeature.iniciarDescargaCola', () => {
     expect(ctx.setVerificandoConexion).toHaveBeenCalledWith(true);
     expect(ctx.setVerificandoConexion).toHaveBeenCalledWith(false);
     expect(ctx.congelarUI).toHaveBeenCalledWith('A', 0, null);
-    expect(sendMessage).toHaveBeenCalledWith({ action: 'iniciar_descarga_cola' });
+    expect(mensajeria.accionesEnviadas()).toContain('iniciar_descarga_cola');
     expect(ctx.mostrarAlerta).not.toHaveBeenCalled();
     // El chequeo va por el daemon, no por un sondeo propio.
     expect(conexion.verificarAhora).toHaveBeenCalled();
@@ -237,7 +261,7 @@ describe('QueueFeature.iniciarDescargaCola', () => {
 
     expect(ctx.mostrarAlerta).toHaveBeenCalledWith('internet', 'A');
     expect(ctx.congelarUI).not.toHaveBeenCalled();
-    expect(sendMessage).not.toHaveBeenCalled();
+    expect(mensajeria.enviados).toHaveLength(0);
   });
 
   it('con el servidor caído pero internet OK: arranca igual (el gate mira SÓLO internet)', async () => {
@@ -248,7 +272,7 @@ describe('QueueFeature.iniciarDescargaCola', () => {
     await feature.iniciarDescargaCola();
 
     expect(ctx.congelarUI).toHaveBeenCalledWith('A', 0, null);
-    expect(sendMessage).toHaveBeenCalledWith({ action: 'iniciar_descarga_cola' });
+    expect(mensajeria.accionesEnviadas()).toContain('iniciar_descarga_cola');
     expect(ctx.mostrarAlerta).not.toHaveBeenCalled();
   });
 
@@ -259,7 +283,7 @@ describe('QueueFeature.iniciarDescargaCola', () => {
     await feature.iniciarDescargaCola();
 
     expect(ctx.setVerificandoConexion).not.toHaveBeenCalled();
-    expect(sendMessage).not.toHaveBeenCalled();
+    expect(mensajeria.enviados).toHaveLength(0);
   });
 });
 
@@ -277,7 +301,7 @@ describe('QueueFeature.ejecutarReintentoDeCola', () => {
     expect(AppState.videoFalladoParaReintento).toBeNull();
     expect(ctx.renderizar).toHaveBeenCalled();
     expect(nodos.progressCont.style.display).toBe('block');
-    expect(sendMessage).toHaveBeenCalledWith({ action: 'iniciar_descarga_cola' });
+    expect(mensajeria.accionesEnviadas()).toContain('iniciar_descarga_cola');
     expect(ctx.mostrarAlerta).not.toHaveBeenCalled();
   });
 
@@ -289,6 +313,6 @@ describe('QueueFeature.ejecutarReintentoDeCola', () => {
     await feature.ejecutarReintentoDeCola();
 
     expect(ctx.mostrarAlerta).toHaveBeenCalledWith('internet', 'A');
-    expect(sendMessage).not.toHaveBeenCalled();
+    expect(mensajeria.enviados).toHaveLength(0);
   });
 });
