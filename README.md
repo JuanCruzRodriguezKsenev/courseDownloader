@@ -79,6 +79,6 @@ Tras cambiar código: `npm run build` y recargar la extensión desde su tarjeta.
 * **`shared/`**:
   * `state.ts`: Maquinaria de estado centralizada (`AppState`) con persistencia en storage.
   * `core/backend/bunClient.ts`: Cliente de comunicación HTTP con el backend de Bun (núcleo genérico, TypeScript).
-  * `conexion.js`: Daemon de estado de conexión (servidor + internet), fuente única consumida por popup y Service Worker.
+  * `conexion.ts`: Daemon de estado de conexión (servidor + internet), fuente única consumida por popup y Service Worker.
   * `utils.js`: Funciones comunes de sanitización, clasificación de cátedras y normalización de títulos de video.
 * **`styles/`**: Sistema de tokens de diseño visual (Colores OLED, radios, espaciados, tipografías y pulso ECG animado).
