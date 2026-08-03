@@ -64,7 +64,7 @@ Casos de borde a cubrir explícitamente para `formatTitleStructured`/`clasificar
 
 ### 4. `popup.js` — parcial: lo ya extraído está cubierto, el núcleo sigue bloqueado
 
-El `popup.js` original era un único closure `DOMContentLoaded` con ~50 funciones anidadas no exportables — no testeable así. La Fase 2 (cerrada) extrajo la lógica cohesiva a `popup/features/*` (y a islas Preact), y esos módulos **sí** se testean de forma aislada: hay tests para `serverConnection`, `queue`, `filters`, `catedra` y las cinco islas Preact. Lo que queda sin cubrir es el núcleo de `popup.js` que por diseño permanece en el closure (init + wiring + orquestación de scraping/render, que ADR-0005 define como estado final) — ver `docs/ROADMAP.md` Fase 2 y `docs/adr/0005-feature-driven-popup-split.md`.
+El `popup.js` original era un único closure `DOMContentLoaded` con ~50 funciones anidadas no exportables — no testeable así. La Fase 2 (cerrada) extrajo la lógica cohesiva a `popup/features/*` (y a islas Preact), y esos módulos **sí** se testean de forma aislada: hay tests para `serverConnection`, `queue`, `filters`, `faceta` (el módulo que hasta el cierre de la Fase 2 se llamó `catedra`) y las seis islas Preact. Lo que queda sin cubrir es el núcleo de `popup.js` que por diseño permanece en el closure (init + wiring + orquestación de scraping/render, que ADR-0005 define como estado final) — ver `docs/ROADMAP.md` Fase 2 y `docs/adr/0005-feature-driven-popup-split.md`.
 
 ## Qué NO testear (por ahora)
 

@@ -90,6 +90,158 @@ por inyección). Le queda un solo uso de `chrome.*`, el `sendMessage` de
 `sincronizarConBackground()`, que es **IPC y no persistencia** — cae fuera de este puerto y
 espera uno de mensajería.
 
+## Qué hace cada archivo, y qué regla respeta
+
+Las dos secciones de arriba dicen *dónde* vive cada cosa (zonas y capas). Ésta dice **qué
+contiene cada archivo y qué hay que respetar al tocarlo** — es el detalle operativo que antes
+vivía duplicado en `CLAUDE.md`, que ahora conserva sólo el resumen de reglas y apunta acá. La
+historia de qué se migró en qué fase no está acá: vive en `docs/rearquitectura-diseno.md`.
+
+### Popup
+
+- **`popup.js`** (+ `renderers.js`, `popup/features/*`; el scraper que inyecta vive en
+  `sitio/ramonnet/scraper.js`). Orquesta el estado de UI, el cambio de tabs
+  (Disponibles/Cola), filtros y búsqueda, y dispara el scraping inyectando
+  `Scraper.escanearAulaVirtual` en la pestaña activa. Habla con el service worker por acciones
+  IPC (`iniciar_descarga_cola`, `inyectar_items_en_cola_activa`,
+  `obtener_estados_en_progreso`) **a través del `PuertoMensajeria`, no de `chrome.runtime`**.
+  Detalle de forma: el oyente del worker se guarda como **función de desuscripción**
+  (`desengancharOyenteWorker`), no como referencia al listener para devolvérsela a
+  `removeListener`.
+  Lo que queda adentro es **deliberado**: init + wiring + orquestación de
+  render/scraping/IPC es el estado final que define ADR-0005, y `scraping` en particular
+  **no** se extrae (alimenta ADR-0008).
+- **`popup/features/` — el split feature-driven** (ADR-0005, Fase 2 cerrada). Cada módulo
+  exporta una factory `Feature.crear(ctx)` que recibe sus dependencias (nodos del DOM,
+  callbacks hacia `popup.js`, `ctx.mensajeria`, `ctx.sitio`) por el objeto `ctx` en vez de
+  meter la mano en el closure del popup. **Las preocupaciones nuevas de UI se agregan con esta
+  forma, no como más funciones sueltas en `popup.js`.**
+
+  | Feature | Qué es | Lo que hay que saber |
+  |---|---|---|
+  | `serverConnection.js` | UI de conexión + auto-heal | Consume el daemon `Conexion`, no sondea por su cuenta. |
+  | `queue.js` (`QueueFeature`) | Ciclo de vida completo de la cola: encolar/quitar, cancelar, arrancar, reanudar tras caída | Sin `chrome.*`: el puerto le llega como `ctx.mensajeria`. |
+  | `filters.js` (`FilterFeature`) | Búsqueda + filtros por estado/materia/faceta + popover | Dueña del predicado unificado `coincideConFiltrosCola`. **Trampa**: su objeto `filtrosActivos` viaja **por referencia** en `ctx`, porque algunos call-sites de `popup.js` todavía lo mutan. |
+  | `faceta.js` (`FacetaFeature`) | Badge + asistente/modal de autoselección del eje de clasificación del sitio | **Genérica**: el vocabulario lo pone el descriptor del sitio (ver §UI de `rearquitectura-diseno.md`). |
+
+- **Islas Preact** (`popup/vendor/htm-preact-standalone.module.js`, importadas al final de
+  `entrypoints/popup/main.js`; el service worker sigue vanilla). Seis: `conexionHeader`,
+  `rutaDisco`, `bannerConexion`, `onboarding`, `listaClases` (la más grande — dueña de los
+  hijos de `#ui-list` y de los atributos del host) y `campanita`. El mapa por isla (frontera
+  de DOM, puente de store, estado) y la receta para agregar una están en
+  `docs/preact-migration.md`. Dos reglas que cobran caro: la frontera de DOM tiene que ser una
+  región de la que el código vanilla **no** guarde referencias `nodos.*` (refs colgadas), y un
+  puente de store respaldado por storage (`campanita` ← `core/historial/historialFallos.ts`)
+  no se comporta como un `window.X` efímero: lo escribe el SW.
+
+### Service worker
+
+- **`background.js`** — el único lugar donde las descargas ocurren de verdad. Dueño de la cola
+  FIFO persistente, procesa un ítem por vez (`procesarSiguienteElementoDeLaCola`) y sobrevive
+  a la suspensión del SW guardando lo volátil-pero-durable en el ámbito de sesión
+  (`SessionState`) y la cola/progreso de vida larga en el local. **El storage va por
+  `PuertoAlmacenamiento`** (el global `Almacenamiento` que publica
+  `plataforma/composicion.ts`). Registra la alarma `alarma_autoheal` que reanuda la cola
+  cuando la conexión caída vuelve; tanto ese chequeo de recuperación como la clasificación de
+  errores de descarga pasan por el daemon `Conexion`, no por sondas propias. Lo que todavía
+  habla `chrome.*` directo está en la tabla de §Las capas.
+- **`background/hlsEngine.js`** (`HlsEngine`) — **genérico**: la resolución página de clase →
+  `.m3u8` es del adaptador de sitio, así que el motor recibe la URL ya resuelta. Parsea el
+  manifiesto M3U8 (fragmentos + `#EXT-X-KEY`) y corre el pool de 6 workers concurrentes
+  (`CONCURRENCIA_MAXIMA`) que descarga, descifra con AES y —en modo Turbo— streamea cada
+  fragmento al backend Bun vía `BunClient.enviarFragmentoStream`.
+- **`public/offscreen/offscreen.js`** — documento offscreen del camino legacy no-Turbo (los
+  service workers no tienen `URL.createObjectURL`). Vive en `public/`, se copia tal cual y no
+  se bundlea. No se ejercita mientras Turbo esté forzado.
+
+### Capa 1 — `core/`
+
+`core/puertos/` tiene las **interfaces de los puertos**: `almacenamiento.ts` (persistencia),
+`mensajeria.ts` (IPC) y `sitio.ts` (`PuertoSitio`, el contrato que un adaptador de portal debe
+cumplir). Los dos primeros vienen con implementación en memoria
+(`almacenamientoEnMemoria.ts`, `mensajeriaEnMemoria.ts`) que permite testear lógica sin
+mockear `chrome.*` a mano, incluida una conversación popup↔SW completa in-process.
+
+**`PuertoMensajeria` parte en dos lo que `chrome.runtime.sendMessage` mezclaba**: `enviar()`
+espera respuesta y rechaza si el canal falla; `notificar()` es fire-and-forget y no rechaza
+nunca. Elegir uno es explícito en cada call-site — contrato completo en `docs/patterns.md`.
+
+También viven acá `core/backend/bunClient.ts` (wrapper fino de todos los endpoints del backend
+Bun: `/api/escanear-disco`, `/api/bypass-stream`, `/api/actualizar-consola`,
+`/api/seleccionar-carpeta`, `/api/health`, `/api/cancelar-descarga`) y
+`core/historial/historialFallos.ts` (factory `crearHistorialFallos(puerto)`, no singleton:
+historial acotado —últimos 50, más nuevo primero— de fallos terminales de la cola bajo la
+clave local `historialFallos`, que respalda la campanita; lo escribe el SW en `registrarFallo`
+y lo lee/muta el popup. Schema → `docs/data-model.md`; diseño →
+`docs/notificaciones-fallos-diseno.md`).
+
+**`ErrorBackend` convierte en tipo lo que era una convención en comentarios**:
+`tipoBackend: "rechazo"` marca **sólo** 4xx (saltear la clase), nunca 5xx (pausar +
+auto-heal). De esa distinción depende el fix del bug 400.
+
+### Capa 3 — `plataforma/`
+
+`plataforma/chrome/almacenamiento.ts` implementa `PuertoAlmacenamiento` sobre
+`chrome.storage`; `plataforma/chrome/mensajeria.ts` implementa `PuertoMensajeria` sobre
+`chrome.runtime`, y usa a propósito la forma **callback**, porque es la única que expone
+`chrome.runtime.lastError`: el adaptador siempre lo lee y lo convierte en rechazo o en
+warning.
+
+**`plataforma/composicion.ts` es la raíz de composición** — el único lugar donde los
+adaptadores concretos se inyectan en los módulos del núcleo y se publican como globals. Vive
+fuera de `entrypoints/` porque WXT trata cada archivo suelto de ahí como un entrypoint.
+**Un módulo que se desacopla de `chrome.*` se instancia acá.**
+
+### Capa 2 — `sitio/<portal>/`
+
+`sitio/ramonnet/config.ts` exporta `SitioRamonNet` + `SitioActivo` (el sitio al que apunta
+este build) y **se declara implementación de `PuertoSitio`**, así que a un adaptador de portal
+al que le falte una pieza lo caza el compilador y no la lectura. Dos reglas al agregarle algo:
+
+- **Una constante entra a `PuertoSitio` sólo si la lee alguien de afuera de `sitio/`.** `host`,
+  `marcaRutaClase` y el bloque `cdn` (hosts de iframe + la `plantillaM3u8` de Bunny) los
+  consumen únicamente archivos hermanos, así que viven en el `SitioRamonNetDescriptor` propio
+  del sitio. `urlSondeoInternet` sí cruza la frontera: lo lee el daemon `Conexion`, porque la
+  sonda de internet apunta al portal a propósito y no a un host genérico.
+- **Las constantes nuevas del sitio van acá, no inline en una feature ni en el motor.** El
+  config se importa primero en los dos entrypoints porque todo lo demás consume sus globals.
+
+Los módulos hermanos siguen en `.js` y entran como globals (`declare const`) **a propósito**:
+es lo que mantiene perezosas las puertas en vez de atarlas al orden de carga del entrypoint.
+Son `resolverManifiesto.js` (HTML de la clase → `.m3u8`), `parserTitulos.js` (parser de
+títulos/cátedra) y `scraper.js` (scraper del DOM), alcanzados vía
+`SitioActivo.resolverManifiesto` / `.parsearTitulo` / `.clasificarCarpeta` / `.escanearListado`.
+El ruleset dNR vive en **`public/sitio/ramonnet/rules.json`** (en `public/` para que WXT lo
+copie tal cual a esa ruta exacta, que es la que referencia `wxt.config.ts`). El config lleva
+además el **descriptor de faceta**, cuya forma campo por campo está en
+`docs/rearquitectura-diseno.md` §UI.
+
+### `shared/` — lo que todavía no se repartió
+
+Código cargado por los dos entrypoints; es lo que la re-arquitectura va partiendo entre
+`core/` (genérico) y `plataforma/` (atado al navegador).
+
+- **`state.ts` (`AppState`)** — la máquina de estados del popup: espeja/persiste la lista
+  scrapeada + selección de UI y reconcilia periódicamente contra el progreso autoritativo del
+  SW vía `sincronizarConBackground()`. Factory `crearAppState(puerto)` sobre
+  `PuertoAlmacenamiento`; el `globalThis.AppState` que leen ~280 call-sites lo publica
+  `composicion.ts`, no este archivo. Sigue en `shared/` por dos motivos documentados en su
+  cabecera: `sincronizarConBackground()` todavía es `chrome.runtime` crudo, y carga
+  vocabulario de sitio (`catedraSeleccionada`) que la Capa 1 no puede aceptar.
+- **`conexion.ts` (`Conexion`)** — la **fuente única de verdad del estado de conexión**
+  (servidor + internet), corriendo en popup y en SW; se lee con `Conexion.get()` o se escucha
+  con `Conexion.suscribir(cb)`. **Regla operativa: no agregar sondas `/api/health` ni HEAD de
+  internet ad-hoc en ningún otro lado — consumir el daemon.** Modelo push, espejado y contrato
+  completo → `docs/patterns.md` §Daemon de estado de conexión. Misma forma que `state.ts`:
+  factory `crearConexion(puerto)`, instancia publicada por `composicion.ts`, espejado
+  cross-contexto por el ámbito de sesión del puerto. No le queda `chrome.*`; sigue en `shared/`
+  sólo porque lee el global `SitioActivo` para la URL de sondeo.
+- **`utils.js` (`Utils`)** — **genérico desde v6.0.0**: sanitización de nombres/acentos,
+  escapado de HTML, helper de descifrado AES, fetch con reintentos y backoff
+  (`fetchConReintentos`, que consulta al daemon `Conexion` para cortar los reintentos ante un
+  corte real), helpers de blob y matemática de progreso/telemetría. El parser de títulos se
+  mudó a `sitio/ramonnet/parserTitulos.js` — **no volver a meter vocabulario del sitio acá**.
+
 ## Flujo de una descarga, de punta a punta
 
 1. **Scraping**: el usuario abre el popup con la pestaña de Ramón Net activa. `popup.js` inyecta `Scraper.escanearAulaVirtual` (definida en `sitio/ramonnet/scraper.js`, Capa 2, y consumida vía `SitioActivo.escanearListado`) en esa pestaña, que lee el DOM y devuelve la lista de clases visibles + la materia detectada.

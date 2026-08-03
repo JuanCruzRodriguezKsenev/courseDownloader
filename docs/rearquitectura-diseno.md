@@ -150,6 +150,22 @@ porque hoy las islas Preact mezclan ambas cosas. Dos categorías:
 > específico del sitio son datos y no estructura** — parametrizar sale más barato que duplicar
 > el componente, y se verifica con un test que corre la misma feature con otro descriptor.
 
+**Forma del descriptor de faceta** (vive en `sitio/ramonnet/config.ts`, dentro de
+`PuertoSitio`; es lo que consumen `popup/features/faceta.js` y `filters.js` vía `ctx.sitio`,
+que por eso no nombran ni una vez a la cátedra):
+
+| Campo | Qué es |
+|---|---|
+| etiquetas | Los valores del eje (acá, cátedras A–D) tal como se muestran. |
+| `COMUN` / `TODAS` | Los dos centinelas: "no aplica a ninguna en particular" y "todas". |
+| `claveEstado` | La clave de `AppState` donde se guarda la elección (acá, `catedraSeleccionada`). |
+| `leer(item)` | Cómo sacar el valor de un ítem **escrapeado**. |
+| `leerDeCola(item)` | Cómo sacarlo de un ítem **de la cola**, que no lo trae: lo re-deriva con el parser de títulos. |
+| copy del modal | Los textos del asistente de autoselección. |
+
+Quien agregue un portal implementa estos campos y no toca la feature. `faceta.test.js` lo
+verifica corriéndola con un descriptor falso, que es la prueba de que sigue genérica.
+
 El corte se ve mejor en `listaClases.preact.js`, que hoy contiene las dos mitades: la
 estructura de lista/selección/tabs es genérica, y `<FilaClase>` + el badge de cátedra son de
 sitio. Migrar esa isla = partirla en dos, no moverla de carpeta.

@@ -39,6 +39,9 @@ La documentación sigue el mismo principio de *single source of truth* que el c�
 - Elección de tecnologías y Turbo Mode → `docs/tech-stack.md`.
 - Política de seguridad (regla XSS, permisos) → `docs/security.md`.
 - Estado de la migración a islas Preact → `docs/preact-migration.md`.
+- Qué contiene cada archivo/módulo y qué regla respeta al tocarlo → `docs/architecture.md` §Qué hace cada archivo. `CLAUDE.md` guarda **sólo** el resumen de reglas que se pueden violar sin leer los docs, y apunta acá.
+- Baseline de las 4 verificaciones (cantidad de tests, warnings tolerados) y narrativa de cobertura → `docs/testing.md` §Baseline de las verificaciones. Ningún otro doc repite esos números.
+- Estado de la re-arquitectura por fases, qué sigue y con qué riesgo → `docs/rearquitectura-diseno.md`. Es también el hogar de la *historia* de cada corte: qué se migró cuándo y por qué un archivo sigue donde está.
 
 Un overview que orienta y apunta (una frase + link) **no** es duplicación; re-especificar el mismo mecanismo/valores/rationale en dos lugares **sí** lo es. Si al escribir un doc te encontrás re-explicando algo que ya vive en otro, dejá el resumen y linkéalo.
 
@@ -51,6 +54,7 @@ Este proyecto trata la documentación con la misma disciplina que el código —
 - [ ] Si tomaste una decisión de arquitectura significativa (nueva dependencia, nuevo patrón, reemplazo de uno existente) → agregaste un ADR nuevo en `docs/adr/` (nunca edites uno existente — ver `docs/adr/README.md`).
 - [ ] Si tu cambio toca código de manejo de contenido scrapeado o de terceros → revisaste `docs/security.md`.
 - [ ] Si agregaste o cambiaste una isla Preact del popup → actualizaste la tabla de estado en `docs/preact-migration.md`.
+- [ ] Si agregaste un módulo, una feature o un puerto (o le cambiaste la responsabilidad a uno) → lo reflejaste en `docs/architecture.md` §Qué hace cada archivo.
 - [ ] Si resolviste un ítem de `docs/TECHNICAL_DEBT.md` → lo marcaste como resuelto ahí.
 - [ ] Corriste `npm test` (sin regresiones) y `npm run lint` (0 errores) sobre el cambio.
 - [ ] Probaste el flujo afectado end-to-end en el navegador (con el backend Bun corriendo si tocaste algo de descarga) — ver `docs/testing.md`.
