@@ -22,7 +22,7 @@ navegador** = un adaptador de Capa 3, **sin tocar el núcleo**. Hoy los tres tip
 ## Estructura de carpetas objetivo
 
 ```
-src/
+./                         # la RAÍZ del repo, no src/ — ver la corrección abajo
   core/                    # Capa 1 — genérico, cero chrome.*, cero Ramón Net
     hls/                   #   motor: pool de workers, parseo M3U8, AES-CBC
     cola/                  #   FIFO + máquina de estados de descarga
@@ -44,6 +44,17 @@ src/
 
 El catálogo exacto de qué archivo/función de hoy migra a cada capa está en **ADR-0008**
 (no se repite acá — regla DRY, ADR-0007).
+
+> **Corrección del plan (Fase 3, 2026-08-02): no hay `src/`.** Este diseño colgaba todo de una
+> carpeta `src/` nueva, con la idea de que el código vanilla de la raíz coexistiera al lado
+> mientras se construía. Al ejecutar la Fase 3 se eligió lo contrario: `wxt.config.ts` fija
+> `srcDir: '.'` y **los fuentes se quedaron en la raíz** — `core/`, `sitio/`, `plataforma/`,
+> `shared/`, `styles/` cuelgan de ahí, y sólo los *entrypoints* siguen la convención de WXT
+> (`entrypoints/`). Motivo: mover ~30 archivos a `src/` en el mismo corte que cambiaba el
+> mecanismo de carga habría mezclado dos riesgos en una sola rama, y la coexistencia terminó
+> resolviéndose por archivo (migrar el módulo en su lugar) en vez de por carpeta. Las capas del
+> dibujo valen tal cual; lo que no existe es el prefijo. Donde el resto de este doc diga
+> `src/`, leer "la raíz".
 
 ## Puertos propuestos (interfaces TypeScript)
 
@@ -194,13 +205,16 @@ Esto acepta el paso de build que ADR-0001 evitaba — a cambio de reutilización
 **Cómo se vería, si se confirma WXT** (para dimensionar el costo del setup, no como
 configuración final):
 
-- `wxt.config.ts` en la raíz con `srcDir: 'src'` y el bloque `manifest` (permisos y
+- `wxt.config.ts` en la raíz con `srcDir` y el bloque `manifest` (al ejecutarse quedó
+  `srcDir: '.'`, no `'src'` — ver la corrección de §Estructura de carpetas objetivo; permisos y
   `host_permissions` se **generan** desde ahí; `manifest.json` a mano desaparece). El manifest
   actual es la fuente a portar — incluidos `declarativeNetRequest` + `rule_resources`, que son
   los que más fácil se pierden al regenerar, y `offscreen`/`downloads` si el path legacy
   no-Turbo sigue vivo.
 - Scripts: `dev` (`wxt`, con HMR de popup y SW), `build` (`wxt build`), `zip` (`wxt zip`), y
-  las variantes `-b firefox`. `test`/`lint` no cambian de comando, sí de alcance (`src/`).
+  las variantes `-b firefox`. `test`/`lint` no cambian de comando, sí de alcance. Ojo con
+  `tsc`, que sí cambia: su alcance lo fija el `include` de `tsconfig.json` a mano, no el
+  `srcDir` — ver `docs/testing.md` §Baseline.
 - Salidas: `.wxt/` (types generados, va a `.gitignore`) y `.output/chrome-mv3/` — que pasa a
   ser **la carpeta que se carga en `chrome://extensions/`**, en vez de la raíz del repo. Es el
   cambio de flujo diario más visible para quien desarrolla, y hay que reflejarlo en
@@ -255,9 +269,11 @@ por diseño— pasan a ser testeables sin navegador.
 **Fase 7 — `background.js` y `popup.js`** quedan como composición en `entrypoints/` (inyectan
 los adaptadores concretos en el núcleo).
 
-**Fase 8 — Sustitución y borrado del código vanilla de la raíz** — recién cuando los módulos de
-`src/` tengan **paridad de tests** con lo que reemplazan. Es un paso propio, no el efecto
-colateral de la Fase 7.
+**Fase 8 — Sustitución y borrado del código vanilla de la raíz** — recién cuando los módulos
+nuevos (`core/`, `plataforma/`, `sitio/`) tengan **paridad de tests** con lo que reemplazan. Es
+un paso propio, no el efecto colateral de la Fase 7. Sin `src/`, "el vanilla de la raíz" ya no
+se distingue por la carpeta: son los archivos que todavía no pasaron por un puerto — hoy
+`popup.js`, `renderers.js`, `shared/utils.js` y lo que quede de `background.js`.
 
 ### Cómo se elige el sitio activo — resuelto
 
@@ -273,9 +289,11 @@ riesgo asumido están en **ADR-0009** (no se repiten acá — regla DRY, ADR-000
 
 **Reglas de ejecución** (aplican a cualquier orden):
 
-- **Coexistencia**: mientras `src/` se construye, el código vanilla de la raíz sigue siendo lo
-  que el navegador carga. La extensión se usa a diario; ninguna fase puede dejarla sin
-  descargar clases. El corte se paga una sola vez, en el paso 6.
+- **Coexistencia**: mientras el núcleo nuevo se construye, el código vanilla que sigue sin
+  migrar es lo que el navegador carga. La extensión se usa a diario; ninguna fase puede dejarla
+  sin descargar clases. El corte se paga una sola vez, en la **Fase 8** (el "paso 6" que decía
+  esta regla era la numeración de un borrador anterior del plan). Sin `src/`, la coexistencia
+  no es entre dos carpetas sino entre dos generaciones de archivos en la misma.
 - **Verificación por fase**: cada fase termina con `npm test` en verde + `npm run lint` sin
   errores nuevos, y las que tocan el flujo de descarga, con el golden path manual
   (`docs/contributing.md`). Una fase que no se puede verificar está mal cortada.
