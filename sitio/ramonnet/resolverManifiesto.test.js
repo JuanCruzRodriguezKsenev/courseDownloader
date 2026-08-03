@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import ResolverManifiesto from './resolverManifiesto.js';
-import { SitioRamonNet } from './config.js';
+import { SitioRamonNet } from './config.ts';
 
 beforeEach(() => {
   vi.spyOn(console, 'log').mockImplementation(() => {});

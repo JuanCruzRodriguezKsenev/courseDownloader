@@ -17,8 +17,8 @@ Un error de lint es una regresión; los 6 warnings son deuda conocida (ver `docs
 
 **Ojo con el alcance de `tsc`, que no es automático**: `allowJs` está en `false` y los dos
 entrypoints son `.js`, así que `tsc` los saltea junto con todo su grafo de imports. Lo que
-realmente typechequea es el `include` de `tsconfig.json` — hoy `core/`, `shared/` y
-`plataforma/` (18 archivos). Una carpeta con `.ts` que no esté listada pasa la compuerta en
+realmente typechequea es el `include` de `tsconfig.json` — hoy `core/`, `shared/`,
+`plataforma/` y `sitio/` (20 archivos). Una carpeta con `.ts` que no esté listada pasa la compuerta en
 verde sin que nadie la mire; fue el caso de `shared/` y `plataforma/` entre la Fase 5b y el
 2026-08-03 (ver `docs/TECHNICAL_DEBT.md` §Testing). Al migrar `.ts` a una raíz nueva,
 agregala al `include` y confirmá con `npx tsc --noEmit --listFiles`.

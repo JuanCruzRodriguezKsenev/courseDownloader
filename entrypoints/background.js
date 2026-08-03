@@ -15,7 +15,7 @@
  */
 import { defineBackground } from 'wxt/utils/define-background';
 
-import '../sitio/ramonnet/config.js';
+import '../sitio/ramonnet/config.ts';
 import '../sitio/ramonnet/parserTitulos.js';
 import '../sitio/ramonnet/resolverManifiesto.js';
 import '../shared/utils.js';

@@ -9,7 +9,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import FilterFeature from './filters.js';
-import { SitioRamonNet } from '../../sitio/ramonnet/config.js';
+import { SitioRamonNet } from '../../sitio/ramonnet/config.ts';
 
 function montarNodos() {
   document.body.innerHTML = `

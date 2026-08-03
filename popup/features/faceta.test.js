@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import FacetaFeature from './faceta.js';
-import { SitioRamonNet } from '../../sitio/ramonnet/config.js';
+import { SitioRamonNet } from '../../sitio/ramonnet/config.ts';
 
 function crearFeature(overrides = {}) {
   document.body.innerHTML = `<span id="ui-faceta-badge" style="display:none"></span>`;

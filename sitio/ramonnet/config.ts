@@ -1,6 +1,21 @@
 /**
- * ADAPTADOR DE SITIO — RAMÓN NET: CONFIGURACIÓN (V1.0.0)
+ * ADAPTADOR DE SITIO — RAMÓN NET: CONFIGURACIÓN (V2.0.0)
  * ==========================================================================
+ * CHANGELOG v2.0.0:
+ * - [FASE 5C] `config.js` → `config.ts`. El descriptor pasa a declararse como
+ *   implementación de `PuertoSitio` (core/puertos/sitio.ts), así que ahora el
+ *   compilador verifica que el adaptador esté completo, en vez de que lo verifique
+ *   quien lo lea. Cero cambios de comportamiento: mismos valores, mismas puertas,
+ *   mismos dos globals.
+ * - Motivo del corte: era EL TAPÓN de la re-arquitectura. Con `allowJs: false`, un
+ *   `.ts` no puede importar un `.js`, así que mientras este archivo fuera `.js`,
+ *   `plataforma/composicion.ts` no podía importarlo — y sin eso no se le puede
+ *   inyectar la URL de sondeo al daemon de conexión, que es lo único que lo retiene
+ *   en `shared/` en vez de `core/`. Ver docs/rearquitectura-diseno.md §El próximo paso.
+ * - Los módulos hermanos (`ResolverManifiesto`, `Scraper`, `ParserTitulos`) siguen
+ *   siendo `.js` y se siguen leyendo como globals, ahora vía `declare const`. No se
+ *   importan a propósito: eso es lo que mantiene perezosas las puertas de abajo.
+ *
  * CHANGELOG v1.0.0:
  * - [CAPA 2] Primer archivo del adaptador de sitio (ver ADR-0008 y
  *   docs/rearquitectura-diseno.md). Concentra lo que hoy estaba hardcodeado en
@@ -13,27 +28,56 @@
  * Todo lo específico del portal Ramón Net que la interfaz necesita saber. La regla
  * de la re-arquitectura es que la UI y el núcleo NO conocen este archivo por dentro:
  * reciben el descriptor por inyección (`ctx.sitio`) y trabajan contra su forma.
- * Clonar la extensión para otro portal = escribir otro `sitio/<portal>/config.js`.
+ * Clonar la extensión para otro portal = escribir otro `sitio/<portal>/config.ts`.
  *
- * FACETA
- * ------
- * Una "faceta" es un eje de clasificación del listado por el que el usuario puede
- * (a) ser preguntado una vez —"¿cuál cursás?"— y (b) filtrar. En Ramón Net ese eje
- * es la **cátedra** (A-D), pero el mecanismo no tiene nada de Ramón Net: otro portal
- * podría llamarle "comisión", "turno" o "sede" y la UI funciona igual.
- *
- * - `valorComun`: el valor que pertenece a TODAS las opciones (en Ramón Net, las
- *   clases comunes a todas las cátedras). Nunca se ofrece como opción a elegir y
- *   siempre queda seleccionado junto con la elección del usuario.
- * - `valorTodas`: centinela de "no filtrar por esta faceta".
- * - `claveEstado`: propiedad de `AppState` donde vive la elección. Existe como dato
- *   —y no hardcodeada— para que la UI genérica no nombre el concepto del sitio.
- *   TODO(re-arquitectura): al mudar `AppState` a un puerto de almacenamiento, esto
- *   pasa a `facetaSeleccionada` y la clave de storage `catedraElegida` necesita una
- *   migración (ver docs/data-model.md).
- * - `leer(clase)`: de dónde sale el valor de la faceta en un item scrapeado.
+ * La forma en sí —qué tiene que traer un adaptador y qué significa cada campo— vive
+ * en `core/puertos/sitio.ts`, que es su hogar canónico. Acá van los VALORES de Ramón
+ * Net, no la explicación del mecanismo.
  */
-const SitioRamonNet = {
+import type {
+  PuertoSitio,
+  ResultadoEscaneo,
+  ClasificacionCarpeta,
+  OpcionesParseo,
+} from "../../core/puertos/sitio";
+
+/**
+ * Módulos hermanos del adaptador. Son `.js` y se consumen como globals: `allowJs`
+ * está en `false`, así que este `.ts` no puede importarlos aunque quisiera. Lo cual
+ * coincide con lo que ya se quería igual — ver las puertas más abajo.
+ */
+declare const ResolverManifiesto: {
+  resolver(urlClase: string, signal?: AbortSignal): Promise<string>;
+};
+declare const Scraper: {
+  escanearAulaVirtual: () => ResultadoEscaneo;
+};
+declare const ParserTitulos: {
+  formatTitleStructured(crudo: string, materiaBase?: string, options?: OpcionesParseo): string;
+  clasificarCatedraYCarpeta(crudo: string, materiaBase?: string): ClasificacionCarpeta;
+};
+
+/**
+ * Lo de Ramón Net que NO es parte del puerto: sólo lo consumen los archivos de esta
+ * misma carpeta (`resolverManifiesto.ts/js`). Si algo de acá lo empezara a leer el
+ * núcleo o la UI, ahí sí subiría a `PuertoSitio`.
+ */
+interface SitioRamonNetDescriptor extends PuertoSitio {
+  /** Segmento de ruta que identifica la página de una clase grabada. */
+  marcaRutaClase: string;
+  /** Host del portal, base de `patronPestañas` y `urlListado`. */
+  host: string;
+  cdn: {
+    /** Hosts que puede tener el `<iframe>` del reproductor embebido. */
+    hostsIframe: string[];
+    /** Zona de Bunny de este portal: con el UUID del video alcanza para armar la URL. */
+    plantillaM3u8: (hash: string) => string;
+    /** Calidad que se descarga (la plantilla de arriba ya la fija). */
+    calidad: string;
+  };
+}
+
+const SitioRamonNet: SitioRamonNetDescriptor = {
   id: "ramonnet",
 
   // --- Endpoints y marcadores del portal ---------------------------------------
@@ -61,18 +105,16 @@ const SitioRamonNet = {
 
   // --- CDN de video (Bunny) -----------------------------------------------------
   cdn: {
-    // Hosts que puede tener el <iframe> del reproductor embebido.
     hostsIframe: ["b-cdn.net", "mediadelivery.net"],
-    // Zona de Bunny de este portal: con el UUID del video alcanza para armar la URL.
     plantillaM3u8: (hash) => `https://vz-c3e7bda8-f29.b-cdn.net/${hash}/480p/video.m3u8`,
-    // Calidad que se descarga (la plantilla de arriba ya la fija).
     calidad: "480p",
   },
 
   // --- Puertas al resto del adaptador -------------------------------------------
   // Las implementaciones viven en archivos hermanos y se referencian perezosamente
-  // (arrow functions) para no depender del orden de carga de los <script>/importScripts.
-  // El núcleo y la UI consumen SIEMPRE por estas puertas, nunca los módulos directo.
+  // (arrow functions) para no depender del orden de carga de los imports del
+  // entrypoint. El núcleo y la UI consumen SIEMPRE por estas puertas, nunca los
+  // módulos directo.
 
   // HTML de la página de la clase → URL del manifiesto .m3u8.
   resolverManifiesto: (urlClase, signal) => ResolverManifiesto.resolver(urlClase, signal),
@@ -97,6 +139,9 @@ const SitioRamonNet = {
 
     valorComun: "COMUN",
     valorTodas: "TODAS",
+    // TODO(re-arquitectura): al mudar `AppState` a un puerto de almacenamiento, esto
+    // pasa a `facetaSeleccionada` y la clave de storage `catedraElegida` necesita una
+    // migración (ver docs/data-model.md).
     claveEstado: "catedraSeleccionada",
 
     // De dónde sale el valor en un item del listado scrapeado.
@@ -104,7 +149,7 @@ const SitioRamonNet = {
     // Los items de la COLA no llevan el campo: se re-deriva del título con el parser
     // del sitio. Que esta derivación viva acá es justamente el punto — la UI genérica
     // no sabe que existe un parser de títulos.
-    leerDeCola: (clase) => SitioRamonNet.clasificarCarpeta(clase.titulo, clase.carpeta).catedra,
+    leerDeCola: (clase) => SitioRamonNet.clasificarCarpeta(clase.titulo ?? "", clase.carpeta).catedra,
 
     // Etiqueta larga: badge de la cabecera y botones del modal ("Cátedra A").
     etiquetar: (valor) => (valor === "COMUN" ? "Común" : `Cátedra ${valor}`),
@@ -121,15 +166,18 @@ const SitioRamonNet = {
   },
 };
 
-// Sitio activo de esta build. Cuando haya bundler, esto lo elige la compilación
-// (una build por portal — ver docs/rearquitectura-diseno.md); por ahora es el único
-// archivo de sitio que se carga en popup.html.
-const SitioActivo = SitioRamonNet;
+/**
+ * Sitio activo de esta build. ADR-0009 decidió resolverlo en runtime contra un
+ * registro de adaptadores (por URL de pestaña en el popup, por ítem de cola en el SW);
+ * mientras Ramón Net sea el único portal, sigue siendo esta constante.
+ */
+const SitioActivo: PuertoSitio = SitioRamonNet;
 
 // Exportación (ver docs/coding-standards.md). Sigue publicando el global porque el
 // resto del código vanilla lo consume sin importar; el `export` es lo que permite que
-// el bundler arme el grafo de dependencias y que Vitest importe el módulo.
-globalThis.SitioRamonNet = SitioRamonNet;
-globalThis.SitioActivo = SitioActivo;
+// el bundler arme el grafo de dependencias y que Vitest/composicion.ts lo importen.
+(globalThis as Record<string, unknown>).SitioRamonNet = SitioRamonNet;
+(globalThis as Record<string, unknown>).SitioActivo = SitioActivo;
 export { SitioRamonNet, SitioActivo };
+export type { SitioRamonNetDescriptor };
 export default SitioActivo;

@@ -11,7 +11,7 @@
  */
 
 // Adaptador de sitio (Capa 2): antes que todo lo que lo consume.
-import '../../sitio/ramonnet/config.js';
+import '../../sitio/ramonnet/config.ts';
 import '../../sitio/ramonnet/parserTitulos.js';
 import '../../sitio/ramonnet/scraper.js';
 

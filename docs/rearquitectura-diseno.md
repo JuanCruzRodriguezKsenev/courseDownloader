@@ -257,6 +257,10 @@ en TypeScript, con sus 11 tests. Es el corte más barato para estrenar el pipeli
 > previsto: no es el storage sino la URL de sondeo, que lee del global `SitioActivo` (Capa 2).
 > Inyectarla desde la composición choca con `allowJs: false` — `composicion.ts` no puede
 > importar `config.js`. Se destraba cuando el adaptador de sitio pase a TypeScript.
+>
+> **Epílogo 2 (5c, 2026-08-03)**: el adaptador ya pasó a TypeScript (`config.ts`), así que el
+> tapón no existe más. La mudanza a `core/conexion/` es el corte siguiente y ya no depende de
+> nada.
 
 **Fase 5 — Puertos de plataforma + adaptador Chrome (el corte grande).** `PuertoAlmacenamiento`
 y `PuertoMensajeria` con su adaptador, convirtiendo las globales `window.X`/`self.X` a módulos
@@ -346,6 +350,36 @@ pasa a ser una factory que recibe el puerto, la instancia se arma en
 `plataforma/composicion.ts`, y el test cambia sus mocks de `chrome.*` por
 `AlmacenamientoEnMemoria`.
 
+### Registro del corte `config.js` → TypeScript (2026-08-03)
+
+El adaptador de sitio era **el tapón**: con `allowJs: false`, `composicion.ts` (que es `.ts`)
+no podía importar un `.js`, y sin poder importarlo no se le puede inyectar nada. Lo que salió
+del corte, además de la conversión:
+
+- **Nació `PuertoSitio`** (`core/puertos/sitio.ts`). Hasta ahora el contrato del adaptador de
+  un portal era una convención en prosa, y lo que verificaba que estuviera completo era
+  leerlo. Ahora `config.ts` se declara como implementación y **lo verifica el compilador** —
+  el payoff de fusionar TypeScript que este doc pedía, aplicado a la Capa 2.
+- **Criterio de qué entra al puerto**: sólo lo que consume alguien de afuera de `sitio/`. Por
+  eso `host`, `marcaRutaClase` y el bloque `cdn` **no** están en `PuertoSitio` sino en un
+  `SitioRamonNetDescriptor` que lo extiende: los lee únicamente `resolverManifiesto.js`, que
+  es un archivo hermano. Un dato del portal que no cruza la frontera no es parte del contrato.
+- **Los módulos hermanos siguen en `.js` y siguen entrando como globals**, ahora vía
+  `declare const`. No se importan a propósito: las puertas (`resolverManifiesto`,
+  `escanearListado`, `parsearTitulo`, `clasificarCarpeta`) tienen que seguir siendo perezosas
+  para no atarse al orden de carga del entrypoint. La regla de `allowJs` no obligó a
+  convertirlos porque `config.ts` no los importa — los declara.
+- **Trampa que cobró**: `sitio/` no estaba en el `include` de `tsconfig.json`, así que el
+  archivo recién convertido habría quedado sin typechequear en silencio (el mismo agujero que
+  se cerró ese día para `shared/` y `plataforma/`). Se agregó en el mismo corte: 18 → 20
+  archivos. **Al convertir un archivo a `.ts`, mirar primero si su carpeta está en `include`.**
+
+Sin cambios de comportamiento: mismos valores, mismas puertas, mismos dos globals. Los 4
+chequeos quedaron igual que antes (225 tests, 0 errores de lint, `tsc` limpio, build OK); no
+hicieron falta tests nuevos porque el descriptor es dato y ya lo ejercitan `faceta.test.js`,
+`filters.test.js`, `onboarding.preact.test.js` y `resolverManifiesto.test.js`, que lo importan
+de verdad.
+
 ### El próximo paso (al 2026-08-03)
 
 Lo que sigue, de menor a mayor riesgo. **Empezar por el primero**: desbloquea dos mudanzas que
@@ -353,7 +387,8 @@ hoy no se pueden hacer.
 
 | Qué | Por qué / qué desbloquea |
 |---|---|
-| **`sitio/ramonnet/config.js` → TypeScript** | Es el tapón. Con él en TS, `composicion.ts` puede importarlo e **inyectar la URL de sondeo**, y ahí recién `shared/conexion.ts` se muda a `core/conexion/`. `shared/state.ts` está en la misma situación (le falta el puerto de mensajería para su `sincronizarConBackground`). Los dos ya no tienen `chrome.*`: lo único que los retiene en `shared/` es esto. |
+| ~~**`sitio/ramonnet/config.js` → TypeScript**~~ | ✅ **Hecho (2026-08-03)** — ver el registro de abajo. El tapón ya no está: `composicion.ts` puede importar el adaptador de sitio. |
+| **Inyectar `urlSondeoInternet` + mudar `shared/conexion.ts` → `core/conexion/`** | Es lo que destrabó el punto anterior, y ahora no depende de nada más. `shared/state.ts` sigue en la misma situación pero por otro motivo (le falta el puerto de mensajería para su `sincronizarConBackground`). Los dos ya no tienen `chrome.*`. |
 | **Lado receptor de IPC en `background.js`** (cierra 5c) | El `PuertoMensajeria` ya tiene `onMensaje` y está testeado; falta usarlo en el `chrome.runtime.onMessage` del SW. `background.js` ya tiene red de tests (17). |
 | **`PuertoProgramador`** (cierra 5c) | Las alarmas del auto-heal (`chrome.alarms`). Interfaz esbozada arriba. Las 4 ramas del auto-heal ya están cubiertas por tests, así que hay con qué verificar. |
 | **Fase 6 — motor HLS a `core/hls/`** | Llega con el pool ya testeado. |
@@ -396,7 +431,7 @@ en el tramo intermedio (en `state.js` no pasaba: `conexion.js` y `bunClient.ts` 
 | 4 — `core/`: BunClient en TypeScript (+ typescript-eslint y `tsc --noEmit` en verde) | ✅ Hecha (2026-08-02) |
 | 5a — `PuertoAlmacenamiento` + adaptador Chrome + adaptador en memoria + 1er consumidor migrado (historial de fallos) | ✅ Hecha (2026-08-02) |
 | 5b — `PuertoAlmacenamiento`: adaptadores + **todos** los consumidores | ✅ **Completa** (2026-08-03) — historial de fallos, `AppState`, daemon de conexión y `background.js`. No queda ni un `chrome.storage` en el proyecto. (`queue.js` figuraba acá por error: sus usos eran IPC → Fase 5c.) |
-| 5c — `PuertoMensajeria` (IPC) + `PuertoProgramador` (alarmas) + sus adaptadores | 🟡 En curso — `PuertoMensajeria` ✅ con sus dos adaptadores; migrados `queue.js` y `popup.js` (2026-08-03). Falta el `PuertoProgramador` (alarmas del auto-heal) y el lado receptor en `background.js` |
+| 5c — `PuertoMensajeria` (IPC) + `PuertoProgramador` (alarmas) + sus adaptadores | 🟡 En curso — `PuertoMensajeria` ✅ con sus dos adaptadores; migrados `queue.js` y `popup.js` (2026-08-03). Se sumó `PuertoSitio` + `sitio/ramonnet/config.ts` (2026-08-03), que destapó el tapón de `allowJs`. Falta el `PuertoProgramador` (alarmas del auto-heal) y el lado receptor en `background.js` |
 | 6 — Motor HLS → `core/hls/` | ⏳ No iniciada |
 | 7 — Entrypoints (composición) | ⏳ No iniciada |
 | 8 — Borrado del vanilla de la raíz | ⏳ No iniciada |

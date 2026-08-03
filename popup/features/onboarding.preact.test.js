@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { montar, __resetStore } from './onboarding.preact.js';
-import { SitioActivo } from '../../sitio/ramonnet/config.js';
+import { SitioActivo } from '../../sitio/ramonnet/config.ts';
 
 // Daemon Conexion falso: get() devuelve el estado actual; emit() lo cambia y notifica.
 function fakeConexion(inicial = { servidor: false, internet: true }) {
