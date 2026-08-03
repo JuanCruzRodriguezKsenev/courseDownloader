@@ -404,7 +404,8 @@ hoy no se pueden hacer.
 | Qué | Por qué / qué desbloquea |
 |---|---|
 | ~~**`sitio/ramonnet/config.js` → TypeScript**~~ | ✅ **Hecho (2026-08-03)** — ver el registro de abajo. El tapón ya no está: `composicion.ts` puede importar el adaptador de sitio. |
-| **Inyectar `urlSondeoInternet` + mudar `shared/conexion.ts` → `core/conexion/`** | Es lo que destrabó el punto anterior, y ahora no depende de nada más. `shared/state.ts` sigue en la misma situación pero por otro motivo (le falta el puerto de mensajería para su `sincronizarConBackground`). Los dos ya no tienen `chrome.*`. |
+| **Inyectar `urlSondeoInternet` + mudar `shared/conexion.ts` → `core/conexion/`** | Es lo que destrabó el punto anterior, y ahora no depende de nada más. |
+| **Generalizar la clave de faceta** (`claveEstado` → `facetaSeleccionada`, migración de `catedraElegida` en storage) | Es lo único que ata `shared/state.ts` a vocabulario del sitio, y por lo tanto lo que falta para mudarlo a `core/`. **Corrección al plan (2026-08-03)**: acá decía que a `state.ts` le faltaba el puerto de mensajería para su `sincronizarConBackground`; ese puerto existe desde la 5c, así que ese bloqueo ya no aplica — queda éste. El comentario en `sitio/ramonnet/config.ts` que describe el renombre esperaba un disparador ("cuando `AppState` pase a un puerto") que ya ocurrió en la 5b. |
 | **Lado receptor de IPC en `background.js`** (cierra 5c) | El `PuertoMensajeria` ya tiene `onMensaje` y está testeado; falta usarlo en el `chrome.runtime.onMessage` del SW. `background.js` ya tiene red de tests (17). |
 | **`PuertoProgramador`** (cierra 5c) | Las alarmas del auto-heal (`chrome.alarms`). Interfaz esbozada arriba. Las 4 ramas del auto-heal ya están cubiertas por tests, así que hay con qué verificar. |
 | **Fase 6 — motor HLS a `core/hls/`** | Llega con el pool ya testeado. |

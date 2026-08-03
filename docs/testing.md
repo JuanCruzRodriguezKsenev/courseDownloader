@@ -9,11 +9,13 @@
 | Verificación | Baseline esperado |
 |---|---|
 | `npm test` | 21 archivos, 225 tests, todo en verde |
-| `npm run lint` | **0 errores**, 6 warnings |
+| `npm run lint` | **0 errores, 0 warnings** |
 | `npx tsc --noEmit` | sin salida (limpio) |
 | `npm run build` | compila a `.output/chrome-mv3/` |
 
-Un error de lint es una regresión; los 6 warnings son deuda conocida (ver `docs/TECHNICAL_DEBT.md`).
+Desde el 2026-08-03 el lint está **limpio del todo**: un error *y también* un warning nuevo son
+una regresión. Los 6 warnings que había (4 `catch (e)` con el binding sin usar, 2 argumentos sin
+usar) se limpiaron con `catch {}` y prefijo `_`, sin tocar comportamiento.
 
 **Ojo con el alcance de `tsc`, que no es automático**: `allowJs` está en `false` y los dos
 entrypoints son `.js`, así que `tsc` los saltea junto con todo su grafo de imports. Lo que

@@ -143,7 +143,7 @@ export function crearConexion(almacenamiento: PuertoAlmacenamiento) {
     async _chequearServidor(): Promise<boolean> {
       try {
         return !!(await BunClient.obtenerRutaServidor({ timeoutMs: TIMEOUT_SERVIDOR_MS }));
-      } catch (e) {
+      } catch {
         return false;
       }
     },
@@ -161,7 +161,7 @@ export function crearConexion(almacenamiento: PuertoAlmacenamiento) {
         });
         clearTimeout(timeoutId);
         return true;
-      } catch (e) {
+      } catch {
         clearTimeout(timeoutId);
         return false;
       }

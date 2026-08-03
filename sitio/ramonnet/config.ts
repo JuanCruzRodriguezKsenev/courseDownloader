@@ -139,9 +139,12 @@ const SitioRamonNet: SitioRamonNetDescriptor = {
 
     valorComun: "COMUN",
     valorTodas: "TODAS",
-    // TODO(re-arquitectura): al mudar `AppState` a un puerto de almacenamiento, esto
-    // pasa a `facetaSeleccionada` y la clave de storage `catedraElegida` necesita una
-    // migración (ver docs/data-model.md).
+    // PENDIENTE(re-arquitectura): generalizar el nombre — `claveEstado` pasaría a
+    // `facetaSeleccionada`, y la clave de storage `catedraElegida` necesita migración de
+    // datos (ver docs/data-model.md). OJO: este comentario esperaba un disparador que ya
+    // ocurrió — `AppState` pasó al puerto de almacenamiento en la Fase 5b (2026-08-03) y
+    // el renombre no se hizo. Hoy es lo ÚNICO que ata `shared/state.ts` a vocabulario del
+    // sitio, así que es el paso que falta para poder mudarlo a `core/`.
     claveEstado: "catedraSeleccionada",
 
     // De dónde sale el valor en un item del listado scrapeado.

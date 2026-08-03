@@ -660,7 +660,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     nodos.btnStartQueue.disabled = (AppState.colaDescargas.length === 0);
   });
 
-  function conmutarPestañaA(id, actDisp, qDisp, filtDisp) {
+  function conmutarPestañaA(id, actDisp, qDisp, _filtDisp) {
     AppState.pestañaActiva = id;
     nodos.tabDisp.classList.toggle('active', id === "disponibles");
     nodos.tabCola.classList.toggle('active', id === "cola");

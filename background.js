@@ -193,7 +193,7 @@ let loopActivo = false;
   }
 })();
 
-chrome.runtime.onInstalled.addListener(async (details) => {
+chrome.runtime.onInstalled.addListener(async (_details) => {
   console.log("🔌 [SW] Extensión instalada/actualizada/recargada. Restableciendo estados de descarga...");
   await SessionState.set({
     rafagaCorriendo: false,
@@ -293,7 +293,7 @@ const manejadoresIPC = {
         .filter(nombre => nombre.length > 0);
 
       sendResponse({ archivos: nombresProcesados });
-    } catch (e) {
+    } catch {
       sendResponse({ archivos: [] });
     }
   },
@@ -883,7 +883,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
           console.log(`✅ [ALARM-AUTOHEAL] Conexión (${state.tipoDeErrorConexion}) recuperada. Reanudando...`);
           await reanudarColaDesdeBackground();
         }
-      } catch (e) {
+      } catch {
         // Sigue sin conexión/servidor
       }
     } else {
