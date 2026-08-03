@@ -34,7 +34,7 @@ Start at **`docs/architecture.md`**. Full map:
 - `docs/patterns.md` — the patterns actually implemented in code (IPC dispatch, state ownership split, worker pool, ad-hoc circuit breaker, etc.).
 - `docs/coding-standards.md` — naming conventions, file version-header convention, module-export pattern.
 - `docs/contributing.md` — local dev setup, debugging, PR checklist.
-- `docs/testing.md` — testing strategy and current coverage (a Vitest suite now exists — see the test-file list under Development Workflow — though the SW's download loop `procesarSiguienteElementoDeLaCola` + auto-heal and the un-extracted core of `popup.js` remain untested by design, covered manually/e2e).
+- `docs/testing.md` — testing strategy and current coverage (a Vitest suite now exists — see the test-file list under Development Workflow. The SW download loop + auto-heal **are covered since 2026-08-03**, characterized before migrating the SW to ports; only the un-extracted core of `popup.js` stays manual/e2e by design).
 - `docs/security.md` — permission rationale and the untrusted-scraped-content rule.
 - `docs/deployment.md` — extension distribution + the companion Bun backend contract.
 - `docs/adr/` — immutable Architectural Decision Records. Never edit an existing ADR; a changed decision gets a new ADR that marks the old one superseded (see `docs/adr/README.md`).
