@@ -14,7 +14,7 @@ Explicación de los patrones que sostienen el código actual — qué problema r
 
 ## State ownership split (AppState / SessionState)
 
-**Dónde**: `shared/state.js` (`AppState`, vive en el popup) vs. el objeto `SessionState` definido inline en `background.js` (vive en el service worker).
+**Dónde**: `shared/state.ts` (`AppState`, vive en el popup) vs. el objeto `SessionState` definido inline en `background.js` (vive en el service worker).
 
 **Qué hace**: en vez de un estado global compartido, cada zona de ejecución es dueña de una porción distinta del estado, y se reconcilian explícitamente vía IPC (`obtener_estados_en_progreso`) en vez de compartir memoria.
 

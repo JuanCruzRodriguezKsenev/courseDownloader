@@ -77,7 +77,7 @@ Tras cambiar código: `npm run build` y recargar la extensión desde su tarjeta.
   * `hlsEngine.js`: Motor de red concurrente de descarga y re-ensamblado de fragmentos de video `.ts`.
 * **`background.js`**: Service Worker de segundo plano que gestiona la cola de descargas persistente y responde a las alarmas de auto-sanación.
 * **`shared/`**:
-  * `state.js`: Maquinaria de estado centralizada (`AppState`) con persistencia en storage.
+  * `state.ts`: Maquinaria de estado centralizada (`AppState`) con persistencia en storage.
   * `core/backend/bunClient.ts`: Cliente de comunicación HTTP con el backend de Bun (núcleo genérico, TypeScript).
   * `conexion.js`: Daemon de estado de conexión (servidor + internet), fuente única consumida por popup y Service Worker.
   * `utils.js`: Funciones comunes de sanitización, clasificación de cátedras y normalización de títulos de video.

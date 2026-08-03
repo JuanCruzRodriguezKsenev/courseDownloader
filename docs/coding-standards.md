@@ -72,7 +72,7 @@ Los dos entrypoints (`entrypoints/popup/main.js` y `entrypoints/background.js`) 
 ## Manejo de errores
 
 - Los errores esperables de red usan `Utils.fetchConReintentos` (retry con backoff) en vez de un `fetch` directo — ver `docs/patterns.md`.
-- Los errores de `chrome.storage`/`chrome.runtime` se chequean explícitamente vía `chrome.runtime.lastError` dentro del callback, no vía try/catch (es el patrón que exige la API de callbacks de `chrome.*`) — ver `shared/state.js:66-68` como referencia.
+- En el código que **todavía** llama a `chrome.*` por callback, los errores se chequean con `chrome.runtime.lastError` dentro del callback y no con try/catch (es lo que exige esa API) — referencia viva: `sincronizarConBackground()` en `shared/state.ts`. En el código ya migrado a `PuertoAlmacenamiento` la regla es la contraria: el puerto devuelve promesas, así que el fallo se maneja con `.catch()`/try-catch normal (ver `respaldar()` en el mismo archivo, que además deja el `void` explícito porque es fire-and-forget).
 - `catch (e) {}` completamente silenciosos deben evitarse — como mínimo, un `console.warn` con el mensaje del error. Los 3 casos que había se resolvieron (ver `docs/TECHNICAL_DEBT.md`, sección Resuelto); mantené la regla en código nuevo.
 
 ## CSS: los colores viven sólo en `styles/variables.css`
