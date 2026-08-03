@@ -1,7 +1,17 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.16.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.17.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.17.0:
+ * - [FASE 5C] Todo el IPC de este archivo pasa al PuertoMensajeria (global Mensajeria,
+ *   publicado por plataforma/composicion.ts): los dos sendMessage y el par
+ *   addListener/removeListener del oyente del worker. Ese oyente ya no se guarda por
+ *   REFERENCIA para poder removerlo: el puerto devuelve la función de baja, así que
+ *   punteroOyenteRuntimeActivo pasa a ser desengancharOyenteWorker y desengancharlo es
+ *   llamarla. Los dos envíos van con .finally() y no .then(): sus callbacks hacían limpieza
+ *   local que Chrome ejecutaba igual ante lastError, y perderla dejaría clases en 'process'
+ *   fuera de la cola. Lo que queda de chrome.* acá es tabs + scripting (con sus propios
+ *   lastError, que NO son IPC) y espera sus puertos. Ver docs/patterns.md §IPC.
  * CHANGELOG v5.16.0:
  * - [CAPA 2] Se saca de acá el vocabulario del sitio: CatedraFeature pasó a ser la
  *   FacetaFeature genérica (popup/features/faceta.js) y qué ES la faceta lo aporta
@@ -206,7 +216,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // features/onboarding.preact.js (ver ADR-0006). Ya no hay refs nodos.* a él.
   };
 
-  let punteroOyenteRuntimeActivo = null;
+  // Fase 5c: antes esto guardaba la REFERENCIA al listener, sólo para poder pasársela después
+  // a removeListener. El puerto de mensajería devuelve directamente la función de baja, así
+  // que acá se guarda eso: desengancharlo es llamarla.
+  let desengancharOyenteWorker = null;
   let modoSeleccionFilaActivo = false;
   const filtrosActivos = {
     estados: new Set(),
@@ -392,6 +405,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Forzar re-escaneo si el usuario cambia a la pestaña de Ramón Net
   chrome.tabs.onActivated.addListener((activeInfo) => {
     chrome.tabs.get(activeInfo.tabId, (tab) => {
+      // OJO: este lastError es el de chrome.tabs, no IPC. El IPC de este archivo ya pasó
+      // entero al PuertoMensajeria (Fase 5c); lo que queda de chrome.* acá es tabs +
+      // scripting, que esperan sus propios puertos.
       if (chrome.runtime.lastError || !tab) return;
       if (tab.active && SitioActivo.esPaginaDelSitio(tab.url)) {
         console.log("🔄 [POPUP] Pestaña Ramón Net enfocada. Re-escaneando...");
@@ -711,6 +727,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         clearTimeout(safetyTimeout);
 
         // Controlar de forma resiliente si ocurrió un error de inyección (ej: permisos de host o página de sistema)
+        // lastError de chrome.scripting (la inyección), no de IPC — ver la nota de arriba.
         if (chrome.runtime.lastError) {
           console.error("❌ [POPUP-SCRIPT-ERROR] Falló inyección de script de escaneo:", chrome.runtime.lastError.message);
           nodos.txtEstado.textContent = `❌ Error de escaneo: ${chrome.runtime.lastError.message}`;
@@ -1064,7 +1081,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           const seleccionMaestraActiva = visiblesPendientes.length > 0 && visiblesPendientes.every(i => i.seleccionado);
 
           if (esActivo || esUltimoConRafaga) {
-            chrome.runtime.sendMessage({ action: "abortar_rafaga_inmediata" }, () => {
+            // .finally: la limpieza local corre CONTESTE O NO el SW — Chrome invocaba el
+            // callback igual ante lastError, y si acá se colgara, la clase quedaría en
+            // 'process' y fuera de la cola visible sin forma de recuperarla.
+            Mensajeria.enviar({ action: "abortar_rafaga_inmediata" }).catch(() => undefined).finally(() => {
               // Remover de la cola local para persistencia correcta
               AppState.colaDescargas = AppState.colaDescargas.filter(i => i.titulo !== c.titulo);
               c.estado = 'pending';
@@ -1099,12 +1119,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           nodos.queueBadge.textContent = AppState.colaDescargas.length;
           AppState.respaldar();
 
-          chrome.runtime.sendMessage({ 
-            action: "remover_item_de_cola", 
-            titulo: c.titulo
-          }, () => {
-            setTimeout(aplicarFiltrosCruzados, 100);
-          });
+          // Igual que arriba: el re-render diferido no depende de que el SW conteste (la UI
+          // local ya se actualizó), así que va en .finally.
+          Mensajeria.enviar({ action: "remover_item_de_cola", titulo: c.titulo })
+            .catch(() => undefined)
+            .finally(() => {
+              setTimeout(aplicarFiltrosCruzados, 100);
+            });
         },
       }
     });
@@ -1142,12 +1163,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function conectarEscuchadoresDelWorker() {
-    if (punteroOyenteRuntimeActivo) {
-      chrome.runtime.onMessage.removeListener(punteroOyenteRuntimeActivo);
-      punteroOyenteRuntimeActivo = null;
+    if (desengancharOyenteWorker) {
+      desengancharOyenteWorker();
+      desengancharOyenteWorker = null;
     }
-    
-    chrome.runtime.onMessage.addListener(punteroOyenteRuntimeActivo = (req) => {
+
+    desengancharOyenteWorker = Mensajeria.onMensaje((req) => {
       if (req.action === "update_progress_bar") {
         let debeReRenderizar = false;
         if (AppState.fallaConexionActiva) {
@@ -1241,9 +1262,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function restaurarPanelPorInterrupcion(txt, limpiarCola = false) {
     document.body.classList.remove('downloading');
-    if (punteroOyenteRuntimeActivo) {
-      chrome.runtime.onMessage.removeListener(punteroOyenteRuntimeActivo);
-      punteroOyenteRuntimeActivo = null; 
+    if (desengancharOyenteWorker) {
+      desengancharOyenteWorker();
+      desengancharOyenteWorker = null;
     }
     
     const mantenerModoTurbo = AppState.modoTurboBun;
