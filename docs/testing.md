@@ -8,12 +8,12 @@
 
 | Verificación | Baseline esperado |
 |---|---|
-| `npm test` | 19 archivos, 187 tests, todo en verde |
-| `npm run lint` | **0 errores**, 9 warnings |
+| `npm test` | 19 archivos, 188 tests, todo en verde |
+| `npm run lint` | **0 errores**, 8 warnings |
 | `npx tsc --noEmit` | sin salida (limpio) |
 | `npm run build` | compila a `.output/chrome-mv3/` |
 
-Un error de lint es una regresión; los 9 warnings son deuda conocida (ver `docs/TECHNICAL_DEBT.md`).
+Un error de lint es una regresión; los 8 warnings son deuda conocida (ver `docs/TECHNICAL_DEBT.md`).
 
 ## Cómo correr los tests
 
