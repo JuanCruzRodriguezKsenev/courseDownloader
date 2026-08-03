@@ -409,6 +409,8 @@ hoy no se pueden hacer.
 | **Lado receptor de IPC en `background.js`** (cierra 5c) | El `PuertoMensajeria` ya tiene `onMensaje` y está testeado; falta usarlo en el `chrome.runtime.onMessage` del SW. `background.js` ya tiene red de tests (17). |
 | **`PuertoProgramador`** (cierra 5c) | Las alarmas del auto-heal (`chrome.alarms`). Interfaz esbozada arriba. Las 4 ramas del auto-heal ya están cubiertas por tests, así que hay con qué verificar. |
 | **Fase 6 — motor HLS a `core/hls/`** | Llega con el pool ya testeado. |
+| **Fase 6b — cola de descarga a `core/cola/`** | El bloque de lógica más grande que queda en `background.js`. Va después de la 6 y de los puertos del SW; llega con los tests de caracterización del bucle ya escritos. |
+| **Fase 6c — split de UI genérica vs. de sitio + CSS co-locado** | Antes de la 7, para no cablear los entrypoints dos veces. |
 | **Fases 7 y 8** | Entrypoints como composición, y borrado del vanilla de la raíz (sólo con paridad de tests). |
 
 Sin puerto todavía y sin urgencia: `notifications`, `tabs`/`windows`, `scripting`, y el camino
@@ -450,8 +452,16 @@ en el tramo intermedio (en `state.js` no pasaba: `conexion.js` y `bunClient.ts` 
 | 5b — `PuertoAlmacenamiento`: adaptadores + **todos** los consumidores | ✅ **Completa** (2026-08-03) — historial de fallos, `AppState`, daemon de conexión y `background.js`. No queda ni un `chrome.storage` en el proyecto. (`queue.js` figuraba acá por error: sus usos eran IPC → Fase 5c.) |
 | 5c — `PuertoMensajeria` (IPC) + `PuertoProgramador` (alarmas) + sus adaptadores | 🟡 En curso — `PuertoMensajeria` ✅ con sus dos adaptadores; migrados `queue.js` y `popup.js` (2026-08-03). Se sumó `PuertoSitio` + `sitio/ramonnet/config.ts` (2026-08-03), que destapó el tapón de `allowJs`. Falta el `PuertoProgramador` (alarmas del auto-heal) y el lado receptor en `background.js` |
 | 6 — Motor HLS → `core/hls/` | ⏳ No iniciada |
+| 6b — Cola de descarga → `core/cola/` (FIFO + máquina de estados, hoy dentro de `background.js`) | ⏳ No iniciada. Va **después** de la 6 (el bucle maneja al motor) y de que el SW tenga sus puertos (5c: IPC receptor + alarmas). Es el bloque de lógica más grande que queda sin migrar, y ya tiene red: los 12 tests de caracterización del bucle y el auto-heal de `background.test.js`. |
+| 6c — UI: split genérico (`ui/comunes/`) vs. de sitio (`sitio/ramonnet/ui/`) + CSS co-locado por componente | ⏳ No iniciada. Diseñada en §UI de este doc (incluida la convención BEM y que `listaClases` hay que **partirla en dos**, no moverla). Va antes de la 7 para que los entrypoints cableen la estructura final una sola vez. |
 | 7 — Entrypoints (composición) | ⏳ No iniciada |
 | 8 — Borrado del vanilla de la raíz | ⏳ No iniciada |
+
+**Por qué aparecieron 6b y 6c (2026-08-03)**: la estructura objetivo de arriba incluye
+`core/cola/` y `ui/`, pero ninguna fila de esta tabla las reclamaba — la 8 ("borrado del
+vanilla") las daba por implícitas. Se agregan como cortes propios para que el plan y la
+estructura objetivo digan lo mismo. La numeración con sufijo sigue la de 5a/5b/5c y no
+renumera nada.
 
 ## Verificación en navegador — ✅ corrida y pasada (2026-08-02)
 

@@ -5,7 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > ## ⚠️ Trabajo en curso — leer esto primero
 >
 > Hay una **re-arquitectura activa** (puertos y adaptadores + TypeScript + WXT), a mitad de
-> camino: **fases 0-5b completas, 5c a medias, 6-8 sin arrancar** (al 2026-08-03). Antes de
+> camino: **fases 0-5b completas, 5c a medias, 6 a 8 sin arrancar** —incluidos los cortes 6b
+> (`core/cola/`) y 6c (split de UI), agregados al plan el 2026-08-03— (al 2026-08-03). Antes de
 > tocar código:
 >
 > **Leé `docs/rearquitectura-diseno.md` §Cómo retomar esto en una sesión nueva.** Ahí está el
