@@ -65,7 +65,12 @@ sigue.
 | Entrypoints | `entrypoints/` | Puntos de entrada de WXT: importan en orden y no contienen lógica. | ✅ |
 
 Lo que **todavía** habla `chrome.*` directo y falta migrar: `background.js` (63 usos),
-`popup.js` (14), `shared/state.js` (9), `popup/features/queue.js` (9), `shared/conexion.js` (7).
+`popup.js` (14), `popup/features/queue.js` (9), `shared/conexion.js` (7).
+
+`shared/state.ts` fue el primero de la Fase 5b: ya no toca `chrome.storage` (recibe el puerto
+por inyección). Le queda un solo uso de `chrome.*`, el `sendMessage` de
+`sincronizarConBackground()`, que es **IPC y no persistencia** — cae fuera de este puerto y
+espera uno de mensajería.
 
 ## Flujo de una descarga, de punta a punta
 
@@ -83,7 +88,7 @@ Lo que **todavía** habla `chrome.*` directo y falta migrar: `background.js` (63
 
 El estado está deliberadamente **partido, no compartido**, entre popup y service worker. Cada zona es dueña de una porción; se reconcilian por IPC, no comparten memoria. En una línea cada uno:
 
-- **`AppState`** (popup, `shared/state.js`) — la *lista de clases scrapeadas* + selección/filtros de UI.
+- **`AppState`** (popup, `shared/state.ts`) — la *lista de clases scrapeadas* + selección/filtros de UI.
 - **`SessionState`** (service worker, inline en `background.js`) — el *progreso de la descarga activa*.
 - **`Conexion`** (daemon, `shared/conexion.js`) — la fuente **única** del *estado de conexión* (servidor + internet).
 

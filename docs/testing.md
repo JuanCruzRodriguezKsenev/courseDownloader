@@ -1,6 +1,6 @@
 # Testing
 
-**Estado actual: suite real y en crecimiento** (los números exactos, en la tabla de baseline de abajo). Existe `package.json` con Vitest + jsdom como devDependencies. Cubierto hoy: la lógica pura (`shared/utils.js`), el daemon de conexión (`shared/conexion.js`), el cliente del backend (`core/backend/bunClient.ts`, primer test en TypeScript), el historial de fallos (`core/historial/historialFallos.ts`, ya sin mocks de `chrome.*`: usa el adaptador en memoria del puerto), las features/islas del popup ya extraídas (`popup/features/serverConnection.js`, `queue.js`, `filters.js`, `faceta.js`, y las islas Preact `conexionHeader`/`onboarding`/`rutaDisco`/`bannerConexion`/`listaClases`/`campanita`), y de `background/hlsEngine.js` tanto las funciones puras (parseo/resolución M3U8) como el **pool de 6 workers** `compilarTranscodificacionStream` (concurrencia, AES, streaming turbo/blob, aborts en cascada, y el path de reintento 4xx del bug 400), más los handlers IPC de `background.js` (vía un harness que mockea `chrome.*`). Lo que todavía falta cubrir es el núcleo de `popup.js` aún sin extraer (init + wiring + orquestación de scraping/render) y el bucle de descarga `procesarSiguienteElementoDeLaCola` + la máquina de auto-heal del SW — por diseño quedan a la verificación manual/e2e (ver `docs/contributing.md`).
+**Estado actual: suite real y en crecimiento** (los números exactos, en la tabla de baseline de abajo). Existe `package.json` con Vitest + jsdom como devDependencies. Cubierto hoy: la lógica pura (`shared/utils.js`), el daemon de conexión (`shared/conexion.js`), el cliente del backend (`core/backend/bunClient.ts`, primer test en TypeScript), el historial de fallos (`core/historial/historialFallos.ts`, ya sin mocks de `chrome.*`: usa el adaptador en memoria del puerto), la maquinaria de estado del popup (`shared/state.ts` — **estrenó cobertura en la Fase 5b**: antes tenía cero, porque los tests del popup mockean `globalThis.AppState` entero y nunca la ejercitaban; hoy corre contra `AlmacenamientoEnMemoria`, salvo `sincronizarConBackground` que sigue stubeando `chrome.runtime` por ser IPC), las features/islas del popup ya extraídas (`popup/features/serverConnection.js`, `queue.js`, `filters.js`, `faceta.js`, y las islas Preact `conexionHeader`/`onboarding`/`rutaDisco`/`bannerConexion`/`listaClases`/`campanita`), y de `background/hlsEngine.js` tanto las funciones puras (parseo/resolución M3U8) como el **pool de 6 workers** `compilarTranscodificacionStream` (concurrencia, AES, streaming turbo/blob, aborts en cascada, y el path de reintento 4xx del bug 400), más los handlers IPC de `background.js` (vía un harness que mockea `chrome.*`). Lo que todavía falta cubrir es el núcleo de `popup.js` aún sin extraer (init + wiring + orquestación de scraping/render) y el bucle de descarga `procesarSiguienteElementoDeLaCola` + la máquina de auto-heal del SW — por diseño quedan a la verificación manual/e2e (ver `docs/contributing.md`).
 
 ## Baseline de las verificaciones
 
@@ -8,12 +8,12 @@
 
 | Verificación | Baseline esperado |
 |---|---|
-| `npm test` | 19 archivos, 188 tests, todo en verde |
-| `npm run lint` | **0 errores**, 8 warnings |
+| `npm test` | 20 archivos, 201 tests, todo en verde |
+| `npm run lint` | **0 errores**, 7 warnings |
 | `npx tsc --noEmit` | sin salida (limpio) |
 | `npm run build` | compila a `.output/chrome-mv3/` |
 
-Un error de lint es una regresión; los 8 warnings son deuda conocida (ver `docs/TECHNICAL_DEBT.md`).
+Un error de lint es una regresión; los 7 warnings son deuda conocida (ver `docs/TECHNICAL_DEBT.md`).
 
 ## Cómo correr los tests
 

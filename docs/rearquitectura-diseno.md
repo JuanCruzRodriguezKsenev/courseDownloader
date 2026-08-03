@@ -311,7 +311,7 @@ Orden recomendado, de menor a mayor riesgo:
 
 | Archivo | Usos de `chrome.*` | Nota |
 |---|---|---|
-| `shared/state.js` | 9 | Chico y con tests indirectos. Buen primero. |
+| ~~`shared/state.js`~~ → `shared/state.ts` | 9 → 1 | ✅ Hecho (2026-08-02). Pasó a TS + factory `crearAppState(puerto)`, instanciada en `composicion.ts`. El uso que queda es el `sendMessage` de `sincronizarConBackground()`: IPC, no storage. **Corrección al plan**: acá decía "con tests indirectos" y era falso — los tests del popup mockean `globalThis.AppState` entero, así que no tenía **ninguna** cobertura real. Se le escribieron 13 tests propios contra `AlmacenamientoEnMemoria` como parte del corte. |
 | `shared/conexion.js` | 7 | El daemon. Sólo espejado por storage; tiene 14 tests propios. |
 | `popup/features/queue.js` | 9 | Tiene tests propios. |
 | `popup.js` | 14 | Orquestación; sin tests del núcleo. |
@@ -321,6 +321,18 @@ El patrón a repetir es el de la Fase 5a, que existe justamente como plantilla: 
 pasa a ser una factory que recibe el puerto, la instancia se arma en
 `plataforma/composicion.ts`, y el test cambia sus mocks de `chrome.*` por
 `AlmacenamientoEnMemoria`.
+
+**Restricción que descubrió `state.js` y aplica a todo lo que falta**: `allowJs` está en
+`false`, así que un `.ts` **no puede importar un `.js`**. Como el patrón exige que
+`composicion.ts` (que es `.ts`) importe al módulo, migrar un consumidor al puerto obliga a
+convertirlo a TypeScript **en el mismo corte**. No son dos pasos que se puedan separar: la
+migración al puerto y la migración a TS van juntas, archivo por archivo.
+
+**Y una advertencia sobre el orden de carga**: cuando un módulo deja de publicar su propio
+global al evaluarse y pasa a que lo publique `composicion.ts`, su import del entrypoint se
+borra y el global aparece **más tarde** en la cadena. Hay que confirmar que nadie lo consuma
+en el tramo intermedio (en `state.js` no pasaba: `conexion.js` y `bunClient.ts` no tocan
+`AppState`). El bundler no avisa de esto.
 
 ## Estado de avance
 
@@ -333,7 +345,7 @@ pasa a ser una factory que recibe el puerto, la instancia se arma en
 | 3 — WXT + TypeScript, andamiaje vacío (compilar lo actual) | ✅ Hecha (2026-08-02), mergeada y **verificada en navegador** (2026-08-02) |
 | 4 — `core/`: BunClient en TypeScript (+ typescript-eslint y `tsc --noEmit` en verde) | ✅ Hecha (2026-08-02) |
 | 5a — `PuertoAlmacenamiento` + adaptador Chrome + adaptador en memoria + 1er consumidor migrado (historial de fallos) | ✅ Hecha (2026-08-02) |
-| 5b — Resto de consumidores del puerto: daemon de conexión, `AppState`, `queue`, `background.js` (63 usos) | ⏳ No iniciada |
+| 5b — Resto de consumidores del puerto: daemon de conexión, `AppState`, `queue`, `background.js` (63 usos) | 🟡 En curso — `AppState` ✅ (2026-08-02, `shared/state.ts`); faltan `conexion.js`, `queue.js`, `popup.js`, `background.js` |
 | 5c — `PuertoMensajeria` (IPC) + `PuertoProgramador` (alarmas) + sus adaptadores | ⏳ No iniciada |
 | 6 — Motor HLS → `core/hls/` | ⏳ No iniciada |
 | 7 — Entrypoints (composición) | ⏳ No iniciada |

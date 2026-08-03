@@ -16,9 +16,20 @@
  */
 import AlmacenamientoChrome from "./chrome/almacenamiento";
 import { crearHistorialFallos } from "../core/historial/historialFallos";
+import { crearAppState } from "../shared/state";
 
 /** Adaptador de plataforma activo en esta build. */
 export const almacenamiento = AlmacenamientoChrome;
 
 export const HistorialFallos = crearHistorialFallos(almacenamiento);
 (globalThis as Record<string, unknown>).HistorialFallos = HistorialFallos;
+
+/**
+ * OJO: `AppState` es estado del POPUP. Este archivo lo importan los dos entrypoints, así que el
+ * service worker también construye una instancia — inerte: el constructor no hace I/O y el SW
+ * nunca la lee (su estado es `SessionState`, en `storage.session`). Se acepta esa instancia de
+ * más para no partir la raíz de composición en dos por un solo módulo. Si aparece un segundo
+ * módulo popup-only, ahí sí conviene una raíz por contexto.
+ */
+export const AppState = crearAppState(almacenamiento);
+(globalThis as Record<string, unknown>).AppState = AppState;

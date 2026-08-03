@@ -17,9 +17,12 @@ import '../../sitio/ramonnet/scraper.js';
 
 // Núcleo compartido.
 import '../../shared/utils.js';
-import '../../shared/state.js';
 import '../../core/backend/bunClient.ts';
 import '../../shared/conexion.js';
+// Composición: acá se instancian y se publican los globals de los módulos ya desacoplados
+// de chrome.* (HistorialFallos, y desde la Fase 5b también AppState — antes lo publicaba
+// shared/state.js al evaluarse). Tiene que ir ANTES de renderers/features/popup.js, que son
+// los que consumen esos globals.
 import '../../plataforma/composicion.ts';
 
 // Render vanilla + features del popup.

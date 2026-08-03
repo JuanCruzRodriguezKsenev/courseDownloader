@@ -4,7 +4,7 @@ Esta extensión no tiene base de datos — el equivalente es el esquema de `chro
 
 ## `chrome.storage.local` — persistente entre reinicios del navegador
 
-Escrito principalmente por `AppState.respaldar()` (`shared/state.js`) desde el popup, y por varios handlers IPC en `background.js`.
+Escrito principalmente por `AppState.respaldar()` (`shared/state.ts`) desde el popup, y por varios handlers IPC en `background.js`.
 
 | Clave | Forma | Escrita por | Descripción |
 |---|---|---|---|
