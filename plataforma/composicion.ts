@@ -24,6 +24,10 @@ import * as descargas from "./chrome/descargas";
 import { crearFetchConReintentos } from "../core/util/reintentos";
 import { crearHlsEngine } from "../core/hls/hlsEngine";
 import { crearEstadoSesion } from "../core/cola/estadoSesion";
+import { crearEstadosProgreso } from "../core/cola/estadosProgreso";
+import { crearProcesadorCola } from "../core/cola/procesadorCola";
+import { notificarFallo } from "./chrome/notificaciones";
+import { crearVolcadoLegacy } from "./chrome/volcadoLegacy";
 import BunClient from "../core/backend/bunClient";
 import { crearHistorialFallos } from "../core/historial/historialFallos";
 import { crearAppState } from "../core/estado/appState";
@@ -120,3 +124,32 @@ export const Utils = {
   fetchConReintentos: crearFetchConReintentos(Conexion),
 };
 (globalThis as Record<string, unknown>).Utils = Utils;
+
+export const EstadosProgreso = crearEstadosProgreso(almacenamiento);
+(globalThis as Record<string, unknown>).EstadosProgreso = EstadosProgreso;
+
+/**
+ * El procesador de la cola: el bucle FIFO + la clasificación de fallos, que fue el bloque más
+ * grande de `background.js` hasta la Fase 6b.
+ *
+ * Acá se ve para qué sirvió todo lo anterior: recibe **once colaboradores** y ninguno es
+ * `chrome.*`. Los tres que sí tocan el navegador —la notificación nativa, el volcado legacy a
+ * disco y el adaptador de sitio— entran ya envueltos desde Capa 3 o Capa 2, así que el bucle
+ * se puede correr entero en un test sin navegador.
+ */
+export const Cola = crearProcesadorCola({
+  almacenamiento,
+  sesion: SessionState,
+  mensajeria,
+  programador,
+  conexion: Conexion,
+  motor: HlsEngine,
+  sitio: { resolverManifiesto: (url, signal) => SitioActivo.resolverManifiesto(url, signal) },
+  historial: HistorialFallos,
+  notificarFallo,
+  calcularMetricas: progreso.calcularMétricasProgreso,
+  guardarBlobLegacy: crearVolcadoLegacy(mensajeria),
+  persistirEstados: (estados) => EstadosProgreso.persistir(estados),
+  recuperarEstados: () => EstadosProgreso.recuperar(),
+});
+(globalThis as Record<string, unknown>).Cola = Cola;

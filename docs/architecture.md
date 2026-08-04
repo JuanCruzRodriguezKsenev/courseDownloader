@@ -42,7 +42,7 @@ La extensión está partida en contextos de ejecución de JS aislados que **solo
 | Zona | Archivo(s) | Responsabilidad |
 |---|---|---|
 | **Popup** | `popup.js`, `renderers.js`, `popup/features/*` (+ el adaptador `sitio/ramonnet/*`) | Toda la UI: tabs, filtros, onboarding, selección de clases. Inyecta el scraper en la pestaña activa de Ramón Net vía `chrome.scripting.executeScript`. Partes de la UI se están migrando a **islas Preact** (sin build, ES modules locales — ver `docs/adr/0006` y `docs/preact-migration.md`). |
-| **Service Worker** | `background.js` (el motor HLS y el estado de sesión que usa viven en `core/`) | Único lugar donde ocurren las descargas reales. Dueño de la cola FIFO persistente y de la máquina de estados de auto-sanación ante cortes de red. Sigue 100% vanilla (no tiene DOM). |
+| **Service Worker** | `background.js` — hoy sobre todo cableado: el bucle, el estado de sesión y el motor viven en `core/` | Único lugar donde ocurren las descargas reales. Dueño de la cola FIFO persistente y de la máquina de estados de auto-sanación ante cortes de red. Sigue 100% vanilla (no tiene DOM). |
 | **Offscreen Document** | `public/offscreen/offscreen.js` | Existe solo para el path legacy no-Turbo (`URL.createObjectURL` no está disponible en service workers). No se ejercita mientras Turbo Mode esté forzado a `true`. |
 | **Compartido** | `core/**`, `sitio/**`, `plataforma/**` | Código cargado por más de una zona. No es una zona de ejecución: es la librería común, hoy en plena re-arquitectura por capas (ver abajo). `core/conexion/conexion.ts` es el **daemon de estado de conexión** (fuente única, ver Modelo de estado). |
 
@@ -194,6 +194,26 @@ se cortaron y son hoy parámetros:
 - **`abortarHermanos()`** reemplaza el `abort()` sobre el controlador del SW. El motor sabe
   *cuándo* hay que frenar la ráfaga ante un fallo real de fragmento; **quién** es el dueño del
   `AbortController` es del caller. Esa distinción es lo que lo vuelve testeable sin el SW.
+
+**`core/cola/procesadorCola.ts` es el bucle de descarga**: el FIFO, la clasificación de fallos,
+la pausa, el freno suave y la auto-sanación. Salió de `background.js` en la Fase 6b y es el
+bloque de lógica más grande del proyecto — el SW pasó de 958 a 451 líneas.
+
+Su verdadero contenido no es el FIFO sino **la clasificación de fallos, que tiene cuatro
+caminos y cada uno existe por un bug real**: (1) cancelación del usuario, que no es un fallo;
+(2) `tipoConexion: "sesion"`, que pausa SIN alarma porque el daemon vería la red OK y el
+auto-heal reintentaría contra el login; (3) `tipoBackend: "rechazo"` (4xx), que **saltea sólo
+esa clase** — es el fix del bug 400; y (4) cualquier otro, que pausa CON alarma. **El orden
+importa**: los tres primeros se clasifican antes de consultar al daemon.
+
+`loopActivo` y el `AbortController` de la ráfaga eran variables de módulo compartidas entre el
+bucle y los handlers IPC; ahora son **estado privado** y se tocan por la API
+(`arrancarSiNoCorre` / `detener` / `abortarRafaga`). Esa guarda es lo que impide dos ráfagas
+simultáneas — que duplican descargas y se pisan el progreso — y hasta la 6b no tenía ni un test.
+
+Recibe **once colaboradores y ninguno es `chrome.*`**: los tres que tocan el navegador (la
+notificación nativa, el volcado legacy a disco y el adaptador de sitio) entran ya envueltos
+desde Capa 3 o Capa 2. Por eso el bucle entero se puede correr en un test sin navegador.
 
 **`core/cola/estadoSesion.ts` (`SessionState`) es el estado de la ráfaga activa**, la mitad
 "service worker" del split de ownership. Salió de `background.js` el 2026-08-04, primer tramo

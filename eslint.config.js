@@ -20,6 +20,8 @@ const globalesDelProyecto = {
   Mensajeria: "readonly",
   Programador: "readonly",
   SessionState: "readonly",
+  EstadosProgreso: "readonly",
+  Cola: "readonly",
   HlsEngine: "readonly",
   AppState: "readonly",
   Renderers: "readonly",

@@ -527,6 +527,35 @@ Capa 1. El resto del popup ya era genérico: `faceta.js` y `filters.js` leen por
 - Los 15 tests del motor **no cambiaron ni una aserción**: sólo su cableado (de stubear 5
   globals a construir la factory con dobles).
 
+### Registro de la Fase 6b — la cola a `core/cola/` (2026-08-04)
+
+El corte más grande del plan, hecho en **dos tramos** porque en uno solo era irrevisable.
+
+**Tramo 1 — `SessionState`.** Mecánico, y se llevaba 16 de las dependencias del bucle. Dejó
+escrito por qué esa envoltura existe (los defaults: `storage.session` arranca vacío en cada
+despertar del SW) y por qué el relleno usa `!= null` y no un chequeo por falsy.
+
+**Tramo 2 — el bucle.** Lo que salió, además del movimiento:
+
+- **Se fueron con él `loopActivo` y el `AbortController`**, que eran variables de módulo
+  compartidas entre el bucle y los handlers IPC. Hoy son estado privado y se tocan por la API
+  (`arrancarSiNoCorre` / `detener` / `abortarRafaga`). La guarda contra **dos ráfagas
+  simultáneas** —que duplican descargas y se pisan el progreso— era un `if (!loopActivo)`
+  repetido en tres call-sites y **sin un solo test**; ahora está en un lugar y tiene el suyo.
+- **Tres extracciones más chicas cayeron de arrastre, y estaban bien escondidas**:
+  `SW_ESTADOS_PROGRESO` (→ `core/cola/estadosProgreso.ts`), la notificación nativa
+  (→ `plataforma/chrome/notificaciones.ts`) y el volcado legacy con offscreen + `downloads`
+  (→ `plataforma/chrome/volcadoLegacy.ts`). Sin sacarlas, la composición no podía armar la
+  cola: `composicion.ts` es `.ts` y no puede importar `background.js`.
+- **El procesador recibe once colaboradores y ninguno es `chrome.*`.** Los tres que tocan el
+  navegador entran ya envueltos desde Capa 3 o Capa 2. Es lo que permite correr el bucle
+  entero en un test sin navegador — y lo que hace el harness ahora.
+- **El harness dejó de stubear el bucle y pasó a construirlo.** `background.test.js` arma el
+  procesador real con dobles; los 18 tests pasaron **sin cambiar una aserción**, sólo el
+  cableado. Esos tests de caracterización, escritos antes de la 5b, ya se pagaron tres veces.
+- **`background.js`: 958 → 451 líneas**, y lo que queda es casi todo cableado con `chrome.*`
+  (notificaciones, tabs/windows, onInstalled) más los handlers IPC.
+
 ### El próximo paso (al 2026-08-03)
 
 Lo que sigue, de menor a mayor riesgo. **Empezar por el primero**: desbloquea dos mudanzas que
@@ -541,7 +570,7 @@ hoy no se pueden hacer.
 | ~~**`sincronizarConBackground()` de `shared/state.ts` al puerto**~~ | ✅ **Hecho (2026-08-03)**, el mismo día en que se agregó la fila. `crearAppState(almacenamiento, mensajeria)`; `state.ts` queda sin ningún `chrome.*` y sus tests sin ningún mock de `chrome.*`. Se conservó el timeout de rescate de 3s **a propósito**: el puerto rechaza cuando no hay receptor, pero no cubre al receptor que acepta, promete responder async y no responde — que es justo lo que pasa con un SW dormido. Deja a `state.ts` a un solo paso de `core/`: falta la clave de faceta (fila de arriba). |
 | ~~**`PuertoProgramador`**~~ | ✅ **Hecho (2026-08-03)** — puerto + adaptador Chrome + adaptador en memoria con tests propios (7). Los 8 call-sites de `chrome.alarms` del SW pasaron al puerto y el harness de `background.test.js` dejó de mockear esa API: ahora, como con storage, **tira** si el SW la toca. Ver el registro abajo. |
 | **Fase 6 — motor HLS a `core/hls/`** | Llega con el pool ya testeado. |
-| **Fase 6b — cola de descarga a `core/cola/`** | El bloque de lógica más grande que queda en `background.js`. Va después de la 6 y de los puertos del SW; llega con los tests de caracterización del bucle ya escritos. |
+| ~~**Fase 6b — cola de descarga a `core/cola/`**~~ | ✅ **Hecha (2026-08-04)**. |
 | **Fase 6c — split de UI genérica vs. de sitio + CSS co-locado** | Antes de la 7, para no cablear los entrypoints dos veces. |
 | **Fases 7 y 8** | Entrypoints como composición, y borrado del vanilla de la raíz (sólo con paridad de tests). |
 
@@ -584,7 +613,7 @@ en el tramo intermedio (en `state.js` no pasaba: `conexion.js` y `bunClient.ts` 
 | 5b — `PuertoAlmacenamiento`: adaptadores + **todos** los consumidores | ✅ **Completa** (2026-08-03) — historial de fallos, `AppState`, daemon de conexión y `background.js`. No queda ni un `chrome.storage` en el proyecto. (`queue.js` figuraba acá por error: sus usos eran IPC → Fase 5c.) |
 | 5c — `PuertoMensajeria` (IPC) + `PuertoProgramador` (alarmas) + sus adaptadores | ✅ **Completa** (2026-08-03) — `PuertoMensajeria` ✅ con sus dos adaptadores; migrados `queue.js` y `popup.js` (2026-08-03). Se sumó `PuertoSitio` + `sitio/ramonnet/config.ts` (2026-08-03), que destapó el tapón de `allowJs` y habilitó la mudanza del daemon de conexión a `core/conexion/` (2026-08-03). Migrado también el IPC de `shared/state.ts` (2026-08-03): fuera de `background.js` ya no queda un solo `sendMessage` crudo. `PuertoProgramador` ✅ con sus dos adaptadores, y los 8 `chrome.alarms` del SW migrados. Cierra con el IPC de `background.js` en sus dos puntas: **no queda `sendMessage`/`onMessage` crudo en el proyecto**. Lo que sigue en `chrome.*` no espera a esta fase: `notifications`, `tabs`/`windows`, `scripting` y el camino legacy `downloads`/`offscreen` |
 | 6 — Motor HLS → `core/hls/` | ⏳ No iniciada |
-| 6b — Cola de descarga → `core/cola/` (FIFO + máquina de estados, hoy dentro de `background.js`) | 🟡 **En curso** (2026-08-04): primer tramo hecho — `SessionState` → `core/cola/estadoSesion.ts`, tipado, con sus defaults y 8 tests propios. Falta el bucle en sí. Nota original: Va **después** de la 6 (el bucle maneja al motor) y de que el SW tenga sus puertos (5c: IPC receptor + alarmas). Es el bloque de lógica más grande que queda sin migrar, y ya tiene red: los 12 tests de caracterización del bucle y el auto-heal de `background.test.js`. |
+| 6b — Cola de descarga → `core/cola/` | ✅ **Hecha** (2026-08-04, en dos tramos: `SessionState` primero, el bucle después). `background.js` pasó de 958 a 451 líneas. Salieron con él `core/cola/estadosProgreso.ts`, `plataforma/chrome/notificaciones.ts` y `plataforma/chrome/volcadoLegacy.ts`. Nota original: Va **después** de la 6 (el bucle maneja al motor) y de que el SW tenga sus puertos (5c: IPC receptor + alarmas). Es el bloque de lógica más grande que queda sin migrar, y ya tiene red: los 12 tests de caracterización del bucle y el auto-heal de `background.test.js`. |
 | 6c — UI: split genérico (`ui/comunes/`) vs. de sitio (`sitio/ramonnet/ui/`) + CSS co-locado por componente | ⏳ No iniciada. Diseñada en §UI de este doc (incluida la convención BEM y que `listaClases` hay que **partirla en dos**, no moverla). Va antes de la 7 para que los entrypoints cableen la estructura final una sola vez. |
 | 7 — Entrypoints (composición) | ⏳ No iniciada |
 | 8 — Borrado del vanilla de la raíz | ⏳ No iniciada |

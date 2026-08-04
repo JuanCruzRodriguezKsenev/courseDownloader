@@ -13,6 +13,8 @@ import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vite
 import { ProgramadorEnMemoria } from './core/puertos/programadorEnMemoria.ts';
 import { MensajeriaEnMemoria } from './core/puertos/mensajeriaEnMemoria.ts';
 import { crearEstadoSesion } from './core/cola/estadoSesion.ts';
+import { crearEstadosProgreso } from './core/cola/estadosProgreso.ts';
+import { crearProcesadorCola } from './core/cola/procesadorCola.ts';
 
 const store = { local: {}, session: {} };
 
@@ -121,12 +123,33 @@ beforeAll(async () => {
     descargarYAnalizarIndexM3u8: async (...args) => motor.analizar(...args),
     compilarTranscodificacionStream: async (...args) => motor.compilar(...args),
   };
+  // El bucle de descarga se fue a core/cola/ en la Fase 6b. El harness construye el
+  // procesador REAL con dobles de sus once colaboradores — no lo stubea: es justamente el
+  // código que estos tests caracterizan. Los `chrome.*` que le quedaban (notificación nativa,
+  // volcado legacy) entran como callbacks, así que acá son no-ops observables.
+  globalThis.EstadosProgreso = crearEstadosProgreso(globalThis.Almacenamiento);
   globalThis.HistorialFallos = {
     registrar: async (tipo, titulo, motivo) => {
       fallosRegistrados.push({ tipo, titulo, motivo });
       return { id: 'x' };
     },
   };
+
+  globalThis.Cola = crearProcesadorCola({
+    almacenamiento: globalThis.Almacenamiento,
+    sesion: globalThis.SessionState,
+    mensajeria,
+    programador,
+    conexion: globalThis.Conexion,
+    motor: globalThis.HlsEngine,
+    sitio: globalThis.SitioActivo,
+    historial: globalThis.HistorialFallos,
+    notificarFallo: () => {},
+    calcularMetricas: globalThis.Utils.calcularMétricasProgreso,
+    guardarBlobLegacy: async () => {},
+    persistirEstados: (e) => globalThis.EstadosProgreso.persistir(e),
+    recuperarEstados: () => globalThis.EstadosProgreso.recuperar(),
+  });
 
   const noopEvent = { addListener: () => {} };
   globalThis.chrome = {

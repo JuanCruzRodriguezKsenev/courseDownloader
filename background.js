@@ -157,30 +157,21 @@
 // `importScripts(...)` que había existía para el SW clásico que se cargaba desde la raíz
 // del repo, camino que desapareció al empaquetar con WXT (Fase 3).
 
-// Auto-sanación: la tarea diferida que revisa si volvió la conexión con la cola pausada.
-// Va por `PuertoProgramador` y no por `chrome.alarms` directo (Fase 5c). El período sigue
-// expresado en minutos decimales porque es la unidad del puerto — 0.2 min = 12 s, el valor
-// que este archivo usaba hardcodeado en el `create`.
+// `SessionState` (estado de la ráfaga), el bucle de descarga y la alarma de auto-sanación se
+// fueron a `core/cola/` en la Fase 6b y llegan como globals desde la composición. El nombre
+// de la alarma se importa de ahí para que no puedan divergir dos literales.
 const ALARMA_AUTOHEAL = "alarma_autoheal";
-const PERIODO_AUTOHEAL_MIN = 0.2;
 
-// `SessionState` (el estado de la ráfaga en el ámbito de sesión) se fue a
-// `core/cola/estadoSesion.ts` en la Fase 6b y llega como global desde la composición, igual
-// que los puertos. Su schema y sus defaults viven allá, tipados.
-
-// Variables en memoria del Service Worker (volátiles)
-let controladorGraficoActivo = null;
-let loopActivo = false;
-
-// Sincronizar bandera de motor y reanudar si es necesario al despertar/cargar el SW
+// Sincronizar bandera de motor y reanudar si es necesario al despertar/cargar el SW.
+// `arrancarSiNoCorre()` trae adentro la guarda que antes era `if (!loopActivo)`: es lo que
+// impide que despertar dos veces deje dos ráfagas corriendo en paralelo.
 (async () => {
   await SessionState.set({ modoTurboBunActivo: true });
-  
+
   const state = await SessionState.get();
-  if (state.rafagaCorriendo && !loopActivo) {
+  if (state.rafagaCorriendo && !Cola.estaActivo()) {
     console.log("🔄 [SW-ENGINE] Service Worker despertó con descarga pendiente. Reanudando...");
-    loopActivo = true;
-    procesarSiguienteElementoDeLaCola();
+    Cola.arrancarSiNoCorre();
   }
 })();
 
@@ -194,68 +185,20 @@ chrome.runtime.onInstalled.addListener(async (_details) => {
   await persistirEstadoFondo({});
 });
 
-async function persistirEstadoFondo(estados) {
-  await Almacenamiento.guardarLocal({ SW_ESTADOS_PROGRESO: estados });
-}
-
-async function recuperarEstadoFondo() {
-  const data = await Almacenamiento.obtenerLocal(['SW_ESTADOS_PROGRESO']);
-  return data.SW_ESTADOS_PROGRESO || {};
-}
-
-// Helper para abrir documento offscreen y generar Object URL de forma segura en MV3
-async function obtenerBlobUrlDeOffscreen(blob) {
-  try {
-    await chrome.offscreen.createDocument({
-      url: 'offscreen/offscreen.html',
-      reasons: ['DOM_PARSING'],
-      justification: 'Generar URL de objeto para descarga de video HLS'
-    });
-  } catch (err) {
-    if (!err.message.includes("Only one offscreen document")) {
-      throw err;
-    }
-  }
-
-  const response = await Mensajeria.enviar({
-    action: "crear_blob_url",
-    blob: blob
-  });
-
-  if (response.error) {
-    throw new Error(response.error);
-  }
-
-  return response.blobUrl;
-}
-
-// Helper para cerrar el documento offscreen y liberar memoria
-async function cerrarOffscreenYRevocar(blobUrl) {
-  try {
-    await Mensajeria.enviar({
-      action: "revocar_blob_url",
-      blobUrl: blobUrl
-    });
-  } catch (e) {
-    console.error("Error al revocar Object URL en Offscreen:", e);
-  }
-  
-  try {
-    await chrome.offscreen.closeDocument();
-  } catch (e) {
-    // Puede fallar si no había documento offscreen abierto (esperado en ese caso);
-    // un warn de bajo nivel deja rastro si el cierre falla por otra razón.
-    console.warn("⚠️ No se pudo cerrar el documento offscreen:", e?.message);
-  }
-}
+// Los helpers de progreso (SW_ESTADOS_PROGRESO) y el volcado legacy a disco (offscreen +
+// chrome.downloads) se fueron en la Fase 6b a `core/cola/estadosProgreso.ts` y
+// `plataforma/chrome/volcadoLegacy.ts`. Acá se consumen por los globals de la composición.
+const persistirEstadoFondo = (estados) => EstadosProgreso.persistir(estados);
+const recuperarEstadoFondo = () => EstadosProgreso.recuperar();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Handlers IPC despachados por acción (dict {accion: handler} en vez de una
 // cadena de if — ver docs/patterns.md §IPC). Cada handler es async (request,
 // sendResponse); el listener los envuelve en un IIFE async + try/catch global y
 // devuelve true síncrono para mantener el canal abierto a una respuesta async.
-// Los handlers mutan estado de módulo (loopActivo, controladorGraficoActivo) por
-// closure, igual que antes. El objeto se exporta (module.exports) para tests.
+// El estado del bucle (`loopActivo`, el AbortController de la ráfaga) ya no vive acá: es
+// privado de `core/cola/procesadorCola.ts` y se toca por su API (`arrancarSiNoCorre`,
+// `detener`, `abortarRafaga`). El objeto se exporta para tests.
 // ─────────────────────────────────────────────────────────────────────────────
 const manejadoresIPC = {
   // ─── ESCANEO DE CARPETA LOCAL OPTIMIZADO NATIVO ────────────────────────
@@ -378,11 +321,7 @@ const manejadoresIPC = {
       });
 
       Programador.cancelar(ALARMA_AUTOHEAL);
-
-      if (!loopActivo) {
-        loopActivo = true;
-        procesarSiguienteElementoDeLaCola();
-      }
+      Cola.arrancarSiNoCorre();
     }
     return sendResponse({ status: "rafaga_iniciada" });
   },
@@ -408,14 +347,8 @@ const manejadoresIPC = {
       tipoDeErrorConexion: "",
       abortadoPorUsuario: true
     });
-    loopActivo = false;
+    Cola.abortarRafaga();
     Programador.cancelar(ALARMA_AUTOHEAL);
-
-    if (controladorGraficoActivo) {
-      try { controladorGraficoActivo.abort(); }
-      catch (e) { console.warn("⚠️ Falló el abort del controlador de gráfico activo (limpieza de fin de ráfaga):", e?.message); }
-      controladorGraficoActivo = null;
-    }
 
     if (titulo) {
       await BunClient.cancelarDescarga(titulo, sessionId);
@@ -452,7 +385,7 @@ const manejadoresIPC = {
       colaPausadaPorError: false,
       tipoDeErrorConexion: ""
     });
-    loopActivo = false;
+    Cola.detener();
     Programador.cancelar(ALARMA_AUTOHEAL);
     await persistirEstadoFondo({});
     await Almacenamiento.guardarLocal({ colaDescargas: [] });
@@ -482,419 +415,18 @@ Mensajeria.onMensaje((request, responder) => {
   return true;
 });
 
-// =============================================================================
-// PROCESADOR DE COLA PERSISTENTE CRIPTOGRÁFICO ASYNC PURO
-// =============================================================================
-async function procesarSiguienteElementoDeLaCola() {
-  const state = await SessionState.get();
+// ============================================================================
+// El BUCLE DE DESCARGA vive en `core/cola/procesadorCola.ts` desde la Fase 6b: el FIFO, la
+// clasificación de los cuatro tipos de fallo, la pausa, el freno suave y la auto-sanación.
+// Con él se fueron `loopActivo` y `controladorGraficoActivo`, que eran variables de módulo
+// compartidas entre el bucle y los handlers IPC — ahora son estado privado del procesador y
+// se tocan por su API. Acá queda sólo el cableado con `chrome.*`.
+// ============================================================================
 
-  if (state.frenadoSuaveSolicitado) {
-    await notificarFrenoSuaveExitoso();
-    return;
-  }
-  if (!state.rafagaCorriendo) {
-    loopActivo = false;
-    return;
-  }
-
-  try {
-    const data = await Almacenamiento.obtenerLocal(['listaPersistente', 'colaDescargas']);
-    const listaCompleta = data.listaPersistente || [];
-    const colaDescargas = data.colaDescargas || [];
-
-    // Ordenamiento estricto FIFO por fecha de encolado
-    colaDescargas.sort((a, b) => (a.fechaEncolado || 0) - (b.fechaEncolado || 0));
-
-    if (colaDescargas.length === 0) {
-      await SessionState.set({ rafagaCorriendo: false });
-      loopActivo = false;
-      await persistirEstadoFondo({});
-      Mensajeria.notificar({ action: "cola_completamente_vacia" });
-      return;
-    }
-
-    const elementoActual = colaDescargas[0];
-    const tituloInmutableVideo = elementoActual.titulo;
-    const sessionId = Date.now().toString();
-    
-    await SessionState.set({
-      videoActualTitulo: tituloInmutableVideo,
-      videoActualSessionId: sessionId,
-      bytesProcesadosEnVideoActual: 0,
-      fragmentosTerminadosEnVideoActual: 0,
-      totalFragmentosEnVideoActual: 0,
-      tiempoInicioVideoActual: performance.now(),
-      velocidadMbsActual: 0,
-      abortadoPorUsuario: false
-    });
-
-    const estados = await recuperarEstadoFondo();
-    estados[tituloInmutableVideo] = 'process';
-    await persistirEstadoFondo(estados);
-
-    controladorGraficoActivo = new AbortController();
-
-    try {
-      // La resolución del .m3u8 es específica del portal (iframe del reproductor, CDN):
-      // vive en el adaptador de sitio, no en el motor HLS, que ya es genérico.
-      const urlM3u8Descubierta = await SitioActivo.resolverManifiesto(elementoActual.urlInterna, controladorGraficoActivo.signal);
-      
-      const currentState = await SessionState.get();
-      if (!currentState.rafagaCorriendo) return;
-
-      const listaFragmentos = await HlsEngine.descargarYAnalizarIndexM3u8(urlM3u8Descubierta, controladorGraficoActivo.signal);
-      await SessionState.set({ totalFragmentosEnVideoActual: listaFragmentos.urls.length });
-
-      const subcarpetaFinal = elementoActual.carpeta ? elementoActual.carpeta.trim().toLowerCase() : "biologia";
-
-      // El motor es Capa 1 desde la Fase 6: no lee SessionState ni conoce
-      // `controladorGraficoActivo`. Lo que necesita de la ráfaga se le pasa acá, incluida la
-      // forma de frenar a los workers hermanos ante un fallo real de fragmento — el dueño del
-      // controlador es este archivo, no el motor.
-      const resultadoBloquesBlob = await HlsEngine.compilarTranscodificacionStream(
-        listaFragmentos,
-        controladorGraficoActivo.signal,
-        subcarpetaFinal,
-        {
-          modoTurbo: currentState.modoTurboBunActivo,
-          titulo: tituloInmutableVideo,
-          // El mismo `sessionId` que se acaba de escribir en la sesión unas líneas arriba;
-          // se pasa el local en vez de releerlo para que no puedan divergir.
-          sessionId,
-          abortarHermanos: () => controladorGraficoActivo?.abort(),
-        },
-        {
-          onFragmentoCompletado: async (pesoBytesChunk, totalUrls, bytesAcumulados, fragmentosTerminados) => {
-            const current = await SessionState.get();
-            if (!current.rafagaCorriendo) return;
-            
-            const progreso = Utils.calcularMétricasProgreso(
-              bytesAcumulados,
-              fragmentosTerminados,
-              totalUrls,
-              current.tiempoInicioVideoActual
-            );
-
-            const velocidadMbs = parseFloat(progreso.telemetry.velocidadTexto);
-
-            await SessionState.set({
-              bytesProcesadosEnVideoActual: bytesAcumulados,
-              fragmentosTerminadosEnVideoActual: fragmentosTerminados,
-              velocidadMbsActual: velocidadMbs
-            });
-            
-            if (current.modoTurboBunActivo) {
-              BunClient.actualizarConsola({
-                titulo: tituloInmutableVideo,
-                porcentaje: progreso.porcentaje,
-                terminados: fragmentosTerminados,
-                totales: totalUrls,
-                velocidad: velocidadMbs
-              });
-            }
-
-            Mensajeria.notificar({
-              action: "update_progress_bar",
-              percentage: progreso.porcentaje,
-              titulo: tituloInmutableVideo,
-              compiling: false,
-              telemetry: {
-                bytesProcesados: bytesAcumulados,
-                fragsTerminados: fragmentosTerminados,
-                totalFrags: totalUrls,
-                velocidadMbs: velocidadMbs,
-              }
-            });
-          }
-        }
-      );
-
-      const postDownloadState = await SessionState.get();
-      if (!postDownloadState.rafagaCorriendo) return;
-
-      // ─── [ENTRAMADO DUAL] FASE DE VOLCADO O CIERRE FINAL ───────────────────
-      if (!postDownloadState.modoTurboBunActivo) {
-        Mensajeria.notificar({
-          action: "update_progress_bar",
-          percentage: 100,
-          titulo: tituloInmutableVideo,
-          compiling: true
-        });
-
-        const subRutaArchivo = `${subcarpetaFinal}/${tituloInmutableVideo}.mp4`;
-        
-        // Obtenemos una Object URL válida delegando la tarea en el documento Offscreen
-        const blobUrl = await obtenerBlobUrlDeOffscreen(resultadoBloquesBlob);
-        
-        try {
-          await Utils.inyectarArchivoEnDiscoChrome(blobUrl, subRutaArchivo);
-        } finally {
-          await cerrarOffscreenYRevocar(blobUrl);
-        }
-      } else {
-        console.log(`✨ [SW-ENGINE] Modo Turbo Bun completado con éxito para: "${tituloInmutableVideo}"`);
-      }
-
-      const postWriteState = await SessionState.get();
-      if (!postWriteState.rafagaCorriendo) return;
-
-      const dataUpdate = await Almacenamiento.obtenerLocal(['colaDescargas']);
-      let colaActual = dataUpdate.colaDescargas || [];
-      colaActual = colaActual.filter(c => c.titulo !== tituloInmutableVideo);
-
-      const objPersistente = listaCompleta.find(c => c.titulo === tituloInmutableVideo);
-      if (objPersistente) objPersistente.estado = 'downloaded';
-      
-      const estadosUpdate = await recuperarEstadoFondo();
-      delete estadosUpdate[tituloInmutableVideo];
-
-      // Escritura atómica: las tres claves describen el estado de la misma clase
-      // (descargada → fuera de la cola, marcada 'downloaded', sin entrada de progreso).
-      // Consolidadas en un solo .set() para que una suspensión del SW no las desincronice.
-      await Almacenamiento.guardarLocal({
-        listaPersistente: listaCompleta,
-        colaDescargas: colaActual,
-        SW_ESTADOS_PROGRESO: estadosUpdate
-      });
-
-      Mensajeria.notificar({
-        action: "clase_guardada_ok",
-        titulo: tituloInmutableVideo,
-        suaveFrenado: postWriteState.frenadoSuaveSolicitado,
-      });
-
-      setTimeout(procesarSiguienteElementoDeLaCola, 60);
-
-    } catch (errDescarga) {
-      const state = await SessionState.get();
-      // SÓLO el flag explícito marca una cancelación del usuario. NO usar
-      // controladorGraficoActivo.signal.aborted ni errDescarga.name==='AbortError':
-      // el motor HLS aborta ese controlador A PROPÓSITO para frenar a los otros
-      // workers cuando UN fragmento falla (ej. server caído), y ese abort hace que
-      // los fetches hermanos rechacen con AbortError. Confiar en eso hacía que una
-      // caída de conexión se confundiera con cancelación → la cola no se pausaba y
-      // el popup nunca recibía "cola_pausada_por_error" (banner que no se disparaba).
-      if (state.abortadoPorUsuario) {
-        // Cancelación deliberada del usuario: NO es un fallo. Se loguea limpio (sin el
-        // console.error de [BUCLE-ERROR]) y ANTES de clasificar nada: los AbortError de
-        // los fragmentos que llegaron hasta acá son la consecuencia esperada del abort,
-        // no un crash.
-        console.log(`🛑 [SW] Descarga de "${tituloInmutableVideo}" abortada por el usuario de forma limpia.`);
-        return;
-      }
-
-      // Sesión no iniciada/expirada: HlsEngine detectó que la página de la clase
-      // redirigió al login. NO es un fallo de red (la conectividad está OK) ni un crash;
-      // es accionable por el usuario. Se loguea limpio y se pausa como tipo "sesion"
-      // ANTES de consultar al daemon (que reportaría internet=true y malclasificaría).
-      // pausarColaPorErrorDeConexion NO crea la alarma de autoheal para este tipo: el
-      // daemon no puede detectar el login, reintentaría en loop. El usuario reintenta
-      // manualmente tras iniciar sesión.
-      if (errDescarga?.tipoConexion === "sesion") {
-        console.warn(`🔑 [SW] Descarga de "${tituloInmutableVideo}" pausada: no hay sesión activa en Ramón Net.`);
-        await pausarColaPorErrorDeConexion("sesion", tituloInmutableVideo);
-        return;
-      }
-
-      // Rechazo aplicativo del backend (4xx persistente a un fragmento, tras el reintento
-      // N=3 del worker — hlsEngine v1.0.6 / bunClient v1.4.0). El server está VIVO:
-      // /api/health daría 200 y el daemon lo malclasificaría como "servidor", generando el
-      // loop pausa→autoheal→mismo 400. Un 4xx es determinístico: se salta SOLO esta clase
-      // y la cola sigue con la próxima. Sin pausa, sin alarma. Se clasifica ANTES del
-      // daemon, igual que el caso "sesion". La clase vuelve a 'pending' (no queda un estado
-      // 'error' que el resto del popup no reconoce): se ve como una pendiente normal y es
-      // re-encolable. El fallo se comunica por la campanita + la notificación nativa.
-      if (errDescarga?.tipoBackend === "rechazo") {
-        console.warn(`⛔ [SW] El backend rechazó fragmentos de "${tituloInmutableVideo}" (HTTP ${errDescarga.httpStatus}). Se salta la clase y la cola continúa.`);
-        // Cola fresca (pudo cambiar durante la descarga); listaCompleta y estados en memoria.
-        const dataUpdate = await Almacenamiento.obtenerLocal(['colaDescargas']);
-        const colaFiltrada = (dataUpdate.colaDescargas || []).filter(c => c.titulo !== tituloInmutableVideo);
-        const objPersistente = listaCompleta.find(c => c.titulo === tituloInmutableVideo);
-        if (objPersistente) objPersistente.estado = 'pending';
-        const estadosUpdate = await recuperarEstadoFondo();
-        delete estadosUpdate[tituloInmutableVideo];
-        // Escritura atómica de las 3 claves (mismo patrón que el path de éxito): clase de
-        // vuelta a 'pending', fuera de la cola, sin entrada de progreso.
-        await Almacenamiento.guardarLocal({
-          listaPersistente: listaCompleta,
-          colaDescargas: colaFiltrada,
-          SW_ESTADOS_PROGRESO: estadosUpdate
-        });
-        const motivoRechazo = `el backend rechazó sus fragmentos (HTTP ${errDescarga.httpStatus})`;
-        Mensajeria.notificar({
-          action: "clase_con_error",
-          titulo: tituloInmutableVideo,
-          motivo: motivoRechazo
-        });
-        setTimeout(procesarSiguienteElementoDeLaCola, 60); // seguir con la próxima
-        // Aviso persistente + notificación nativa (best-effort, DESPUÉS de garantizar la
-        // continuación de la cola; registrarFallo no propaga). El popup abierto ya
-        // reaccionó al IPC de arriba; el historial cubre el caso cerrado.
-        registrarFallo("rechazo", tituloInmutableVideo, motivoRechazo);
-        return;
-      }
-
-      // A partir de acá es un fallo REAL (no iniciado por el usuario): ahora sí, error.
-      console.error(`⚠️ [BUCLE-ERROR] Falló la descarga de "${tituloInmutableVideo}":`, errDescarga);
-
-      // Clasificar el tipo de fallo con el daemon de conexión (fuente única de verdad).
-      // Si la conectividad está OK (el fallo no fue de red), caer a la heurística por
-      // mensaje como antes para no clasificar mal un error no relacionado.
-      await Conexion.verificarAhora();
-      let tipoError = Conexion.get().tipoFalla;
-      if (!tipoError) {
-        const msg = errDescarga?.message || "";
-        tipoError = (msg.includes("Bun") || msg.includes("localhost") || msg.includes("127.0.0.1") || msg.includes("backend"))
-          ? "servidor"
-          : "internet";
-      }
-      await pausarColaPorErrorDeConexion(tipoError, tituloInmutableVideo);
-    }
-
-  } catch (errStorage) {
-    console.error("❌ [CRÍTICO-STORAGE] No se pudo leer el storage local de la cola:", errStorage);
-    await SessionState.set({ rafagaCorriendo: false });
-    loopActivo = false;
-  }
-}
-async function notificarFrenoSuaveExitoso() {
-  await SessionState.set({
-    rafagaCorriendo: false,
-    frenadoSuaveSolicitado: false,
-    videoActualTitulo: ""
-  });
-  loopActivo = false;
-  await persistirEstadoFondo({});
-  Mensajeria.notificar({ action: "cola_completamente_vacia", suaveFrenado: true });
-}
-
-// Choke point único de aviso de fallos: persiste el fallo en el historial (para la
-// campanita del popup, aun con el popup cerrado) y dispara una notificación nativa.
-// Copy por tipo — cada tipo debe tener un título distinto para que la notificación
-// sea escaneable de un vistazo.
-const TITULOS_NOTIF_FALLO = {
-  rechazo: "Clase saltada",
-  sesion: "Sesión expirada",
-  servidor: "Servidor desconectado",
-  internet: "Sin conexión a internet"
-};
-const MOTIVOS_PAUSA = {
-  sesion: "no hay sesión activa en Ramón Net",
-  servidor: "se perdió la conexión con el servidor local",
-  internet: "se perdió la conexión a internet"
-};
-
-// A prueba de balas: ni el historial ni la notificación pueden propagar una excepción.
-// El aviso es un efecto secundario best-effort — la salud de la cola NUNCA debe depender
-// de que funcione (regresión v5.10.0: un chrome.notifications ausente frenaba la cola).
-async function registrarFallo(tipo, titulo, motivo) {
-  try {
-    await HistorialFallos.registrar(tipo, titulo, motivo);
-  } catch (e) {
-    console.warn("[SW] No se pudo registrar el fallo en el historial:", e);
-  }
-  dispararNotificacionFallo(tipo, titulo, motivo);
-}
-
-function dispararNotificacionFallo(tipo, titulo, motivo) {
-  try {
-    if (typeof chrome === "undefined" || !chrome.notifications || !chrome.notifications.create) {
-      console.warn("[SW] chrome.notifications no disponible (¿falta recargar la extensión desde la tarjeta tras sumar el permiso 'notifications'?).");
-      return;
-    }
-    // notificationId "" (auto-generado): cada fallo es un evento distinto y debe apilarse.
-    chrome.notifications.create("", {
-      type: "basic",
-      // URL absoluta vía getURL: la ruta relativa "icons/..." puede no resolver en el SW
-      // (falla silenciosa "Unable to download all specified images").
-      iconUrl: chrome.runtime.getURL("icons/icon128.png"),
-      title: TITULOS_NOTIF_FALLO[tipo] || "Fallo en la descarga",
-      message: titulo ? `"${titulo}": ${motivo}` : motivo,
-      priority: 2
-    }, () => {
-      // La API reporta el motivo real por lastError (no por throw): queda logueado para
-      // diagnóstico si la notificación no se muestra pese a recargar bien la extensión.
-      if (chrome.runtime.lastError) {
-        console.warn("[SW] La notificación no se pudo mostrar:", chrome.runtime.lastError.message);
-      }
-    });
-  } catch (e) {
-    console.warn("[SW] Error creando la notificación de fallo:", e);
-  }
-}
-
-async function pausarColaPorErrorDeConexion(tipoError, titulo) {
-  await SessionState.set({
-    colaPausadaPorError: true,
-    tipoDeErrorConexion: tipoError,
-    rafagaCorriendo: false
-  });
-  loopActivo = false;
-
-  // Aviso (historial + notificación nativa) tras persistir la pausa: que quede el
-  // estado es lo crítico; el aviso es secundario y no debe abortar la pausa si falla.
-  registrarFallo(tipoError, titulo, MOTIVOS_PAUSA[tipoError] || "error de conexión").catch(() => {});
-
-  // Autoheal sólo para fallas que el daemon PUEDE detectar recuperadas (servidor/internet).
-  // El caso "sesion" no se auto-reanuda: el daemon ve la red OK, así que la alarma
-  // reintentaría en loop contra el login. El usuario reintenta a mano tras iniciar sesión.
-  if (tipoError !== "sesion") {
-    // Creamos alarma para auto-verificación cada 12 segundos (periodInMinutes acepta decimales)
-    Programador.programar(ALARMA_AUTOHEAL, { periodoMin: PERIODO_AUTOHEAL_MIN });
-  }
-
-  Mensajeria.notificar({
-    action: "cola_pausada_por_error",
-    errorType: tipoError,
-    titulo: titulo
-  });
-}
-
-async function reanudarColaDesdeBackground() {
-  Programador.cancelar(ALARMA_AUTOHEAL);
-
-  await SessionState.set({
-    colaPausadaPorError: false,
-    tipoDeErrorConexion: "",
-    rafagaCorriendo: true
-  });
-
-  if (!loopActivo) {
-    loopActivo = true;
-    procesarSiguienteElementoDeLaCola();
-  }
-}
-
-// Escuchador de Alarma para Auto-Sanación en segundo plano (funciona incluso si el SW se suspende)
+// La alarma de auto-sanación despierta al SW; el procesador decide qué hacer con el disparo.
 Programador.onDisparo(async (nombre) => {
   if (nombre === ALARMA_AUTOHEAL) {
-    const state = await SessionState.get();
-    if (state.colaPausadaPorError) {
-      // Guarda defensiva: el caso "sesion" no debe auto-reanudarse (el daemon no puede
-      // detectar el login). No se crea alarma para él, pero si quedó una de un estado
-      // previo, se limpia acá. El usuario reanuda a mano tras iniciar sesión.
-      if (state.tipoDeErrorConexion === "sesion") {
-        Programador.cancelar(ALARMA_AUTOHEAL);
-        return;
-      }
-      try {
-        // Un solo chequeo vía el daemon (fuente única de verdad) en vez de dos ramas
-        // con lógicas distintas. Reanuda apenas vuelve la conexión que faltaba, según
-        // el tipo de error que pausó la cola. verificarAhora() también espeja el estado
-        // en chrome.storage.session, así el popup (si está abierto) lo ve.
-        await Conexion.verificarAhora();
-        const est = Conexion.get();
-        const recuperado = state.tipoDeErrorConexion === "servidor" ? est.servidor : est.internet;
-        if (recuperado) {
-          console.log(`✅ [ALARM-AUTOHEAL] Conexión (${state.tipoDeErrorConexion}) recuperada. Reanudando...`);
-          await reanudarColaDesdeBackground();
-        }
-      } catch {
-        // Sigue sin conexión/servidor
-      }
-    } else {
-      Programador.cancelar(ALARMA_AUTOHEAL);
-    }
+    await Cola.alDispararAutoheal();
   }
 });
 
