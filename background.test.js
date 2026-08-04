@@ -36,6 +36,8 @@ let programador;
 const ALARMA_AUTOHEAL = 'alarma_autoheal';
 /** Fallos registrados vía registrarFallo (historial + notificación). */
 let fallosRegistrados = [];
+/** Lo empujado a la barra de progreso de la consola del backend Bun. */
+let consolaBackend = [];
 
 /** Comportamiento configurable del motor HLS por test. */
 let motor = {};
@@ -146,6 +148,7 @@ beforeAll(async () => {
     historial: globalThis.HistorialFallos,
     notificarFallo: () => {},
     calcularMetricas: globalThis.Utils.calcularMétricasProgreso,
+    actualizarConsolaBackend: (d) => consolaBackend.push(d),
     guardarBlobLegacy: async () => {},
     persistirEstados: (e) => globalThis.EstadosProgreso.persistir(e),
     recuperarEstados: () => globalThis.EstadosProgreso.recuperar(),
@@ -184,6 +187,7 @@ beforeEach(() => {
   mensajeria.limpiarRegistro();
   programador.cancelar(ALARMA_AUTOHEAL);
   fallosRegistrados = [];
+  consolaBackend = [];
   estadoConexion = { servidor: true, internet: true, tipoFalla: null };
   // Motor por defecto: 2 fragmentos y descarga exitosa.
   motor = {
@@ -350,6 +354,14 @@ describe('bucle de descarga — camino feliz', () => {
     const progreso = mensajeria.notificados.find(m => m.action === 'update_progress_bar');
     expect(progreso).toMatchObject({ titulo: 'Clase 1', percentage: 50 });
     expect(progreso.telemetry).toMatchObject({ fragsTerminados: 1, totalFrags: 2 });
+
+    // El progreso tiene DOS destinos y sólo uno es el popup: el otro es la barra de la
+    // consola del backend Bun, que es lo único que el usuario ve con el popup cerrado.
+    // Este expect existe porque la Fase 6b se comió esa llamada al extraer el bucle y NADIE
+    // lo detectó — ni los 262 tests ni el compilador; se vio recién usando la extensión.
+    expect(consolaBackend).toContainEqual(
+      expect.objectContaining({ titulo: 'Clase 1', porcentaje: 50, terminados: 1, totales: 2 })
+    );
   });
 });
 

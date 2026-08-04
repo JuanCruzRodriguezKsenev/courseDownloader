@@ -96,6 +96,18 @@ export interface DependenciasCola {
     total: number,
     inicio: number
   ): { porcentaje: number; telemetry: { velocidadTexto: string } };
+  /**
+   * Empuja el progreso a la **consola gráfica del backend Bun** — la barra que se ve en la
+   * ventana del servidor. Es la única forma que tiene el usuario de seguir una descarga con
+   * el popup cerrado, así que no es decorativa. Best-effort: no puede frenar la ráfaga.
+   */
+  actualizarConsolaBackend(datos: {
+    titulo: string;
+    porcentaje: number;
+    terminados: number;
+    totales: number;
+    velocidad: number;
+  }): void;
   /** Capa 3, camino legacy no-Turbo: volcar el blob a disco. */
   guardarBlobLegacy(blob: Blob, subRuta: string): Promise<void>;
   /** Espejo liviano de progreso que lee el popup. */
@@ -115,6 +127,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
     historial,
     notificarFallo,
     calcularMetricas,
+    actualizarConsolaBackend,
     guardarBlobLegacy,
     persistirEstados,
     recuperarEstados,
@@ -282,6 +295,19 @@ export function crearProcesadorCola(deps: DependenciasCola) {
                 fragmentosTerminadosEnVideoActual: fragmentosTerminados,
                 velocidadMbsActual: velocidadMbs,
               });
+
+              // Barra de progreso de la consola del backend. Sólo en turbo: en el camino
+              // legacy los fragmentos no pasan por el servidor, así que no hay nada que
+              // mostrar allá.
+              if (current.modoTurboBunActivo) {
+                actualizarConsolaBackend({
+                  titulo: tituloInmutableVideo,
+                  porcentaje: progreso.porcentaje,
+                  terminados: fragmentosTerminados,
+                  totales: totalUrls,
+                  velocidad: velocidadMbs,
+                });
+              }
 
               mensajeria.notificar({
                 action: "update_progress_bar",

@@ -214,7 +214,12 @@ bucle y los handlers IPC; ahora son **estado privado** y se tocan por la API
 (`arrancarSiNoCorre` / `detener` / `abortarRafaga`). Esa guarda es lo que impide dos ráfagas
 simultáneas — que duplican descargas y se pisan el progreso — y hasta la 6b no tenía ni un test.
 
-Recibe **once colaboradores y ninguno es `chrome.*`**: los tres que tocan el navegador (la
+El progreso tiene **dos destinos**, y es fácil pensar que sólo uno: el IPC al popup y
+`actualizarConsolaBackend`, la barra de la ventana del servidor Bun — que es lo único que el
+usuario ve con el popup cerrado. Perder el segundo no rompe ninguna descarga, así que no se
+nota salvo usando la extensión (pasó en la Fase 6b; hoy tiene test).
+
+Recibe **doce colaboradores y ninguno es `chrome.*`**: los tres que tocan el navegador (la
 notificación nativa, el volcado legacy a disco y el adaptador de sitio) entran ya envueltos
 desde Capa 3 o Capa 2. Por eso el bucle entero se puede correr en un test sin navegador.
 

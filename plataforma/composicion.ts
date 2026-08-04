@@ -148,6 +148,7 @@ export const Cola = crearProcesadorCola({
   historial: HistorialFallos,
   notificarFallo,
   calcularMetricas: progreso.calcularMétricasProgreso,
+  actualizarConsolaBackend: (datos) => void BunClient.actualizarConsola(datos),
   guardarBlobLegacy: crearVolcadoLegacy(mensajeria),
   persistirEstados: (estados) => EstadosProgreso.persistir(estados),
   recuperarEstados: () => EstadosProgreso.recuperar(),

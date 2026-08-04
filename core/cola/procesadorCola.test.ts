@@ -44,6 +44,7 @@ function montar(over: Record<string, any> = {}) {
     historial: { registrar: vi.fn().mockResolvedValue({}) },
     notificarFallo: vi.fn(),
     calcularMetricas: () => ({ porcentaje: 50, telemetry: { velocidadTexto: "1.5" } }),
+    actualizarConsolaBackend: vi.fn(),
     guardarBlobLegacy: vi.fn(),
     persistirEstados: (e) => estados.persistir(e),
     recuperarEstados: () => estados.recuperar(),
