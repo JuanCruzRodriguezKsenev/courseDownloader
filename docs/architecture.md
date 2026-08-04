@@ -90,9 +90,24 @@ Lo que **todavía** habla `chrome.*` directo, por API y no por archivo:
 `popup/features/queue.js`, `core/estado/appState.ts` y `background.js` (las dos puntas) pasaron todos
 en la Fase 5c. No queda un `sendMessage`/`onMessage` crudo en el proyecto.
 
-> Cuidado al contar: los `chrome.runtime.lastError` que quedan en `popup.js` son de los
-> callbacks de `tabs`/`scripting`, no de mensajería. `lastError` es el mecanismo de error de
-> **toda** la API de callbacks de `chrome.*`, no sólo del IPC.
+Fuera de esa tabla quedan dos lugares que no son `background.js` ni `popup.js` y conviene no
+olvidar: **`sitio/ramonnet/scraper.js`**, que corre inyectado en la pestaña del portal (regla
+propia, más abajo en §Capa 2), y **`public/offscreen/offscreen.js`**, que se copia tal cual y
+no se empaqueta — por eso no puede usar imports ES y habla `chrome.runtime` directo.
+
+> Cuidado al contar, dos veces:
+>
+> 1. Los `chrome.runtime.lastError` que quedan en `popup.js` son de los callbacks de
+>    `tabs`/`scripting`, no de mensajería. `lastError` es el mecanismo de error de **toda** la
+>    API de callbacks de `chrome.*`, no sólo del IPC.
+> 2. **Un grep de `chrome.` en `core/`, en `sitio/*.ts` o en `popup/features/` devuelve sólo
+>    comentarios.** Esas capas no tienen una sola llamada; lo que aparece es prosa que nombra
+>    la API que el puerto abstrae. Contar por archivo —o por grep crudo— infla el residuo y ya
+>    hizo aparecer trabajo que no existía.
+>
+> Y el residuo que sí existe **no es deuda**: los puertos que faltan (`notifications`,
+> `tabs`/`windows`, `scripting`) están conscientemente sin construir y no bloquean nada
+> (`docs/rearquitectura-diseno.md` §El próximo paso).
 
 `core/estado/appState.ts` fue el primero de la Fase 5b: ya no toca `chrome.storage` (recibe el puerto
 por inyección). El `sendMessage` de `sincronizarConBackground()` —que es **IPC y no
@@ -142,6 +157,22 @@ historia de qué se migró en qué fase no está acá: vive en `docs/rearquitect
   región de la que el código vanilla **no** guarde referencias `nodos.*` (refs colgadas), y un
   puente de store respaldado por storage (`campanita` ← `core/historial/historialFallos.ts`)
   no se comporta como un `window.X` efímero: lo escribe el SW.
+
+- **El CSS: una sola cadena de `@import`.** Hay exactamente **un** `<link rel="stylesheet">` en
+  toda la extensión — `entrypoints/popup/index.html` → `popup/globals.css`, que no tiene reglas
+  propias: es una cadena ordenada de `@import` que Vite empaqueta en un único
+  `assets/popup-*.css`. Las reglas viven en `styles/`, en la raíz del repo: `variables.css`
+  (tokens de diseño) y `base.css` primero, después un archivo por componente en
+  `styles/components/`, y `list.css` al final.
+
+  | Regla | Por qué |
+  |---|---|
+  | Una región de UI nueva necesita `styles/components/<nombre>.css` **y** su línea de `@import` en `popup/globals.css` | Sin el segundo paso el archivo **nunca se empaqueta**. No falla nada: la UI simplemente sale sin estilos. |
+  | El orden de los `@import` importa | Es cascada, no globals — pero se rompe igual de callado que el orden de imports del entrypoint. |
+  | Las islas Preact dejan inline **sólo** lo *computado* (`style=${...}` para un transform, un cursor, un highlight por fila) | Su apariencia estática va a `styles/components/`, o el estilo del componente queda partido en dos lugares. |
+
+  El split genérico-vs-sitio que la Fase 6c había diseñado para estos archivos se **evaluó y se
+  descartó** — rationale en `docs/rearquitectura-diseno.md` §Registro de la Fase 6c.
 
 ### Service worker
 
@@ -320,6 +351,27 @@ es lo que mantiene perezosas las puertas en vez de atarlas al orden de carga del
 Son `resolverManifiesto.js` (HTML de la clase → `.m3u8`), `parserTitulos.js` (parser de
 títulos/cátedra) y `scraper.js` (scraper del DOM), alcanzados vía
 `SitioActivo.resolverManifiesto` / `.parsearTitulo` / `.clasificarCarpeta` / `.escanearListado`.
+
+**Cómo resuelve `ResolverManifiesto.resolver`, y por qué es el primer sospechoso cuando una
+descarga trae el video equivocado.** El camino principal **no** parsea el manifiesto: extrae el
+`<iframe>` activo que apunta a `b-cdn.net`/`mediadelivery.net`, le saca el hash UUID y
+**construye la URL** con la `plantillaM3u8` del descriptor (`vz-c3e7bda8-f29.b-cdn.net/{hash}/480p/video.m3u8`).
+Sólo si el match del iframe falla cae a **tres barridos de regex progresivamente más laxos**
+sobre el HTML crudo. Las consecuencias de ese diseño:
+
+- **Es frágil ante cambios de markup del portal**, por construcción — depende de la forma del
+  iframe, no de un contrato. Si las descargas empiezan a resolver el video de otra clase, se
+  mira acá antes que en el motor: el motor ya recibe la URL resuelta y no tiene cómo equivocarse.
+- **Los fallbacks degradan en silencio**: son más laxos, así que pueden *acertar* con el video
+  de otra clase de la misma página en vez de fallar. Un fallback que devuelve algo no es señal
+  de que el camino principal siga sano.
+- La calidad está **fijada en `480p`** dentro de la plantilla; no se negocia leyendo el
+  manifiesto maestro.
+- Hace `fetch(..., { credentials: "include" })` contra el portal a propósito (rationale y
+  encuadre de CSRF → `docs/security.md`), y de ahí sale la detección de sesión caída:
+  si la URL final perdió `/clases-grabadas/`, lanza `err.tipoConexion = "sesion"`
+  (el caso `"sesion"` y por qué se clasifica antes de consultar al daemon →
+  `docs/patterns.md` §Circuit breaker ad-hoc).
 
 **`scraper.js` juega con una regla propia, y es la que más fácil se rompe sin querer.** Su
 `escanearAulaVirtual` no se ejecuta acá: `popup.js` la inyecta con

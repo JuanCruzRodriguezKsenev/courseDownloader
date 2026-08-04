@@ -514,7 +514,7 @@ Capa 1. El resto del popup ya era genérico: `faceta.js` y `filters.js` leen por
 
 ### Registro de la Fase 6 — el motor a `core/hls/` (2026-08-03)
 
-- **La medición previa (§Fase 6a) subestimó el corte, y vale entender por qué.** Decía "241
+- **La medición previa —la que destapó la 6a— subestimó el corte, y vale entender por qué.** Decía "241
   líneas, cero `chrome.*`, sólo depende de `Utils` y `BunClient`". Cierto pero incompleto: el
   grep que lo midió buscaba usos con punto (`Utils.`, `BunClient.`) y el motor tenía **dos
   dependencias más con el service worker escritas como identificadores pelados** —
@@ -649,7 +649,8 @@ en el tramo intermedio (en `state.js` no pasaba: `conexion.js` y `bunClient.ts` 
 | 5a — `PuertoAlmacenamiento` + adaptador Chrome + adaptador en memoria + 1er consumidor migrado (historial de fallos) | ✅ Hecha (2026-08-02) |
 | 5b — `PuertoAlmacenamiento`: adaptadores + **todos** los consumidores | ✅ **Completa** (2026-08-03) — historial de fallos, `AppState`, daemon de conexión y `background.js`. No queda ni un `chrome.storage` en el proyecto. (`queue.js` figuraba acá por error: sus usos eran IPC → Fase 5c.) |
 | 5c — `PuertoMensajeria` (IPC) + `PuertoProgramador` (alarmas) + sus adaptadores | ✅ **Completa** (2026-08-03) — `PuertoMensajeria` ✅ con sus dos adaptadores; migrados `queue.js` y `popup.js` (2026-08-03). Se sumó `PuertoSitio` + `sitio/ramonnet/config.ts` (2026-08-03), que destapó el tapón de `allowJs` y habilitó la mudanza del daemon de conexión a `core/conexion/` (2026-08-03). Migrado también el IPC de `shared/state.ts` (2026-08-03): fuera de `background.js` ya no queda un solo `sendMessage` crudo. `PuertoProgramador` ✅ con sus dos adaptadores, y los 8 `chrome.alarms` del SW migrados. Cierra con el IPC de `background.js` en sus dos puntas: **no queda `sendMessage`/`onMessage` crudo en el proyecto**. Lo que sigue en `chrome.*` no espera a esta fase: `notifications`, `tabs`/`windows`, `scripting` y el camino legacy `downloads`/`offscreen` |
-| 6 — Motor HLS → `core/hls/` | ⏳ No iniciada |
+| 6a — `Utils` repartido (`core/util/` + `plataforma/chrome/`), `shared/` deja de existir | ✅ **Hecha** (2026-08-03). No estaba en el plan: apareció midiendo la 6, como su prerrequisito — el motor no podía aterrizar en `core/` mientras dependiera de un `Utils` que era un `.js` global (la regla de `allowJs`). Con la carpeta vacía, `shared/` salió del `include` de `tsconfig.json`. |
+| 6 — Motor HLS → `core/hls/` | ✅ **Hecha** (2026-08-03) — `core/hls/hlsEngine.ts`, con el pool de 6 workers y el reintento 4xx cubiertos. Las dos dependencias con el SW que la medición previa no vio (`SessionState`, `controladorGraficoActivo`) se cortaron en parámetros. Detalle en §Registro de la Fase 6. |
 | 6b — Cola de descarga → `core/cola/` | ✅ **Hecha** (2026-08-04, en dos tramos: `SessionState` primero, el bucle después). `background.js` pasó de 958 a 451 líneas. Salieron con él `core/cola/estadosProgreso.ts`, `plataforma/chrome/notificaciones.ts` y `plataforma/chrome/volcadoLegacy.ts`. Nota original: Va **después** de la 6 (el bucle maneja al motor) y de que el SW tenga sus puertos (5c: IPC receptor + alarmas). Es el bloque de lógica más grande que queda sin migrar, y ya tiene red: los 12 tests de caracterización del bucle y el auto-heal de `background.test.js`. |
 | 6c — UI: split genérico vs. de sitio | ✅ **Hecha** (2026-08-04), y resultó ser **mucho más chica de lo diseñado**: no hubo nada que partir. La UI ya era genérica salvo el copy del onboarding, que se parametrizó por `PuertoSitio.nombre`. El split de carpetas y el BEM/co-locación de CSS quedan **explícitamente descartados** — ver §Fase 6c. |
 | 7 — Entrypoints (composición) | ⏳ No iniciada |
@@ -660,6 +661,14 @@ en el tramo intermedio (en `state.js` no pasaba: `conexion.js` y `bunClient.ts` 
 vanilla") las daba por implícitas. Se agregan como cortes propios para que el plan y la
 estructura objetivo digan lo mismo. La numeración con sufijo sigue la de 5a/5b/5c y no
 renumera nada.
+
+**La 6a apareció distinto (2026-08-03)**: no la reclamaba la estructura objetivo sino la
+medición de la 6, que la encontró como prerrequisito duro. Se ejecutó y cerró el mismo día,
+pero su fila se agregó a esta tabla recién el **2026-08-04** — junto con la de la 6, que había
+quedado en "⏳ No iniciada" estando hecha desde el 2026-08-03. Es la falla que esta tabla puede
+tener y el resto del doc no: `CLAUDE.md` delega acá el estado por fase, así que una fila sin
+actualizar es la única versión que ve una sesión nueva. **Al cerrar un corte, la fila se toca
+en el mismo cambio que el §Registro.**
 
 ## Verificación en navegador — ✅ corrida y pasada (2026-08-02)
 

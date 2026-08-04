@@ -19,8 +19,11 @@ usar) se limpiaron con `catch {}` y prefijo `_`, sin tocar comportamiento.
 
 **Ojo con el alcance de `tsc`, que no es automático**: `allowJs` está en `false` y los dos
 entrypoints son `.js`, así que `tsc` los saltea junto con todo su grafo de imports. Lo que
-realmente typechequea es el `include` de `tsconfig.json` — hoy `core/`, `shared/`,
-`plataforma/` y `sitio/` (40 archivos). **`shared/` salió del `include` en la Fase 6a: la carpeta dejó de existir.** Una carpeta con `.ts` que no esté listada pasa la compuerta en
+realmente typechequea es el `include` de `tsconfig.json` — hoy `core/`, `plataforma/` y
+`sitio/`: **39 archivos de fuente** (31 + 7 + 1, medidos con `--listFiles` el 2026-08-04).
+**`shared/` salió del `include` en la Fase 6a: la carpeta dejó de existir.** `entrypoints/`
+figura en la lista pero **aporta cero archivos** — los dos son `.js`, y ahí está la trampa, no
+la salida. Una carpeta con `.ts` que no esté listada pasa la compuerta en
 verde sin que nadie la mire; fue el caso de `shared/` y `plataforma/` entre la Fase 5b y el
 2026-08-03 (ver `docs/TECHNICAL_DEBT.md` §Testing). Al migrar `.ts` a una raíz nueva,
 agregala al `include` y confirmá con `npx tsc --noEmit --listFiles`.
