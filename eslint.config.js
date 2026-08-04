@@ -18,16 +18,14 @@ const globalesDelProyecto = {
   BunClient: "readonly",
   Conexion: "readonly",
   HistorialFallos: "readonly",
-  // Puertos (Fases 5b/5c): los publica plataforma/composicion.ts. Almacenamiento y
-  // Programador los consume background.js; Mensajeria, popup.js (que se lo pasa por ctx a
-  // las features).
-  Almacenamiento: "readonly",
+  // Puerto de mensajería: lo publica plataforma/composicion.ts y lo lee popup.js, que se lo
+  // pasa por ctx a las features. Se va con la Fase 7b.
+  //
+  // Los seis que estaban acá —Almacenamiento, Programador, SessionState, EstadosProgreso,
+  // Cola, HlsEngine— salieron en la Fase 7a: su único consumidor era background.js, que
+  // ahora los recibe por parámetro. Ya no son globals cross-archivo, así que declararlos
+  // volvería a permitir leerlos de globalThis sin que no-undef diga nada.
   Mensajeria: "readonly",
-  Programador: "readonly",
-  SessionState: "readonly",
-  EstadosProgreso: "readonly",
-  Cola: "readonly",
-  HlsEngine: "readonly",
   AppState: "readonly",
   Renderers: "readonly",
   Scraper: "readonly",
@@ -104,16 +102,10 @@ module.exports = [
     },
   },
 
-  // SW: el motor HLS veía los top-level de background.js cuando se cargaba por
-  // importScripts. Desde la Fase 6 vive en core/hls/hlsEngine.ts y los recibe por
-  // parámetro (`contexto`, `abortarHermanos`), así que esto ya sólo cubre a
-  // background.js consumiendo sus propios globals del SW.
-  {
-    files: ["background.js"],
-    languageOptions: {
-      globals: { SessionState: "readonly", controladorGraficoActivo: "readonly" },
-    },
-  },
+  // (Acá había un bloque que le declaraba a background.js dos globals propios del SW,
+  // `SessionState` y `controladorGraficoActivo`. Los dos murieron: el segundo se fue con el
+  // bucle a core/cola/ en la Fase 6b, y el primero pasó a entrar por parámetro en la 7a.
+  // El SW ya no lee un solo global.)
 
   // El propio config de ESLint corre en Node (CommonJS).
   {

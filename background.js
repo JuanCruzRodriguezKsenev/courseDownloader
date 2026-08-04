@@ -1,6 +1,21 @@
 /**
- * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V6.2.0)
+ * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V7.0.0)
  * ==========================================================================
+ * CHANGELOG v7.0.0:
+ * - [FASE 7A] El SW deja de leer globals: exporta `iniciarServiceWorker(deps)` y recibe sus
+ *   8 colaboradores por parámetro. Los llamaba por `globalThis` en 33 lugares; ahora entran
+ *   una vez y el resto del archivo los usa por closure, así que el diff es de cableado y no
+ *   de lógica. Con esto `plataforma/composicion.ts` deja de publicar SEIS globals
+ *   (`Almacenamiento`, `Programador`, `SessionState`, `EstadosProgreso`, `Cola`, `HlsEngine`):
+ *   la medición mostró que `background.js` era su ÚNICO consumidor de producción.
+ * - [FASE 7A] `HlsEngine` ya estaba muerto como global desde la Fase 6b —el motor entra al
+ *   procesador de cola por inyección— pero la composición lo seguía publicando con un
+ *   comentario que decía que el SW lo consumía. Nadie lo leía.
+ * - [FASE 7A] **El momento de registro de los listeners no cambia.** `iniciarServiceWorker`
+ *   se llama desde el top-level de `entrypoints/background.js`, igual que antes se evaluaba
+ *   este archivo: MV3 exige que `onInstalled`/`onClicked`/`onMensaje` se registren
+ *   sincrónicamente al arrancar el worker, y meterlos en el callback de `defineBackground`
+ *   —o detrás de un `await`— los perdería en el primer arranque en frío.
  * CHANGELOG v6.2.0:
  * - [FASE 5C] El IPC del SW pasa entero al PuertoMensajeria, las DOS puntas: el receptor
  *   (`chrome.runtime.onMessage` → `Mensajeria.onMensaje`, conservando el contrato del
@@ -150,303 +165,329 @@
  * ==========================================================================
  */
 
-// El adaptador de sitio (Capa 2) va primero: el daemon de conexión y el loop de descarga
-// leen de él la URL de sondeo y la resolución del manifiesto. Ver ADR-0008.
-// Las dependencias del SW las carga `entrypoints/background.js` como módulos ES antes
-// de este archivo (el bundler arma el grafo). Acá no queda nada que importar: el
-// `importScripts(...)` que había existía para el SW clásico que se cargaba desde la raíz
-// del repo, camino que desapareció al empaquetar con WXT (Fase 3).
-
-// `SessionState` (estado de la ráfaga), el bucle de descarga y la alarma de auto-sanación se
-// fueron a `core/cola/` en la Fase 6b y llegan como globals desde la composición. El nombre
-// de la alarma se importa de ahí para que no puedan divergir dos literales.
+// El nombre de la alarma de auto-sanación. Es constante de módulo (no del closure) porque no
+// depende de ninguna dependencia inyectada y el procesador de cola usa el mismo literal.
 const ALARMA_AUTOHEAL = "alarma_autoheal";
 
-// Sincronizar bandera de motor y reanudar si es necesario al despertar/cargar el SW.
-// `arrancarSiNoCorre()` trae adentro la guarda que antes era `if (!loopActivo)`: es lo que
-// impide que despertar dos veces deje dos ráfagas corriendo en paralelo.
-(async () => {
-  await SessionState.set({ modoTurboBunActivo: true });
+/**
+ * Arranca el service worker con sus dependencias ya resueltas.
+ *
+ * **Esto es la Fase 7 desde el lado del SW**: el archivo no busca más nada en `globalThis`.
+ * Quien elige los adaptadores concretos es `plataforma/composicion.ts`, y quien los enchufa
+ * acá es `entrypoints/background.js` — que llama a esta función en su top-level, no dentro de
+ * un callback ni detrás de un `await`, porque MV3 exige que los listeners queden registrados
+ * en el arranque sincrónico del worker.
+ *
+ * Lo que queda adentro es deliberadamente **cableado con `chrome.*`**: los handlers IPC, los
+ * listeners que todavía no tienen puerto (`onInstalled`, `notifications.onClicked`,
+ * `tabs`/`windows`) y el rearme al despertar. La lógica de descarga no vive acá desde la
+ * Fase 6b (`core/cola/procesadorCola.ts`).
+ *
+ * @param {object} deps
+ * @param {object} deps.almacenamiento  PuertoAlmacenamiento (local + sesión).
+ * @param {object} deps.mensajeria      PuertoMensajeria: el receptor IPC del SW.
+ * @param {object} deps.programador     PuertoProgramador: la alarma de auto-sanación.
+ * @param {object} deps.sesion          `SessionState` — estado de la ráfaga activa.
+ * @param {object} deps.estadosProgreso Espejo de SW_ESTADOS_PROGRESO.
+ * @param {object} deps.cola            Procesador de la cola (`core/cola/procesadorCola.ts`).
+ * @param {object} deps.backend         Cliente del backend Bun (para cancelar la descarga).
+ * @param {object} deps.sitio           Adaptador de sitio: patrón de pestañas + URL del portal.
+ */
+export function iniciarServiceWorker({
+  almacenamiento,
+  mensajeria,
+  programador,
+  sesion,
+  estadosProgreso,
+  cola,
+  backend,
+  sitio,
+}) {
+  // Los helpers de progreso (SW_ESTADOS_PROGRESO) y el volcado legacy a disco (offscreen +
+  // chrome.downloads) se fueron en la Fase 6b a `core/cola/estadosProgreso.ts` y
+  // `plataforma/chrome/volcadoLegacy.ts`. Acá quedan estos dos alias por legibilidad.
+  const persistirEstadoFondo = (estados) => estadosProgreso.persistir(estados);
+  const recuperarEstadoFondo = () => estadosProgreso.recuperar();
 
-  const state = await SessionState.get();
-  if (state.rafagaCorriendo && !Cola.estaActivo()) {
-    console.log("🔄 [SW-ENGINE] Service Worker despertó con descarga pendiente. Reanudando...");
-    Cola.arrancarSiNoCorre();
-  }
-})();
-
-chrome.runtime.onInstalled.addListener(async (_details) => {
-  console.log("🔌 [SW] Extensión instalada/actualizada/recargada. Restableciendo estados de descarga...");
-  await SessionState.set({
-    rafagaCorriendo: false,
-    videoActualTitulo: "",
-    videoActualSessionId: ""
-  });
-  await persistirEstadoFondo({});
-});
-
-// Los helpers de progreso (SW_ESTADOS_PROGRESO) y el volcado legacy a disco (offscreen +
-// chrome.downloads) se fueron en la Fase 6b a `core/cola/estadosProgreso.ts` y
-// `plataforma/chrome/volcadoLegacy.ts`. Acá se consumen por los globals de la composición.
-const persistirEstadoFondo = (estados) => EstadosProgreso.persistir(estados);
-const recuperarEstadoFondo = () => EstadosProgreso.recuperar();
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Handlers IPC despachados por acción (dict {accion: handler} en vez de una
-// cadena de if — ver docs/patterns.md §IPC). Cada handler es async (request,
-// sendResponse); el listener los envuelve en un IIFE async + try/catch global y
-// devuelve true síncrono para mantener el canal abierto a una respuesta async.
-// El estado del bucle (`loopActivo`, el AbortController de la ráfaga) ya no vive acá: es
-// privado de `core/cola/procesadorCola.ts` y se toca por su API (`arrancarSiNoCorre`,
-// `detener`, `abortarRafaga`). El objeto se exporta para tests.
-// ─────────────────────────────────────────────────────────────────────────────
-const manejadoresIPC = {
-  // ─── ESCANEO DE CARPETA LOCAL OPTIMIZADO NATIVO ────────────────────────
-  async escanear_carpeta_local(request, sendResponse) {
-    const materiaObjetivo = request.carpeta ? request.carpeta.trim().toLowerCase() : "";
-    const limiteHorizonte = new Date();
-    limiteHorizonte.setDate(limiteHorizonte.getDate() - 30);
-
-    try {
-      const items = await chrome.downloads.search({
-        state: "complete",
-        startedAfter: limiteHorizonte.toISOString()
-      });
-
-      const nombresProcesados = (items || [])
-        .filter(item => item && item.filename)
-        .filter(item => {
-          const rutaFisicaNormalizada = item.filename.toLowerCase().replace(/\\/g, '/');
-          if (!materiaObjetivo) return true;
-          return rutaFisicaNormalizada.includes(`/${materiaObjetivo}/`);
-        })
-        .map(item => {
-          const nombreArchivoConExt = item.filename.split(/[\\/]/).pop();
-          return nombreArchivoConExt.replace(/\.[^/.]+$/, "").toLowerCase().trim();
-        })
-        .filter(nombre => nombre.length > 0);
-
-      sendResponse({ archivos: nombresProcesados });
-    } catch {
-      sendResponse({ archivos: [] });
-    }
-  },
-
-  // ─── ESTADO EN PROGRESO ───────────────────────────────────────────────────
-  async obtener_estados_en_progreso(request, sendResponse) {
-    const estados = await recuperarEstadoFondo();
-    const state = await SessionState.get();
-    return sendResponse({
-      estados: estados,
-      suaveFrenado: state.frenadoSuaveSolicitado,
-      videoActual: state.videoActualTitulo,
-      colaPausadaPorError: state.colaPausadaPorError,
-      tipoDeErrorConexion: state.tipoDeErrorConexion,
-      enColaTamano: state.totalFragmentosEnVideoActual > 0 ? 1 : 0,
-      porcentaje: state.totalFragmentosEnVideoActual > 0 ? Math.floor((state.fragmentosTerminadosEnVideoActual / state.totalFragmentosEnVideoActual) * 100) : 0,
-      telemetry: {
-        bytesProcesados: state.bytesProcesadosEnVideoActual,
-        fragsTerminados: state.fragmentosTerminadosEnVideoActual,
-        totalFrags:      state.totalFragmentosEnVideoActual,
-        velocidadMbs:    state.velocidadMbsActual,
-      }
-    });
-  },
-
-  // ─── INYECCIÓN EN COLA ATÓMICA ──────────────────────────────────────────
-  async inyectar_items_en_cola_activa(request, sendResponse) {
-    const data = await Almacenamiento.obtenerLocal(['listaPersistente', 'colaDescargas', 'SW_ESTADOS_PROGRESO']);
-    const listaCompleta = data.listaPersistente || [];
-    const colaDescargas = data.colaDescargas || [];
-    const estados = data.SW_ESTADOS_PROGRESO || {};
-
-    request.items.forEach(item => {
-      estados[item.titulo] = 'process';
-
-      // Asegurar inserción en el array desacoplado
-      if (!colaDescargas.some(c => c.titulo === item.titulo)) {
-        colaDescargas.push(item);
-      }
-
-      // También actualizar estado en la lista persistente local
-      const claseMatch = listaCompleta.find(c => c.titulo === item.titulo);
-      if (claseMatch) {
-        claseMatch.estado = 'process';
-        claseMatch.carpeta = item.carpeta;
-      }
-    });
-
-    await Almacenamiento.guardarLocal({
-      listaPersistente: listaCompleta,
-      colaDescargas: colaDescargas,
-      SW_ESTADOS_PROGRESO: estados
-    });
-    return sendResponse({ status: "encolados_ok" });
-  },
-
-  // ─── REMOCIÓN SILENCIOSA EN COLA ──────────────────────────────────────────
-  async remover_item_de_cola(request, sendResponse) {
-    const data = await Almacenamiento.obtenerLocal(['listaPersistente', 'colaDescargas', 'SW_ESTADOS_PROGRESO']);
-    const listaCompleta = data.listaPersistente || [];
-    let colaDescargas = data.colaDescargas || [];
-    const estados = data.SW_ESTADOS_PROGRESO || {};
-
-    colaDescargas = colaDescargas.filter(c => c.titulo !== request.titulo);
-    delete estados[request.titulo];
-
-    const match = listaCompleta.find(c => c.titulo === request.titulo);
-    if (match) {
-      match.estado = 'pending';
-    }
-
-    await Almacenamiento.guardarLocal({
-      listaPersistente: listaCompleta,
-      colaDescargas: colaDescargas,
-      SW_ESTADOS_PROGRESO: estados
-    });
-    return sendResponse({ status: "removido_ok" });
-  },
-
-  // ─── INICIO DE COLA ────────────────────────────────────────────────────────
-  async iniciar_descarga_cola(request, sendResponse) {
-    const state = await SessionState.get();
-    if (!state.rafagaCorriendo) {
-      await SessionState.set({
-        rafagaCorriendo: true,
-        frenadoSuaveSolicitado: false,
-        modoTurboBunActivo: true,
-        colaPausadaPorError: false,
-        tipoDeErrorConexion: "",
-        abortadoPorUsuario: false
-      });
-
-      Programador.cancelar(ALARMA_AUTOHEAL);
-      Cola.arrancarSiNoCorre();
-    }
-    return sendResponse({ status: "rafaga_iniciada" });
-  },
-
-  // ─── FRENADO SUAVE ────────────────────────────────────────────────────────
-  async activar_frenado_suave(request, sendResponse) {
-    await SessionState.set({ frenadoSuaveSolicitado: true });
-    return sendResponse({ status: "freno_suave_recibido" });
-  },
-
-  // ─── ABORT INMEDIATO ──────────────────────────────────────────────────────
-  async abortar_rafaga_inmediata(request, sendResponse) {
-    const state = await SessionState.get();
-    const titulo = state.videoActualTitulo;
-    const sessionId = state.videoActualSessionId || "";
-
-    await SessionState.set({
-      rafagaCorriendo: false,
-      frenadoSuaveSolicitado: false,
-      videoActualTitulo: "",
-      videoActualSessionId: "",
-      colaPausadaPorError: false,
-      tipoDeErrorConexion: "",
-      abortadoPorUsuario: true
-    });
-    Cola.abortarRafaga();
-    Programador.cancelar(ALARMA_AUTOHEAL);
-
-    if (titulo) {
-      await BunClient.cancelarDescarga(titulo, sessionId);
-    }
-
-    // También resetear las clases en la cola a pending
-    const data = await Almacenamiento.obtenerLocal(['listaPersistente', 'colaDescargas']);
-    const listaCompleta = data.listaPersistente || [];
-    const colaDescargas = data.colaDescargas || [];
-
-    colaDescargas.forEach(item => {
-      const match = listaCompleta.find(c => c.titulo === item.titulo);
-      if (match) match.estado = 'pending';
-    });
-
-    // Escritura atómica: el abort limpia el progreso (SW_ESTADOS_PROGRESO: {}) y
-    // resetea las clases de la cola a 'pending' en un solo .set(), sin ventana
-    // intermedia donde el progreso ya esté vacío pero la lista aún no reseteada.
-    await Almacenamiento.guardarLocal({
-      listaPersistente: listaCompleta,
-      colaDescargas: colaDescargas,
-      SW_ESTADOS_PROGRESO: {}
-    });
-
-    return sendResponse({ status: "abortado_ok" });
-  },
-
-  // ─── LIMPIEZA DE ESTADOS ──────────────────────────────────────────────────
-  async limpiar_estados_progreso(request, sendResponse) {
-    await SessionState.set({
-      rafagaCorriendo: false,
-      frenadoSuaveSolicitado: false,
-      videoActualTitulo: "",
-      colaPausadaPorError: false,
-      tipoDeErrorConexion: ""
-    });
-    Cola.detener();
-    Programador.cancelar(ALARMA_AUTOHEAL);
-    await persistirEstadoFondo({});
-    await Almacenamiento.guardarLocal({ colaDescargas: [] });
-    return sendResponse({ status: "limpio_ok" });
-  }
-};
-
-// Listener principal síncrono para mantener canal IPC.
-// Va por el PuertoMensajeria (Fase 5c). La forma se conserva tal cual, incluido el contrato
-// del `true`/`false` de retorno: el puerto lo respeta a propósito porque es lo que mantiene
-// abierto el canal para una respuesta asíncrona, y cambiarlo acá habría sido rediseñar el
-// despacho en el mismo corte que la migración.
-Mensajeria.onMensaje((request, responder) => {
-  const manejador = request && manejadoresIPC[request.action];
-  if (!manejador) {
-    return false;
-  }
-
+  // Sincronizar bandera de motor y reanudar si es necesario al despertar/cargar el SW.
+  // `arrancarSiNoCorre()` trae adentro la guarda que antes era `if (!loopActivo)`: es lo que
+  // impide que despertar dos veces deje dos ráfagas corriendo en paralelo.
   (async () => {
-    try {
-      await manejador(request, responder);
-    } catch (errGlobal) {
-      console.error("❌ [IPC-SW-ERROR] Falló procesamiento de mensaje interno:", errGlobal);
+    await sesion.set({ modoTurboBunActivo: true });
+
+    const state = await sesion.get();
+    if (state.rafagaCorriendo && !cola.estaActivo()) {
+      console.log("🔄 [SW-ENGINE] Service Worker despertó con descarga pendiente. Reanudando...");
+      cola.arrancarSiNoCorre();
     }
   })();
 
-  return true;
-});
+  chrome.runtime.onInstalled.addListener(async (_details) => {
+    console.log("🔌 [SW] Extensión instalada/actualizada/recargada. Restableciendo estados de descarga...");
+    await sesion.set({
+      rafagaCorriendo: false,
+      videoActualTitulo: "",
+      videoActualSessionId: ""
+    });
+    await persistirEstadoFondo({});
+  });
 
-// ============================================================================
-// El BUCLE DE DESCARGA vive en `core/cola/procesadorCola.ts` desde la Fase 6b: el FIFO, la
-// clasificación de los cuatro tipos de fallo, la pausa, el freno suave y la auto-sanación.
-// Con él se fueron `loopActivo` y `controladorGraficoActivo`, que eran variables de módulo
-// compartidas entre el bucle y los handlers IPC — ahora son estado privado del procesador y
-// se tocan por su API. Acá queda sólo el cableado con `chrome.*`.
-// ============================================================================
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Handlers IPC despachados por acción (dict {accion: handler} en vez de una
+  // cadena de if — ver docs/patterns.md §IPC). Cada handler es async (request,
+  // sendResponse); el listener los envuelve en un IIFE async + try/catch global y
+  // devuelve true síncrono para mantener el canal abierto a una respuesta async.
+  // El estado del bucle (`loopActivo`, el AbortController de la ráfaga) ya no vive acá: es
+  // privado de `core/cola/procesadorCola.ts` y se toca por su API (`arrancarSiNoCorre`,
+  // `detener`, `abortarRafaga`). El objeto se exporta para tests.
+  // ─────────────────────────────────────────────────────────────────────────────
+  const manejadoresIPC = {
+    // ─── ESCANEO DE CARPETA LOCAL OPTIMIZADO NATIVO ────────────────────────
+    async escanear_carpeta_local(request, sendResponse) {
+      const materiaObjetivo = request.carpeta ? request.carpeta.trim().toLowerCase() : "";
+      const limiteHorizonte = new Date();
+      limiteHorizonte.setDate(limiteHorizonte.getDate() - 30);
 
-// La alarma de auto-sanación despierta al SW; el procesador decide qué hacer con el disparo.
-Programador.onDisparo(async (nombre) => {
-  if (nombre === ALARMA_AUTOHEAL) {
-    await Cola.alDispararAutoheal();
-  }
-});
+      try {
+        const items = await chrome.downloads.search({
+          state: "complete",
+          startedAfter: limiteHorizonte.toISOString()
+        });
 
-// Click en la notificación nativa de fallo → enfocar la pestaña de Ramón Net (o abrirla
-// si no hay ninguna). Da un follow-up accionable: el usuario revisa/reintenta la clase.
-// La guarda evita que un chrome.notifications ausente tire durante la evaluación del SW
-// (rompería la carga entera del service worker).
-if (typeof chrome !== "undefined" && chrome.notifications && chrome.notifications.onClicked) {
-  chrome.notifications.onClicked.addListener(async (notificationId) => {
-    chrome.notifications.clear(notificationId);
-    try {
-      const [tab] = await chrome.tabs.query({ url: SitioActivo.patronPestañas });
-      if (tab) {
-        await chrome.tabs.update(tab.id, { active: true });
-        await chrome.windows.update(tab.windowId, { focused: true });
-      } else {
-        await chrome.tabs.create({ url: SitioActivo.urlSondeoInternet });
+        const nombresProcesados = (items || [])
+          .filter(item => item && item.filename)
+          .filter(item => {
+            const rutaFisicaNormalizada = item.filename.toLowerCase().replace(/\\/g, '/');
+            if (!materiaObjetivo) return true;
+            return rutaFisicaNormalizada.includes(`/${materiaObjetivo}/`);
+          })
+          .map(item => {
+            const nombreArchivoConExt = item.filename.split(/[\\/]/).pop();
+            return nombreArchivoConExt.replace(/\.[^/.]+$/, "").toLowerCase().trim();
+          })
+          .filter(nombre => nombre.length > 0);
+
+        sendResponse({ archivos: nombresProcesados });
+      } catch {
+        sendResponse({ archivos: [] });
       }
-    } catch (e) {
-      console.warn("[SW] No se pudo enfocar/abrir la pestaña de Ramón Net:", e);
+    },
+
+    // ─── ESTADO EN PROGRESO ───────────────────────────────────────────────────
+    async obtener_estados_en_progreso(request, sendResponse) {
+      const estados = await recuperarEstadoFondo();
+      const state = await sesion.get();
+      return sendResponse({
+        estados: estados,
+        suaveFrenado: state.frenadoSuaveSolicitado,
+        videoActual: state.videoActualTitulo,
+        colaPausadaPorError: state.colaPausadaPorError,
+        tipoDeErrorConexion: state.tipoDeErrorConexion,
+        enColaTamano: state.totalFragmentosEnVideoActual > 0 ? 1 : 0,
+        porcentaje: state.totalFragmentosEnVideoActual > 0 ? Math.floor((state.fragmentosTerminadosEnVideoActual / state.totalFragmentosEnVideoActual) * 100) : 0,
+        telemetry: {
+          bytesProcesados: state.bytesProcesadosEnVideoActual,
+          fragsTerminados: state.fragmentosTerminadosEnVideoActual,
+          totalFrags:      state.totalFragmentosEnVideoActual,
+          velocidadMbs:    state.velocidadMbsActual,
+        }
+      });
+    },
+
+    // ─── INYECCIÓN EN COLA ATÓMICA ──────────────────────────────────────────
+    async inyectar_items_en_cola_activa(request, sendResponse) {
+      const data = await almacenamiento.obtenerLocal(['listaPersistente', 'colaDescargas', 'SW_ESTADOS_PROGRESO']);
+      const listaCompleta = data.listaPersistente || [];
+      const colaDescargas = data.colaDescargas || [];
+      const estados = data.SW_ESTADOS_PROGRESO || {};
+
+      request.items.forEach(item => {
+        estados[item.titulo] = 'process';
+
+        // Asegurar inserción en el array desacoplado
+        if (!colaDescargas.some(c => c.titulo === item.titulo)) {
+          colaDescargas.push(item);
+        }
+
+        // También actualizar estado en la lista persistente local
+        const claseMatch = listaCompleta.find(c => c.titulo === item.titulo);
+        if (claseMatch) {
+          claseMatch.estado = 'process';
+          claseMatch.carpeta = item.carpeta;
+        }
+      });
+
+      await almacenamiento.guardarLocal({
+        listaPersistente: listaCompleta,
+        colaDescargas: colaDescargas,
+        SW_ESTADOS_PROGRESO: estados
+      });
+      return sendResponse({ status: "encolados_ok" });
+    },
+
+    // ─── REMOCIÓN SILENCIOSA EN COLA ──────────────────────────────────────────
+    async remover_item_de_cola(request, sendResponse) {
+      const data = await almacenamiento.obtenerLocal(['listaPersistente', 'colaDescargas', 'SW_ESTADOS_PROGRESO']);
+      const listaCompleta = data.listaPersistente || [];
+      let colaDescargas = data.colaDescargas || [];
+      const estados = data.SW_ESTADOS_PROGRESO || {};
+
+      colaDescargas = colaDescargas.filter(c => c.titulo !== request.titulo);
+      delete estados[request.titulo];
+
+      const match = listaCompleta.find(c => c.titulo === request.titulo);
+      if (match) {
+        match.estado = 'pending';
+      }
+
+      await almacenamiento.guardarLocal({
+        listaPersistente: listaCompleta,
+        colaDescargas: colaDescargas,
+        SW_ESTADOS_PROGRESO: estados
+      });
+      return sendResponse({ status: "removido_ok" });
+    },
+
+    // ─── INICIO DE COLA ────────────────────────────────────────────────────────
+    async iniciar_descarga_cola(request, sendResponse) {
+      const state = await sesion.get();
+      if (!state.rafagaCorriendo) {
+        await sesion.set({
+          rafagaCorriendo: true,
+          frenadoSuaveSolicitado: false,
+          modoTurboBunActivo: true,
+          colaPausadaPorError: false,
+          tipoDeErrorConexion: "",
+          abortadoPorUsuario: false
+        });
+
+        programador.cancelar(ALARMA_AUTOHEAL);
+        cola.arrancarSiNoCorre();
+      }
+      return sendResponse({ status: "rafaga_iniciada" });
+    },
+
+    // ─── FRENADO SUAVE ────────────────────────────────────────────────────────
+    async activar_frenado_suave(request, sendResponse) {
+      await sesion.set({ frenadoSuaveSolicitado: true });
+      return sendResponse({ status: "freno_suave_recibido" });
+    },
+
+    // ─── ABORT INMEDIATO ──────────────────────────────────────────────────────
+    async abortar_rafaga_inmediata(request, sendResponse) {
+      const state = await sesion.get();
+      const titulo = state.videoActualTitulo;
+      const sessionId = state.videoActualSessionId || "";
+
+      await sesion.set({
+        rafagaCorriendo: false,
+        frenadoSuaveSolicitado: false,
+        videoActualTitulo: "",
+        videoActualSessionId: "",
+        colaPausadaPorError: false,
+        tipoDeErrorConexion: "",
+        abortadoPorUsuario: true
+      });
+      cola.abortarRafaga();
+      programador.cancelar(ALARMA_AUTOHEAL);
+
+      if (titulo) {
+        await backend.cancelarDescarga(titulo, sessionId);
+      }
+
+      // También resetear las clases en la cola a pending
+      const data = await almacenamiento.obtenerLocal(['listaPersistente', 'colaDescargas']);
+      const listaCompleta = data.listaPersistente || [];
+      const colaDescargas = data.colaDescargas || [];
+
+      colaDescargas.forEach(item => {
+        const match = listaCompleta.find(c => c.titulo === item.titulo);
+        if (match) match.estado = 'pending';
+      });
+
+      // Escritura atómica: el abort limpia el progreso (SW_ESTADOS_PROGRESO: {}) y
+      // resetea las clases de la cola a 'pending' en un solo .set(), sin ventana
+      // intermedia donde el progreso ya esté vacío pero la lista aún no reseteada.
+      await almacenamiento.guardarLocal({
+        listaPersistente: listaCompleta,
+        colaDescargas: colaDescargas,
+        SW_ESTADOS_PROGRESO: {}
+      });
+
+      return sendResponse({ status: "abortado_ok" });
+    },
+
+    // ─── LIMPIEZA DE ESTADOS ──────────────────────────────────────────────────
+    async limpiar_estados_progreso(request, sendResponse) {
+      await sesion.set({
+        rafagaCorriendo: false,
+        frenadoSuaveSolicitado: false,
+        videoActualTitulo: "",
+        colaPausadaPorError: false,
+        tipoDeErrorConexion: ""
+      });
+      cola.detener();
+      programador.cancelar(ALARMA_AUTOHEAL);
+      await persistirEstadoFondo({});
+      await almacenamiento.guardarLocal({ colaDescargas: [] });
+      return sendResponse({ status: "limpio_ok" });
+    }
+  };
+
+  // Listener principal síncrono para mantener canal IPC.
+  // Va por el PuertoMensajeria (Fase 5c). La forma se conserva tal cual, incluido el contrato
+  // del `true`/`false` de retorno: el puerto lo respeta a propósito porque es lo que mantiene
+  // abierto el canal para una respuesta asíncrona, y cambiarlo acá habría sido rediseñar el
+  // despacho en el mismo corte que la migración.
+  mensajeria.onMensaje((request, responder) => {
+    const manejador = request && manejadoresIPC[request.action];
+    if (!manejador) {
+      return false;
+    }
+
+    (async () => {
+      try {
+        await manejador(request, responder);
+      } catch (errGlobal) {
+        console.error("❌ [IPC-SW-ERROR] Falló procesamiento de mensaje interno:", errGlobal);
+      }
+    })();
+
+    return true;
+  });
+
+  // ============================================================================
+  // El BUCLE DE DESCARGA vive en `core/cola/procesadorCola.ts` desde la Fase 6b: el FIFO, la
+  // clasificación de los cuatro tipos de fallo, la pausa, el freno suave y la auto-sanación.
+  // Con él se fueron `loopActivo` y `controladorGraficoActivo`, que eran variables de módulo
+  // compartidas entre el bucle y los handlers IPC — ahora son estado privado del procesador y
+  // se tocan por su API. Acá queda sólo el cableado con `chrome.*`.
+  // ============================================================================
+
+  // La alarma de auto-sanación despierta al SW; el procesador decide qué hacer con el disparo.
+  programador.onDisparo(async (nombre) => {
+    if (nombre === ALARMA_AUTOHEAL) {
+      await cola.alDispararAutoheal();
     }
   });
-}
+
+  // Click en la notificación nativa de fallo → enfocar la pestaña de Ramón Net (o abrirla
+  // si no hay ninguna). Da un follow-up accionable: el usuario revisa/reintenta la clase.
+  // La guarda evita que un chrome.notifications ausente tire durante la evaluación del SW
+  // (rompería la carga entera del service worker).
+  if (typeof chrome !== "undefined" && chrome.notifications && chrome.notifications.onClicked) {
+    chrome.notifications.onClicked.addListener(async (notificationId) => {
+      chrome.notifications.clear(notificationId);
+      try {
+        const [tab] = await chrome.tabs.query({ url: sitio.patronPestañas });
+        if (tab) {
+          await chrome.tabs.update(tab.id, { active: true });
+          await chrome.windows.update(tab.windowId, { focused: true });
+        } else {
+          await chrome.tabs.create({ url: sitio.urlSondeoInternet });
+        }
+      } catch (e) {
+        console.warn("[SW] No se pudo enfocar/abrir la pestaña de Ramón Net:", e);
+      }
+    });
+  }}

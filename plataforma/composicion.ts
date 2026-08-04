@@ -7,12 +7,13 @@
  *
  * Lo importan los dos entrypoints (popup y service worker), así que corre una vez por
  * contexto. Vive acá y no en `entrypoints/` porque WXT trata como entrypoint a todo
- * archivo suelto de esa carpeta. Publica las instancias como globals porque los consumidores actuales las
- * leen así (`HistorialFallos.registrar(...)` en background.js, `window.HistorialFallos`
- * en la isla campanita) — ver docs/coding-standards.md §Módulos ES + global.
+ * archivo suelto de esa carpeta.
  *
- * A medida que avance la Fase 5 este archivo va a crecer: cada módulo que se desacople
- * de `chrome.*` se instancia acá con su adaptador.
+ * **Todo lo de acá es un export nombrado; el global es la excepción, no la regla** — y desde
+ * la Fase 7a la excepción se está achicando. El service worker ya no lee ninguno: recibe sus
+ * ocho colaboradores por parámetro desde `entrypoints/background.js`. Los cinco que quedan
+ * publicados los busca el popup en `globalThis` (`popup.js` y las islas Preact), y se van con
+ * la Fase 7b. Convención del patrón dual → docs/coding-standards.md §Módulos ES + global.
  */
 import AlmacenamientoChrome from "./chrome/almacenamiento";
 import MensajeriaChrome from "./chrome/mensajeria";
@@ -37,22 +38,23 @@ import { crearConexion } from "../core/conexion/conexion";
 // `.js`. Los entrypoints ya lo importaban primero, así que no cambia el orden de evaluación.
 import { SitioActivo } from "../sitio/ramonnet/config";
 
-/** Adaptadores de plataforma activos en esta build. */
+/**
+ * Adaptadores de plataforma activos en esta build.
+ *
+ * **Cuáles se publican como global y cuáles no, desde la Fase 7a**: el criterio ya no es "lo
+ * consume código vanilla", sino **quién** lo consume. El service worker recibe los suyos por
+ * parámetro (`iniciarServiceWorker`, en `entrypoints/background.js`), así que sus adaptadores
+ * viven sólo como export nombrado. Los que siguen publicándose son los que lee el popup, que
+ * todavía los busca en `globalThis` — eso se termina en la Fase 7b.
+ */
 export const almacenamiento = AlmacenamientoChrome;
-// Publicado como global porque `background.js` (todavía vanilla) lo consume así: el SW no lo
-// importa desde acá, lo recibe. Cuando el SW sea composición (Fase 7), esto se va.
-(globalThis as Record<string, unknown>).Almacenamiento = almacenamiento;
 
 export const mensajeria = MensajeriaChrome;
 // Publicado como global porque `popup.js` (todavía vanilla) se lo pasa por `ctx` a las
-// features que lo necesitan. Cuando popup.js sea composición (Fase 7), esto se va.
+// features que lo necesitan. Cuando popup.js sea composición (Fase 7b), esto se va.
 (globalThis as Record<string, unknown>).Mensajeria = mensajeria;
 
 export const programador = ProgramadorChrome;
-// Sólo lo consume el service worker (la alarma de auto-sanación), pero se publica desde acá
-// como los demás: el popup construye una instancia inerte, que degrada a no-op porque no
-// tiene `chrome.alarms` en su contexto.
-(globalThis as Record<string, unknown>).Programador = programador;
 
 export const HistorialFallos = crearHistorialFallos(almacenamiento);
 (globalThis as Record<string, unknown>).HistorialFallos = HistorialFallos;
@@ -104,7 +106,6 @@ export const Conexion = crearConexion(almacenamiento, {
  * `AppState`: no partir la raíz de composición en dos por un módulo.
  */
 export const SessionState = crearEstadoSesion(almacenamiento);
-(globalThis as Record<string, unknown>).SessionState = SessionState;
 
 export const HlsEngine = crearHlsEngine({
   fetchConReintentos: crearFetchConReintentos(Conexion),
@@ -112,9 +113,6 @@ export const HlsEngine = crearHlsEngine({
   generarVideoFinalBlob: media.generarVideoFinalBlob,
   backend: BunClient,
 });
-// Sólo lo usa el service worker; se publica como global porque `background.js` sigue siendo
-// vanilla y lo consume así. Cuando el SW sea composición (Fase 7), esto se va.
-(globalThis as Record<string, unknown>).HlsEngine = HlsEngine;
 
 export const Utils = {
   ...texto,
@@ -126,7 +124,6 @@ export const Utils = {
 (globalThis as Record<string, unknown>).Utils = Utils;
 
 export const EstadosProgreso = crearEstadosProgreso(almacenamiento);
-(globalThis as Record<string, unknown>).EstadosProgreso = EstadosProgreso;
 
 /**
  * El procesador de la cola: el bucle FIFO + la clasificación de fallos, que fue el bloque más
@@ -153,4 +150,3 @@ export const Cola = crearProcesadorCola({
   persistirEstados: (estados) => EstadosProgreso.persistir(estados),
   recuperarEstados: () => EstadosProgreso.recuperar(),
 });
-(globalThis as Record<string, unknown>).Cola = Cola;

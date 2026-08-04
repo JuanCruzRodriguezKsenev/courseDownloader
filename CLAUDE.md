@@ -5,8 +5,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > ## ⚠️ Trabajo en curso — leer esto primero
 >
 > Hay una **re-arquitectura activa** (puertos y adaptadores + TypeScript + WXT), ya en su
-> tramo final: **fases 0 a 6c completas; quedan la 7 (entrypoints como composición) y la 8
-> (borrado del vanilla que no pasó por un puerto)** (al 2026-08-04). Antes de tocar código:
+> tramo final: **fases 0 a 7a completas; quedan la 7b (el popup como composición) y la 8
+> (borrado del vanilla que no pasó por un puerto)** (al 2026-08-04). La 7 se partió en dos al
+> medirla: el service worker eran 33 lecturas de globals y ya está hecho; `popup.js` son 168,
+> **150 de ellas `AppState`**, y sin red de tests sobre su núcleo. Antes de tocar código:
 >
 > **Leé `docs/rearquitectura-diseno.md` §Cómo retomar esto en una sesión nueva.** Ahí está el
 > orden de lectura, el estado por fase, qué sigue y con qué riesgo, y las 4 verificaciones a
@@ -93,7 +95,9 @@ Sources stayed at the repo root (`srcDir: '.'`); only **entrypoints** and **verb
 
 - **`manifest.json`** → generated from `wxt.config.ts`. Edit the config, never the output.
 - **`popup.html`** → `entrypoints/popup/index.html` (asset paths in it are relative, hence the `../../` prefixes).
-- **The `<script>`/`importScripts` load order** → replaced by the *import order* in the two entrypoints: `entrypoints/popup/main.js` and `entrypoints/background.js`. **That order is load-bearing and not incidental**: modules publish themselves as globals when evaluated (`globalThis.X = X`) and later ones consume those globals without importing them. Site adapter first, `popup.js`/`background.js` last, Preact islands after that. Adding a module means inserting its import at the right position in the entrypoint — the bundler will not catch a wrong order, but the popup will break at runtime.
+- **The `<script>`/`importScripts` load order** → replaced by the *import order* in the two entrypoints. **The two no longer work the same way**, and that's the thing to get right when adding a module:
+  - `entrypoints/popup/main.js` — **order is load-bearing**: modules publish themselves as globals when evaluated (`globalThis.X = X`) and later ones consume those globals without importing them. Site adapter first, `popup.js` last, Preact islands after that. Adding a module means inserting its import at the right position; the bundler will not catch a wrong order, but the popup breaks at runtime. (Phase 7b is what ends this.)
+  - `entrypoints/background.js` — **injects instead** (Phase 7a): it calls `iniciarServiceWorker(deps)` with named dependencies, so order stopped mattering and a missing piece is an `undefined` in the call, not a `ReferenceError` mid-download. **Keep that call in the entrypoint's top level** — never inside `defineBackground`'s callback or behind an `await`, or MV3 loses the listeners on a cold start.
 - **`public/`** is copied verbatim into the output: `public/offscreen/` (the legacy offscreen document) and `public/sitio/ramonnet/rules.json` (the dNR ruleset, referenced by that path from `wxt.config.ts`). Files there are *not* bundled — they can't use ES imports and must stay self-contained.
 
 ### Where the CSS lives
@@ -122,7 +126,7 @@ The extension runs in isolated JS contexts (popup / service worker / offscreen �
 - **`ErrorBackend.tipoBackend: "rechazo"` means 4xx only** (skip the class), never 5xx (pause + auto-heal). That distinction is the bug-400 fix; it's a type now, not a comment.
 - **The download loop's failure classification has four branches and the order is load-bearing** (`core/cola/procesadorCola.ts`): user cancel → `"sesion"` → 4xx `"rechazo"` → anything else. The first three are classified **before** asking the connection daemon, because the daemon would mislabel every one of them. Each branch exists because of a real bug; read the module header before touching it.
 - **Progress has two destinations, not one**: the IPC to the popup *and* `actualizarConsolaBackend`, the bar in the Bun server window — which is the only one the user sees with the popup closed. Losing the second breaks nothing, so nothing catches it (that happened in Phase 6b; it has a test now).
-- **A module that gets decoupled from `chrome.*` is instantiated in `plataforma/composicion.ts`**, the composition root — which is also what publishes its global, with the load-order consequence spelled out in the corollary above.
+- **A module that gets decoupled from `chrome.*` is instantiated in `plataforma/composicion.ts`**, the composition root. Whether it *also* gets published as a global now depends on **who consumes it**: the service worker receives its dependencies as parameters (Phase 7a), so anything SW-only is a named export and nothing more. Only what `popup.js` and the islands still read off `globalThis` stays published — five of them, and Phase 7b is what removes the rest. Adding a `globalThis.X` for a new SW consumer is walking the migration backwards.
 
 ### State ownership split
 

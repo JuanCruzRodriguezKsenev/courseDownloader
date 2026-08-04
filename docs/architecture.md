@@ -70,7 +70,14 @@ sigue.
 | 2 — Adaptador de sitio | `sitio/ramonnet/` | Todo lo específico del portal: scraper, parser de títulos, resolución del `.m3u8`, constantes, faceta, reglas dNR. Cumple `PuertoSitio`. | ✅ Completa (en TS desde 2026-08-03: `config.ts`; los otros 3 archivos siguen en `.js`) |
 | 3 — Adaptador de plataforma | `plataforma/chrome/` | Único lugar que toca la API del navegador. Implementa los puertos. | `almacenamiento.ts`, `mensajeria.ts`, `programador.ts`, `notificaciones.ts`, `descargas.ts`, `volcadoLegacy.ts`. Falta lo de la tabla de abajo |
 | Composición | `plataforma/composicion.ts` | Único lugar donde se eligen adaptadores concretos y se inyectan al núcleo. | Activa |
-| Entrypoints | `entrypoints/` | Puntos de entrada de WXT: importan en orden y no contienen lógica. | ✅ |
+| Entrypoints | `entrypoints/` | Puntos de entrada de WXT: resuelven dependencias y las inyectan; no contienen lógica. | `background.js` ✅ inyecta (Fase 7a); `popup/main.js` todavía importa por efecto secundario y siembra globals (Fase 7b) |
+
+**Los dos entrypoints ya no funcionan igual, y la diferencia importa al agregar un módulo.**
+El del service worker le **pasa** sus 8 dependencias a `iniciarServiceWorker(deps)`: agregarle
+una es sumar un parámetro, y si falta, es un `undefined` en la llamada. El del popup sigue
+siendo una lista de imports cuyo **orden es load-bearing** —cada módulo publica su global al
+evaluarse y el siguiente lo consume— así que agregar uno es insertar el import en la posición
+correcta, y equivocarse rompe en runtime sin que el bundler avise.
 
 **El `PuertoAlmacenamiento` ya no tiene consumidores pendientes**: con `background.js`
 migrado (Fase 5b, 2026-08-03) no queda ni un `chrome.storage` en el proyecto.
@@ -180,8 +187,14 @@ historia de qué se migró en qué fase no está acá: vive en `docs/rearquitect
   desde la Fase 6b es sobre todo **cableado** (958 → 451 líneas). Lo que queda: los handlers
   IPC (`manejadoresIPC`), los listeners de `chrome.*` que no tienen puerto todavía
   (`onInstalled`, el click en la notificación, `tabs`/`windows`), y el arranque que reanuda la
-  cola cuando el SW despierta con una descarga pendiente. Todo lo demás se lo pide a los
-  globals que publica `plataforma/composicion.ts`.
+  cola cuando el SW despierta con una descarga pendiente.
+- **No lee un solo global desde la Fase 7a**: exporta `iniciarServiceWorker(deps)` y recibe sus
+  8 colaboradores (los 3 puertos, `SessionState`, `EstadosProgreso`, la cola, el cliente del
+  backend y el adaptador de sitio) desde `entrypoints/background.js`. **Regla al tocarlo**: la
+  llamada va en el **top-level** del entrypoint, nunca dentro del callback de
+  `defineBackground` ni detrás de un `await` — MV3 exige que los listeners queden registrados
+  en el arranque sincrónico del worker, y perderlos no lo detecta ninguna de las cuatro
+  verificaciones (se ve como "la extensión no responde" tras un arranque en frío).
 - **La cola y el motor ya no viven en esta zona**: son Capa 1 desde las Fases 6b y 6
   (`core/cola/procesadorCola.ts`, `core/hls/hlsEngine.ts`, abajo). El SW no los construye —
   los recibe armados de la composición— y los maneja por su API.

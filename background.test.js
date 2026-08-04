@@ -176,7 +176,23 @@ beforeAll(async () => {
     windows: { update: async () => {} },
   };
 
-  await import('./background.js');
+  // FASE 7A: el SW dejó de leer globals. Antes acá alcanzaba con `await import(...)` y el
+  // archivo se enganchaba a lo que hubiera en `globalThis`; ahora se le PASAN las mismas
+  // piezas que arma este harness. Los `globalThis.X` de arriba se conservan a propósito: son
+  // los que siguen consumiendo el procesador de cola real y los dobles entre sí, y cambiarlos
+  // en el mismo corte que el código bajo prueba es justo lo que estos tests de
+  // caracterización no deben hacer. Ninguna aserción cambió.
+  const { iniciarServiceWorker } = await import('./background.js');
+  iniciarServiceWorker({
+    almacenamiento: globalThis.Almacenamiento,
+    mensajeria,
+    programador,
+    sesion: globalThis.SessionState,
+    estadosProgreso: globalThis.EstadosProgreso,
+    cola: globalThis.Cola,
+    backend: globalThis.BunClient,
+    sitio: globalThis.SitioActivo,
+  });
 });
 
 beforeEach(() => {

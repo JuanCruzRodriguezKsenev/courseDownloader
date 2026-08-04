@@ -597,14 +597,54 @@ día. Esta fase estuvo cinco fases sin tocarse y en el medio se le fue el 90% de
 que nadie actualizara su descripción. **Medir antes de ejecutar** encontró lo mismo acá, en la
 6 (los globals del SW que un grep con punto no veía) y en la 6a (el prerrequisito de `Utils`).
 
+### Registro de la Fase 7a — el service worker como composición (2026-08-04)
+
+**La medición partió la fase antes de escribir una línea**, y por una asimetría enorme: los
+globals que lee cada orquestador son 33 en `background.js` (8 globals distintos) contra 168 en
+`popup.js`, de los cuales **150 son `AppState`**. Son dos cortes con perfiles de riesgo
+opuestos, así que se numeran 7a y 7b como se hizo con 5a/5b/5c y 6a/6b/6c.
+
+- **`background.js` exporta `iniciarServiceWorker(deps)`** y recibe sus 8 colaboradores por
+  parámetro. El diff es de cableado: los identificadores cambian de nombre y el cuerpo entra
+  en un closure, pero ninguna rama de lógica se tocó.
+- **La composición dejó de publicar SEIS globals** —`Almacenamiento`, `Programador`,
+  `SessionState`, `EstadosProgreso`, `Cola`, `HlsEngine`—. La medición mostró que
+  `background.js` era el **único consumidor de producción de los seis**: ni el popup, ni las
+  features, ni las islas leían uno solo. Verificado en el bundle: ya no aparecen como
+  `globalThis.X=` en `.output/chrome-mv3/background.js`.
+- **`HlsEngine` ya estaba muerto desde la Fase 6b** y nadie lo notó. La composición lo
+  publicaba con un comentario que afirmaba que el SW lo consumía; dejó de ser cierto cuando el
+  motor pasó a entrar por inyección al procesador de cola. Es el mismo modo de falla que la
+  tabla de fases: **un comentario que explica por qué algo existe no se revisa cuando el
+  motivo desaparece.**
+- **Lo que NO cambió, a propósito: el momento de registro de los listeners.**
+  `iniciarServiceWorker` se llama desde el top-level de `entrypoints/background.js`, que es
+  exactamente donde antes se evaluaba `background.js` por su efecto secundario. MV3 exige que
+  `onInstalled`, `notifications.onClicked` y el receptor IPC queden registrados en el arranque
+  sincrónico del worker: meterlos en el callback de `defineBackground` o detrás de un `await`
+  los perdería en el primer arranque en frío, y **nada de eso lo ve la suite**.
+- **`allowJs` no forzó nada**: `background.js` sigue en `.js`. La regla se dispara cuando
+  `composicion.ts` tiene que importar al módulo, y acá es al revés — lo importa el entrypoint,
+  que también es `.js`.
+- **Los 18 tests de `background.test.js` pasan sin tocar una aserción.** El harness cambió sólo
+  en cómo entrega las dependencias (de sembrar `globalThis` a pasarlas en la llamada); los
+  `globalThis.X` que quedan son los que consumen el procesador de cola real y los dobles entre
+  sí, y se dejaron a propósito: cambiar el código bajo prueba y la forma de sembrar el estado
+  en el mismo corte es justo lo que anula un test de caracterización.
+
+Efecto de borde que conviene mirar en la 7b: `plataforma/chrome/almacenamiento.ts` y
+`mensajeria.ts` **se publican a sí mismos** como `globalThis.AlmacenamientoChrome` /
+`MensajeriaChrome` al evaluarse. No lo consume nadie; quedó de antes de que existiera la
+composición.
+
 ### El próximo paso (al 2026-08-04)
 
-Los cortes 5c, 6, 6a, 6b y 6c están cerrados; el detalle de cada uno vive en su §Registro más
-arriba, no en esta tabla. Lo que queda:
+Los cortes 5c, 6, 6a, 6b, 6c y 7a están cerrados; el detalle de cada uno vive en su §Registro
+más arriba, no en esta tabla. Lo que queda:
 
 | Qué | Estado / riesgo |
 |---|---|
-| **Fase 7 — entrypoints como composición** | `background.js` ya está a mitad de camino: son 451 líneas y casi todo es cableado (handlers IPC + listeners de `chrome.*`). `popup.js` (1460 líneas) es el trabajo real, y ADR-0005 define que su núcleo —init, wiring, orquestación de scraping/render— **no se extrae**: la 7 no es vaciarlo, es que reciba sus dependencias en vez de leer globals. |
+| **Fase 7b — el popup como composición** | El trabajo real, y el de más riesgo que queda. `popup.js` son 1460 líneas y **168 lecturas de globals, 150 de ellas `AppState`**; ADR-0005 define que su núcleo —init, wiring, orquestación de scraping/render— **no se extrae**: la 7b no es vaciarlo, es que reciba sus dependencias en vez de leer globals. El agravante es la cobertura: el núcleo de `popup.js` no tiene tests unitarios **por diseño**, así que acá no hay red de caracterización como la que tuvo el SW. Medir antes, y considerar caracterizar primero lo que se vaya a tocar. |
 | **Fase 8 — borrado del vanilla que no pasó por un puerto** | Sólo con paridad de tests. Hoy son `popup.js`, `renderers.js`, lo que quede de `background.js` y los tres módulos hermanos del adaptador de sitio (`scraper.js`, `parserTitulos.js`, `resolverManifiesto.js`), que siguen en `.js` **a propósito**: entran como globals para que las puertas del sitio no dependan del orden de carga. |
 | **Puertos sin construir**, sin urgencia | `notifications` (queda el listener `onClicked`), `tabs`/`windows`, `scripting`. Ninguno bloquea nada. |
 
@@ -653,7 +693,8 @@ en el tramo intermedio (en `state.js` no pasaba: `conexion.js` y `bunClient.ts` 
 | 6 — Motor HLS → `core/hls/` | ✅ **Hecha** (2026-08-03) — `core/hls/hlsEngine.ts`, con el pool de 6 workers y el reintento 4xx cubiertos. Las dos dependencias con el SW que la medición previa no vio (`SessionState`, `controladorGraficoActivo`) se cortaron en parámetros. Detalle en §Registro de la Fase 6. |
 | 6b — Cola de descarga → `core/cola/` | ✅ **Hecha** (2026-08-04, en dos tramos: `SessionState` primero, el bucle después). `background.js` pasó de 958 a 451 líneas. Salieron con él `core/cola/estadosProgreso.ts`, `plataforma/chrome/notificaciones.ts` y `plataforma/chrome/volcadoLegacy.ts`. Nota original: Va **después** de la 6 (el bucle maneja al motor) y de que el SW tenga sus puertos (5c: IPC receptor + alarmas). Es el bloque de lógica más grande que queda sin migrar, y ya tiene red: los 12 tests de caracterización del bucle y el auto-heal de `background.test.js`. |
 | 6c — UI: split genérico vs. de sitio | ✅ **Hecha** (2026-08-04), y resultó ser **mucho más chica de lo diseñado**: no hubo nada que partir. La UI ya era genérica salvo el copy del onboarding, que se parametrizó por `PuertoSitio.nombre`. El split de carpetas y el BEM/co-locación de CSS quedan **explícitamente descartados** — ver §Fase 6c. |
-| 7 — Entrypoints (composición) | ⏳ No iniciada |
+| 7a — Entrypoints como composición: **el service worker** | ✅ **Hecha** (2026-08-04). `background.js` exporta `iniciarServiceWorker(deps)` y recibe 8 colaboradores por parámetro; la composición dejó de publicar 6 globals cuyo único consumidor era él. Los 18 tests pasaron sin tocar una aserción. Detalle en §Registro de la Fase 7a. |
+| 7b — Entrypoints como composición: **el popup** | ⏳ No iniciada. 168 lecturas de globals en `popup.js`, 150 de ellas `AppState`, y sin red de tests sobre su núcleo (ADR-0005). Es el corte de más riesgo que queda. |
 | 8 — Borrado del vanilla de la raíz | ⏳ No iniciada |
 
 **Por qué aparecieron 6b y 6c (2026-08-03)**: la estructura objetivo de arriba incluye
