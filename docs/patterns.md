@@ -92,7 +92,7 @@ mecanismo de error de toda la API de callbacks de `chrome.*`, así que los que q
 
 ## Worker pool con concurrencia fija
 
-**Dónde**: `HlsEngine.compilarTranscodificacionStream` en `background/hlsEngine.js:126-236`.
+**Dónde**: `compilarTranscodificacionStream` en `core/hls/hlsEngine.ts` (Capa 1 desde la Fase 6; antes `background/hlsEngine.js`).
 
 **Qué hace**: en vez de lanzar un `fetch` por fragmento con `Promise.all` sin límite (lo cual saturaría la red/memoria en manifiestos con cientos de fragmentos), se arranca un pool fijo de `CONCURRENCIA_MAXIMA = 6` "workers" async que comparten un índice (`nextTaskIndex`) sobre el array de URLs de fragmentos, cada uno procesando uno a la vez hasta agotar la cola.
 

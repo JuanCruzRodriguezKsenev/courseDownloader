@@ -502,6 +502,31 @@ Capa 1. El resto del popup ya era genérico: `faceta.js` y `filters.js` leen por
 - **La Fase 4 original queda cumplida del todo**: pedía `core/` con BunClient *y* el daemon; hoy
   `core/` tiene además el historial, los puertos con sus tres dobles, y el estado del popup.
 
+### Registro de la Fase 6 — el motor a `core/hls/` (2026-08-03)
+
+- **La medición previa (§Fase 6a) subestimó el corte, y vale entender por qué.** Decía "241
+  líneas, cero `chrome.*`, sólo depende de `Utils` y `BunClient`". Cierto pero incompleto: el
+  grep que lo midió buscaba usos con punto (`Utils.`, `BunClient.`) y el motor tenía **dos
+  dependencias más con el service worker escritas como identificadores pelados** —
+  `SessionState.get([...])` y `controladorGraficoActivo.abort()`. **Al medir acoplamiento, un
+  grep por `Modulo.` no ve los globals que se usan como variables.**
+- **Las dos se cortaron en parámetros**, y el criterio es el mismo en ambos casos: el motor
+  sabe *qué* necesita y *cuándo* pasa algo, pero no es dueño de nada del SW. `contexto`
+  (`modoTurbo`/`titulo`/`sessionId`) reemplaza la lectura de `SessionState`, y
+  `abortarHermanos()` reemplaza el abort sobre el controlador del caller.
+- **Se fue una rama polimórfica muerta**: `tituloInmutable` aceptaba string *o* el objeto de
+  callbacks, resto de una firma vieja. Ningún call-site la usaba —ni el SW ni los tests—, y el
+  tipado obligaba a modelarla. Se verificó antes de sacarla.
+- **El cambio de firma lo agarró un test de caracterización del SW**, no el compilador:
+  `background.js` sigue en JS, así que `tsc` no lo mira. El test del bug 400 stubeaba el motor
+  con la firma vieja y empezó a fallar porque el título ya no era el 4º argumento. Es
+  exactamente para lo que se escribieron esos tests antes de migrar el SW.
+- **Se agregó un test del contrato nuevo** (que el SW pase `modoTurbo`, `titulo`, `sessionId` y
+  un `abortarHermanos` invocable). Sin él, romper ese contrato deja al motor descargando con el
+  título equivocado, o sin poder frenar a los hermanos, y nada lo detecta.
+- Los 15 tests del motor **no cambiaron ni una aserción**: sólo su cableado (de stubear 5
+  globals a construir la factory con dobles).
+
 ### El próximo paso (al 2026-08-03)
 
 Lo que sigue, de menor a mayor riesgo. **Empezar por el primero**: desbloquea dos mudanzas que

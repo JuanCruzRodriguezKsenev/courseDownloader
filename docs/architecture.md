@@ -42,7 +42,7 @@ La extensión está partida en contextos de ejecución de JS aislados que **solo
 | Zona | Archivo(s) | Responsabilidad |
 |---|---|---|
 | **Popup** | `popup.js`, `renderers.js`, `popup/features/*` (+ el adaptador `sitio/ramonnet/*`) | Toda la UI: tabs, filtros, onboarding, selección de clases. Inyecta el scraper en la pestaña activa de Ramón Net vía `chrome.scripting.executeScript`. Partes de la UI se están migrando a **islas Preact** (sin build, ES modules locales — ver `docs/adr/0006` y `docs/preact-migration.md`). |
-| **Service Worker** | `background.js`, `background/hlsEngine.js` | Único lugar donde ocurren las descargas reales. Dueño de la cola FIFO persistente y de la máquina de estados de auto-sanación ante cortes de red. Sigue 100% vanilla (no tiene DOM). |
+| **Service Worker** | `background.js` (el motor HLS que usa vive en `core/hls/`) | Único lugar donde ocurren las descargas reales. Dueño de la cola FIFO persistente y de la máquina de estados de auto-sanación ante cortes de red. Sigue 100% vanilla (no tiene DOM). |
 | **Offscreen Document** | `public/offscreen/offscreen.js` | Existe solo para el path legacy no-Turbo (`URL.createObjectURL` no está disponible en service workers). No se ejercita mientras Turbo Mode esté forzado a `true`. |
 | **Compartido** | `core/**`, `sitio/**`, `plataforma/**` | Código cargado por más de una zona. No es una zona de ejecución: es la librería común, hoy en plena re-arquitectura por capas (ver abajo). `core/conexion/conexion.ts` es el **daemon de estado de conexión** (fuente única, ver Modelo de estado). |
 
@@ -154,11 +154,8 @@ historia de qué se migró en qué fase no está acá: vive en `docs/rearquitect
   cuando la conexión caída vuelve; tanto ese chequeo de recuperación como la clasificación de
   errores de descarga pasan por el daemon `Conexion`, no por sondas propias. Lo que todavía
   habla `chrome.*` directo está en la tabla de §Las capas.
-- **`background/hlsEngine.js`** (`HlsEngine`) — **genérico**: la resolución página de clase →
-  `.m3u8` es del adaptador de sitio, así que el motor recibe la URL ya resuelta. Parsea el
-  manifiesto M3U8 (fragmentos + `#EXT-X-KEY`) y corre el pool de 6 workers concurrentes
-  (`CONCURRENCIA_MAXIMA`) que descarga, descifra con AES y —en modo Turbo— streamea cada
-  fragmento al backend Bun vía `BunClient.enviarFragmentoStream`.
+- El **motor HLS** ya no vive en esta zona: es Capa 1 desde la Fase 6 (`core/hls/hlsEngine.ts`,
+  abajo). El SW lo instancia vía la composición y lo maneja pasándole el contexto de la ráfaga.
 - **`public/offscreen/offscreen.js`** — documento offscreen del camino legacy no-Turbo (los
   service workers no tienen `URL.createObjectURL`). Vive en `public/`, se copia tal cual y no
   se bundlea. No se ejercita mientras Turbo esté forzado.
@@ -180,6 +177,23 @@ Detalle operativo que salió al migrar el SW: **"no hay receptor" es el estado n
 anomalía —el popup está cerrado la mayor parte del tiempo—, así que el adaptador Chrome avisa
 **una vez por acción** y no por envío; si no, una sola descarga llenaba la consola del SW con
 un warning por fragmento.
+
+**`core/hls/hlsEngine.ts` es el motor de descarga**: parsea el manifiesto M3U8 (fragmentos +
+`#EXT-X-KEY`) y corre el pool de 6 workers (`CONCURRENCIA_MAXIMA`) que descarga, descifra con
+AES-128 y —en modo Turbo— streamea cada fragmento al backend Bun. Factory
+`crearHlsEngine({ fetchConReintentos, descifrarFragmento, generarVideoFinalBlob, backend })`.
+
+Llegó a la Capa 1 el **2026-08-03**, y su medición previa había subestimado el corte: parecía
+trivial porque no tiene un solo `chrome.*`, pero **leía dos cosas del service worker que no
+aparecían como `X.metodo()`** sino como identificadores pelados —`SessionState.get([...])` y
+`controladorGraficoActivo.abort()`—, así que un grep por dependencias no las mostraba. Las dos
+se cortaron y son hoy parámetros:
+
+- **`contexto`** (`{ modoTurbo, titulo, sessionId, abortarHermanos }`) reemplaza la lectura de
+  `SessionState`. El motor no puede leer el estado de la cola: no es suyo.
+- **`abortarHermanos()`** reemplaza el `abort()` sobre el controlador del SW. El motor sabe
+  *cuándo* hay que frenar la ráfaga ante un fallo real de fragmento; **quién** es el dueño del
+  `AbortController` es del caller. Esa distinción es lo que lo vuelve testeable sin el SW.
 
 **`core/estado/appState.ts` (`AppState`) es la máquina de estados del popup**: espeja/persiste
 la lista scrapeada + la selección de UI y reconcilia periódicamente contra el progreso

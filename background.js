@@ -586,11 +586,22 @@ async function procesarSiguienteElementoDeLaCola() {
 
       const subcarpetaFinal = elementoActual.carpeta ? elementoActual.carpeta.trim().toLowerCase() : "biologia";
 
+      // El motor es Capa 1 desde la Fase 6: no lee SessionState ni conoce
+      // `controladorGraficoActivo`. Lo que necesita de la ráfaga se le pasa acá, incluida la
+      // forma de frenar a los workers hermanos ante un fallo real de fragmento — el dueño del
+      // controlador es este archivo, no el motor.
       const resultadoBloquesBlob = await HlsEngine.compilarTranscodificacionStream(
         listaFragmentos,
         controladorGraficoActivo.signal,
         subcarpetaFinal,
-        tituloInmutableVideo,
+        {
+          modoTurbo: currentState.modoTurboBunActivo,
+          titulo: tituloInmutableVideo,
+          // El mismo `sessionId` que se acaba de escribir en la sesión unas líneas arriba;
+          // se pasa el local en vez de releerlo para que no puedan divergir.
+          sessionId,
+          abortarHermanos: () => controladorGraficoActivo?.abort(),
+        },
         {
           onFragmentoCompletado: async (pesoBytesChunk, totalUrls, bytesAcumulados, fragmentosTerminados) => {
             const current = await SessionState.get();

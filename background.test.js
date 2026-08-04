@@ -294,8 +294,24 @@ describe('bucle de descarga — camino feliz', () => {
     expect(guardadas).toEqual(['Primera', 'Segunda']);
   });
 
+  it('le pasa al motor el contexto de la ráfaga (turbo, título, sessionId y cómo frenar a los hermanos)', async () => {
+    // Contrato nuevo de la Fase 6: el motor ya no lee SessionState ni conoce el
+    // AbortController del SW. Si esto se rompe, el motor descarga con el título equivocado o
+    // deja de poder frenar a los workers hermanos — y nada más lo detecta.
+    let visto = null;
+    motor.compilar = async (_f, _s, _c, contexto) => { visto = contexto; return null; };
+
+    await arrancarCola([item('Clase 1', 1)]);
+    await esperarA(() => accionesEnviadas().includes('cola_completamente_vacia'), 'cola vacía');
+
+    expect(visto).toMatchObject({ modoTurbo: true, titulo: 'Clase 1' });
+    expect(visto.sessionId).toBeTruthy();
+    expect(typeof visto.abortarHermanos).toBe('function');
+  });
+
   it('emite progreso con telemetría mientras baja los fragmentos', async () => {
-    motor.compilar = async (_frags, _signal, _carpeta, _titulo, cbs) => {
+    // Firma desde la Fase 6: (metadata, signal, subcarpeta, contexto, callbacks).
+    motor.compilar = async (_frags, _signal, _carpeta, _contexto, cbs) => {
       await cbs.onFragmentoCompletado(500, 2, 500, 1);
       return null;
     };
@@ -311,8 +327,9 @@ describe('bucle de descarga — camino feliz', () => {
 
 describe('bucle de descarga — rechazo 4xx del backend (bug 400)', () => {
   it('salta SOLO esa clase, la deja re-encolable y sigue con la próxima', async () => {
-    motor.compilar = async (_f, _s, _c, titulo) => {
-      if (titulo === 'Mala') {
+    // El título viaja dentro del `contexto` desde la Fase 6, no como 4º argumento suelto.
+    motor.compilar = async (_f, _s, _c, contexto) => {
+      if (contexto.titulo === 'Mala') {
         const e = new Error('El backend de Bun rechazó el fragmento con código: 400');
         e.tipoBackend = 'rechazo';
         e.httpStatus = 400;

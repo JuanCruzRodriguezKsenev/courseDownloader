@@ -19,11 +19,10 @@ import '../sitio/ramonnet/config.ts';
 import '../sitio/ramonnet/parserTitulos.js';
 import '../sitio/ramonnet/resolverManifiesto.js';
 import '../core/backend/bunClient.ts';
-// Composición: instancia y publica los globals ya desacoplados de chrome.* — desde la
-// Fase 5b, también `Conexion` (antes lo publicaba shared/conexion.js al evaluarse). Va
-// ANTES de hlsEngine y background.js, que son los que lo consumen.
+// Composición: instancia y publica TODOS los globals ya desacoplados de chrome.* — los
+// puertos, el daemon de conexión, el estado, `Utils` (ensamblado desde la Fase 6a) y el
+// motor HLS (Fase 6). Va ANTES de background.js, que es quien los consume.
 import '../plataforma/composicion.ts';
-import '../background/hlsEngine.js';
 import '../background.js';
 
 // Los listeners ya quedaron registrados por los imports de arriba (top-level del SW,

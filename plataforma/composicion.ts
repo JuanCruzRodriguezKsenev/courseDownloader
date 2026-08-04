@@ -22,6 +22,8 @@ import * as media from "../core/util/media";
 import * as progreso from "../core/util/progreso";
 import * as descargas from "./chrome/descargas";
 import { crearFetchConReintentos } from "../core/util/reintentos";
+import { crearHlsEngine } from "../core/hls/hlsEngine";
+import BunClient from "../core/backend/bunClient";
 import { crearHistorialFallos } from "../core/historial/historialFallos";
 import { crearAppState } from "../core/estado/appState";
 import { crearConexion } from "../core/conexion/conexion";
@@ -91,6 +93,16 @@ export const Conexion = crearConexion(almacenamiento, {
  * archivo antes de mover la publicación. Si algún día alguien lo llama en el top-level de un
  * módulo que carga antes que la composición, va a explotar sin que el bundler avise.
  */
+export const HlsEngine = crearHlsEngine({
+  fetchConReintentos: crearFetchConReintentos(Conexion),
+  descifrarFragmento: media.descifrarFragmento,
+  generarVideoFinalBlob: media.generarVideoFinalBlob,
+  backend: BunClient,
+});
+// Sólo lo usa el service worker; se publica como global porque `background.js` sigue siendo
+// vanilla y lo consume así. Cuando el SW sea composición (Fase 7), esto se va.
+(globalThis as Record<string, unknown>).HlsEngine = HlsEngine;
+
 export const Utils = {
   ...texto,
   ...media,
