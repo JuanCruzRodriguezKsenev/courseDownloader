@@ -164,48 +164,9 @@
 const ALARMA_AUTOHEAL = "alarma_autoheal";
 const PERIODO_AUTOHEAL_MIN = 0.2;
 
-// Helper para encapsular el estado en almacenamiento de sesión (persistente al SW, volátil al navegador)
-const SessionState = {
-  defaults: {
-    rafagaCorriendo: false,
-    frenadoSuaveSolicitado: false,
-    modoTurboBunActivo: true,
-    videoActualTitulo: "",
-    bytesProcesadosEnVideoActual: 0,
-    fragmentosTerminadosEnVideoActual: 0,
-    totalFragmentosEnVideoActual: 0,
-    tiempoInicioVideoActual: 0,
-    velocidadMbsActual: 0,
-    colaPausadaPorError: false,
-    tipoDeErrorConexion: "",
-    abortadoPorUsuario: false,
-    videoActualSessionId: ""
-  },
-
-  async get(key) {
-    // El puerto pide siempre una lista de claves (chrome.storage aceptaba string, array o
-    // undefined). La normalización es equivalente: el camino sin `key` sólo leía las claves
-    // que están en defaults, que es justo lo que se pide acá.
-    const claves = typeof key === 'string' ? [key] : (key || Object.keys(this.defaults));
-    const data = await Almacenamiento.obtenerSesion(claves);
-    if (typeof key === 'string') {
-      return data[key] ?? this.defaults[key];
-    }
-    const result = {};
-    claves.forEach(k => {
-      result[k] = data[k] ?? this.defaults[k];
-    });
-    return result;
-  },
-
-  async set(updates) {
-    await Almacenamiento.guardarSesion(updates);
-  },
-
-  async clear() {
-    await Almacenamiento.borrarSesion(Object.keys(this.defaults));
-  }
-};
+// `SessionState` (el estado de la ráfaga en el ámbito de sesión) se fue a
+// `core/cola/estadoSesion.ts` en la Fase 6b y llega como global desde la composición, igual
+// que los puertos. Su schema y sus defaults viven allá, tipados.
 
 // Variables en memoria del Service Worker (volátiles)
 let controladorGraficoActivo = null;

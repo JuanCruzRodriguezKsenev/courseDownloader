@@ -19,6 +19,7 @@ const globalesDelProyecto = {
   Almacenamiento: "readonly",
   Mensajeria: "readonly",
   Programador: "readonly",
+  SessionState: "readonly",
   HlsEngine: "readonly",
   AppState: "readonly",
   Renderers: "readonly",

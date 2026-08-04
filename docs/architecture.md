@@ -42,7 +42,7 @@ La extensión está partida en contextos de ejecución de JS aislados que **solo
 | Zona | Archivo(s) | Responsabilidad |
 |---|---|---|
 | **Popup** | `popup.js`, `renderers.js`, `popup/features/*` (+ el adaptador `sitio/ramonnet/*`) | Toda la UI: tabs, filtros, onboarding, selección de clases. Inyecta el scraper en la pestaña activa de Ramón Net vía `chrome.scripting.executeScript`. Partes de la UI se están migrando a **islas Preact** (sin build, ES modules locales — ver `docs/adr/0006` y `docs/preact-migration.md`). |
-| **Service Worker** | `background.js` (el motor HLS que usa vive en `core/hls/`) | Único lugar donde ocurren las descargas reales. Dueño de la cola FIFO persistente y de la máquina de estados de auto-sanación ante cortes de red. Sigue 100% vanilla (no tiene DOM). |
+| **Service Worker** | `background.js` (el motor HLS y el estado de sesión que usa viven en `core/`) | Único lugar donde ocurren las descargas reales. Dueño de la cola FIFO persistente y de la máquina de estados de auto-sanación ante cortes de red. Sigue 100% vanilla (no tiene DOM). |
 | **Offscreen Document** | `public/offscreen/offscreen.js` | Existe solo para el path legacy no-Turbo (`URL.createObjectURL` no está disponible en service workers). No se ejercita mientras Turbo Mode esté forzado a `true`. |
 | **Compartido** | `core/**`, `sitio/**`, `plataforma/**` | Código cargado por más de una zona. No es una zona de ejecución: es la librería común, hoy en plena re-arquitectura por capas (ver abajo). `core/conexion/conexion.ts` es el **daemon de estado de conexión** (fuente única, ver Modelo de estado). |
 
@@ -195,6 +195,18 @@ se cortaron y son hoy parámetros:
   *cuándo* hay que frenar la ráfaga ante un fallo real de fragmento; **quién** es el dueño del
   `AbortController` es del caller. Esa distinción es lo que lo vuelve testeable sin el SW.
 
+**`core/cola/estadoSesion.ts` (`SessionState`) es el estado de la ráfaga activa**, la mitad
+"service worker" del split de ownership. Salió de `background.js` el 2026-08-04, primer tramo
+de la Fase 6b. Existe como envoltura y no como llamadas sueltas al puerto **por los defaults**:
+`chrome.storage.session` arranca vacío en cada despertar del SW y el bucle lee estas claves
+esperando valores, no `undefined`. El relleno usa `!= null` y no un chequeo por falsy, que es
+la diferencia entre "no hay dato" y "el dato es `false`" — con `modoTurboBunActivo`, cuyo
+default es `true`, confundirlas dejaría al SW creyendo que sigue en turbo.
+
+De paso perdió una polimorfia muerta: `get()` aceptaba una clave suelta o una lista, pero el
+único call-site que las usaba era el motor HLS, que desde la Fase 6 recibe su contexto por
+parámetro. Los 11 restantes llamaban sin argumentos.
+
 **`core/estado/appState.ts` (`AppState`) es la máquina de estados del popup**: espeja/persiste
 la lista scrapeada + la selección de UI y reconcilia periódicamente contra el progreso
 autoritativo del SW vía `sincronizarConBackground()`. Factory
@@ -341,7 +353,7 @@ que el bundler no verifica: no llames a `Utils.*` en el top-level de un módulo.
 El estado está deliberadamente **partido, no compartido**, entre popup y service worker. Cada zona es dueña de una porción; se reconcilian por IPC, no comparten memoria. En una línea cada uno:
 
 - **`AppState`** (popup, `core/estado/appState.ts`) — la *lista de clases scrapeadas* + selección/filtros de UI.
-- **`SessionState`** (service worker, inline en `background.js`) — el *progreso de la descarga activa*.
+- **`SessionState`** (service worker, `core/cola/estadoSesion.ts`) — el *progreso de la descarga activa*.
 - **`Conexion`** (daemon, `core/conexion/conexion.ts`) — la fuente **única** del *estado de conexión* (servidor + internet).
 
 El schema exacto, las invariantes de reconciliación (`obtener_estados_en_progreso`) y por qué el split → `docs/data-model.md`. El patrón de ownership y el daemon `Conexion` (modelo push, "no chequeos ad-hoc") → `docs/patterns.md`.

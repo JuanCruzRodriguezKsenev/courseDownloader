@@ -98,7 +98,7 @@ mismo trade-off sin transacciones que el resto de las claves, y el dato es infor
 
 ## `chrome.storage.session` — volátil, sobrevive a la suspensión del Service Worker pero no a un reinicio del navegador
 
-Encapsulado por el helper `SessionState` definido inline en `background.js`. Es la fuente de verdad del **progreso de la descarga activa** — nunca se lee/escribe desde el popup directamente, solo vía el mensaje IPC `obtener_estados_en_progreso`.
+Encapsulado por `SessionState` (`core/cola/estadoSesion.ts`, tipado y con sus defaults; estuvo inline en `background.js` hasta la Fase 6b). Es la fuente de verdad del **progreso de la descarga activa** — nunca se lee/escribe desde el popup directamente, solo vía el mensaje IPC `obtener_estados_en_progreso`.
 
 | Clave | Tipo | Default | Descripción |
 |---|---|---|---|

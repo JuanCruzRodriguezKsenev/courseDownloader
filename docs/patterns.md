@@ -56,7 +56,7 @@ mecanismo de error de toda la API de callbacks de `chrome.*`, así que los que q
 
 ## State ownership split (AppState / SessionState)
 
-**Dónde**: `core/estado/appState.ts` (`AppState`, vive en el popup) vs. el objeto `SessionState` definido inline en `background.js` (vive en el service worker).
+**Dónde**: `core/estado/appState.ts` (`AppState`, vive en el popup) vs. `SessionState` (`core/cola/estadoSesion.ts`, que vive en el service worker).
 
 **Qué hace**: en vez de un estado global compartido, cada zona de ejecución es dueña de una porción distinta del estado, y se reconcilian explícitamente vía IPC (`obtener_estados_en_progreso`) en vez de compartir memoria.
 

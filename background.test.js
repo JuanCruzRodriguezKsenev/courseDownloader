@@ -12,6 +12,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 import { ProgramadorEnMemoria } from './core/puertos/programadorEnMemoria.ts';
 import { MensajeriaEnMemoria } from './core/puertos/mensajeriaEnMemoria.ts';
+import { crearEstadoSesion } from './core/cola/estadoSesion.ts';
 
 const store = { local: {}, session: {} };
 
@@ -83,6 +84,10 @@ beforeAll(async () => {
   globalThis.importScripts = () => {};
   // Puerto de almacenamiento (Fase 5b): lo publica plataforma/composicion.ts en producción.
   globalThis.Almacenamiento = crearAlmacenamientoDePrueba();
+  // SessionState salió de background.js en la Fase 6b: ahora lo publica la composición. Se
+  // construye sobre el MISMO doble de almacenamiento, así los tests siguen sembrando y
+  // leyendo `store.session` como siempre.
+  globalThis.SessionState = crearEstadoSesion(globalThis.Almacenamiento);
   // Puerto de programación (Fase 5c), el de la alarma de auto-sanación. Se crea una sola vez
   // porque el SW registra su oyente al evaluarse, igual que con el listener de IPC.
   programador = new ProgramadorEnMemoria();

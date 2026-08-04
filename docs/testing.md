@@ -8,7 +8,7 @@
 
 | Verificación | Baseline esperado |
 |---|---|
-| `npm test` | 23 archivos, 245 tests, todo en verde |
+| `npm test` | 24 archivos, 253 tests, todo en verde |
 | `npm run lint` | **0 errores, 0 warnings** |
 | `npx tsc --noEmit` | sin salida (limpio) |
 | `npm run build` | compila a `.output/chrome-mv3/` |
@@ -20,7 +20,7 @@ usar) se limpiaron con `catch {}` y prefijo `_`, sin tocar comportamiento.
 **Ojo con el alcance de `tsc`, que no es automático**: `allowJs` está en `false` y los dos
 entrypoints son `.js`, así que `tsc` los saltea junto con todo su grafo de imports. Lo que
 realmente typechequea es el `include` de `tsconfig.json` — hoy `core/`, `shared/`,
-`plataforma/` y `sitio/` (33 archivos). **`shared/` salió del `include` en la Fase 6a: la carpeta dejó de existir.** Una carpeta con `.ts` que no esté listada pasa la compuerta en
+`plataforma/` y `sitio/` (35 archivos). **`shared/` salió del `include` en la Fase 6a: la carpeta dejó de existir.** Una carpeta con `.ts` que no esté listada pasa la compuerta en
 verde sin que nadie la mire; fue el caso de `shared/` y `plataforma/` entre la Fase 5b y el
 2026-08-03 (ver `docs/TECHNICAL_DEBT.md` §Testing). Al migrar `.ts` a una raíz nueva,
 agregala al `include` y confirmá con `npx tsc --noEmit --listFiles`.

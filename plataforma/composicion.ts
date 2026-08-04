@@ -23,6 +23,7 @@ import * as progreso from "../core/util/progreso";
 import * as descargas from "./chrome/descargas";
 import { crearFetchConReintentos } from "../core/util/reintentos";
 import { crearHlsEngine } from "../core/hls/hlsEngine";
+import { crearEstadoSesion } from "../core/cola/estadoSesion";
 import BunClient from "../core/backend/bunClient";
 import { crearHistorialFallos } from "../core/historial/historialFallos";
 import { crearAppState } from "../core/estado/appState";
@@ -93,6 +94,14 @@ export const Conexion = crearConexion(almacenamiento, {
  * archivo antes de mover la publicación. Si algún día alguien lo llama en el top-level de un
  * módulo que carga antes que la composición, va a explotar sin que el bundler avise.
  */
+/**
+ * Estado de la ráfaga activa (ámbito de sesión). Sólo lo usa el service worker; el popup
+ * construye una instancia inerte —el constructor no hace I/O— por la misma razón que con
+ * `AppState`: no partir la raíz de composición en dos por un módulo.
+ */
+export const SessionState = crearEstadoSesion(almacenamiento);
+(globalThis as Record<string, unknown>).SessionState = SessionState;
+
 export const HlsEngine = crearHlsEngine({
   fetchConReintentos: crearFetchConReintentos(Conexion),
   descifrarFragmento: media.descifrarFragmento,
