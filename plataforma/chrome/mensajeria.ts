@@ -19,19 +19,26 @@ function hayRuntime(): boolean {
 }
 
 /**
- * "No hay receptor" es el estado NORMAL de esta extensión, no una anomalía: el service worker
- * avisa progreso mientras el popup está cerrado la mayor parte del tiempo. Loguear cada vez
- * convertiría una descarga en cientos de warnings —`update_progress_bar` sale por fragmento— y
- * taparía lo que sí importa en la consola del SW. Se avisa **una vez por acción** y por vida
- * del contexto: alcanza para descubrir un mensaje que nadie escucha nunca, que es el bug que
- * este log existe para revelar, sin convertirse en ruido de fondo.
+ * Chrome reporta DOS condiciones distintas por `lastError` en un envío, y confundirlas fue un
+ * bug real de este archivo (se descubrió leyendo la consola del SW tras una descarga):
+ *
+ *   - **"The message port closed before a response was received"** — hubo receptor, recibió el
+ *     mensaje y no contestó. Para un `notificar()` eso **no es un fallo: es la definición de
+ *     fire-and-forget**. Loguearlo es reportar que la operación hizo exactamente lo suyo.
+ *   - **"Could not establish connection"** — no había nadie escuchando. En esta extensión
+ *     también es normal: el service worker avisa progreso con el popup cerrado casi siempre.
+ *
+ * O sea que **ninguna de las dos merece un warning en `notificar()`**. El callback existe por
+ * otra razón: leer `lastError` es lo que evita que Chrome lo reporte como error no manejado.
+ * Se deja una traza en `debug` (oculta salvo que se active "Verbose") para no perder el rastro
+ * de un mensaje que nadie escucha nunca, que es el único bug que esto podría revelar.
  */
-const accionesYaAvisadas = new Set<string>();
+const accionesYaTrazadas = new Set<string>();
 
-function avisarSinReceptorUnaVez(accion: string, detalle?: string): void {
-  if (accionesYaAvisadas.has(accion)) return;
-  accionesYaAvisadas.add(accion);
-  console.warn(`[Mensajeria] "${accion}" sin receptor (no se repite este aviso):`, detalle);
+function trazarEnvioSinRespuesta(accion: string, detalle?: string): void {
+  if (accionesYaTrazadas.has(accion)) return;
+  accionesYaTrazadas.add(accion);
+  console.debug(`[Mensajeria] "${accion}" no obtuvo respuesta (esperable en notificar):`, detalle);
 }
 
 export const MensajeriaChrome: PuertoMensajeria = {
@@ -60,7 +67,7 @@ export const MensajeriaChrome: PuertoMensajeria = {
     // sin él, un envío sin receptor ensucia la consola con un rechazo no manejado.
     chrome.runtime.sendMessage(mensaje, () => {
       const error = chrome.runtime.lastError;
-      if (error) avisarSinReceptorUnaVez(mensaje.action, error.message);
+      if (error) trazarEnvioSinRespuesta(mensaje.action, error.message);
     });
   },
 

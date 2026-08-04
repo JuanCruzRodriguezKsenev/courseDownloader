@@ -173,10 +173,13 @@ apoye en él pasa verificando algo que en el navegador no ocurre.
 **`PuertoMensajeria` parte en dos lo que `chrome.runtime.sendMessage` mezclaba**: `enviar()`
 espera respuesta y rechaza si el canal falla; `notificar()` es fire-and-forget y no rechaza
 nunca. Elegir uno es explícito en cada call-site — contrato completo en `docs/patterns.md`.
-Detalle operativo que salió al migrar el SW: **"no hay receptor" es el estado normal**, no una
-anomalía —el popup está cerrado la mayor parte del tiempo—, así que el adaptador Chrome avisa
-**una vez por acción** y no por envío; si no, una sola descarga llenaba la consola del SW con
-un warning por fragmento.
+Detalle operativo que salió de leer la consola del SW tras una descarga real: **un `notificar()`
+que no recibe respuesta no es un fallo, es su definición**. Chrome reporta por `lastError` dos
+condiciones —"port closed before a response" (hubo receptor y no contestó) y "could not
+establish connection" (no había nadie)— y en esta extensión **las dos son normales**, porque el
+SW avisa progreso con el popup cerrado casi siempre. El adaptador las consume para que Chrome no
+las marque como error no manejado, y deja sólo una traza en `debug` por acción. Antes eran un
+`console.warn` que además las etiquetaba mal, como "sin receptor".
 
 **`core/hls/hlsEngine.ts` es el motor de descarga**: parsea el manifiesto M3U8 (fragmentos +
 `#EXT-X-KEY`) y corre el pool de 6 workers (`CONCURRENCIA_MAXIMA`) que descarga, descifra con

@@ -39,10 +39,11 @@ oyente del worker (`desengancharOyenteWorker`), que se engancha y desengancha va
 sesión. Si el manejador devuelve `true`, el canal queda abierto para responder async — misma
 convención que `chrome.runtime.onMessage`.
 
-**Cuándo `notificar` no debe hablar**: en el SW, "no hay receptor" es el estado **normal** —el
-popup está cerrado la mayor parte del tiempo y `update_progress_bar` sale por fragmento—, así
-que el adaptador Chrome avisa una sola vez por acción en vez de por envío. Un log que aparece
-siempre no informa nada y tapa lo que sí importa en la consola del service worker.
+**Cuándo `notificar` no debe hablar**: nunca, en la práctica. Un `notificar()` sin respuesta es
+su comportamiento correcto, no un fallo — y con el popup cerrado (el estado habitual del SW)
+tampoco hay receptor. El adaptador Chrome **consume** el `lastError` —eso es lo que evita que
+Chrome lo marque como error no manejado— y deja una traza en `console.debug`, una vez por
+acción. Un log que aparece siempre no informa nada y tapa lo que sí importa.
 
 **Referencia**: `popup/features/queue.js` fue el primer consumidor migrado (seis call-sites, uno
 de cada forma), después `popup.js` (los dos envíos + el oyente), `core/estado/appState.ts` y finalmente
