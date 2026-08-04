@@ -16,7 +16,6 @@ import '../../sitio/ramonnet/parserTitulos.js';
 import '../../sitio/ramonnet/scraper.js';
 
 // Núcleo compartido.
-import '../../shared/utils.js';
 import '../../core/backend/bunClient.ts';
 // Composición: acá se instancian y se publican los globals de los módulos ya desacoplados
 // de chrome.* (HistorialFallos, y desde la Fase 5b también AppState y Conexion — antes los

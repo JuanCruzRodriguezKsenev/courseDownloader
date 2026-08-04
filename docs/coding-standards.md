@@ -67,7 +67,7 @@ incremental — ver `docs/rearquitectura-diseno.md`.
 
 ## Orden de carga de scripts
 
-Los dos entrypoints (`entrypoints/popup/main.js` y `entrypoints/background.js`) importan los módulos en un orden de dependencia explícito: adaptador de sitio → núcleo compartido → features → orquestador → islas Preact. **Regla**: cualquier archivo nuevo debe agregarse en el punto correcto de esa cadena — si depende de `Utils`, va después de `shared/utils.js`; si `Utils` va a depender de él, va antes.
+Los dos entrypoints (`entrypoints/popup/main.js` y `entrypoints/background.js`) importan los módulos en un orden de dependencia explícito: adaptador de sitio → núcleo compartido → features → orquestador → islas Preact. **Regla**: cualquier archivo nuevo debe agregarse en el punto correcto de esa cadena — si depende de un global, va después de quien lo publica. Desde la Fase 6a el caso típico es `Utils`, que ya no es un archivo sino un **ensamblado que arma `plataforma/composicion.ts`** con piezas de `core/util/` y `plataforma/chrome/descargas.ts`: quien lo consuma va después de la composición. Nadie debe llamar a `Utils.*` en el top-level de un módulo — sólo dentro de funciones —, o el orden pasa a ser frágil sin que el bundler avise.
 
 ## Manejo de errores
 

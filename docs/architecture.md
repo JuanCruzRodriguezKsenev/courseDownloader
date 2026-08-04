@@ -44,7 +44,7 @@ La extensión está partida en contextos de ejecución de JS aislados que **solo
 | **Popup** | `popup.js`, `renderers.js`, `popup/features/*` (+ el adaptador `sitio/ramonnet/*`) | Toda la UI: tabs, filtros, onboarding, selección de clases. Inyecta el scraper en la pestaña activa de Ramón Net vía `chrome.scripting.executeScript`. Partes de la UI se están migrando a **islas Preact** (sin build, ES modules locales — ver `docs/adr/0006` y `docs/preact-migration.md`). |
 | **Service Worker** | `background.js`, `background/hlsEngine.js` | Único lugar donde ocurren las descargas reales. Dueño de la cola FIFO persistente y de la máquina de estados de auto-sanación ante cortes de red. Sigue 100% vanilla (no tiene DOM). |
 | **Offscreen Document** | `public/offscreen/offscreen.js` | Existe solo para el path legacy no-Turbo (`URL.createObjectURL` no está disponible en service workers). No se ejercita mientras Turbo Mode esté forzado a `true`. |
-| **Compartido** | `core/**`, `sitio/**`, `plataforma/**` y lo que queda en `shared/` (hoy sólo `utils.js`) | Código cargado por más de una zona. No es una zona de ejecución: es la librería común, hoy en plena re-arquitectura por capas (ver abajo). `core/conexion/conexion.ts` es el **daemon de estado de conexión** (fuente única, ver Modelo de estado). |
+| **Compartido** | `core/**`, `sitio/**`, `plataforma/**` | Código cargado por más de una zona. No es una zona de ejecución: es la librería común, hoy en plena re-arquitectura por capas (ver abajo). `core/conexion/conexion.ts` es el **daemon de estado de conexión** (fuente única, ver Modelo de estado). |
 
 Hay un quinto contexto que la tabla no lista porque no es código *de* la extensión corriendo
 en la extensión: **la pestaña del portal**, donde el popup inyecta `Scraper.escanearAulaVirtual`
@@ -59,7 +59,8 @@ Ver `docs/patterns.md` para el detalle de cómo se comunican estas zonas y qué 
 
 Ortogonal a las zonas de ejecución, el código se está reorganizando en capas (ADR-0008).
 **Convive con la estructura vieja**: lo migrado está en su capa, lo que falta sigue en
-`shared/`, `popup.js` y `background.js`. El avance por fases vive en
+`popup.js`, `renderers.js` y `background.js` (`shared/` se vació en la Fase 6a y ya no
+existe). El avance por fases vive en
 `docs/rearquitectura-diseno.md` §Estado de avance — ése es el doc a leer para saber qué
 sigue.
 
@@ -285,17 +286,29 @@ copie tal cual a esa ruta exacta, que es la que referencia `wxt.config.ts`). El 
 además el **descriptor de faceta**, cuya forma campo por campo está en
 `docs/rearquitectura-diseno.md` §UI.
 
-### `shared/` — lo que todavía no se repartió
+### `Utils` ya no es un archivo: es un ensamblado
 
-Código cargado por los dos entrypoints; es lo que la re-arquitectura va partiendo entre
-`core/` (genérico) y `plataforma/` (atado al navegador). **Desde el 2026-08-03 queda un solo
-archivo acá**: se fueron `conexion.ts` y `state.ts` a `core/`.
+`shared/` **dejó de existir el 2026-08-03** (Fase 6a). Su último habitante, `utils.js`, no era
+una capa sino tres cosas mezcladas, y se repartió según lo que cada función realmente hacía:
 
-- **`utils.js` (`Utils`)** — **genérico desde v6.0.0**: sanitización de nombres/acentos,
-  escapado de HTML, helper de descifrado AES, fetch con reintentos y backoff
-  (`fetchConReintentos`, que consulta al daemon `Conexion` para cortar los reintentos ante un
-  corte real), helpers de blob y matemática de progreso/telemetría. El parser de títulos se
-  mudó a `sitio/ramonnet/parserTitulos.js` — **no volver a meter vocabulario del sitio acá**.
+| Dónde quedó | Qué | Por qué ahí |
+|---|---|---|
+| `core/util/texto.ts` | `sanitizarTexto`, `escaparHtml`, `quitarAcentos` | puras, sin `chrome.*` ni portal |
+| `core/util/media.ts` | `descifrarFragmento`, `generarVideoFinalBlob` | `crypto.subtle` y `Blob` son APIs web, no de extensión |
+| `core/util/progreso.ts` | `calcularMétricasProgreso`, `formatearMB`, `calcularProyeccionMB` | aritmética + formateo |
+| `core/util/reintentos.ts` | `fetchConReintentos` | **factory**: recibe el daemon en vez de leer el global |
+| `plataforma/chrome/descargas.ts` | `inyectarArchivoEnDiscoChrome` | usa `chrome.downloads` → Capa 3, nunca fue Capa 1 |
+
+**El global `Utils` sigue existiendo**, pero ahora lo ensambla `plataforma/composicion.ts` a
+partir de esas piezas. Es deliberado: ~200 call-sites del código vanilla lo consumen como
+`Utils.loQueSea(...)`, y reescribirlos era un corte aparte y mucho más grande que el que
+resolvía el problema de capas. **Consecuencia de orden de carga**: ese global aparece más tarde
+que antes (lo publicaba `utils.js` al evaluarse). Es seguro porque ningún consumidor llama a
+`Utils.*` en tiempo de evaluación —se verificó archivo por archivo—, pero es la clase de cosa
+que el bundler no verifica: no llames a `Utils.*` en el top-level de un módulo.
+
+**No volver a meter vocabulario del sitio acá**: el parser de títulos vive en
+`sitio/ramonnet/parserTitulos.js` desde v6.0.0, y ésa es la frontera.
 
 ## Flujo de una descarga, de punta a punta
 

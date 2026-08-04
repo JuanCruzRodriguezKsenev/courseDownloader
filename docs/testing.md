@@ -1,6 +1,6 @@
 # Testing
 
-**Estado actual: suite real y en crecimiento** (los números exactos, en la tabla de baseline de abajo). Existe `package.json` con Vitest + jsdom como devDependencies. Cubierto hoy: la lógica pura (`shared/utils.js`), el daemon de conexión (`core/conexion/conexion.ts` — desde la Fase 5b sin mocks de `chrome.*`: dos instancias reales sobre `AlmacenamientoEnMemoria` ejercitan el espejado popup↔SW de verdad; desde su mudanza a `core/` el 2026-08-03 tampoco nombra el portal real, porque la URL de sondeo se le inyecta), el cliente del backend (`core/backend/bunClient.ts`, primer test en TypeScript), el historial de fallos (`core/historial/historialFallos.ts`, ya sin mocks de `chrome.*`: usa el adaptador en memoria del puerto), la maquinaria de estado del popup (`core/estado/appState.ts` — **estrenó cobertura en la Fase 5b**: antes tenía cero, porque los tests del popup mockean `globalThis.AppState` entero y nunca la ejercitaban; hoy corre contra `AlmacenamientoEnMemoria` y, desde el 2026-08-03, también su IPC contra `MensajeriaEnMemoria` — sin un solo mock de `chrome.*`. Ojo con un detalle que este archivo dejó documentado: el adaptador en memoria vence a los 0ms por defecto, así que el test del **timeout de rescate** construye uno con plazo largo; si no, el puerto rechazaría primero y el test verificaría el otro camino sin que se note), las features/islas del popup ya extraídas (`popup/features/serverConnection.js`, `queue.js`, `filters.js`, `faceta.js`, y las islas Preact `conexionHeader`/`onboarding`/`rutaDisco`/`bannerConexion`/`listaClases`/`campanita`), y de `background/hlsEngine.js` tanto las funciones puras (parseo/resolución M3U8) como el **pool de 6 workers** `compilarTranscodificacionStream` (concurrencia, AES, streaming turbo/blob, aborts en cascada, y el path de reintento 4xx del bug 400), más los handlers IPC de `background.js` (vía un harness que mockea `chrome.*`). **El bucle de descarga y el auto-heal ya NO están sin cubrir** (2026-08-03): `background.test.js` los caracteriza antes de migrar el SW a los puertos — camino feliz, orden FIFO por `fechaEncolado`, progreso con telemetría, el salto de clase por rechazo 4xx (bug 400), la pausa por sesión (sin alarma) vs. la pausa por servidor caído (con alarma), la cancelación del usuario, el frenado suave y las cuatro ramas de la alarma de auto-heal. Lo único que queda a verificación manual/e2e es el núcleo de `popup.js` aún sin extraer (init + wiring + orquestación de scraping/render), que ADR-0005 define como no-extraíble (ver `docs/contributing.md`).
+**Estado actual: suite real y en crecimiento** (los números exactos, en la tabla de baseline de abajo). Existe `package.json` con Vitest + jsdom como devDependencies. Cubierto hoy: la lógica pura (`core/util/texto.ts` y `core/util/reintentos.ts`, repartidos desde `shared/utils.js` en la Fase 6a — los tests de texto sobrevivieron sin tocar una aserción, que es para lo que estaban, y los de reintentos dejaron de stubear el global `Conexion` para inyectarle una sonda), el daemon de conexión (`core/conexion/conexion.ts` — desde la Fase 5b sin mocks de `chrome.*`: dos instancias reales sobre `AlmacenamientoEnMemoria` ejercitan el espejado popup↔SW de verdad; desde su mudanza a `core/` el 2026-08-03 tampoco nombra el portal real, porque la URL de sondeo se le inyecta), el cliente del backend (`core/backend/bunClient.ts`, primer test en TypeScript), el historial de fallos (`core/historial/historialFallos.ts`, ya sin mocks de `chrome.*`: usa el adaptador en memoria del puerto), la maquinaria de estado del popup (`core/estado/appState.ts` — **estrenó cobertura en la Fase 5b**: antes tenía cero, porque los tests del popup mockean `globalThis.AppState` entero y nunca la ejercitaban; hoy corre contra `AlmacenamientoEnMemoria` y, desde el 2026-08-03, también su IPC contra `MensajeriaEnMemoria` — sin un solo mock de `chrome.*`. Ojo con un detalle que este archivo dejó documentado: el adaptador en memoria vence a los 0ms por defecto, así que el test del **timeout de rescate** construye uno con plazo largo; si no, el puerto rechazaría primero y el test verificaría el otro camino sin que se note), las features/islas del popup ya extraídas (`popup/features/serverConnection.js`, `queue.js`, `filters.js`, `faceta.js`, y las islas Preact `conexionHeader`/`onboarding`/`rutaDisco`/`bannerConexion`/`listaClases`/`campanita`), y de `background/hlsEngine.js` tanto las funciones puras (parseo/resolución M3U8) como el **pool de 6 workers** `compilarTranscodificacionStream` (concurrencia, AES, streaming turbo/blob, aborts en cascada, y el path de reintento 4xx del bug 400), más los handlers IPC de `background.js` (vía un harness que mockea `chrome.*`). **El bucle de descarga y el auto-heal ya NO están sin cubrir** (2026-08-03): `background.test.js` los caracteriza antes de migrar el SW a los puertos — camino feliz, orden FIFO por `fechaEncolado`, progreso con telemetría, el salto de clase por rechazo 4xx (bug 400), la pausa por sesión (sin alarma) vs. la pausa por servidor caído (con alarma), la cancelación del usuario, el frenado suave y las cuatro ramas de la alarma de auto-heal. Lo único que queda a verificación manual/e2e es el núcleo de `popup.js` aún sin extraer (init + wiring + orquestación de scraping/render), que ADR-0005 define como no-extraíble (ver `docs/contributing.md`).
 
 ## Baseline de las verificaciones
 
@@ -8,7 +8,7 @@
 
 | Verificación | Baseline esperado |
 |---|---|
-| `npm test` | 22 archivos, 237 tests, todo en verde |
+| `npm test` | 23 archivos, 241 tests, todo en verde |
 | `npm run lint` | **0 errores, 0 warnings** |
 | `npx tsc --noEmit` | sin salida (limpio) |
 | `npm run build` | compila a `.output/chrome-mv3/` |
@@ -20,7 +20,7 @@ usar) se limpiaron con `catch {}` y prefijo `_`, sin tocar comportamiento.
 **Ojo con el alcance de `tsc`, que no es automático**: `allowJs` está en `false` y los dos
 entrypoints son `.js`, así que `tsc` los saltea junto con todo su grafo de imports. Lo que
 realmente typechequea es el `include` de `tsconfig.json` — hoy `core/`, `shared/`,
-`plataforma/` y `sitio/` (24 archivos). Una carpeta con `.ts` que no esté listada pasa la compuerta en
+`plataforma/` y `sitio/` (31 archivos). **`shared/` salió del `include` en la Fase 6a: la carpeta dejó de existir.** Una carpeta con `.ts` que no esté listada pasa la compuerta en
 verde sin que nadie la mire; fue el caso de `shared/` y `plataforma/` entre la Fase 5b y el
 2026-08-03 (ver `docs/TECHNICAL_DEBT.md` §Testing). Al migrar `.ts` a una raíz nueva,
 agregala al `include` y confirmá con `npx tsc --noEmit --listFiles`.
@@ -39,13 +39,13 @@ La extensión **sí** se empaqueta desde la Fase 3 de la re-arquitectura (WXT + 
 
 **Vitest + jsdom.** Ver justificación en `docs/tech-stack.md`. No usar Jest — Vitest no requiere configuración de Babel/TS aparte y arranca más rápido, y no hay ninguna razón específica del proyecto para preferir Jest.
 
-Nota sobre el import: `shared/utils.js` no era un módulo ESM/CJS. Se le agregó un guard de exportación al final (`module.exports = Utils` bajo `typeof module !== "undefined"`, además de los branches `window`/`self` para el browser/SW). Por eso `package.json` **no** declara `"type": "module"`: así Node/Vitest resuelven el archivo como CommonJS y `module.exports` funciona.
+Nota histórica sobre el import: `shared/utils.js` no era un módulo ESM/CJS y hubo que agregarle un guard de exportación para poder testearlo. Ya no aplica —ese archivo se repartió en la Fase 6a y todo el núcleo es ESM/TypeScript—, pero explica por qué `package.json` **no** declara `"type": "module"`.
 
 ## Qué testear primero, y por qué
 
-### 1. `shared/utils.js` — prioridad máxima ✅ cubierto (inicial)
+### 1. Lógica pura (lo que hoy es `core/util/`) — prioridad máxima ✅ cubierto (inicial)
 
-Es la única capa de lógica de negocio que ya está desacoplada del DOM y de `chrome.*` — se puede testear sin ningún mock. Ya cubierto en `shared/utils.test.js` (más `escaparHtml`, agregado con el fix de XSS). El *mecanismo* de parsing/clasificación vive en `docs/patterns.md` §Sanitización; acá sólo el *por qué* de la prioridad de test. En orden de criticidad:
+Fue lo primero porque era la única capa de negocio ya desacoplada del DOM y de `chrome.*`: se testea sin ningún mock. Vivía en `shared/utils.js` (cubierto en `shared/utils.test.js`, más `escaparHtml`, agregado con el fix de XSS); desde la Fase 6a son `core/util/texto.test.ts` y `core/util/reintentos.test.ts`. El *mecanismo* de parsing/clasificación vive en `docs/patterns.md` §Sanitización; acá sólo el *por qué* de la prioridad de test. En orden de criticidad:
 
 1. **`formatTitleStructured`** — la función más compleja del proyecto (múltiples regex aplicados en secuencia, donde el orden importa). Un bug acá corrompe el nombre de archivo de la clase descargada.
 2. **`clasificarCatedraYCarpeta`** — determina a qué carpeta/cátedra se asigna cada clase. Un bug acá mueve archivos al lugar equivocado silenciosamente.
@@ -54,7 +54,7 @@ Es la única capa de lógica de negocio que ya está desacoplada del DOM y de `c
 
 Casos de borde a cubrir explícitamente para `formatTitleStructured`/`clasificarCatedraYCarpeta`: títulos sin fecha, títulos con cátedra explícita ("CATEDRA B") vs. implícita ("ANATO B"), títulos con acentos, títulos con múltiples números que podrían confundirse con clase/parte/fecha.
 
-### 2. `shared/utils.js` — funciones de soporte (prioridad media)
+### 2. Funciones de soporte de esa misma capa (prioridad media)
 
 - `calcularMétricasProgreso` / `formatearMB` / `calcularProyeccionMB` — cálculos de telemetría, bajo riesgo pero baratos de testear.
 - `fetchConReintentos` — requiere mockear `fetch` global (`vi.stubGlobal` o similar) y un `AbortController` real para el caso de cancelación.
@@ -75,4 +75,4 @@ El `popup.js` original era un único closure `DOMContentLoaded` con ~50 funcione
 
 ## Convención de archivos de test
 
-Co-locar el test junto al archivo que testea: `shared/utils.test.js` al lado de `shared/utils.js` (no una carpeta `__tests__/` separada) — sigue el patrón `*.test.ts` mencionado como referencia en proyectos hermanos, adaptado a `.js`.
+Co-locar el test junto al archivo que testea: `core/util/texto.test.ts` al lado de `core/util/texto.ts` (no una carpeta `__tests__/` separada) — sigue el patrón `*.test.ts` mencionado como referencia en proyectos hermanos, adaptado a `.js`.

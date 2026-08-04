@@ -7,10 +7,11 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import ParserTitulos from './parserTitulos.js';
-import Utils from '../../shared/utils.js';
+import { quitarAcentos } from '../../core/util/texto';
 
-// El parser usa la global Utils (genérica) para normalizar acentos.
-beforeEach(() => { globalThis.Utils = Utils; });
+// El parser consume `Utils` como global (así lo carga el entrypoint). Desde la Fase 6a ese
+// global lo ensambla la composición, así que acá se arma sólo la parte que el parser usa.
+beforeEach(() => { globalThis.Utils = { quitarAcentos }; });
 afterEach(() => { delete globalThis.Utils; });
 
 describe('parseSmartDate', () => {

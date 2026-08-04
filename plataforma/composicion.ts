@@ -17,6 +17,11 @@
 import AlmacenamientoChrome from "./chrome/almacenamiento";
 import MensajeriaChrome from "./chrome/mensajeria";
 import ProgramadorChrome from "./chrome/programador";
+import * as texto from "../core/util/texto";
+import * as media from "../core/util/media";
+import * as progreso from "../core/util/progreso";
+import * as descargas from "./chrome/descargas";
+import { crearFetchConReintentos } from "../core/util/reintentos";
 import { crearHistorialFallos } from "../core/historial/historialFallos";
 import { crearAppState } from "../core/estado/appState";
 import { crearConexion } from "../core/conexion/conexion";
@@ -68,3 +73,29 @@ export const Conexion = crearConexion(almacenamiento, {
   urlSondeoInternet: SitioActivo.urlSondeoInternet,
 });
 (globalThis as Record<string, unknown>).Conexion = Conexion;
+
+/**
+ * `Utils` dejó de ser un archivo y pasó a ser **un ensamblado** (Fase 6a): sus funciones se
+ * repartieron entre `core/util/` (genéricas) y `plataforma/chrome/descargas.ts` (que usaba
+ * `chrome.downloads`, o sea Capa 3). Acá se vuelven a juntar bajo el mismo nombre porque
+ * ~200 call-sites del código vanilla lo consumen como `Utils.loQueSea(...)`; reescribirlos
+ * era un corte aparte, y mucho más grande que el que resolvía el problema de capas.
+ *
+ * El que cambió de forma es `fetchConReintentos`: ahora se **construye** con el daemon en vez
+ * de sniffearlo del global. Ése era el acoplamiento que impedía que el motor HLS —su mayor
+ * consumidor— pudiera vivir en `core/`.
+ *
+ * **Ojo con el orden de carga**: este global lo publicaba `shared/utils.js` al evaluarse, y
+ * ahora aparece más tarde en la cadena (acá). Es seguro porque ningún consumidor llama a
+ * `Utils.*` en tiempo de evaluación, sólo dentro de funciones — se verificó archivo por
+ * archivo antes de mover la publicación. Si algún día alguien lo llama en el top-level de un
+ * módulo que carga antes que la composición, va a explotar sin que el bundler avise.
+ */
+export const Utils = {
+  ...texto,
+  ...media,
+  ...progreso,
+  ...descargas,
+  fetchConReintentos: crearFetchConReintentos(Conexion),
+};
+(globalThis as Record<string, unknown>).Utils = Utils;

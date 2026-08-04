@@ -36,7 +36,7 @@ Agregar un framework de UI (React/Vue/Svelte) o un bundler (Vite) tendría costo
 El código tiene dos paths de escritura a disco:
 
 1. **Turbo Mode** (activo siempre — `modoTurboBun` está hardcodeado a `true`): cada fragmento descifrado se envía en streaming al backend Bun (`BunClient.enviarFragmentoStream`), que lo escribe directo al filesystem. La extensión nunca retiene el video completo en memoria — el consumo de RAM se mantiene bajo (según el README, <15 MB) sin importar el tamaño del archivo final.
-2. **Legacy non-Turbo** (código muerto en la práctica — `establecerModoTurbo` fuerza `true` siempre): ensambla todos los fragmentos en un `Blob` en memoria y usa `chrome.downloads.download()` con un Object URL generado vía un documento offscreen (porque los service workers no tienen `URL.createObjectURL`). Este path existe en `shared/utils.js`/`background.js` pero no se ejecuta.
+2. **Legacy non-Turbo** (código muerto en la práctica — `establecerModoTurbo` fuerza `true` siempre): ensambla todos los fragmentos en un `Blob` en memoria y usa `chrome.downloads.download()` con un Object URL generado vía un documento offscreen (porque los service workers no tienen `URL.createObjectURL`). Este path existe en `plataforma/chrome/descargas.ts` (donde quedó al repartirse `shared/utils.js` en la Fase 6a) y en `background.js`, pero no se ejecuta.
 
 La razón de fondo para depender de un backend local: `chrome.downloads` por sí solo no permite streaming incremental a disco sin acumular el archivo completo en memoria del navegador primero — para videos largos eso es un riesgo de OOM que Turbo Mode evita por diseño.
 

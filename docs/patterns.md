@@ -100,7 +100,7 @@ mecanismo de error de toda la API de callbacks de `chrome.*`, así que los que q
 
 ## Retry con backoff exponencial
 
-**Dónde**: `Utils.fetchConReintentos` en `shared/utils.js`.
+**Dónde**: `core/util/reintentos.ts`. Desde la Fase 6a es una **factory** (`crearFetchConReintentos(conexion)`): el daemon entra por inyección en vez de leerse del global, que era lo que ataba este helper —y por arrastre al motor HLS— fuera de `core/`. Se sigue consumiendo como `Utils.fetchConReintentos` porque la composición lo ensambla ahí.
 
 **Qué hace**: envuelve `fetch` con hasta 4 reintentos y delay `delayInicial * 2^(intento-1)` entre cada uno. Respeta `AbortSignal` — si el usuario cancela (`opciones.signal`), no reintenta. Para no "quemar" la escalera completa (~15 s) ante una caída sostenida, corta temprano en dos casos, sin sacrificar la tolerancia a micro-cortes:
 
@@ -145,7 +145,7 @@ Cada intento tiene además un **timeout propio de 10 s** (`AbortController` comp
 
 ## Sanitización de nombres de archivo y parsing de títulos
 
-**Dónde**: `Utils.sanitizarTexto` en `shared/utils.js` (genérico); `ParserTitulos.formatTitleStructured` y `.clasificarCatedraYCarpeta` en `sitio/ramonnet/parserTitulos.js` (Capa 2 — son específicos del portal), consumidos vía `SitioActivo.parsearTitulo`/`.clasificarCarpeta`.
+**Dónde**: `sanitizarTexto` en `core/util/texto.ts` (genérico); `ParserTitulos.formatTitleStructured` y `.clasificarCatedraYCarpeta` en `sitio/ramonnet/parserTitulos.js` (Capa 2 — son específicos del portal), consumidos vía `SitioActivo.parsearTitulo`/`.clasificarCarpeta`.
 
 **Qué hace**: normaliza títulos de clases scrapeados (texto libre, con acentos, fechas en formatos variables, mención de cátedra en distintas posiciones) a un nombre de archivo canónico `SEM mm-dd - MATERIA CATEDRA - CLASE n - PARTE m - DETALLE`, y separa esa clasificación en pasos (fecha → cátedra → materia → clase/parte → resto) que se van "consumiendo" del texto original para no volver a matchear lo mismo dos veces.
 

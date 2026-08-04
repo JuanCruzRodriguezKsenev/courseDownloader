@@ -7,6 +7,10 @@
   // producción tiene que estar listada ACÁ o queda sin typechequear en silencio — es lo
   // que pasaba con shared/ y plataforma/ desde la Fase 5b. Al agregar una carpeta nueva
   // con .ts (ej. core/hls/ en la Fase 6, si cuelga de otra raíz), sumala a la lista.
+  //
+  // `shared/` se sacó en la Fase 6a: la carpeta dejó de existir (utils.js fue su último
+  // habitante y se repartió entre core/util/ y plataforma/chrome/). Un patrón que no matchea
+  // nada no da error, pero miente sobre lo que se está chequeando.
   "extends": "./.wxt/tsconfig.json",
   "compilerOptions": {
     "strict": true,
@@ -17,7 +21,6 @@
     "wxt.config.ts",
     "entrypoints/**/*",
     "core/**/*",
-    "shared/**/*",
     "plataforma/**/*",
     "sitio/**/*"
   ]

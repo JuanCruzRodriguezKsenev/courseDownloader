@@ -18,7 +18,6 @@ import { defineBackground } from 'wxt/utils/define-background';
 import '../sitio/ramonnet/config.ts';
 import '../sitio/ramonnet/parserTitulos.js';
 import '../sitio/ramonnet/resolverManifiesto.js';
-import '../shared/utils.js';
 import '../core/backend/bunClient.ts';
 // Composición: instancia y publica los globals ya desacoplados de chrome.* — desde la
 // Fase 5b, también `Conexion` (antes lo publicaba shared/conexion.js al evaluarse). Va
