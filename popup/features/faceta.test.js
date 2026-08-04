@@ -25,7 +25,7 @@ beforeEach(() => {
   vi.spyOn(console, 'log').mockImplementation(() => {});
   globalThis.AppState = {
     listadoClasesGlobal: [],
-    catedraSeleccionada: null,
+    facetaSeleccionada: null,
     respaldar: vi.fn(),
   };
 });
@@ -39,7 +39,7 @@ afterEach(() => {
 describe('FacetaFeature.actualizarBadge', () => {
   it('varios valores con uno elegido: muestra el badge con el texto del sitio', () => {
     AppState.listadoClasesGlobal = [{ catedra: 'A' }, { catedra: 'B' }, { catedra: 'COMUN' }];
-    AppState.catedraSeleccionada = 'A';
+    AppState.facetaSeleccionada = 'A';
     const { feature, badge } = crearFeature();
 
     feature.actualizarBadge();
@@ -51,19 +51,19 @@ describe('FacetaFeature.actualizarBadge', () => {
 
   it('un solo valor: oculta el badge y limpia la selección huérfana', () => {
     AppState.listadoClasesGlobal = [{ catedra: 'A' }, { catedra: 'COMUN' }];
-    AppState.catedraSeleccionada = 'A'; // huérfana: ya no hay varios valores
+    AppState.facetaSeleccionada = 'A'; // huérfana: ya no hay varios valores
     const { feature, badge } = crearFeature();
 
     feature.actualizarBadge();
 
     expect(badge.style.display).toBe('none');
-    expect(AppState.catedraSeleccionada).toBeNull();
+    expect(AppState.facetaSeleccionada).toBeNull();
     expect(AppState.respaldar).toHaveBeenCalled();
   });
 
   it('varios valores sin elección: oculta el badge sin tocar el estado', () => {
     AppState.listadoClasesGlobal = [{ catedra: 'A' }, { catedra: 'B' }];
-    AppState.catedraSeleccionada = null;
+    AppState.facetaSeleccionada = null;
     const { feature, badge } = crearFeature();
 
     feature.actualizarBadge();
@@ -87,7 +87,7 @@ describe('FacetaFeature.aplicarSeleccionSilenciosa', () => {
     feature.aplicarSeleccionSilenciosa('A');
 
     const [a, b, comun, aDescargada] = AppState.listadoClasesGlobal;
-    expect(AppState.catedraSeleccionada).toBe('A');
+    expect(AppState.facetaSeleccionada).toBe('A');
     expect(a.seleccionado).toBe(true);   // pending A
     expect(b.seleccionado).toBe(false);  // pending B (deseleccionada)
     expect(comun.seleccionado).toBe(true); // el valor común siempre entra
@@ -100,7 +100,7 @@ describe('FacetaFeature.aplicarSeleccionSilenciosa', () => {
 describe('FacetaFeature.verificarYMostrarAsistente', () => {
   it('varios valores sin selección previa: muestra el modal con las opciones ordenadas', () => {
     AppState.listadoClasesGlobal = [{ catedra: 'C' }, { catedra: 'A' }, { catedra: 'B' }];
-    AppState.catedraSeleccionada = null;
+    AppState.facetaSeleccionada = null;
     const { feature } = crearFeature();
 
     feature.verificarYMostrarAsistente();
@@ -127,7 +127,7 @@ describe('FacetaFeature.verificarYMostrarAsistente', () => {
       { catedra: 'A', estado: 'pending', seleccionado: false },
       { catedra: 'B', estado: 'pending', seleccionado: false },
     ];
-    AppState.catedraSeleccionada = 'A';
+    AppState.facetaSeleccionada = 'A';
     const { feature, aplicarFiltros } = crearFeature();
 
     feature.verificarYMostrarAsistente();
@@ -139,12 +139,12 @@ describe('FacetaFeature.verificarYMostrarAsistente', () => {
 
   it('un solo valor: resetea la selección a null', () => {
     AppState.listadoClasesGlobal = [{ catedra: 'A' }, { catedra: 'COMUN' }];
-    AppState.catedraSeleccionada = 'A';
+    AppState.facetaSeleccionada = 'A';
     const { feature } = crearFeature();
 
     feature.verificarYMostrarAsistente();
 
-    expect(AppState.catedraSeleccionada).toBeNull();
+    expect(AppState.facetaSeleccionada).toBeNull();
     expect(document.querySelector('.faceta-overlay')).toBeNull();
   });
 });
@@ -165,7 +165,7 @@ describe('FacetaFeature — click en el badge y modal', () => {
     const botones = [...overlay.querySelectorAll('.btn-faceta-opt')];
     botones.find(b => b.textContent === 'Cátedra B').click();
 
-    expect(AppState.catedraSeleccionada).toBe('B');
+    expect(AppState.facetaSeleccionada).toBe('B');
     expect(AppState.listadoClasesGlobal[1].seleccionado).toBe(true);
     expect(aplicarFiltros).toHaveBeenCalled();
     expect(document.querySelector('.faceta-overlay')).toBeNull();
@@ -226,7 +226,7 @@ describe('FacetaFeature — con el descriptor de OTRO sitio', () => {
     overlay.querySelectorAll('.btn-faceta-opt')[0].click();
 
     expect(AppState.comisionSeleccionada).toBe('1');
-    expect(AppState.catedraSeleccionada).toBeNull();                 // no tocó la clave del otro sitio
+    expect(AppState.facetaSeleccionada).toBeNull();                 // no tocó la clave del otro sitio
     expect(AppState.listadoClasesGlobal[1].seleccionado).toBe(true);  // comisión 1
     expect(AppState.listadoClasesGlobal[2].seleccionado).toBe(true);  // GENERAL entra
     expect(AppState.listadoClasesGlobal[0].seleccionado).toBe(false); // comisión 2 no

@@ -45,7 +45,7 @@ que el adaptador Chrome avisa una sola vez por acción en vez de por envío. Un 
 siempre no informa nada y tapa lo que sí importa en la consola del service worker.
 
 **Referencia**: `popup/features/queue.js` fue el primer consumidor migrado (seis call-sites, uno
-de cada forma), después `popup.js` (los dos envíos + el oyente), `shared/state.ts` y finalmente
+de cada forma), después `popup.js` (los dos envíos + el oyente), `core/estado/appState.ts` y finalmente
 `background.js` con las dos puntas (2026-08-03): el receptor, los 7 avisos por `notificar()` y
 los 2 del camino legacy offscreen por `enviar()`, que sí esperan respuesta. El adaptador de
 navegador es `plataforma/chrome/mensajeria.ts`; el de tests, `core/puertos/mensajeriaEnMemoria.ts`.
@@ -56,7 +56,7 @@ mecanismo de error de toda la API de callbacks de `chrome.*`, así que los que q
 
 ## State ownership split (AppState / SessionState)
 
-**Dónde**: `shared/state.ts` (`AppState`, vive en el popup) vs. el objeto `SessionState` definido inline en `background.js` (vive en el service worker).
+**Dónde**: `core/estado/appState.ts` (`AppState`, vive en el popup) vs. el objeto `SessionState` definido inline en `background.js` (vive en el service worker).
 
 **Qué hace**: en vez de un estado global compartido, cada zona de ejecución es dueña de una porción distinta del estado, y se reconcilian explícitamente vía IPC (`obtener_estados_en_progreso`) en vez de compartir memoria.
 

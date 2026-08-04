@@ -44,7 +44,7 @@ La extensión está partida en contextos de ejecución de JS aislados que **solo
 | **Popup** | `popup.js`, `renderers.js`, `popup/features/*` (+ el adaptador `sitio/ramonnet/*`) | Toda la UI: tabs, filtros, onboarding, selección de clases. Inyecta el scraper en la pestaña activa de Ramón Net vía `chrome.scripting.executeScript`. Partes de la UI se están migrando a **islas Preact** (sin build, ES modules locales — ver `docs/adr/0006` y `docs/preact-migration.md`). |
 | **Service Worker** | `background.js`, `background/hlsEngine.js` | Único lugar donde ocurren las descargas reales. Dueño de la cola FIFO persistente y de la máquina de estados de auto-sanación ante cortes de red. Sigue 100% vanilla (no tiene DOM). |
 | **Offscreen Document** | `public/offscreen/offscreen.js` | Existe solo para el path legacy no-Turbo (`URL.createObjectURL` no está disponible en service workers). No se ejercita mientras Turbo Mode esté forzado a `true`. |
-| **Compartido** | `shared/*.js` (lo que aún no se migró), `core/**`, `sitio/**`, `plataforma/**` | Código cargado por más de una zona. No es una zona de ejecución: es la librería común, hoy en plena re-arquitectura por capas (ver abajo). `core/conexion/conexion.ts` es el **daemon de estado de conexión** (fuente única, ver Modelo de estado). |
+| **Compartido** | `core/**`, `sitio/**`, `plataforma/**` y lo que queda en `shared/` (hoy sólo `utils.js`) | Código cargado por más de una zona. No es una zona de ejecución: es la librería común, hoy en plena re-arquitectura por capas (ver abajo). `core/conexion/conexion.ts` es el **daemon de estado de conexión** (fuente única, ver Modelo de estado). |
 
 Hay un quinto contexto que la tabla no lista porque no es código *de* la extensión corriendo
 en la extensión: **la pestaña del portal**, donde el popup inyecta `Scraper.escanearAulaVirtual`
@@ -86,14 +86,14 @@ Lo que **todavía** habla `chrome.*` directo, por API y no por archivo:
 | `downloads` / `offscreen` | `background.js` | sólo el camino legacy no-Turbo (hoy inalcanzable) |
 
 **El `PuertoMensajeria` tampoco tiene consumidores pendientes** desde el 2026-08-03: `popup.js`,
-`popup/features/queue.js`, `shared/state.ts` y `background.js` (las dos puntas) pasaron todos
+`popup/features/queue.js`, `core/estado/appState.ts` y `background.js` (las dos puntas) pasaron todos
 en la Fase 5c. No queda un `sendMessage`/`onMessage` crudo en el proyecto.
 
 > Cuidado al contar: los `chrome.runtime.lastError` que quedan en `popup.js` son de los
 > callbacks de `tabs`/`scripting`, no de mensajería. `lastError` es el mecanismo de error de
 > **toda** la API de callbacks de `chrome.*`, no sólo del IPC.
 
-`shared/state.ts` fue el primero de la Fase 5b: ya no toca `chrome.storage` (recibe el puerto
+`core/estado/appState.ts` fue el primero de la Fase 5b: ya no toca `chrome.storage` (recibe el puerto
 por inyección). El `sendMessage` de `sincronizarConBackground()` —que es **IPC y no
 persistencia**, y por eso caía fuera de este puerto— pasó al de mensajería el 2026-08-03, así
 que el archivo ya no tiene ningún `chrome.*`.
@@ -179,6 +179,22 @@ Detalle operativo que salió al migrar el SW: **"no hay receptor" es el estado n
 anomalía —el popup está cerrado la mayor parte del tiempo—, así que el adaptador Chrome avisa
 **una vez por acción** y no por envío; si no, una sola descarga llenaba la consola del SW con
 un warning por fragmento.
+
+**`core/estado/appState.ts` (`AppState`) es la máquina de estados del popup**: espeja/persiste
+la lista scrapeada + la selección de UI y reconcilia periódicamente contra el progreso
+autoritativo del SW vía `sincronizarConBackground()`. Factory
+`crearAppState(almacenamiento, mensajeria)` sobre los dos puertos; el `globalThis.AppState` que
+leen ~280 call-sites lo publica `composicion.ts`, no este archivo. Llegó a la Capa 1 el
+**2026-08-03**, en tres pasos que valen como plantilla: primero los puertos (storage en la 5b,
+IPC en la 5c) y **después sacarle el dato de sitio** — mientras el campo se llamó
+`catedraSeleccionada`, este archivo no podía ser genérico por una sola palabra. Qué faceta se
+filtra lo decide el adaptador vía `PuertoSitio.faceta.claveEstado`, que **nombra** el campo de
+acá; `AppState` no sabe que existen las cátedras. El renombre arrastró la única migración de
+datos del proyecto (`catedraElegida` → `facetaElegida`) → `docs/data-model.md`.
+
+Detalle de forma en `sincronizarConBackground()`: usa `enviar()` (es una consulta) **y además**
+conserva su timeout de rescate de 3s, porque el puerto sólo promete rechazar cuando no hay
+receptor — no cubre al receptor que acepta, promete responder async y nunca responde.
 
 **`core/conexion/conexion.ts` (`Conexion`) es la fuente única de verdad del estado de
 conexión** (servidor + internet), corriendo en popup y en SW; se lee con `Conexion.get()` o se
@@ -272,20 +288,9 @@ además el **descriptor de faceta**, cuya forma campo por campo está en
 ### `shared/` — lo que todavía no se repartió
 
 Código cargado por los dos entrypoints; es lo que la re-arquitectura va partiendo entre
-`core/` (genérico) y `plataforma/` (atado al navegador).
+`core/` (genérico) y `plataforma/` (atado al navegador). **Desde el 2026-08-03 queda un solo
+archivo acá**: se fueron `conexion.ts` y `state.ts` a `core/`.
 
-- **`state.ts` (`AppState`)** — la máquina de estados del popup: espeja/persiste la lista
-  scrapeada + selección de UI y reconcilia periódicamente contra el progreso autoritativo del
-  SW vía `sincronizarConBackground()`. Factory `crearAppState(almacenamiento, mensajeria)`
-  sobre los dos puertos; el `globalThis.AppState` que leen ~280 call-sites lo publica
-  `composicion.ts`, no este archivo. **Ya no le queda `chrome.*`** (el IPC pasó al puerto el
-  2026-08-03), así que lo único que lo retiene en `shared/` es **vocabulario de sitio**:
-  `catedraSeleccionada` y la clave persistida `catedraElegida`, que la Capa 1 no puede aceptar.
-  Se muda cuando eso se generalice a `facetaSeleccionada` — que pide migrar datos ya
-  persistidos, no sólo renombrar.
-  Detalle de forma en `sincronizarConBackground()`: usa `enviar()` (es una consulta) **y
-  además** conserva su timeout de rescate de 3s, porque el puerto sólo promete rechazar cuando
-  no hay receptor — no cubre al receptor que acepta, promete responder async y nunca responde.
 - **`utils.js` (`Utils`)** — **genérico desde v6.0.0**: sanitización de nombres/acentos,
   escapado de HTML, helper de descifrado AES, fetch con reintentos y backoff
   (`fetchConReintentos`, que consulta al daemon `Conexion` para cortar los reintentos ante un
@@ -308,7 +313,7 @@ Código cargado por los dos entrypoints; es lo que la re-arquitectura va partien
 
 El estado está deliberadamente **partido, no compartido**, entre popup y service worker. Cada zona es dueña de una porción; se reconcilian por IPC, no comparten memoria. En una línea cada uno:
 
-- **`AppState`** (popup, `shared/state.ts`) — la *lista de clases scrapeadas* + selección/filtros de UI.
+- **`AppState`** (popup, `core/estado/appState.ts`) — la *lista de clases scrapeadas* + selección/filtros de UI.
 - **`SessionState`** (service worker, inline en `background.js`) — el *progreso de la descarga activa*.
 - **`Conexion`** (daemon, `core/conexion/conexion.ts`) — la fuente **única** del *estado de conexión* (servidor + internet).
 

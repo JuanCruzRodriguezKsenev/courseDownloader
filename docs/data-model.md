@@ -4,20 +4,42 @@ Esta extensión no tiene base de datos — el equivalente es el esquema de `chro
 
 ## `chrome.storage.local` — persistente entre reinicios del navegador
 
-Escrito principalmente por `AppState.respaldar()` (`shared/state.ts`) desde el popup, y por varios handlers IPC en `background.js`.
+Escrito principalmente por `AppState.respaldar()` (`core/estado/appState.ts`) desde el popup, y por varios handlers IPC en `background.js`.
 
 | Clave | Forma | Escrita por | Descripción |
 |---|---|---|---|
 | `listaPersistente` | `Clase[]` (ver abajo) | popup (`AppState.respaldar`), SW (varios handlers IPC) | Lista completa de clases scrapeadas de la última sesión, con su estado actual. |
 | `colaDescargas` | `ColaItem[]` (ver abajo) | popup, SW | Cola FIFO desacoplada de descarga — separada de `listaPersistente` para poder sobrevivir a cambios de materia/pestaña sin perder el progreso. |
 | `faseDiscoOk` | `boolean` | popup | Si ya se corrió una sincronización con el disco (vía `escanear_carpeta_local`) en esta sesión. |
-| `catedraElegida` | `string \| null` | popup | Cátedra (A–D) seleccionada por el usuario cuando hay multi-cátedra detectada. La UI ya no nombra esta clave: la declara el adaptador de sitio (`sitio/ramonnet/config.ts`, `faceta.claveEstado` → `AppState.catedraSeleccionada`). Si algún día se generaliza el nombre en storage, hace falta migración. |
+| `facetaElegida` | `string \| null` | popup | Valor de faceta seleccionado por el usuario cuando se detecta más de uno (en Ramón Net: la cátedra A–D). La UI no nombra esta clave: la declara el adaptador de sitio (`sitio/ramonnet/config.ts`, `faceta.claveEstado` → `AppState.facetaSeleccionada`). **Se llamó `catedraElegida` hasta el 2026-08-03** — ver la nota de migración abajo. |
 | `ocultarAdvExplorar` | `boolean` | popup | Preferencia: no volver a mostrar el aviso al explorar carpeta. |
 | `ocultarAdvAula` | `boolean` | popup | Preferencia: no volver a mostrar el aviso al cambiar de aula. |
 | `ordenAscendente` | `boolean \| null` | popup | Orden de la lista: `true`=ascendente, `false`=descendente, `null`=FIFO natural (solo aplica en la pestaña Cola). |
 | `tutorialCompletado` | `boolean` | popup | Si el onboarding ya se completó/saltó. |
 | `SW_ESTADOS_PROGRESO` | `Record<string, EstadoClase>` | SW (`persistirEstadoFondo`) | Mapa `titulo → estado` de progreso, espejo liviano para que el popup pueda reconciliar sin pedir el detalle completo. |
 | `historialFallos` | `HistorialFallo[]` (ver abajo) | SW (`registrarFallo` → `HistorialFallos.registrar`), popup (marcar leídas / limpiar) | Historial acotado (últimos 50, más-reciente-primero) de fallos terminales de descarga (rechazo 4xx / sesión / servidor / internet). Fuente de la campanita del popup; la escribe el SW aun con el popup cerrado. |
+
+### Migración: `catedraElegida` → `facetaElegida` (2026-08-03)
+
+Es la **única migración de datos que tuvo el proyecto**, y sirve de plantilla si aparece otra.
+El renombre no fue cosmético: mientras la clave y el campo en memoria se llamaran `catedra*`,
+`AppState` cargaba vocabulario de Ramón Net y no podía ser Capa 1 (hoy vive en
+`core/estado/appState.ts`).
+
+Cómo se hizo, en `inicializarSincronizacionStorage()`:
+
+1. Se leen **las dos** claves. La nueva gana si existe; si sólo está la vieja, se adopta su
+   valor.
+2. Adoptado el valor, la clave vieja se **borra** ahí mismo (fire-and-forget): la migración se
+   paga una sola vez y no queda basura en el storage.
+
+**Por qué no alcanzaba con renombrar y listo**: la extensión está instalada y en uso, así que
+la clave vieja ya existe con un valor real. Perderlo no rompe nada a nivel técnico —el campo
+vuelve a `null`— pero al usuario le reaparece el modal multicátedra sin ninguna razón visible,
+y tiene que volver a elegir. Es el tipo de regresión que ninguna suite marca en rojo.
+
+La red son tres tests en `core/estado/appState.test.ts` §migración de la clave de faceta:
+adopta la vieja, la borra al adoptarla, y con las dos presentes gana la nueva.
 
 ### `Clase` (elemento de `listaPersistente`)
 

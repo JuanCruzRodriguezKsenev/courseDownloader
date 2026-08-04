@@ -139,13 +139,12 @@ const SitioRamonNet: SitioRamonNetDescriptor = {
 
     valorComun: "COMUN",
     valorTodas: "TODAS",
-    // PENDIENTE(re-arquitectura): generalizar el nombre — `claveEstado` pasaría a
-    // `facetaSeleccionada`, y la clave de storage `catedraElegida` necesita migración de
-    // datos (ver docs/data-model.md). OJO: este comentario esperaba un disparador que ya
-    // ocurrió — `AppState` pasó al puerto de almacenamiento en la Fase 5b (2026-08-03) y
-    // el renombre no se hizo. Hoy es lo ÚNICO que ata `shared/state.ts` a vocabulario del
-    // sitio, así que es el paso que falta para poder mudarlo a `core/`.
-    claveEstado: "catedraSeleccionada",
+    // Campo de `AppState` donde vive la selección de esta faceta. Es genérico desde el
+    // 2026-08-03: antes decía `catedraSeleccionada` y era el último vocabulario de Ramón Net
+    // dentro de la maquinaria de estado, lo que impedía mudarla a `core/`. La clave persistida
+    // se renombró en el mismo corte (`catedraElegida` → `facetaElegida`) con migración de
+    // datos — ver `docs/data-model.md`.
+    claveEstado: "facetaSeleccionada",
 
     // De dónde sale el valor en un item del listado scrapeado.
     leer: (clase) => clase.catedra,

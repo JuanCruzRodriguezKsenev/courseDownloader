@@ -484,6 +484,24 @@ lógica — sólo cambió la forma de disparar y de afirmar sobre la alarma.
   el harness construye `new MensajeriaEnMemoria(5000)`. Con el 0ms por defecto el puerto
   rechazaría antes de la respuesta y los tests fallarían por el reloj, no por la lógica.
 
+### Registro del corte de la clave de faceta + `AppState` → `core/` (2026-08-03)
+
+El patrón que ya había mostrado el daemon de conexión, repetido: **primero se le saca el dato
+de sitio, después el archivo se muda**. Acá el dato no era una URL sino un nombre —
+`catedraSeleccionada` / `catedraElegida`—, y alcanzaba para que `AppState` no pudiera ser
+Capa 1. El resto del popup ya era genérico: `faceta.js` y `filters.js` leen por
+`faceta.claveEstado`, del descriptor del sitio, así que el renombre no los tocó.
+
+- **La migración de datos es lo único delicado del corte.** La extensión está instalada y en
+  uso: la clave vieja ya existe con un valor real. Se lee, se adopta si la nueva no está, y se
+  borra apenas se adoptó. Perder ese valor no rompe nada técnicamente —el campo vuelve a
+  `null`— pero al usuario le reaparece el modal multicátedra de la nada; es el tipo de
+  regresión que ninguna suite marca en rojo, así que se cubrió con 3 tests explícitos.
+- **`shared/` quedó con un solo archivo** (`utils.js`). Lo que era "la carpeta de lo que
+  todavía no se repartió" está casi vacía.
+- **La Fase 4 original queda cumplida del todo**: pedía `core/` con BunClient *y* el daemon; hoy
+  `core/` tiene además el historial, los puertos con sus tres dobles, y el estado del popup.
+
 ### El próximo paso (al 2026-08-03)
 
 Lo que sigue, de menor a mayor riesgo. **Empezar por el primero**: desbloquea dos mudanzas que
@@ -493,7 +511,7 @@ hoy no se pueden hacer.
 |---|---|
 | ~~**`sitio/ramonnet/config.js` → TypeScript**~~ | ✅ **Hecho (2026-08-03)** — ver el registro de abajo. El tapón ya no está: `composicion.ts` puede importar el adaptador de sitio. |
 | ~~**Inyectar `urlSondeoInternet` + mudar `shared/conexion.ts` → `core/conexion/`**~~ | ✅ **Hecho (2026-08-03)** — ver el registro de abajo. `core/` estrena su primer módulo de lógica (no de contrato ni de I/O). |
-| **Generalizar la clave de faceta** (`claveEstado` → `facetaSeleccionada`, migración de `catedraElegida` en storage) | Es lo único que ata `shared/state.ts` a vocabulario del sitio, y por lo tanto lo que falta para mudarlo a `core/`. **Corrección al plan (2026-08-03)**: acá decía que a `state.ts` le faltaba el puerto de mensajería para su `sincronizarConBackground`; ese puerto existe desde la 5c, así que ese bloqueo ya no aplica — queda éste. El comentario en `sitio/ramonnet/config.ts` que describe el renombre esperaba un disparador ("cuando `AppState` pase a un puerto") que ya ocurrió en la 5b. |
+| ~~**Generalizar la clave de faceta**~~ | ✅ **Hecho (2026-08-03)**, junto con la mudanza que habilitaba: `shared/state.ts` → `core/estado/appState.ts`. Trajo la **única migración de datos del proyecto** (`catedraElegida` → `facetaElegida`), documentada en `docs/data-model.md` con sus 3 tests. Nota original, que ya se cumplió: era lo único que ataba el archivo a vocabulario del sitio, y por lo tanto lo que faltaba para mudarlo a `core/`. **Corrección al plan (2026-08-03)**: acá decía que a `state.ts` le faltaba el puerto de mensajería para su `sincronizarConBackground`; ese puerto existe desde la 5c, así que ese bloqueo ya no aplica — queda éste. El comentario en `sitio/ramonnet/config.ts` que describe el renombre esperaba un disparador ("cuando `AppState` pase a un puerto") que ya ocurrió en la 5b. |
 | ~~**IPC de `background.js` al puerto — las dos puntas**~~ | ✅ **Hecho (2026-08-03), y con esto cierra la 5c.** La fila decía "lado receptor" y subestimaba el corte: el SW no tocaba el puerto en absoluto. Migrados el receptor y los 9 emisores (7 `notificar()`, 2 `enviar()` del camino legacy offscreen). Ver el registro abajo. |
 | ~~**`sincronizarConBackground()` de `shared/state.ts` al puerto**~~ | ✅ **Hecho (2026-08-03)**, el mismo día en que se agregó la fila. `crearAppState(almacenamiento, mensajeria)`; `state.ts` queda sin ningún `chrome.*` y sus tests sin ningún mock de `chrome.*`. Se conservó el timeout de rescate de 3s **a propósito**: el puerto rechaza cuando no hay receptor, pero no cubre al receptor que acepta, promete responder async y no responde — que es justo lo que pasa con un SW dormido. Deja a `state.ts` a un solo paso de `core/`: falta la clave de faceta (fila de arriba). |
 | ~~**`PuertoProgramador`**~~ | ✅ **Hecho (2026-08-03)** — puerto + adaptador Chrome + adaptador en memoria con tests propios (7). Los 8 call-sites de `chrome.alarms` del SW pasaron al puerto y el harness de `background.test.js` dejó de mockear esa API: ahora, como con storage, **tira** si el SW la toca. Ver el registro abajo. |

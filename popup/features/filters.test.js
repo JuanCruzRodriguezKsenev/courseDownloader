@@ -50,7 +50,7 @@ beforeEach(() => {
     listadoClasesGlobal: [],
     colaDescargas: [],
     pestañaActiva: 'disponibles',
-    catedraSeleccionada: null,
+    facetaSeleccionada: null,
   };
   // El valor de la faceta para los items de la COLA lo deriva el adaptador de sitio
   // re-parseando el título (SitioRamonNet.clasificarCarpeta → ParserTitulos). Acá se

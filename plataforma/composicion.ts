@@ -18,7 +18,7 @@ import AlmacenamientoChrome from "./chrome/almacenamiento";
 import MensajeriaChrome from "./chrome/mensajeria";
 import ProgramadorChrome from "./chrome/programador";
 import { crearHistorialFallos } from "../core/historial/historialFallos";
-import { crearAppState } from "../shared/state";
+import { crearAppState } from "../core/estado/appState";
 import { crearConexion } from "../core/conexion/conexion";
 // Capa 2. Es el primer import del adaptador de sitio desde acá, y lo habilitó el corte
 // `config.js` → `config.ts` (Fase 5c): con `allowJs: false`, un `.ts` no puede importar un

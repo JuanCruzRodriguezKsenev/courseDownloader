@@ -1,6 +1,16 @@
 /**
- * MAQUINARIA DE ESTADO CENTRAL DEL POPUP (V6.1.0)
+ * MAQUINARIA DE ESTADO CENTRAL DEL POPUP (V6.2.0)
  * ==============================================================================================
+ * CHANGELOG v6.2.0:
+ * - [FASE 5C] Generalizado el último vocabulario de sitio: `catedraSeleccionada` pasa a
+ *   `facetaSeleccionada` en memoria y la clave persistida `catedraElegida` a `facetaElegida`.
+ *   El resto del popup ya era genérico —`faceta.js` y `filters.js` leen por
+ *   `faceta.claveEstado`, del descriptor del sitio—, así que el único acoplado era este
+ *   archivo. **Con esto no le queda nada de Ramón Net y puede mudarse a `core/`.**
+ * - [MIGRACIÓN DE DATOS] La clave vieja se sigue LEYENDO al inicializar y se adopta si la
+ *   nueva no está: una instalación existente ya tiene su cátedra elegida, y perderla haría
+ *   reaparecer el modal multicátedra sin motivo visible para el usuario. Adoptado el valor,
+ *   la clave vieja se borra — la migración se paga una vez. Si ambas existen gana la nueva.
  * CHANGELOG v6.1.0:
  * - [FASE 5C] `sincronizarConBackground()` deja de tocar `chrome.runtime`: el único IPC de este
  *   archivo pasa al `PuertoMensajeria`, que llega por inyección como el de storage
@@ -30,18 +40,18 @@
  * `chrome.storage.local`. El estado de la descarga en curso NO vive acá: es del service worker
  * (`SessionState`, en `storage.session`). Ver docs/data-model.md §State ownership split.
  *
- * POR QUÉ SIGUE EN `shared/` Y NO EN `core/`
- * ------------------------------------------
- * Ya no es por los puertos: desde la 5b el storage entra por `PuertoAlmacenamiento` y desde la
- * 5c el IPC por `PuertoMensajeria`. Lo único que lo retiene es **vocabulario del sitio**:
- * `catedraSeleccionada` en memoria y la clave `catedraElegida` en storage, que en Capa 1 no
- * pueden entrar. Se muda cuando se generalice a `facetaSeleccionada` — lo que pide migrar datos
- * ya persistidos (ver `docs/data-model.md` y el descriptor de faceta en
- * `sitio/ramonnet/config.ts`). Es el mismo patrón que destrabó al daemon de conexión: primero
- * se saca el dato de sitio, después el archivo se muda.
+ * CAPA 1: ESTADO GENÉRICO, NI `chrome.*` NI VOCABULARIO DE PORTAL
+ * ---------------------------------------------------------------
+ * Llegó acá en tres pasos, y el orden importa porque es el patrón: primero los puertos
+ * (storage en la 5b, IPC en la 5c), después **sacarle el dato de sitio**. Mientras el campo se
+ * llamó `catedraSeleccionada` este archivo no podía ser Capa 1 por una sola palabra.
+ *
+ * Qué faceta se filtra lo decide el adaptador de sitio: `PuertoSitio.faceta.claveEstado`
+ * nombra el campo de acá que le corresponde, y `faceta.js`/`filters.js` lo leen por esa
+ * indirección. Este módulo no sabe —ni tiene por qué— que existen las cátedras.
  */
-import type { PuertoAlmacenamiento } from "../core/puertos/almacenamiento";
-import type { PuertoMensajeria } from "../core/puertos/mensajeria";
+import type { PuertoAlmacenamiento } from "../puertos/almacenamiento";
+import type { PuertoMensajeria } from "../puertos/mensajeria";
 
 /**
  * Forma mínima de una clase de la lista: sólo los campos que ESTE módulo toca. El modelo real
@@ -68,14 +78,25 @@ const CLAVES_PERSISTIDAS = [
   "listaPersistente",
   "colaDescargas",
   "faseDiscoOk",
-  "catedraElegida",
+  "facetaElegida",
   "ocultarAdvExplorar",
   "ocultarAdvAula",
   "ordenAscendente",
   "tutorialCompletado",
 ] as const;
 
-/** Claves que se borran al cerrar una sesión de trabajo (la elección de cátedra sobrevive). */
+/**
+ * Clave anterior de la faceta, leída sólo para migrar. Hasta el 2026-08-03 la elección se
+ * guardaba como `catedraElegida`, vocabulario de Ramón Net metido en la maquinaria genérica.
+ *
+ * Se lee **además** de la nueva y se adopta si la nueva no está: una instalación existente
+ * ya tiene su cátedra elegida en storage, y perderla no rompe nada pero obliga al usuario a
+ * volver a elegirla —y el modal multicátedra reaparece— sin ninguna razón visible. Adoptado el
+ * valor, la clave vieja se borra ahí mismo: la migración se paga una vez y no queda basura.
+ */
+const CLAVE_FACETA_LEGACY = "catedraElegida";
+
+/** Claves que se borran al cerrar una sesión de trabajo (la faceta elegida sobrevive). */
 const CLAVES_DE_SESION = ["listaPersistente", "colaDescargas", "faseDiscoOk"];
 
 const TIMEOUT_IPC_MS = 3000;
@@ -84,6 +105,8 @@ interface DatosPersistidos {
   listaPersistente?: ClaseEnLista[];
   colaDescargas?: unknown[];
   faseDiscoOk?: boolean;
+  facetaElegida?: string | null;
+  /** Sólo para la migración de la clave vieja; no se escribe nunca más. */
   catedraElegida?: string | null;
   ocultarAdvExplorar?: boolean;
   ocultarAdvAula?: boolean;
@@ -99,7 +122,7 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: 
     banderaFrenadoSolicitado: false,
     pestañaActiva: "disponibles",
     sincronizacionDiscoCompletada: false,
-    catedraSeleccionada: null as string | null,
+    facetaSeleccionada: null as string | null,
     videoActualEnTransmisiónSW: "",
     modoTurboBun: true, // Forzado a true (Modo Turbo único activo)
     ocultarAdvertenciaExplorar: false,
@@ -108,7 +131,10 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: 
     tutorialCompletado: false,
 
     async inicializarSincronizacionStorage(): Promise<void> {
-      const data = await almacenamiento.obtenerLocal<DatosPersistidos>([...CLAVES_PERSISTIDAS]);
+      const data = await almacenamiento.obtenerLocal<DatosPersistidos>([
+        ...CLAVES_PERSISTIDAS,
+        CLAVE_FACETA_LEGACY,
+      ]);
 
       // Normalización defensiva: un estado 'error' heredado de storage viejo (el fix del
       // bug 400 lo usó al principio, ya revertido a 'pending') no lo reconoce el resto del
@@ -119,7 +145,16 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: 
       );
       app.colaDescargas = data.colaDescargas || [];
       app.sincronizacionDiscoCompletada = data.faseDiscoOk || false;
-      app.catedraSeleccionada = data.catedraElegida || null;
+      // Migración de la clave vieja (ver CLAVE_FACETA_LEGACY). La nueva gana si existe: si
+      // ambas están, la vieja es un resto de una instalación migrada y ya no manda.
+      app.facetaSeleccionada = data.facetaElegida ?? data.catedraElegida ?? null;
+      if (data.catedraElegida !== undefined) {
+        // Se paga una sola vez: adoptado el valor, la clave vieja se va. Fire-and-forget
+        // como `respaldar()` — si falla, el peor caso es volver a migrar el próximo arranque.
+        void almacenamiento.borrarLocal([CLAVE_FACETA_LEGACY]).catch((e: unknown) => {
+          console.warn("[AppState] No se pudo limpiar la clave de faceta vieja:", e);
+        });
+      }
       app.ocultarAdvertenciaExplorar = data.ocultarAdvExplorar || false;
       app.ocultarAdvertenciaAula = data.ocultarAdvAula || false;
       app.ordenAscendente = data.ordenAscendente !== undefined ? data.ordenAscendente : true;
@@ -141,7 +176,7 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: 
           listaPersistente: app.listadoClasesGlobal,
           colaDescargas: app.colaDescargas,
           faseDiscoOk: app.sincronizacionDiscoCompletada,
-          catedraElegida: app.catedraSeleccionada,
+          facetaElegida: app.facetaSeleccionada,
           ocultarAdvExplorar: app.ocultarAdvertenciaExplorar,
           ocultarAdvAula: app.ocultarAdvertenciaAula,
           ordenAscendente: app.ordenAscendente,

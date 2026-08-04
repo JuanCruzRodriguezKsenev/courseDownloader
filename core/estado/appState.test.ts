@@ -1,5 +1,5 @@
 /**
- * Tests de shared/state.ts (AppState) — estrenados con la Fase 5b.
+ * Tests de core/estado/appState.ts (AppState) — estrenados con la Fase 5b.
  *
  * Este archivo NO tenía cobertura: los tests del popup mockean `globalThis.AppState` entero,
  * así que nunca ejercitaban la maquinaria real. Al desacoplarla del `chrome.storage` se pudo
@@ -11,9 +11,9 @@
  * adaptador y no un `lastError` inventado a mano. Ya no queda ningún mock de `chrome.*` acá.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { crearAppState } from "./state";
-import { AlmacenamientoEnMemoria } from "../core/puertos/almacenamientoEnMemoria";
-import { MensajeriaEnMemoria } from "../core/puertos/mensajeriaEnMemoria";
+import { crearAppState } from "./appState";
+import { AlmacenamientoEnMemoria } from "../puertos/almacenamientoEnMemoria";
+import { MensajeriaEnMemoria } from "../puertos/mensajeriaEnMemoria";
 
 let almacenamiento: AlmacenamientoEnMemoria;
 let mensajeria: MensajeriaEnMemoria;
@@ -41,7 +41,7 @@ describe("AppState.inicializarSincronizacionStorage", () => {
     expect(app.listadoClasesGlobal).toEqual([]);
     expect(app.colaDescargas).toEqual([]);
     expect(app.sincronizacionDiscoCompletada).toBe(false);
-    expect(app.catedraSeleccionada).toBeNull();
+    expect(app.facetaSeleccionada).toBeNull();
     expect(app.ordenAscendente).toBe(true);
     expect(app.tutorialCompletado).toBe(false);
   });
@@ -51,7 +51,7 @@ describe("AppState.inicializarSincronizacionStorage", () => {
       listaPersistente: [{ titulo: "A", estado: "pending" }],
       colaDescargas: [{ id: 1 }],
       faseDiscoOk: true,
-      catedraElegida: "B",
+      facetaElegida: "B",
       ocultarAdvExplorar: true,
       ocultarAdvAula: true,
       ordenAscendente: false,
@@ -63,10 +63,41 @@ describe("AppState.inicializarSincronizacionStorage", () => {
     expect(app.listadoClasesGlobal).toEqual([{ titulo: "A", estado: "pending" }]);
     expect(app.colaDescargas).toEqual([{ id: 1 }]);
     expect(app.sincronizacionDiscoCompletada).toBe(true);
-    expect(app.catedraSeleccionada).toBe("B");
+    expect(app.facetaSeleccionada).toBe("B");
     expect(app.ocultarAdvertenciaExplorar).toBe(true);
     expect(app.ocultarAdvertenciaAula).toBe(true);
     expect(app.tutorialCompletado).toBe(true);
+  });
+
+  // La faceta se guardaba como `catedraElegida` hasta el 2026-08-03. Estos tres tests son la
+  // red de esa migración: se corre sobre el storage REAL de una instalación existente, así que
+  // un error acá se paga perdiendo la elección del usuario (y con el modal multicátedra
+  // reapareciendo de la nada), no con un test rojo.
+  describe("migración de la clave de faceta", () => {
+    it("adopta la clave vieja cuando no existe la nueva", async () => {
+      await almacenamiento.guardarLocal({ catedraElegida: "C" });
+
+      await app.inicializarSincronizacionStorage();
+
+      expect(app.facetaSeleccionada).toBe("C");
+    });
+
+    it("borra la clave vieja apenas la adopta (la migración se paga una vez)", async () => {
+      await almacenamiento.guardarLocal({ catedraElegida: "C" });
+
+      await app.inicializarSincronizacionStorage();
+      await dejarCorrer(); // el borrado es fire-and-forget
+
+      expect(almacenamiento._volcar().local.catedraElegida).toBeUndefined();
+    });
+
+    it("si están las dos, gana la nueva (la vieja es un resto)", async () => {
+      await almacenamiento.guardarLocal({ facetaElegida: "A", catedraElegida: "C" });
+
+      await app.inicializarSincronizacionStorage();
+
+      expect(app.facetaSeleccionada).toBe("A");
+    });
   });
 
   it("respeta ordenAscendente=false (no lo pisa el default)", async () => {
@@ -106,7 +137,7 @@ describe("AppState.respaldar", () => {
     app.listadoClasesGlobal = [{ titulo: "A" }];
     app.colaDescargas = [{ id: 7 }];
     app.sincronizacionDiscoCompletada = true;
-    app.catedraSeleccionada = "C";
+    app.facetaSeleccionada = "C";
 
     app.respaldar();
     await dejarCorrer();
@@ -114,7 +145,7 @@ describe("AppState.respaldar", () => {
     expect(spy).toHaveBeenCalledTimes(1);
     expect(Object.keys(spy.mock.calls[0]![0]).sort()).toEqual(
       [
-        "catedraElegida",
+        "facetaElegida",
         "colaDescargas",
         "faseDiscoOk",
         "listaPersistente",
@@ -127,7 +158,7 @@ describe("AppState.respaldar", () => {
 
     const { local } = almacenamiento._volcar();
     expect(local.listaPersistente).toEqual([{ titulo: "A" }]);
-    expect(local.catedraElegida).toBe("C");
+    expect(local.facetaElegida).toBe("C");
   });
 
   it("un fallo del storage se avisa por consola y no rechaza (es fire-and-forget)", async () => {
@@ -149,7 +180,7 @@ describe("AppState.limpiarSesionLocal", () => {
       listaPersistente: [{ titulo: "A" }],
       colaDescargas: [{ id: 1 }],
       faseDiscoOk: true,
-      catedraElegida: "B",
+      facetaElegida: "B",
       tutorialCompletado: true,
     });
     app.listadoClasesGlobal = [{ titulo: "A" }];
@@ -171,8 +202,8 @@ describe("AppState.limpiarSesionLocal", () => {
     expect(local.listaPersistente).toBeUndefined();
     expect(local.colaDescargas).toBeUndefined();
     expect(local.faseDiscoOk).toBeUndefined();
-    // La cátedra sobrevive a propósito: si no, la UI la vuelve a pedir al re-escanear.
-    expect(local.catedraElegida).toBe("B");
+    // La faceta elegida sobrevive a propósito: si no, la UI la vuelve a pedir al re-escanear.
+    expect(local.facetaElegida).toBe("B");
     expect(local.tutorialCompletado).toBe(true);
   });
 });
