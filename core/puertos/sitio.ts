@@ -114,6 +114,14 @@ export interface PuertoSitio {
   id: string;
 
   /**
+   * Nombre del portal **como se le muestra al usuario** ("Ramón Net"), distinto del `id`, que
+   * es para logs. Lo consume el onboarding, que es la única parte de la UI que nombra al
+   * portal en su copy. Sacarlo de acá es lo que deja las islas Preact genéricas: el resto ya
+   * lo estaba, y el eje de clasificación viaja aparte en `faceta.etiqueta`.
+   */
+  nombre: string;
+
+  /**
    * Origen del portal. Lo usa el daemon de conexión como sonda de "hay internet":
    * es deliberadamente el sitio objetivo y no un genérico tipo google.com — lo que
    * importa no es tener red, sino poder llegar A ESTE portal.

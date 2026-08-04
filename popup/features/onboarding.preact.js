@@ -72,6 +72,13 @@ export function Onboarding() {
   function siguiente() { slide < total - 1 ? setSlide(slide + 1) : cerrar(); }
   function atras() { if (slide > 0) setSlide(slide - 1); }
 
+  // El único dato de sitio que le queda a la UI: el copy nombra al portal y a su eje de
+  // clasificación. Viene del descriptor (`PuertoSitio`), no hardcodeado — es el mismo patrón
+  // que ya se le aplicó a la faceta: parametrizar en vez de duplicar el componente. Los
+  // fallbacks existen para que la isla se pueda montar en un test sin adaptador cargado.
+  const sitio = (typeof window !== 'undefined' && window.SitioActivo) || {};
+  const nombreSitio = sitio.nombre || 'la plataforma';
+
   const dots = [];
   for (let i = 0; i < total; i++) {
     dots.push(html`<span class="onboarding-dot ${i === slide ? 'active' : ''}"></span>`);
@@ -85,13 +92,13 @@ export function Onboarding() {
           <div class="onboarding-slides" style=${`transform: translateX(-${slide * 100}%)`}>
             <div class="onboarding-slide">
               <div class="onboarding-icon">🚀</div>
-              <h3>¡Bienvenido a Ramón Net Turbo!</h3>
-              <p>Descargá todas tus clases de Ramón Net al instante, sin límites de tamaño y de forma organizada en tu PC.</p>
+              <h3>¡Bienvenido a ${nombreSitio} Turbo!</h3>
+              <p>Descargá todas tus clases de ${nombreSitio} al instante, sin límites de tamaño y de forma organizada en tu PC.</p>
             </div>
             <div class="onboarding-slide">
               <div class="onboarding-icon">🌐</div>
               <h3>Página Correcta</h3>
-              <p>Usá la extensión dentro del listado de clases de tu materia en Ramón Net para detectar los videos: <a href=${window.SitioActivo.urlListado} target="_blank" class="onboarding-link">Ir a Clases Grabadas 🌐</a></p>
+              <p>Usá la extensión dentro del listado de clases de tu materia en ${nombreSitio} para detectar los videos: <a href=${sitio.urlListado || '#'} target="_blank" class="onboarding-link">Ir a Clases Grabadas 🌐</a></p>
             </div>
             <div class="onboarding-slide">
               <div class="onboarding-icon">🔍</div>
@@ -106,7 +113,7 @@ export function Onboarding() {
             <div class="onboarding-slide">
               <div class="onboarding-icon">📁</div>
               <h3>Carpeta de Descargas</h3>
-              <p>Seleccioná tu carpeta raíz. La extensión creará y organizará las subcarpetas por materia y cátedra automáticamente de forma ordenada.</p>
+              <p>Seleccioná tu carpeta raíz. La extensión creará y organizará las subcarpetas por materia y ${(sitio.faceta?.etiqueta || 'categoría').toLowerCase()} automáticamente de forma ordenada.</p>
               <div class="onboarding-server-msg ${servidorOk ? 'success' : 'error'}">
                 ${servidorOk ? '🔌 Servidor conectado. ¡Ya podés elegir carpeta!' : '⚠️ Primero tenés que levantar el servidor'}
               </div>
@@ -121,7 +128,7 @@ export function Onboarding() {
             <div class="onboarding-slide">
               <div class="onboarding-icon">⚡</div>
               <h3>Navegá sin Preocupaciones</h3>
-              <p>Podés cambiar de materia, navegar otras páginas o cerrar la pestaña de Ramón Net. ¡La descarga seguirá corriendo de fondo!</p>
+              <p>Podés cambiar de materia, navegar otras páginas o cerrar la pestaña de ${nombreSitio}. ¡La descarga seguirá corriendo de fondo!</p>
             </div>
           </div>
         </div>

@@ -52,6 +52,26 @@ describe('Isla Preact: Onboarding', () => {
     });
   }
 
+  // Fase 6c: el onboarding era la ÚNICA parte de la UI que nombraba a Ramón Net. Ahora el
+  // copy sale de `PuertoSitio`, así que sumar un portal es cambiar el descriptor y no tocar
+  // el componente. El componente lee el descriptor en el render, no al montar.
+  it('el copy nombra al portal y a su faceta desde el descriptor, no hardcodeados', async () => {
+    globalThis.window.SitioActivo = {
+      nombre: 'Portal Falso',
+      urlListado: 'https://falso.test/listado',
+      faceta: { etiqueta: 'Comisión' },
+    };
+    const api = crear();
+    api.mostrarOnboarding();
+    await flush();
+
+    const texto = root.textContent;
+    expect(texto).toContain('Portal Falso');
+    expect(texto).not.toContain('Ramón Net');
+    expect(texto).toContain('comisión'); // la etiqueta de la faceta, en minúscula
+    expect(root.querySelector('.onboarding-link').getAttribute('href')).toBe('https://falso.test/listado');
+  });
+
   it('el puente expone mostrarOnboarding y arranca oculto', async () => {
     const api = crear();
     await flush();

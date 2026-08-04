@@ -8,7 +8,7 @@
   align-items: center;
   justify-content: center;
   z-index: 9999999;
-  animation: fadeIn-catedra 0.25s ease-out;
+  animation: fadeIn-modal 0.25s ease-out;
 }
 
 .adv-card {

@@ -170,6 +170,11 @@ El corte se ve mejor en `listaClases.preact.js`, que hoy contiene las dos mitade
 estructura de lista/selección/tabs es genérica, y `<FilaClase>` + el badge de cátedra son de
 sitio. Migrar esa isla = partirla en dos, no moverla de carpeta.
 
+> **Corregido al ejecutar (2026-08-04): esto ya no era cierto.** `<FilaClase>` no tiene
+> vocabulario de sitio — los badges que este párrafo leyó como "badge de cátedra" son de
+> *estado de descarga*, y la cátedra salió de la lista en la Fase 1. No hubo nada que partir.
+> Ver §Fase 6c más abajo.
+
 **CSS**: el objetivo es co-locar cada hoja con su componente (`FilaClase.preact.tsx` +
 `FilaClase.css`, importado por el componente y agrupado por el bundler) en vez del `styles/`
 paralelo de hoy. Ojo: hoy el CSS **ya está partido por componente** (`styles/components/*.css`,
@@ -556,6 +561,37 @@ despertar del SW) y por qué el relleno usa `!= null` y no un chequeo por falsy.
 - **`background.js`: 958 → 451 líneas**, y lo que queda es casi todo cableado con `chrome.*`
   (notificaciones, tabs/windows, onInstalled) más los handlers IPC.
 
+### Registro de la Fase 6c — el split de UI que no hizo falta (2026-08-04)
+
+**El diseño de esta fase no sobrevivió a medirla, y por una buena razón: se escribió el
+2026-07-19 y lo fueron vaciando las fases posteriores.** Decía tres cosas y las tres cambiaron:
+
+1. **"`listaClases.preact.js` contiene las dos mitades; migrarla = partirla en dos."** Falso
+   hoy: `<FilaClase>` **no tiene una sola línea de vocabulario del sitio**. Los badges que el
+   diseño leyó como "badge de cátedra" son de *estado de descarga*
+   (`pending`/`process`/`downloaded`). La cátedra salió de ahí en la Fase 1, cuando la faceta
+   se generalizó. No había nada que partir.
+2. **"Genéricos a `ui/comunes/`, de sitio a `sitio/ramonnet/ui/`."** Al medirlo, el split es
+   **100% / 0%**: la única parte de la UI que nombraba al portal era el copy del onboarding
+   (4 strings + la URL del listado). Se parametrizó con `PuertoSitio.nombre` —el mismo patrón
+   que el plan ya recomendaba para la faceta: *parametrizar sale más barato que duplicar*— y
+   con eso `sitio/ramonnet/ui/` queda **vacía por definición**. Mover `popup/features/` a
+   `ui/comunes/` sería renombrar ~20 archivos y todas sus referencias en los docs para
+   distinguirlos de una carpeta que no existe. **No se hizo, y no debería hacerse** hasta que
+   haya un segundo portal que aporte UI propia.
+3. **CSS: co-locación + BEM con namespace.** También descartado por ahora. El propio diseño
+   admite que el CSS ya está partido por componente y los tokens ya viven en un solo lugar, o
+   sea que lo que quedaba era **mover archivos y renombrar selectores**: churn con riesgo de
+   regresión visual real y cero ganancia funcional, en una extensión de un solo usuario. Lo
+   que sí se hizo es lo que era una inconsistencia de verdad: el keyframe `fadeIn-catedra`
+   —vocabulario de sitio dentro del CSS genérico, compartido por tres componentes— pasó a
+   `fadeIn-modal`, y los comentarios que decían "multicátedra" ahora dicen "faceta".
+
+**Lo que queda como aprendizaje**: un plan escrito antes de ejecutar describe el código de ese
+día. Esta fase estuvo cinco fases sin tocarse y en el medio se le fue el 90% del contenido sin
+que nadie actualizara su descripción. **Medir antes de ejecutar** encontró lo mismo acá, en la
+6 (los globals del SW que un grep con punto no veía) y en la 6a (el prerrequisito de `Utils`).
+
 ### El próximo paso (al 2026-08-03)
 
 Lo que sigue, de menor a mayor riesgo. **Empezar por el primero**: desbloquea dos mudanzas que
@@ -571,7 +607,7 @@ hoy no se pueden hacer.
 | ~~**`PuertoProgramador`**~~ | ✅ **Hecho (2026-08-03)** — puerto + adaptador Chrome + adaptador en memoria con tests propios (7). Los 8 call-sites de `chrome.alarms` del SW pasaron al puerto y el harness de `background.test.js` dejó de mockear esa API: ahora, como con storage, **tira** si el SW la toca. Ver el registro abajo. |
 | **Fase 6 — motor HLS a `core/hls/`** | Llega con el pool ya testeado. |
 | ~~**Fase 6b — cola de descarga a `core/cola/`**~~ | ✅ **Hecha (2026-08-04)**. |
-| **Fase 6c — split de UI genérica vs. de sitio + CSS co-locado** | Antes de la 7, para no cablear los entrypoints dos veces. |
+| ~~**Fase 6c — split de UI genérica vs. de sitio + CSS co-locado**~~ | ✅ **Hecha (2026-08-04)**, y mucho más chica de lo diseñado. |
 | **Fases 7 y 8** | Entrypoints como composición, y borrado del vanilla de la raíz (sólo con paridad de tests). |
 
 Sin puerto todavía y sin urgencia: `notifications`, `tabs`/`windows`, `scripting`, y el camino
@@ -614,7 +650,7 @@ en el tramo intermedio (en `state.js` no pasaba: `conexion.js` y `bunClient.ts` 
 | 5c — `PuertoMensajeria` (IPC) + `PuertoProgramador` (alarmas) + sus adaptadores | ✅ **Completa** (2026-08-03) — `PuertoMensajeria` ✅ con sus dos adaptadores; migrados `queue.js` y `popup.js` (2026-08-03). Se sumó `PuertoSitio` + `sitio/ramonnet/config.ts` (2026-08-03), que destapó el tapón de `allowJs` y habilitó la mudanza del daemon de conexión a `core/conexion/` (2026-08-03). Migrado también el IPC de `shared/state.ts` (2026-08-03): fuera de `background.js` ya no queda un solo `sendMessage` crudo. `PuertoProgramador` ✅ con sus dos adaptadores, y los 8 `chrome.alarms` del SW migrados. Cierra con el IPC de `background.js` en sus dos puntas: **no queda `sendMessage`/`onMessage` crudo en el proyecto**. Lo que sigue en `chrome.*` no espera a esta fase: `notifications`, `tabs`/`windows`, `scripting` y el camino legacy `downloads`/`offscreen` |
 | 6 — Motor HLS → `core/hls/` | ⏳ No iniciada |
 | 6b — Cola de descarga → `core/cola/` | ✅ **Hecha** (2026-08-04, en dos tramos: `SessionState` primero, el bucle después). `background.js` pasó de 958 a 451 líneas. Salieron con él `core/cola/estadosProgreso.ts`, `plataforma/chrome/notificaciones.ts` y `plataforma/chrome/volcadoLegacy.ts`. Nota original: Va **después** de la 6 (el bucle maneja al motor) y de que el SW tenga sus puertos (5c: IPC receptor + alarmas). Es el bloque de lógica más grande que queda sin migrar, y ya tiene red: los 12 tests de caracterización del bucle y el auto-heal de `background.test.js`. |
-| 6c — UI: split genérico (`ui/comunes/`) vs. de sitio (`sitio/ramonnet/ui/`) + CSS co-locado por componente | ⏳ No iniciada. Diseñada en §UI de este doc (incluida la convención BEM y que `listaClases` hay que **partirla en dos**, no moverla). Va antes de la 7 para que los entrypoints cableen la estructura final una sola vez. |
+| 6c — UI: split genérico vs. de sitio | ✅ **Hecha** (2026-08-04), y resultó ser **mucho más chica de lo diseñado**: no hubo nada que partir. La UI ya era genérica salvo el copy del onboarding, que se parametrizó por `PuertoSitio.nombre`. El split de carpetas y el BEM/co-locación de CSS quedan **explícitamente descartados** — ver §Fase 6c. |
 | 7 — Entrypoints (composición) | ⏳ No iniciada |
 | 8 — Borrado del vanilla de la raíz | ⏳ No iniciada |
 

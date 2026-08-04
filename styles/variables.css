@@ -34,7 +34,7 @@
      Sólo las sombras que usa más de un componente. La geometría del resto vive en
      su hoja (es layout, no marca); lo global es el tinte, vía --shadow-rgb. */
   --shadow-bar: 0 1px 3px rgba(var(--shadow-rgb), 0.02);      /* barras: filtros, ruta */
-  --shadow-modal: 0 10px 25px rgba(var(--shadow-rgb), 0.35);  /* modales: advertencia, multicátedra */
+  --shadow-modal: 0 10px 25px rgba(var(--shadow-rgb), 0.35);  /* modales: advertencia, asistente de faceta */
 
   /* PIEZAS SUELTAS CON COLOR PROPIO */
   --spinner-track: rgba(120, 120, 120, 0.35);  /* gris neutro del spinner inline */

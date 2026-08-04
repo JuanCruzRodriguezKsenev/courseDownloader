@@ -10,7 +10,7 @@
   align-items: center;
   justify-content: center;
   z-index: 99999999;
-  animation: fadeIn-catedra 0.3s ease-out;
+  animation: fadeIn-modal 0.3s ease-out;
 }
 
 .onboarding-card {

@@ -79,6 +79,7 @@ interface SitioRamonNetDescriptor extends PuertoSitio {
 
 const SitioRamonNet: SitioRamonNetDescriptor = {
   id: "ramonnet",
+  nombre: "Ramón Net",
 
   // --- Endpoints y marcadores del portal ---------------------------------------
   // Origen del portal. Lo usa el daemon de conexión como sonda de "hay internet":
