@@ -18,7 +18,11 @@ import AlmacenamientoChrome from "./chrome/almacenamiento";
 import MensajeriaChrome from "./chrome/mensajeria";
 import { crearHistorialFallos } from "../core/historial/historialFallos";
 import { crearAppState } from "../shared/state";
-import { crearConexion } from "../shared/conexion";
+import { crearConexion } from "../core/conexion/conexion";
+// Capa 2. Es el primer import del adaptador de sitio desde acá, y lo habilitó el corte
+// `config.js` → `config.ts` (Fase 5c): con `allowJs: false`, un `.ts` no puede importar un
+// `.js`. Los entrypoints ya lo importaban primero, así que no cambia el orden de evaluación.
+import { SitioActivo } from "../sitio/ramonnet/config";
 
 /** Adaptadores de plataforma activos en esta build. */
 export const almacenamiento = AlmacenamientoChrome;
@@ -49,6 +53,11 @@ export const AppState = crearAppState(almacenamiento);
  * cada uno su instancia y convergen espejando por el ámbito de sesión del puerto. Quién
  * llama a `iniciar()` no se decide acá — el popup arranca su poller y el SW verifica desde
  * `chrome.alarms` (setInterval no sobrevive la suspensión del service worker).
+ *
+ * La URL de sondeo entra por acá y no la lee el daemon: es el único dato de sitio que
+ * necesita, y es lo que le permitió mudarse a `core/` (Capa 1 no nombra portales).
  */
-export const Conexion = crearConexion(almacenamiento);
+export const Conexion = crearConexion(almacenamiento, {
+  urlSondeoInternet: SitioActivo.urlSondeoInternet,
+});
 (globalThis as Record<string, unknown>).Conexion = Conexion;

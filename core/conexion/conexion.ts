@@ -1,6 +1,19 @@
 /**
- * DAEMON DE ESTADO DE CONEXIÓN (V2.0.0)
+ * DAEMON DE ESTADO DE CONEXIÓN (V3.0.0)
  * ==========================================================================
+ * CHANGELOG v3.0.0:
+ * - [CAPA 1] Mudado de `shared/conexion.ts` a `core/conexion/conexion.ts`. Lo que
+ *   faltaba para poder hacerlo era la última atadura a la Capa 2: leía el global
+ *   `SitioActivo` para saber a qué host mandarle el HEAD de "hay internet". Ahora esa
+ *   URL **se inyecta** (`crearConexion(puerto, { urlSondeoInternet })`) desde
+ *   `plataforma/composicion.ts`, que la toma del adaptador de sitio. Destrabó el corte
+ *   `config.js` → `config.ts` (Fase 5c): hasta entonces `composicion.ts` no podía
+ *   importar el adaptador (`allowJs: false`).
+ * - [CAPA 1] Se fue con él el fallback `URL_SONDEO_FALLBACK`, que era el host de Ramón
+ *   Net hardcodeado. En `shared/` era tolerable; en `core/` viola el invariante de la
+ *   capa (cero vocabulario de sitio), así que la URL pasa a ser **obligatoria** y los
+ *   tests pasan la suya. Sin cambios de comportamiento en runtime: el valor efectivo es
+ *   el mismo que ya venía de `SitioActivo.urlSondeoInternet`.
  * CHANGELOG v2.0.0:
  * - [FASE 5B + TS] Migrado de `shared/conexion.js` a TypeScript y desacoplado de
  *   `chrome.storage`: el espejado cross-contexto (escribir en session + escuchar cambios)
@@ -38,16 +51,14 @@
  * puerto y cada contexto escucha sus cambios, así popup y SW convergen en un único
  * valor y, al despertar, arrancan desde el último estado conocido.
  *
- * POR QUÉ SIGUE EN `shared/` Y NO EN `core/`
- * ------------------------------------------
- * Ya no le queda nada de `chrome.*`, pero todavía lee el global `SitioActivo` para saber a
- * qué portal sondear. Inyectar esa URL desde la composición es el paso que falta, y hoy está
- * bloqueado: `sitio/ramonnet/config.js` es `.js` y `composicion.ts` no puede importarlo
- * (`allowJs: false`). Cuando ese archivo pase a TypeScript, este módulo se muda a
- * `core/conexion/` con la URL inyectada y queda como Capa 1 puro.
+ * CAPA 1: NO NOMBRA NI A `chrome.*` NI A NINGÚN PORTAL
+ * ----------------------------------------------------
+ * El storage entra por `PuertoAlmacenamiento` y la URL de sondeo por parámetro. Si alguna
+ * vez hace falta otro dato del sitio acá, va por el mismo camino (`opciones`, desde la
+ * composición) — no volviendo a leer el global `SitioActivo`, que es Capa 2.
  */
-import type { PuertoAlmacenamiento, CambiosStorage, AmbitoStorage } from "../core/puertos/almacenamiento";
-import BunClient from "../core/backend/bunClient";
+import type { PuertoAlmacenamiento, CambiosStorage, AmbitoStorage } from "../puertos/almacenamiento";
+import BunClient from "../backend/bunClient";
 
 export interface EstadoConexion {
   servidor: boolean;
@@ -73,12 +84,21 @@ export const INTERVALO_SONDEO_MS = 3000;
 export const TIMEOUT_HEAD_MS = 4000;
 /** < INTERVALO_SONDEO_MS para que cada sondeo cierre antes del siguiente. */
 const TIMEOUT_SERVIDOR_MS = 2500;
-const URL_SONDEO_FALLBACK = "https://plataforma.ramonnet.com.ar";
 
-/** El adaptador de sitio se publica como global; acá sólo se lo lee (ver nota de cabecera). */
-declare const SitioActivo: { urlSondeoInternet?: string } | undefined;
+export interface OpcionesConexion {
+  /**
+   * A qué origen se le manda el HEAD para confirmar que hay salida a internet. Es
+   * deliberadamente el **portal objetivo** y no un host genérico: lo que importa no es
+   * tener red sino poder llegar al sitio. El valor lo declara el adaptador de sitio
+   * (`PuertoSitio.urlSondeoInternet`, Capa 2) y lo inyecta la composición.
+   */
+  urlSondeoInternet: string;
+}
 
-export function crearConexion(almacenamiento: PuertoAlmacenamiento) {
+export function crearConexion(
+  almacenamiento: PuertoAlmacenamiento,
+  { urlSondeoInternet }: OpcionesConexion
+) {
   // Estado interno (la "variable global" siempre fresca). `listo` es false hasta
   // el primer sondeo, para que los consumidores no traten "desconocido" como offline.
   let estado: EstadoConexion = { servidor: false, internet: false, listo: false };
@@ -92,13 +112,9 @@ export function crearConexion(almacenamiento: PuertoAlmacenamiento) {
     INTERVALO_SONDEO_MS,
     TIMEOUT_HEAD_MS,
 
-    // La sonda de internet apunta al portal objetivo, no a un host genérico: lo que
-    // importa no es tener red sino poder llegar AL SITIO. Por eso la URL la declara el
-    // adaptador de sitio (Capa 2, ADR-0008) y no este daemon, que es genérico. El
-    // fallback existe sólo para los tests, que cargan este módulo aislado.
-    get URL_SONDEO_INTERNET(): string {
-      return (typeof SitioActivo !== "undefined" && SitioActivo?.urlSondeoInternet) || URL_SONDEO_FALLBACK;
-    },
+    // Se expone como propiedad (y no sólo como variable de la clausura) porque los
+    // tests y el diagnóstico la leen; el valor lo fija la composición al construir.
+    URL_SONDEO_INTERNET: urlSondeoInternet,
 
     // -------- Lectura pura (sin I/O) --------
     get(): SnapshotConexion {

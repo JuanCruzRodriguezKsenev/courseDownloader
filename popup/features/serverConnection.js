@@ -51,7 +51,7 @@
  *   no sólo el indicador. Se omite si hay una cola pausada (esa UI ya se encarga).
  * CHANGELOG v1.3.0:
  * - [REFACTOR] La feature deja de sondear: el estado de conexión ahora lo posee
- *   el daemon Conexion (shared/conexion.js), fuente única de verdad. iniciarDetectorEstado
+ *   el daemon Conexion (core/conexion/conexion.ts), fuente única de verdad. iniciarDetectorEstado
  *   se suscribe a Conexion y reacciona (reaccionarAConexion): indicador + recuperación
  *   de cola/aula. Se eliminan de acá el setInterval, el HEAD de internet duplicado y
  *   navigator.onLine (todo eso vive ahora en el daemon).
@@ -92,7 +92,7 @@ const ServerConnectionFeature = {
       onReescanearAula
     } = ctx;
 
-    // El estado de conexión NO vive acá: lo posee el daemon Conexion (shared/conexion.js).
+    // El estado de conexión NO vive acá: lo posee el daemon Conexion (core/conexion/conexion.ts).
     // Esta feature sólo se SUSCRIBE a sus cambios y reacciona (UI + recuperación de cola).
     let suscrito = false;
     let previoCompleta = null;  // transición de "ambas conexiones OK" (para recuperación).
@@ -170,7 +170,7 @@ const ServerConnectionFeature = {
       iniciarDetectorEstado();
     }
 
-    // Reacción a los cambios del daemon Conexion (shared/conexion.js), la fuente única
+    // Reacción a los cambios del daemon Conexion (core/conexion/conexion.ts), la fuente única
     // de verdad. Esta feature NO sondea: sólo consume el estado que le llega por push.
     //   1. Recuperación de cola pausada: reanuda apenas vuelve la conexión que faltaba.
     //   2. Banner offline pasivo: muestra el del servidor o el de internet según cuál

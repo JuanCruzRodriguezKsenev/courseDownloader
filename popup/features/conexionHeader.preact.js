@@ -4,14 +4,14 @@
  * Primera "isla" de la migración incremental del popup a Preact (ver
  * docs/adr/0006-adopt-preact-islands-in-popup.md). Preact convive con el resto
  * vanilla: esta isla es DUEÑA exclusiva del indicador de conexión (#preact-status-dot)
- * y lo deriva del daemon Conexion (shared/conexion.js). Ya nadie lo pinta a mano.
+ * y lo deriva del daemon Conexion (core/conexion/conexion.ts). Ya nadie lo pinta a mano.
  *
  * Antes, el statusDot se pintaba imperativamente desde 6 lugares (popup.js x2,
  * serverConnection.js x4). Con esto es un derivado puro del estado: cambia la
  * conexión → el puntito se re-deriva solo. Imposible desincronizar.
  *
  * Se carga como <script type="module"> DESPUÉS de los scripts clásicos, así que
- * window.Conexion (shared/conexion.js) ya existe. El daemon lo arranca popup.js
+ * window.Conexion (core/conexion/conexion.ts) ya existe. El daemon lo arranca popup.js
  * (iniciarDetectorEstado); esta isla sólo se SUSCRIBE y renderiza.
  * ==========================================================================
  */

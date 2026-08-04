@@ -277,6 +277,11 @@ en TypeScript, con sus 11 tests. Es el corte más barato para estrenar el pipeli
 > **Epílogo 2 (5c, 2026-08-03)**: el adaptador ya pasó a TypeScript (`config.ts`), así que el
 > tapón no existe más. La mudanza a `core/conexion/` es el corte siguiente y ya no depende de
 > nada.
+>
+> **Epílogo 3 (2026-08-03)**: hecha. El daemon vive en `core/conexion/conexion.ts` y recibe la
+> URL de sondeo por parámetro. Con eso, lo que esta Fase 4 pedía originalmente —"BunClient **+
+> daemon de conexión** en `core/`"— queda cumplido, con dos correcciones de plan de por medio
+> (el storage primero, la URL de sitio después). Registro del corte más abajo.
 
 **Fase 5 — Puertos de plataforma + adaptador Chrome (el corte grande).** `PuertoAlmacenamiento`
 y `PuertoMensajeria` con su adaptador, convirtiendo las globales `window.X`/`self.X` a módulos
@@ -358,7 +363,7 @@ Consumidores del puerto de almacenamiento, en el orden en que se migraron:
 |---|---|---|
 | ~~`shared/state.js`~~ → `shared/state.ts` | 9 → 1 | ✅ Hecho (2026-08-02). Pasó a TS + factory `crearAppState(puerto)`, instanciada en `composicion.ts`. El uso que queda es el `sendMessage` de `sincronizarConBackground()`: IPC, no storage. **Corrección al plan**: acá decía "con tests indirectos" y era falso — los tests del popup mockean `globalThis.AppState` entero, así que no tenía **ninguna** cobertura real. Se le escribieron 13 tests propios contra `AlmacenamientoEnMemoria` como parte del corte. |
 | `popup/features/queue.js` | 9, **todos IPC** | ⚠️ **No era 5b.** Sus 9 usos son `chrome.runtime`, no `chrome.storage`: el puerto de almacenamiento no le aplica. Migrado en la **Fase 5c** (2026-08-03) sobre `PuertoMensajeria`. Lo mismo vale para `popup.js` (9 IPC + scripting/tabs, 0 storage). Esta tabla contaba `chrome.*` en total, y eso los hacía parecer consumidores del puerto de storage. **El único que queda para 5b es `background.js`** (22 de sus usos son storage). |
-| ~~`shared/conexion.js`~~ → `shared/conexion.ts` | 7 → 0 | ✅ Hecho (2026-08-02). TS + factory `crearConexion(puerto)`; el espejado cross-contexto va por el ámbito de sesión del puerto. `BunClient` pasó de global sniffeada a import (los dos son módulos del núcleo). Sus tests dejaron de mockear `chrome.*`: ahora levantan **dos daemons sobre el mismo `AlmacenamientoEnMemoria`**, que es el espejado popup↔SW ejercitado de verdad y no simulado (14 → 16 tests). **No se mudó a `core/`** aunque ya no le quede `chrome.*`: todavía lee el global `SitioActivo` para la URL de sondeo, y `composicion.ts` no puede inyectársela porque `config.js` es `.js` (`allowJs: false`). Se muda cuando ese archivo pase a TS. |
+| ~~`shared/conexion.js`~~ → `shared/conexion.ts` | 7 → 0 | ✅ Hecho (2026-08-02). TS + factory `crearConexion(puerto)`; el espejado cross-contexto va por el ámbito de sesión del puerto. `BunClient` pasó de global sniffeada a import (los dos son módulos del núcleo). Sus tests dejaron de mockear `chrome.*`: ahora levantan **dos daemons sobre el mismo `AlmacenamientoEnMemoria`**, que es el espejado popup↔SW ejercitado de verdad y no simulado (14 → 16 tests). **No se mudó a `core/`** aunque ya no le quede `chrome.*`: todavía lee el global `SitioActivo` para la URL de sondeo, y `composicion.ts` no puede inyectársela porque `config.js` es `.js` (`allowJs: false`). Se muda cuando ese archivo pase a TS. **→ Se mudó el 2026-08-03** a `core/conexion/conexion.ts`, ya con `config.ts` en TypeScript; ver el registro de ese corte. |
 | ~~`background.js`~~ | 22 de storage → 0 | ✅ Hecho (2026-08-03), en dos commits separados a propósito. **Primero los tests**: 12 de caracterización del bucle de descarga y el auto-heal (lo que este doc pedía), que fijaron el comportamiento actual. **Después la migración**, con esos tests como criterio de no-regresión: pasaron sin tocar una sola aserción. Quedó en JS —lo carga el entrypoint, no lo importa `composicion.ts`, así que recibe el puerto como global y no lo alcanza la regla de `allowJs`. Detalle de forma: `SessionState.get` normaliza la clave a lista porque el puerto pide siempre `string[]`. |
 
 El patrón a repetir es el de la Fase 5a, que existe justamente como plantilla: el módulo
@@ -396,6 +401,33 @@ hicieron falta tests nuevos porque el descriptor es dato y ya lo ejercitan `face
 `filters.test.js`, `onboarding.preact.test.js` y `resolverManifiesto.test.js`, que lo importan
 de verdad.
 
+### Registro del corte `conexion` → `core/conexion/` (2026-08-03)
+
+El daemon era el único módulo del proyecto **sin `chrome.*` y aun así fuera de `core/`**. Lo
+que lo retenía no era plataforma sino sitio: leía el global `SitioActivo` para saber a qué host
+mandarle el HEAD de "hay internet". Qué salió del corte:
+
+- **La dependencia se invirtió, no se movió.** `crearConexion(puerto, { urlSondeoInternet })`:
+  la URL entra por parámetro desde `composicion.ts`, que la toma de
+  `PuertoSitio.urlSondeoInternet`. **Es el primer import de `sitio/` desde la composición**, y
+  sólo fue posible porque `config.ts` ya es TypeScript (el corte anterior).
+- **Se borró el fallback `URL_SONDEO_FALLBACK`**, que era el host del portal hardcodeado. En
+  `shared/` era tolerable; en Capa 1 viola el invariante de la capa. La opción cómoda era
+  mudarlo tal cual con el fallback puesto: eso habría dejado el nombre del portal adentro de
+  `core/` y el corte habría sido cosmético. El parámetro quedó **obligatorio** y los tests pasan
+  una URL de fantasía (`https://portal.de-prueba.test`), que además es lo que verifica el test
+  nuevo: que el HEAD le pegue a la URL inyectada y no a una propia (16 → 17 tests).
+- **`URL_SONDEO_INTERNET` dejó de ser un getter perezoso** y pasa a fijarse al construir. Es
+  seguro porque los dos entrypoints importan `config.ts` antes que `composicion.ts` — y esa es
+  exactamente la clase de suposición que el bundler no verifica, así que se confirmó leyendo el
+  orden en el chunk compilado.
+- **Sin cambios de comportamiento**: el valor efectivo en runtime es el mismo que ya venía de
+  `SitioActivo.urlSondeoInternet`.
+
+Qué NO cambió y conviene no confundir: `shared/` sigue existiendo con `state.ts` y `utils.js`.
+`state.ts` no puede seguir a `conexion.ts` todavía — le falta lo de la clave de faceta, que es
+la fila de abajo.
+
 ### El próximo paso (al 2026-08-03)
 
 Lo que sigue, de menor a mayor riesgo. **Empezar por el primero**: desbloquea dos mudanzas que
@@ -404,9 +436,10 @@ hoy no se pueden hacer.
 | Qué | Por qué / qué desbloquea |
 |---|---|
 | ~~**`sitio/ramonnet/config.js` → TypeScript**~~ | ✅ **Hecho (2026-08-03)** — ver el registro de abajo. El tapón ya no está: `composicion.ts` puede importar el adaptador de sitio. |
-| **Inyectar `urlSondeoInternet` + mudar `shared/conexion.ts` → `core/conexion/`** | Es lo que destrabó el punto anterior, y ahora no depende de nada más. |
+| ~~**Inyectar `urlSondeoInternet` + mudar `shared/conexion.ts` → `core/conexion/`**~~ | ✅ **Hecho (2026-08-03)** — ver el registro de abajo. `core/` estrena su primer módulo de lógica (no de contrato ni de I/O). |
 | **Generalizar la clave de faceta** (`claveEstado` → `facetaSeleccionada`, migración de `catedraElegida` en storage) | Es lo único que ata `shared/state.ts` a vocabulario del sitio, y por lo tanto lo que falta para mudarlo a `core/`. **Corrección al plan (2026-08-03)**: acá decía que a `state.ts` le faltaba el puerto de mensajería para su `sincronizarConBackground`; ese puerto existe desde la 5c, así que ese bloqueo ya no aplica — queda éste. El comentario en `sitio/ramonnet/config.ts` que describe el renombre esperaba un disparador ("cuando `AppState` pase a un puerto") que ya ocurrió en la 5b. |
-| **Lado receptor de IPC en `background.js`** (cierra 5c) | El `PuertoMensajeria` ya tiene `onMensaje` y está testeado; falta usarlo en el `chrome.runtime.onMessage` del SW. `background.js` ya tiene red de tests (17). |
+| **IPC de `background.js` al puerto — las dos puntas** (cierra 5c) | **Corrección (2026-08-03)**: esta fila decía "lado receptor" y subestimaba el corte. El SW **no toca el `PuertoMensajeria` en absoluto**: siguen crudos tanto el `chrome.runtime.onMessage` (1 listener) como los **9 `chrome.runtime.sendMessage`** de emisión (progreso, `cola_completamente_vacia`, telemetría). El puerto ya tiene `enviar`/`notificar`/`onMensaje` testeados; `background.js` ya tiene red de tests (17). Ojo al migrar la emisión: el SW notifica a un popup que puede estar cerrado, así que va `notificar()` (fire-and-forget), no `enviar()` — hoy eso se expresa como `.catch(() => {})` colgado de cada `sendMessage`. |
+| **`sincronizarConBackground()` de `shared/state.ts` al puerto** (cierra 5c) | El último `sendMessage` crudo fuera de `background.js` (`state.ts:157`). **Fila agregada el 2026-08-03**: el plan mencionaba el tema sólo para decir que el bloqueo se había levantado con la 5c, pero nunca lo listaba como pendiente. Es barato — `composicion.ts` ya construye `AppState` y ya importa `mensajeria`, así que es un parámetro más en la factory. |
 | **`PuertoProgramador`** (cierra 5c) | Las alarmas del auto-heal (`chrome.alarms`). Interfaz esbozada arriba. Las 4 ramas del auto-heal ya están cubiertas por tests, así que hay con qué verificar. |
 | **Fase 6 — motor HLS a `core/hls/`** | Llega con el pool ya testeado. |
 | **Fase 6b — cola de descarga a `core/cola/`** | El bloque de lógica más grande que queda en `background.js`. Va después de la 6 y de los puertos del SW; llega con los tests de caracterización del bucle ya escritos. |
@@ -450,7 +483,7 @@ en el tramo intermedio (en `state.js` no pasaba: `conexion.js` y `bunClient.ts` 
 | 4 — `core/`: BunClient en TypeScript (+ typescript-eslint y `tsc --noEmit` en verde) | ✅ Hecha (2026-08-02) |
 | 5a — `PuertoAlmacenamiento` + adaptador Chrome + adaptador en memoria + 1er consumidor migrado (historial de fallos) | ✅ Hecha (2026-08-02) |
 | 5b — `PuertoAlmacenamiento`: adaptadores + **todos** los consumidores | ✅ **Completa** (2026-08-03) — historial de fallos, `AppState`, daemon de conexión y `background.js`. No queda ni un `chrome.storage` en el proyecto. (`queue.js` figuraba acá por error: sus usos eran IPC → Fase 5c.) |
-| 5c — `PuertoMensajeria` (IPC) + `PuertoProgramador` (alarmas) + sus adaptadores | 🟡 En curso — `PuertoMensajeria` ✅ con sus dos adaptadores; migrados `queue.js` y `popup.js` (2026-08-03). Se sumó `PuertoSitio` + `sitio/ramonnet/config.ts` (2026-08-03), que destapó el tapón de `allowJs`. Falta el `PuertoProgramador` (alarmas del auto-heal) y el lado receptor en `background.js` |
+| 5c — `PuertoMensajeria` (IPC) + `PuertoProgramador` (alarmas) + sus adaptadores | 🟡 En curso — `PuertoMensajeria` ✅ con sus dos adaptadores; migrados `queue.js` y `popup.js` (2026-08-03). Se sumó `PuertoSitio` + `sitio/ramonnet/config.ts` (2026-08-03), que destapó el tapón de `allowJs` y habilitó la mudanza del daemon de conexión a `core/conexion/` (2026-08-03). **Falta**: el `PuertoProgramador` (alarmas del auto-heal), el IPC de `background.js` **en sus dos puntas** (emisión y recepción — el SW todavía no toca el puerto) y el `sendMessage` de `shared/state.ts` |
 | 6 — Motor HLS → `core/hls/` | ⏳ No iniciada |
 | 6b — Cola de descarga → `core/cola/` (FIFO + máquina de estados, hoy dentro de `background.js`) | ⏳ No iniciada. Va **después** de la 6 (el bucle maneja al motor) y de que el SW tenga sus puertos (5c: IPC receptor + alarmas). Es el bloque de lógica más grande que queda sin migrar, y ya tiene red: los 12 tests de caracterización del bucle y el auto-heal de `background.test.js`. |
 | 6c — UI: split genérico (`ui/comunes/`) vs. de sitio (`sitio/ramonnet/ui/`) + CSS co-locado por componente | ⏳ No iniciada. Diseñada en §UI de este doc (incluida la convención BEM y que `listaClases` hay que **partirla en dos**, no moverla). Va antes de la 7 para que los entrypoints cableen la estructura final una sola vez. |

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Tests del daemon de conexión (shared/conexion.ts): fuente única de verdad del
+ * Tests del daemon de conexión (core/conexion/conexion.ts): fuente única de verdad del
  * estado de conexión, modelo push (get/suscribir), espejado cross-contexto.
  *
  * Desde la Fase 5b ya no hay mock de `chrome.*` a mano: el daemon recibe un
@@ -10,15 +10,22 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { crearConexion, CLAVE_STORAGE } from './conexion';
-import { AlmacenamientoEnMemoria } from '../core/puertos/almacenamientoEnMemoria';
-import BunClient from '../core/backend/bunClient';
+import { AlmacenamientoEnMemoria } from '../puertos/almacenamientoEnMemoria';
+import BunClient from '../backend/bunClient';
+
+/**
+ * La URL de sondeo se inyecta (v3.0.0): el daemon ya no la lee del global `SitioActivo`.
+ * Acá va una de fantasía a propósito — este módulo es Capa 1 y sus tests no tienen por
+ * qué nombrar el portal real; lo único que se ejercita es que la use tal cual.
+ */
+const URL_SONDEO = 'https://portal.de-prueba.test';
 
 let almacenamiento: AlmacenamientoEnMemoria;
 let Conexion: ReturnType<typeof crearConexion>;
 
 beforeEach(() => {
   almacenamiento = new AlmacenamientoEnMemoria();
-  Conexion = crearConexion(almacenamiento);
+  Conexion = crearConexion(almacenamiento, { urlSondeoInternet: URL_SONDEO });
   globalThis.fetch = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
   vi.spyOn(BunClient, 'obtenerRutaServidor').mockResolvedValue('C:/RamonNet');
   vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
@@ -72,6 +79,14 @@ describe('verificarAhora()', () => {
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
+  it('le pega a la URL de sondeo INYECTADA, no a un host propio (Capa 1)', async () => {
+    await Conexion.verificarAhora();
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      URL_SONDEO,
+      expect.objectContaining({ method: 'HEAD' })
+    );
+  });
+
   it('marca internet=false si el HEAD falla aunque navigator diga online', async () => {
     (globalThis.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('timeout'));
     await Conexion.verificarAhora();
@@ -113,7 +128,7 @@ describe('suscribir() — push', () => {
 describe('espejado cross-contexto', () => {
   it('lo que escribe un contexto lo adopta el otro, sin re-escribir (anti-loop)', async () => {
     // Dos daemons sobre el MISMO storage = popup y SW.
-    const otroContexto = crearConexion(almacenamiento);
+    const otroContexto = crearConexion(almacenamiento, { urlSondeoInternet: URL_SONDEO });
     otroContexto._escucharStorage();
     const cb = vi.fn();
     otroContexto.suscribir(cb);
@@ -128,7 +143,7 @@ describe('espejado cross-contexto', () => {
   });
 
   it('adoptar un estado espejado NO dispara otra escritura', async () => {
-    const otroContexto = crearConexion(almacenamiento);
+    const otroContexto = crearConexion(almacenamiento, { urlSondeoInternet: URL_SONDEO });
     otroContexto._escucharStorage();
     const spyGuardar = vi.spyOn(almacenamiento, 'guardarSesion');
 

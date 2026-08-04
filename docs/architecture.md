@@ -43,8 +43,15 @@ La extensión está partida en contextos de ejecución de JS aislados que **solo
 |---|---|---|
 | **Popup** | `popup.js`, `renderers.js`, `popup/features/*` (+ el adaptador `sitio/ramonnet/*`) | Toda la UI: tabs, filtros, onboarding, selección de clases. Inyecta el scraper en la pestaña activa de Ramón Net vía `chrome.scripting.executeScript`. Partes de la UI se están migrando a **islas Preact** (sin build, ES modules locales — ver `docs/adr/0006` y `docs/preact-migration.md`). |
 | **Service Worker** | `background.js`, `background/hlsEngine.js` | Único lugar donde ocurren las descargas reales. Dueño de la cola FIFO persistente y de la máquina de estados de auto-sanación ante cortes de red. Sigue 100% vanilla (no tiene DOM). |
-| **Offscreen Document** | `offscreen/offscreen.js` | Existe solo para el path legacy no-Turbo (`URL.createObjectURL` no está disponible en service workers). No se ejercita mientras Turbo Mode esté forzado a `true`. |
-| **Compartido** | `shared/*.js` (lo que aún no se migró), `core/**`, `sitio/**`, `plataforma/**` | Código cargado por más de una zona. No es una zona de ejecución: es la librería común, hoy en plena re-arquitectura por capas (ver abajo). `shared/conexion.ts` es el **daemon de estado de conexión** (fuente única, ver Modelo de estado). |
+| **Offscreen Document** | `public/offscreen/offscreen.js` | Existe solo para el path legacy no-Turbo (`URL.createObjectURL` no está disponible en service workers). No se ejercita mientras Turbo Mode esté forzado a `true`. |
+| **Compartido** | `shared/*.js` (lo que aún no se migró), `core/**`, `sitio/**`, `plataforma/**` | Código cargado por más de una zona. No es una zona de ejecución: es la librería común, hoy en plena re-arquitectura por capas (ver abajo). `core/conexion/conexion.ts` es el **daemon de estado de conexión** (fuente única, ver Modelo de estado). |
+
+Hay un quinto contexto que la tabla no lista porque no es código *de* la extensión corriendo
+en la extensión: **la pestaña del portal**, donde el popup inyecta `Scraper.escanearAulaVirtual`
+vía `chrome.scripting.executeScript`. Corre en el mundo aislado de la página y no comparte nada
+con las zonas de arriba — ni siquiera el módulo del que salió. La regla que impone está abajo,
+en §Capa 2 — `sitio/<portal>/`, y es de las pocas del proyecto que ninguna de las cuatro
+verificaciones detecta si se rompe.
 
 Ver `docs/patterns.md` para el detalle de cómo se comunican estas zonas y qué patrones sostienen esa comunicación.
 
@@ -166,6 +173,21 @@ mockear `chrome.*` a mano, incluida una conversación popup↔SW completa in-pro
 espera respuesta y rechaza si el canal falla; `notificar()` es fire-and-forget y no rechaza
 nunca. Elegir uno es explícito en cada call-site — contrato completo en `docs/patterns.md`.
 
+**`core/conexion/conexion.ts` (`Conexion`) es la fuente única de verdad del estado de
+conexión** (servidor + internet), corriendo en popup y en SW; se lee con `Conexion.get()` o se
+escucha con `Conexion.suscribir(cb)`. **Regla operativa: no agregar sondas `/api/health` ni
+HEAD de internet ad-hoc en ningún otro lado — consumir el daemon.** Modelo push, espejado y
+contrato completo → `docs/patterns.md` §Daemon de estado de conexión. Misma forma que los
+demás módulos del núcleo: factory `crearConexion(puerto, opciones)`, instancia publicada por
+`composicion.ts`, espejado cross-contexto por el ámbito de sesión del puerto.
+
+Llegó a la Capa 1 el **2026-08-03**, y vale como ejemplo de qué frena una mudanza: `chrome.*`
+no le quedaba desde la Fase 5b, pero seguía leyendo el global `SitioActivo` para saber a qué
+host mandarle el HEAD de "hay internet". Esa URL ahora **se inyecta** —desde `composicion.ts`,
+que la toma de `PuertoSitio.urlSondeoInternet`— y con ella se fue el fallback hardcodeado al
+host de Ramón Net: en esta capa no puede existir, así que el parámetro es obligatorio y los
+tests pasan una URL de fantasía.
+
 También viven acá `core/backend/bunClient.ts` (wrapper fino de todos los endpoints del backend
 Bun: `/api/escanear-disco`, `/api/bypass-stream`, `/api/actualizar-consola`,
 `/api/seleccionar-carpeta`, `/api/health`, `/api/cancelar-descarga`) y
@@ -211,6 +233,19 @@ es lo que mantiene perezosas las puertas en vez de atarlas al orden de carga del
 Son `resolverManifiesto.js` (HTML de la clase → `.m3u8`), `parserTitulos.js` (parser de
 títulos/cátedra) y `scraper.js` (scraper del DOM), alcanzados vía
 `SitioActivo.resolverManifiesto` / `.parsearTitulo` / `.clasificarCarpeta` / `.escanearListado`.
+
+**`scraper.js` juega con una regla propia, y es la que más fácil se rompe sin querer.** Su
+`escanearAulaVirtual` no se ejecuta acá: `popup.js` la inyecta con
+`chrome.scripting.executeScript` y corre **dentro de la pestaña del portal**, en el mundo
+aislado de la página. Tiene que ser **autocontenida y serializable**: no puede referenciar
+ninguna global de la extensión (`Utils`, `SitioActivo`, `SitioRamonNet`) **ni siquiera una
+constante a nivel de módulo de su propio archivo** — lo que necesite viaja por `args` de
+`executeScript`. O sea que la regla de arriba ("las constantes nuevas del sitio van acá, no
+inline") **no aplica a lo que vive adentro de esa función**: subir un selector suyo a
+`config.ts` deja el escaneo devolviendo vacío en runtime. Y nada lo avisa — ni el bundler, ni
+el lint, ni `tsc`, ni la suite (no hay `scraper.test.js`). Se verifica abriendo el popup con
+una pestaña del aula virtual activa.
+
 El ruleset dNR vive en **`public/sitio/ramonnet/rules.json`** (en `public/` para que WXT lo
 copie tal cual a esa ruta exacta, que es la que referencia `wxt.config.ts`). El config lleva
 además el **descriptor de faceta**, cuya forma campo por campo está en
@@ -228,14 +263,6 @@ Código cargado por los dos entrypoints; es lo que la re-arquitectura va partien
   `composicion.ts`, no este archivo. Sigue en `shared/` por dos motivos documentados en su
   cabecera: `sincronizarConBackground()` todavía es `chrome.runtime` crudo, y carga
   vocabulario de sitio (`catedraSeleccionada`) que la Capa 1 no puede aceptar.
-- **`conexion.ts` (`Conexion`)** — la **fuente única de verdad del estado de conexión**
-  (servidor + internet), corriendo en popup y en SW; se lee con `Conexion.get()` o se escucha
-  con `Conexion.suscribir(cb)`. **Regla operativa: no agregar sondas `/api/health` ni HEAD de
-  internet ad-hoc en ningún otro lado — consumir el daemon.** Modelo push, espejado y contrato
-  completo → `docs/patterns.md` §Daemon de estado de conexión. Misma forma que `state.ts`:
-  factory `crearConexion(puerto)`, instancia publicada por `composicion.ts`, espejado
-  cross-contexto por el ámbito de sesión del puerto. No le queda `chrome.*`; sigue en `shared/`
-  sólo porque lee el global `SitioActivo` para la URL de sondeo.
 - **`utils.js` (`Utils`)** — **genérico desde v6.0.0**: sanitización de nombres/acentos,
   escapado de HTML, helper de descifrado AES, fetch con reintentos y backoff
   (`fetchConReintentos`, que consulta al daemon `Conexion` para cortar los reintentos ante un
@@ -260,7 +287,7 @@ El estado está deliberadamente **partido, no compartido**, entre popup y servic
 
 - **`AppState`** (popup, `shared/state.ts`) — la *lista de clases scrapeadas* + selección/filtros de UI.
 - **`SessionState`** (service worker, inline en `background.js`) — el *progreso de la descarga activa*.
-- **`Conexion`** (daemon, `shared/conexion.ts`) — la fuente **única** del *estado de conexión* (servidor + internet).
+- **`Conexion`** (daemon, `core/conexion/conexion.ts`) — la fuente **única** del *estado de conexión* (servidor + internet).
 
 El schema exacto, las invariantes de reconciliación (`obtener_estados_en_progreso`) y por qué el split → `docs/data-model.md`. El patrón de ownership y el daemon `Conexion` (modelo push, "no chequeos ad-hoc") → `docs/patterns.md`.
 
