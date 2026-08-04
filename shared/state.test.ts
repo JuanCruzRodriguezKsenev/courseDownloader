@@ -5,14 +5,18 @@
  * así que nunca ejercitaban la maquinaria real. Al desacoplarla del `chrome.storage` se pudo
  * testear contra `AlmacenamientoEnMemoria`, sin mocks de `chrome.*` a mano.
  *
- * `sincronizarConBackground` sigue siendo IPC (`chrome.runtime`), así que ahí sí se stubea
- * `chrome` — es lo que queda pendiente de un futuro PuertoMensajeria.
+ * Desde la Fase 5c tampoco se stubea `chrome.runtime` para `sincronizarConBackground`: el IPC
+ * entra por `MensajeriaEnMemoria`, donde "el SW está dormido" (sin manejador) y "el SW promete
+ * responder y no lo hace" (devuelve `true` y no llama a `responder`) son escenarios reales del
+ * adaptador y no un `lastError` inventado a mano. Ya no queda ningún mock de `chrome.*` acá.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { crearAppState } from "./state";
 import { AlmacenamientoEnMemoria } from "../core/puertos/almacenamientoEnMemoria";
+import { MensajeriaEnMemoria } from "../core/puertos/mensajeriaEnMemoria";
 
 let almacenamiento: AlmacenamientoEnMemoria;
+let mensajeria: MensajeriaEnMemoria;
 let app: ReturnType<typeof crearAppState>;
 
 /** `respaldar()`/`limpiarSesionLocal()` son fire-and-forget: hay que dejar correr la microtask. */
@@ -20,7 +24,8 @@ const dejarCorrer = () => new Promise((r) => setTimeout(r, 0));
 
 beforeEach(() => {
   almacenamiento = new AlmacenamientoEnMemoria();
-  app = crearAppState(almacenamiento);
+  mensajeria = new MensajeriaEnMemoria();
+  app = crearAppState(almacenamiento, mensajeria);
   vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -198,13 +203,9 @@ describe("AppState.establecerModoTurbo", () => {
 
 describe("AppState.sincronizarConBackground", () => {
   it("copia los estados del SW sobre la lista en memoria y detecta la ráfaga", async () => {
-    globalThis.chrome = {
-      runtime: {
-        lastError: null,
-        sendMessage: (_msg: unknown, cb: (r: unknown) => void) =>
-          cb({ estados: { A: "process", B: "done" }, suaveFrenado: true, videoActual: "A" }),
-      },
-    } as unknown as typeof chrome;
+    mensajeria.onMensaje((_msg, responder) => {
+      responder({ estados: { A: "process", B: "done" }, suaveFrenado: true, videoActual: "A" });
+    });
     app.listadoClasesGlobal = [
       { titulo: "A", estado: "pending" },
       { titulo: "B", estado: "pending" },
@@ -219,31 +220,40 @@ describe("AppState.sincronizarConBackground", () => {
     expect(app.videoActualEnTransmisiónSW).toBe("A");
   });
 
-  it("si el SW no responde, el timeout de rescate resuelve vacío en vez de colgar", async () => {
-    vi.useFakeTimers();
-    globalThis.chrome = {
-      runtime: { lastError: null, sendMessage: () => {} }, // nunca llama al callback
-    } as unknown as typeof chrome;
+  it("si el SW acepta pero nunca contesta, el timeout de rescate resuelve vacío en vez de colgar", async () => {
+    // OJO con el timeout del adaptador: por defecto es 0ms, así que el puerto rechazaría
+    // primero y este test verificaría el OTRO camino sin que se note. Se le da un plazo largo
+    // para que el único reloj que puede sonar sea el rescate de AppState — que es justo lo que
+    // en el navegador no existe (chrome.runtime no vence solo) y por eso hay que probar.
+    const mensajeriaLenta = new MensajeriaEnMemoria(60_000);
+    const appLenta = crearAppState(almacenamiento, mensajeriaLenta);
+    // Devolver `true` es la convención de "respondo async"; después no responde nunca.
+    mensajeriaLenta.onMensaje(() => true);
 
-    const promesa = app.sincronizarConBackground();
+    vi.useFakeTimers();
+    const promesa = appLenta.sincronizarConBackground();
     await vi.advanceTimersByTimeAsync(3000);
 
     await expect(promesa).resolves.toEqual({ estados: {}, porcentaje: 0, telemetry: null });
     vi.useRealTimers();
   });
 
-  it("con el canal IPC caído resuelve vacío sin tocar el estado", async () => {
-    globalThis.chrome = {
-      runtime: {
-        lastError: { message: "no receiver" },
-        sendMessage: (_msg: unknown, cb: (r: unknown) => void) => cb(undefined),
-      },
-    } as unknown as typeof chrome;
+  it("con el canal IPC caído (sin receptor) resuelve vacío sin tocar el estado", async () => {
+    // Sin manejadores registrados: el puerto rechaza, que es el equivalente del `lastError`
+    // "Could not establish connection" del SW dormido.
     app.listadoClasesGlobal = [{ titulo: "A", estado: "pending" }];
 
     const r = await app.sincronizarConBackground();
 
     expect(r).toEqual({ estados: {}, porcentaje: 0, telemetry: null });
     expect(app.listadoClasesGlobal[0]!.estado).toBe("pending");
+  });
+
+  it("pregunta por la acción correcta", async () => {
+    mensajeria.onMensaje((_msg, responder) => responder({ estados: {} }));
+
+    await app.sincronizarConBackground();
+
+    expect(mensajeria.accionesEnviadas()).toEqual(["obtener_estados_en_progreso"]);
   });
 });

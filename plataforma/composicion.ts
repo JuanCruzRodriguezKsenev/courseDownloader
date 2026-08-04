@@ -45,7 +45,7 @@ export const HistorialFallos = crearHistorialFallos(almacenamiento);
  * más para no partir la raíz de composición en dos por un solo módulo. Si aparece un segundo
  * módulo popup-only, ahí sí conviene una raíz por contexto.
  */
-export const AppState = crearAppState(almacenamiento);
+export const AppState = crearAppState(almacenamiento, mensajeria);
 (globalThis as Record<string, unknown>).AppState = AppState;
 
 /**

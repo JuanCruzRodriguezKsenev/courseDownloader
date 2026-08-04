@@ -1,6 +1,14 @@
 /**
- * MAQUINARIA DE ESTADO CENTRAL DEL POPUP (V6.0.0)
+ * MAQUINARIA DE ESTADO CENTRAL DEL POPUP (V6.1.0)
  * ==============================================================================================
+ * CHANGELOG v6.1.0:
+ * - [FASE 5C] `sincronizarConBackground()` deja de tocar `chrome.runtime`: el único IPC de este
+ *   archivo pasa al `PuertoMensajeria`, que llega por inyección como el de storage
+ *   (`crearAppState(almacenamiento, mensajeria)`). Con esto **no queda ni un `chrome.*` acá**.
+ *   La elección de `enviar()` (y no `notificar()`) es deliberada: esto es una consulta cuya
+ *   respuesta se procesa. Sin cambios de comportamiento — se conservan tal cual el timeout de
+ *   rescate de 3s y el resolver-vacío ante canal caído; lo que antes era `lastError` ahora es
+ *   el rechazo del puerto, que es exactamente lo que el puerto promete.
  * CHANGELOG v6.0.0:
  * - [FASE 5B + TS] Migrado de `shared/state.js` a TypeScript y desacoplado de `chrome.storage`:
  *   los tres call-sites de storage (get/set/remove) pasan por `PuertoAlmacenamiento`, que llega
@@ -22,15 +30,18 @@
  * `chrome.storage.local`. El estado de la descarga en curso NO vive acá: es del service worker
  * (`SessionState`, en `storage.session`). Ver docs/data-model.md §State ownership split.
  *
- * QUÉ QUEDÓ FUERA DE LA FASE 5B (a propósito)
- * -------------------------------------------
- * `sincronizarConBackground()` sigue tocando `chrome.runtime` directo: es IPC, no storage, y el
- * puerto de esta fase cubre sólo persistencia. Desacoplarlo pide un `PuertoMensajeria` que
- * todavía no existe. Por eso este módulo sigue en `shared/` y no se mudó a `core/`: además del
- * IPC, arrastra vocabulario del sitio (`catedraSeleccionada` / la clave `catedraElegida`), que
- * en Capa 1 no puede entrar. Su hogar definitivo se decide cuando exista ese puerto.
+ * POR QUÉ SIGUE EN `shared/` Y NO EN `core/`
+ * ------------------------------------------
+ * Ya no es por los puertos: desde la 5b el storage entra por `PuertoAlmacenamiento` y desde la
+ * 5c el IPC por `PuertoMensajeria`. Lo único que lo retiene es **vocabulario del sitio**:
+ * `catedraSeleccionada` en memoria y la clave `catedraElegida` en storage, que en Capa 1 no
+ * pueden entrar. Se muda cuando se generalice a `facetaSeleccionada` — lo que pide migrar datos
+ * ya persistidos (ver `docs/data-model.md` y el descriptor de faceta en
+ * `sitio/ramonnet/config.ts`). Es el mismo patrón que destrabó al daemon de conexión: primero
+ * se saca el dato de sitio, después el archivo se muda.
  */
 import type { PuertoAlmacenamiento } from "../core/puertos/almacenamiento";
+import type { PuertoMensajeria } from "../core/puertos/mensajeria";
 
 /**
  * Forma mínima de una clase de la lista: sólo los campos que ESTE módulo toca. El modelo real
@@ -80,7 +91,7 @@ interface DatosPersistidos {
   tutorialCompletado?: boolean;
 }
 
-export function crearAppState(almacenamiento: PuertoAlmacenamiento) {
+export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: PuertoMensajeria) {
   const app = {
     listadoClasesGlobal: [] as ClaseEnLista[],
     colaDescargas: [] as unknown[], // 🚀 Cola desacoplada
@@ -142,51 +153,63 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento) {
     },
 
     /**
-     * Reconcilia con el SW, que es la autoridad sobre el progreso de la descarga. El timeout de
-     * rescate existe porque el SW puede estar dormido: sin él, el popup queda esperando para
-     * siempre. Sigue en `chrome.runtime` — ver la nota de cabecera sobre el puerto de mensajería.
+     * Reconcilia con el SW, que es la autoridad sobre el progreso de la descarga.
+     *
+     * Va por `enviar()` y no por `notificar()` porque es una consulta: sin respuesta no hay
+     * nada que reconciliar. El puerto rechaza si el canal falla (SW ausente), y además se
+     * mantiene el **timeout de rescate**, que cubre un caso distinto y que el puerto no
+     * promete resolver: el SW acepta el mensaje, promete responder async y nunca lo hace —
+     * sin este reloj el popup espera para siempre. Los dos caminos terminan igual: estado
+     * vacío, sin tocar la lista en memoria.
      */
     async sincronizarConBackground(): Promise<RespuestaFondo> {
-      return new Promise((resolve) => {
-        const vacio: RespuestaFondo = { estados: {}, porcentaje: 0, telemetry: null };
-        const timer = setTimeout(() => {
+      const vacio: RespuestaFondo = { estados: {}, porcentaje: 0, telemetry: null };
+      let temporizador: ReturnType<typeof setTimeout> | undefined;
+
+      const rescate = new Promise<undefined>((resolve) => {
+        temporizador = setTimeout(() => {
           console.warn("[AppState] SW no respondió (Timeout de rescate).");
-          resolve(vacio);
+          resolve(undefined);
         }, TIMEOUT_IPC_MS);
-
-        chrome.runtime.sendMessage(
-          { action: "obtener_estados_en_progreso" },
-          (respuestaFondo: RespuestaFondo | undefined) => {
-            clearTimeout(timer);
-
-            if (chrome.runtime.lastError || !respuestaFondo) {
-              console.warn("[AppState] Canal IPC inactivo o SW dormido.");
-              resolve(vacio);
-              return;
-            }
-
-            try {
-              const estadosEnFondo = respuestaFondo.estados || {};
-              app.ráfagaEnCurso = Object.values(estadosEnFondo).some((est) => est === "process");
-              app.banderaFrenadoSolicitado = respuestaFondo.suaveFrenado || false;
-              app.videoActualEnTransmisiónSW = respuestaFondo.videoActual || "";
-
-              // El SW manda el estado por título: se copia sobre la lista en memoria.
-              if (Array.isArray(app.listadoClasesGlobal)) {
-                for (const clase of app.listadoClasesGlobal) {
-                  if (!clase || !clase.titulo) continue;
-                  const estadoNuevo = estadosEnFondo[clase.titulo];
-                  if (estadoNuevo !== undefined) clase.estado = estadoNuevo;
-                }
-              }
-            } catch (err) {
-              console.error("[AppState] Error procesando respuesta de fondo:", err);
-            }
-
-            resolve(respuestaFondo);
-          }
-        );
       });
+
+      let respuestaFondo: RespuestaFondo | undefined;
+      try {
+        respuestaFondo = await Promise.race([
+          mensajeria.enviar<RespuestaFondo | undefined>({ action: "obtener_estados_en_progreso" }),
+          rescate,
+        ]);
+      } catch {
+        // El puerto rechaza cuando no hay receptor: antes esto era `chrome.runtime.lastError`.
+        respuestaFondo = undefined;
+      } finally {
+        clearTimeout(temporizador);
+      }
+
+      if (!respuestaFondo) {
+        console.warn("[AppState] Canal IPC inactivo o SW dormido.");
+        return vacio;
+      }
+
+      try {
+        const estadosEnFondo = respuestaFondo.estados || {};
+        app.ráfagaEnCurso = Object.values(estadosEnFondo).some((est) => est === "process");
+        app.banderaFrenadoSolicitado = respuestaFondo.suaveFrenado || false;
+        app.videoActualEnTransmisiónSW = respuestaFondo.videoActual || "";
+
+        // El SW manda el estado por título: se copia sobre la lista en memoria.
+        if (Array.isArray(app.listadoClasesGlobal)) {
+          for (const clase of app.listadoClasesGlobal) {
+            if (!clase || !clase.titulo) continue;
+            const estadoNuevo = estadosEnFondo[clase.titulo];
+            if (estadoNuevo !== undefined) clase.estado = estadoNuevo;
+          }
+        }
+      } catch (err) {
+        console.error("[AppState] Error procesando respuesta de fondo:", err);
+      }
+
+      return respuestaFondo;
     },
 
     conmutarSeleccionMasiva(marcarTodos: boolean, clasesVisibles: ClaseEnLista[]): void {

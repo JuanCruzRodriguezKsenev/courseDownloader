@@ -93,9 +93,9 @@ El IPC del popup ya está migrado: `popup.js` y `popup/features/queue.js` pasaro
 > **toda** la API de callbacks de `chrome.*`, no sólo del IPC.
 
 `shared/state.ts` fue el primero de la Fase 5b: ya no toca `chrome.storage` (recibe el puerto
-por inyección). Le queda un solo uso de `chrome.*`, el `sendMessage` de
-`sincronizarConBackground()`, que es **IPC y no persistencia** — cae fuera de este puerto y
-espera uno de mensajería.
+por inyección). El `sendMessage` de `sincronizarConBackground()` —que es **IPC y no
+persistencia**, y por eso caía fuera de este puerto— pasó al de mensajería el 2026-08-03, así
+que el archivo ya no tiene ningún `chrome.*`.
 
 ## Qué hace cada archivo, y qué regla respeta
 
@@ -258,11 +258,16 @@ Código cargado por los dos entrypoints; es lo que la re-arquitectura va partien
 
 - **`state.ts` (`AppState`)** — la máquina de estados del popup: espeja/persiste la lista
   scrapeada + selección de UI y reconcilia periódicamente contra el progreso autoritativo del
-  SW vía `sincronizarConBackground()`. Factory `crearAppState(puerto)` sobre
-  `PuertoAlmacenamiento`; el `globalThis.AppState` que leen ~280 call-sites lo publica
-  `composicion.ts`, no este archivo. Sigue en `shared/` por dos motivos documentados en su
-  cabecera: `sincronizarConBackground()` todavía es `chrome.runtime` crudo, y carga
-  vocabulario de sitio (`catedraSeleccionada`) que la Capa 1 no puede aceptar.
+  SW vía `sincronizarConBackground()`. Factory `crearAppState(almacenamiento, mensajeria)`
+  sobre los dos puertos; el `globalThis.AppState` que leen ~280 call-sites lo publica
+  `composicion.ts`, no este archivo. **Ya no le queda `chrome.*`** (el IPC pasó al puerto el
+  2026-08-03), así que lo único que lo retiene en `shared/` es **vocabulario de sitio**:
+  `catedraSeleccionada` y la clave persistida `catedraElegida`, que la Capa 1 no puede aceptar.
+  Se muda cuando eso se generalice a `facetaSeleccionada` — que pide migrar datos ya
+  persistidos, no sólo renombrar.
+  Detalle de forma en `sincronizarConBackground()`: usa `enviar()` (es una consulta) **y
+  además** conserva su timeout de rescate de 3s, porque el puerto sólo promete rechazar cuando
+  no hay receptor — no cubre al receptor que acepta, promete responder async y nunca responde.
 - **`utils.js` (`Utils`)** — **genérico desde v6.0.0**: sanitización de nombres/acentos,
   escapado de HTML, helper de descifrado AES, fetch con reintentos y backoff
   (`fetchConReintentos`, que consulta al daemon `Conexion` para cortar los reintentos ante un
