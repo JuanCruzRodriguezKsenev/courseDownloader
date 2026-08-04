@@ -45,9 +45,9 @@ function useStore() {
   return _store;
 }
 
-export function Onboarding() {
+export function Onboarding({ conexion, appState, sitio: sitioInyectado }) {
   const store = useStore();
-  const conx = useConexion();
+  const conx = useConexion(conexion);
   const [slide, setSlide] = useState(0);
 
   if (!store.visible) return null;
@@ -57,9 +57,9 @@ export function Onboarding() {
 
   function cerrar() {
     // Persistir que el tutorial ya se vio (misma semántica que la feature vieja).
-    if (typeof window !== 'undefined' && window.AppState) {
-      window.AppState.tutorialCompletado = true;
-      window.AppState.respaldar();
+    if (appState) {
+      appState.tutorialCompletado = true;
+      appState.respaldar();
     }
     const eraForzado = store.forzado;
     setSlide(0);           // deja el carrusel listo para la próxima apertura.
@@ -76,7 +76,7 @@ export function Onboarding() {
   // clasificación. Viene del descriptor (`PuertoSitio`), no hardcodeado — es el mismo patrón
   // que ya se le aplicó a la faceta: parametrizar en vez de duplicar el componente. Los
   // fallbacks existen para que la isla se pueda montar en un test sin adaptador cargado.
-  const sitio = (typeof window !== 'undefined' && window.SitioActivo) || {};
+  const sitio = sitioInyectado || {};
   const nombreSitio = sitio.nombre || 'la plataforma';
 
   const dots = [];
@@ -141,8 +141,10 @@ export function Onboarding() {
     </div>`;
 }
 
-export function montar(root) {
-  if (root) render(html`<${Onboarding} />`, root);
+// FASE 7C: la monta el entrypoint del popup con sus dependencias, no este módulo al
+// evaluarse. `sitio` deja de tener fallback a `window.SitioActivo`: ahora entra siempre.
+export function montar(root, { conexion, appState, sitio } = {}) {
+  if (root) render(html`<${Onboarding} conexion=${conexion} appState=${appState} sitio=${sitio} />`, root);
 }
 
 // Sólo para tests: reinicia el store (estado + suscriptores) entre casos, ya que el
@@ -169,7 +171,3 @@ const OnboardingFeature = {
 
 if (typeof window !== 'undefined') window.OnboardingFeature = OnboardingFeature;
 
-// Auto-montaje en el popup real (no corre en los tests, que importan los componentes).
-if (typeof document !== 'undefined') {
-  montar(document.getElementById('preact-onboarding'));
-}

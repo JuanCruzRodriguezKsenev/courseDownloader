@@ -14,7 +14,8 @@
  * - [REFACTOR] Agrupación homogénea de placeholders de grilla para mantener simetría visual.
  */
 
-const Renderers = {
+function crearRenderers(utils) {
+  return {
   /**
    * Pinta el panel de telemetría.
    * Firma unificada: recibe el objeto `nodos` completo del popup.
@@ -28,8 +29,8 @@ const Renderers = {
 
     nodos.panelTel.style.display = 'flex';
 
-    const mbProcesados = Utils.formatearMB(tel.bytesProcesados);
-    const mbTotales    = Utils.calcularProyeccionMB(tel.bytesProcesados, tel.fragsTerminados, tel.totalFrags);
+    const mbProcesados = utils.formatearMB(tel.bytesProcesados);
+    const mbTotales    = utils.calcularProyeccionMB(tel.bytesProcesados, tel.fragsTerminados, tel.totalFrags);
 
     nodos.bytes.innerText = `${mbProcesados} MB / ${isNaN(mbTotales) ? '0.0' : mbTotales} MB`;
 
@@ -37,11 +38,13 @@ const Renderers = {
     nodos.speed.innerText = `${(tel.velocidadMbs ?? 0).toFixed(1)} MB/s`;
 
     nodos.frags.innerText = `Frags: ${tel.fragsTerminados}/${tel.totalFrags}`;
-  }
-};
+    }
+  };
+}
 
-// Exportación (ver docs/coding-standards.md). Sigue publicando el global porque el
-// resto del código vanilla lo consume sin importar; el `export` es lo que permite que
-// el bundler arme el grafo de dependencias y que Vitest importe el módulo.
-globalThis.Renderers = Renderers;
-export default Renderers;
+// FASE 7C: pasó de objeto-global a FACTORY. Era el último lector del ensamblado `Utils` en
+// el popup, y lo leía del global; ahora lo recibe quien lo construye
+// (`entrypoints/popup/main.js`), que se lo pasa a `iniciarPopup` por `renderers`. Con eso
+// desaparece también el global `Renderers`: su único consumidor era popup.js.
+export { crearRenderers };
+export default crearRenderers;

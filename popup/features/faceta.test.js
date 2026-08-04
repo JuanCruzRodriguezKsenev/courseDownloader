@@ -17,7 +17,10 @@ function crearFeature(overrides = {}) {
   document.body.innerHTML = `<span id="ui-faceta-badge" style="display:none"></span>`;
   const badge = document.getElementById('ui-faceta-badge');
   const aplicarFiltros = vi.fn();
-  const feature = FacetaFeature.crear({ badge, aplicarFiltros, sitio: SitioRamonNet, ...overrides });
+  // FASE 7C: `appState` entra por ctx, no por globalThis. El test lo sigue sembrando en
+  // `globalThis.AppState` a propósito —así el harness no cambia y ninguna aserción se toca—;
+  // lo único nuevo es que acá se lo pasamos explícito, como hace popup.js.
+  const feature = FacetaFeature.crear({ badge, aplicarFiltros, sitio: SitioRamonNet, appState: globalThis.AppState, ...overrides });
   return { feature, badge, aplicarFiltros };
 }
 

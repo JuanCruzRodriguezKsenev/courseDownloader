@@ -41,21 +41,21 @@ describe('Isla Preact: Campanita', () => {
 
   it('el badge muestra la cantidad de no-leídos', async () => {
     window.HistorialFallos = mockHistorial([entrada(), entrada({ leido: true }), entrada()]);
-    render(html`<${Campanita} />`, cont);
+    render(html`<${Campanita} historial=${window.HistorialFallos} />`, cont);
     await flush();
     expect(cont.querySelector('.campanita-badge').textContent).toBe('2');
   });
 
   it('el badge está oculto cuando no hay no-leídos', async () => {
     window.HistorialFallos = mockHistorial([entrada({ leido: true })]);
-    render(html`<${Campanita} />`, cont);
+    render(html`<${Campanita} historial=${window.HistorialFallos} />`, cont);
     await flush();
     expect(cont.querySelector('.campanita-badge')).toBeNull();
   });
 
   it('el panel está cerrado hasta clickear la campanita, y el click lo togglea', async () => {
     window.HistorialFallos = mockHistorial([entrada()]);
-    render(html`<${Campanita} />`, cont);
+    render(html`<${Campanita} historial=${window.HistorialFallos} />`, cont);
     await flush();
     expect(cont.querySelector('.campanita-panel')).toBeNull();
 
@@ -73,7 +73,7 @@ describe('Isla Preact: Campanita', () => {
       entrada({ titulo: 'Primera' }),
       entrada({ titulo: 'Segunda' }),
     ]);
-    render(html`<${Campanita} />`, cont);
+    render(html`<${Campanita} historial=${window.HistorialFallos} />`, cont);
     await flush();
     cont.querySelector('.campanita-btn').click();
     await flush();
@@ -85,7 +85,7 @@ describe('Isla Preact: Campanita', () => {
     window.HistorialFallos = mockHistorial([
       entrada({ titulo: '<img src=x onerror=alert(1)>', motivo: '<b>hola</b>' }),
     ]);
-    render(html`<${Campanita} />`, cont);
+    render(html`<${Campanita} historial=${window.HistorialFallos} />`, cont);
     await flush();
     cont.querySelector('.campanita-btn').click();
     await flush();
@@ -101,7 +101,7 @@ describe('Isla Preact: Campanita', () => {
 
   it('"Marcar leídas" baja el badge a 0', async () => {
     window.HistorialFallos = mockHistorial([entrada(), entrada()]);
-    render(html`<${Campanita} />`, cont);
+    render(html`<${Campanita} historial=${window.HistorialFallos} />`, cont);
     await flush();
     cont.querySelector('.campanita-btn').click();
     await flush();
@@ -113,7 +113,7 @@ describe('Isla Preact: Campanita', () => {
 
   it('"Limpiar" deja el panel en estado vacío', async () => {
     window.HistorialFallos = mockHistorial([entrada()]);
-    render(html`<${Campanita} />`, cont);
+    render(html`<${Campanita} historial=${window.HistorialFallos} />`, cont);
     await flush();
     cont.querySelector('.campanita-btn').click();
     await flush();
@@ -127,7 +127,7 @@ describe('Isla Preact: Campanita', () => {
   it('se re-renderiza ante un fallo nuevo empujado externamente (SW, popup abierto)', async () => {
     const hist = mockHistorial([]);
     window.HistorialFallos = hist;
-    render(html`<${Campanita} />`, cont);
+    render(html`<${Campanita} historial=${window.HistorialFallos} />`, cont);
     await flush();
     expect(cont.querySelector('.campanita-badge')).toBeNull();
 

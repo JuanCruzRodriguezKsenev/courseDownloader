@@ -41,7 +41,8 @@ function crearFeature(overrides = {}) {
     actualizarContadores: vi.fn(),
     ...overrides,
   };
-  const feature = FilterFeature.crear(ctx);
+  // FASE 7C: appState entra por ctx (lo sembró globalThis.AppState más arriba).
+  const feature = FilterFeature.crear({ ...ctx, appState: globalThis.AppState });
   return { feature, ctx, nodos, filtrosActivos };
 }
 

@@ -675,6 +675,35 @@ secundario. Es seguro —las islas leen sus globals perezosamente y el listener 
 registrado antes de que el evento dispare—, pero es un cambio real de secuencia y el bundler
 no dice nada.
 
+### Registro de la Fase 7c — las features y las islas reciben lo suyo (2026-08-04)
+
+Cerró lo que la 7b había dejado abierto: que **nadie lea un servicio de `globalThis`**.
+
+- **Las 4 features** (`faceta`, `filters`, `queue`, `serverConnection`) reciben `appState` y
+  `conexion` por el `ctx` que ya existía — 53 de los 76 call-sites que quedaban. Fue lo barato:
+  el patrón `Feature.crear(ctx)` de ADR-0005 estaba hecho justo para esto.
+- **Las 3 islas que dependían de un servicio** (`conexionHeader`, `onboarding`, `campanita`)
+  **dejaron de auto-montarse**. Ahora las monta `entrypoints/popup/main.js` con la dependencia
+  inyectada, y sus componentes la reciben por prop. `useConexion(conexion)` toma el daemon
+  como argumento porque lo comparte `onboarding`. Las otras 3 islas no leen ningún servicio,
+  así que siguen auto-montándose: no había nada que cortar.
+- **`renderers.js` pasó de objeto-global a factory** `crearRenderers(utils)`. Era el último
+  lector de `Utils` en el popup, y con eso se fue también el global `Renderers`.
+- **Se fueron 4 globals**: `AppState`, `Conexion`, `HistorialFallos` y `Renderers`.
+  Verificado en los bundles compilados, no sólo en el fuente.
+
+**Lo que la medición no vio y encontró el linter.** Al sacar `Utils` de `globalesDelProyecto`,
+`no-undef` tiró 11 errores: `sitio/ramonnet/parserTitulos.js` y `resolverManifiesto.js` lo leen
+**en producción**. La medición del corte había mirado `popup.js`, `renderers.js` y
+`popup/features/` — y no `sitio/`. Así que `Utils` sigue publicado y se va con la Fase 8, junto
+con esos dos módulos. **Es el mismo error que ya se cometió en la 6c y en la 6**: medir el
+subconjunto que uno tiene en la cabeza en vez del árbol entero. Acá lo atajó una compuerta;
+vale recordar que sólo la atajó porque el global dejó de estar declarado.
+
+Un test cambió de seam, no de aserción: `onboarding` afirmaba que el descriptor de sitio se lee
+**en cada render** (reasignaba `window.SitioActivo` a mitad del test). Ahora el descriptor entra
+al montar, así que el test re-monta con el portal falso. Las 4 aserciones quedaron intactas.
+
 ### El próximo paso (al 2026-08-04)
 
 Los cortes 5c, 6, 6a, 6b, 6c y 7a están cerrados; el detalle de cada uno vive en su §Registro
@@ -733,7 +762,7 @@ en el tramo intermedio (en `state.js` no pasaba: `conexion.js` y `bunClient.ts` 
 | 6c — UI: split genérico vs. de sitio | ✅ **Hecha** (2026-08-04), y resultó ser **mucho más chica de lo diseñado**: no hubo nada que partir. La UI ya era genérica salvo el copy del onboarding, que se parametrizó por `PuertoSitio.nombre`. El split de carpetas y el BEM/co-locación de CSS quedan **explícitamente descartados** — ver §Fase 6c. |
 | 7a — Entrypoints como composición: **el service worker** | ✅ **Hecha** (2026-08-04) y **verificada en navegador** (2026-08-04): arranque del SW sin excepción, IPC del popup, descarga real de punta a punta y **arranque en frío** (worker detenido a mano desde `chrome://serviceworker-internals/` y despertado con el popup) — el último es el que cubre el riesgo específico de MV3 con los listeners. `background.js` exporta `iniciarServiceWorker(deps)` y recibe 8 colaboradores por parámetro; la composición dejó de publicar 6 globals cuyo único consumidor era él. Los 18 tests pasaron sin tocar una aserción. Detalle en §Registro de la Fase 7a. |
 | 7b — Entrypoints como composición: **el popup**, primer tramo | ✅ **Hecha** y **verificada en navegador** (2026-08-04): popup completo con sus 6 islas montadas y una descarga real, que es lo que cubre el cambio de secuencia del hoisting de imports. `popup.js` exporta `iniciarPopup(deps)` y ya no lee un solo servicio de `globalThis`; se fue el global `Mensajeria`. Medir corrigió la especificación de la fila: los otros 4 globals los leen también las features y las islas, así que la fase necesita 11 módulos y no uno. Detalle en §Registro de la Fase 7b. |
-| 7c — Islas y features reciben sus dependencias | ⏳ No iniciada. Es lo que borra los 4 globals que quedan (`AppState`, `Conexion`, `Utils`, `HistorialFallos`). El nudo a cortar: **las 6 islas se auto-montan al evaluarse**, y eso es lo que hace load-bearing el orden de imports del entrypoint del popup. Cada isla tiene test propio, así que hay red — a diferencia del núcleo de `popup.js`. |
+| 7c — Islas y features reciben sus dependencias | ✅ **Hecha** (2026-08-04). Se fueron `AppState`, `Conexion`, `HistorialFallos` y `Renderers`; las 3 islas que dependían de un servicio dejaron de auto-montarse y las monta el entrypoint. **`Utils` sobrevive**, y no por olvido: lo leen los dos módulos `.js` del adaptador de sitio — lo destapó `no-undef`, no la medición. Detalle en §Registro de la Fase 7c. |
 | 8 — Borrado del vanilla de la raíz | ⏳ No iniciada |
 
 **Por qué aparecieron 6b y 6c (2026-08-03)**: la estructura objetivo de arriba incluye

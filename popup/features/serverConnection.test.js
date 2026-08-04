@@ -97,7 +97,8 @@ describe('ServerConnectionFeature.crear', () => {
       onReintentarCola: vi.fn(),
       onReescanearAula: vi.fn(),
     };
-    api = ServerConnectionFeature.crear(ctx);
+    // FASE 7C: appState y conexion entran por ctx (los siembra el harness en globalThis).
+    api = ServerConnectionFeature.crear({ ...ctx, appState: globalThis.AppState, conexion: globalThis.Conexion });
   });
 
   // Emite un estado del daemon al suscriptor de la feature.

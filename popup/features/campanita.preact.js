@@ -42,16 +42,17 @@ function haceCuanto(ts) {
 // Hook puente al módulo compartido: lista siempre fresca. Se suscribe a los cambios de
 // storage (los provoca el SW al registrar un fallo, o el propio popup al marcar/limpiar)
 // y vuelve a pedir obtener() en cada señal.
-function useHistorialFallos() {
+// FASE 7C: el historial entra por parámetro, no por `window.HistorialFallos`.
+function useHistorialFallos(historial) {
   const [lista, setLista] = useState([]);
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.HistorialFallos) return undefined;
+    if (!historial) return undefined;
     let vivo = true;
     const recargar = () => {
-      window.HistorialFallos.obtener().then((l) => { if (vivo) setLista(l); });
+      historial.obtener().then((l) => { if (vivo) setLista(l); });
     };
     recargar();
-    const off = window.HistorialFallos.suscribir(recargar);
+    const off = historial.suscribir(recargar);
     return () => { vivo = false; off(); };
   }, []);
   return lista;
@@ -92,13 +93,13 @@ export function PanelFallos({ lista, onMarcarLeidos, onLimpiar }) {
     </div>`;
 }
 
-export function Campanita() {
-  const lista = useHistorialFallos();
+export function Campanita({ historial }) {
+  const lista = useHistorialFallos(historial);
   const [abierto, setAbierto] = useState(false);
   const noLeidos = lista.reduce((n, f) => (f.leido ? n : n + 1), 0);
 
-  const marcar = () => { if (window.HistorialFallos) window.HistorialFallos.marcarTodosLeidos(); };
-  const limpiar = () => { if (window.HistorialFallos) window.HistorialFallos.limpiar(); };
+  const marcar = () => { if (historial) historial.marcarTodosLeidos(); };
+  const limpiar = () => { if (historial) historial.limpiar(); };
 
   return html`
     <div class="campanita">
@@ -107,13 +108,10 @@ export function Campanita() {
     </div>`;
 }
 
-export function montar(root) {
-  if (root && typeof window !== 'undefined' && window.HistorialFallos) {
-    render(html`<${Campanita} />`, root);
+// FASE 7C: la monta el entrypoint del popup con el historial inyectado, no este módulo al
+// evaluarse buscando el global.
+export function montar(root, { historial } = {}) {
+  if (root && historial) {
+    render(html`<${Campanita} historial=${historial} />`, root);
   }
-}
-
-// Auto-montaje en el popup real (no corre en los tests, que importan los componentes).
-if (typeof document !== 'undefined') {
-  montar(document.getElementById('preact-campanita'));
 }

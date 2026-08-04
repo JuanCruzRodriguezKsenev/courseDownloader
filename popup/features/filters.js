@@ -39,7 +39,7 @@
  */
 const FilterFeature = {
   crear(ctx) {
-    const { nodos, filtrosActivos, renderizar, actualizarContadores, sitio } = ctx;
+    const { nodos, filtrosActivos, renderizar, actualizarContadores, sitio, appState } = ctx;
     // Eje de clasificación propio del sitio (en Ramón Net: la cátedra). Esta feature
     // filtra POR la faceta sin saber qué representa — ver sitio/ramonnet/config.js.
     const faceta = sitio.faceta;
@@ -63,13 +63,13 @@ const FilterFeature = {
       const busqueda = nodos.search.value.toLowerCase().trim();
       const materiaActiva = nodos.folder.value.trim().toLowerCase();
 
-      AppState.listadoClasesGlobal.forEach(clase => {
+      appState.listadoClasesGlobal.forEach(clase => {
         const coincideMateria = !clase.carpeta || (clase.carpeta.toLowerCase() === materiaActiva);
         const coincideTexto = clase.titulo.toLowerCase().includes(busqueda);
         const coincideEstado = filtrosActivos.estados.size === 0 || filtrosActivos.estados.has(clase.estado);
 
         const valor = faceta.leer(clase);
-        const elegido = AppState[faceta.claveEstado];
+        const elegido = appState[faceta.claveEstado];
         let coincideFaceta = true;
         if (filtrosActivos.valoresFaceta.size > 0) {
           coincideFaceta = filtrosActivos.valoresFaceta.has(valor);
@@ -88,7 +88,7 @@ const FilterFeature = {
     function desbanearFiltros() {
       nodos.search.disabled = false;
       nodos.btnFilterPills.disabled = false;
-      nodos.masterCheck.disabled = !AppState.sincronizacionDiscoCompletada;
+      nodos.masterCheck.disabled = !appState.sincronizacionDiscoCompletada;
       if (nodos.btnSort) nodos.btnSort.disabled = false;
     }
 
@@ -125,7 +125,7 @@ const FilterFeature = {
       if (!nodos.filterMenu) return;
       nodos.filterMenu.innerHTML = "";
 
-      if (AppState.pestañaActiva === "disponibles") {
+      if (appState.pestañaActiva === "disponibles") {
         // --- Sección Estado ---
         const secEstado = document.createElement("div");
         secEstado.className = "popover-section";
@@ -157,10 +157,10 @@ const FilterFeature = {
 
         // --- Sección de la faceta del sitio (en Ramón Net: Cátedra) ---
         let valoresDetectados = Array.from(new Set(
-          AppState.listadoClasesGlobal.map(c => faceta.leer(c)).filter(v => v !== faceta.valorComun)
+          appState.listadoClasesGlobal.map(c => faceta.leer(c)).filter(v => v !== faceta.valorComun)
         )).sort(faceta.ordenar);
 
-        const elegido = AppState[faceta.claveEstado];
+        const elegido = appState[faceta.claveEstado];
         if (elegido && elegido !== faceta.valorTodas) {
           valoresDetectados = valoresDetectados.filter(v => v === elegido);
         }
@@ -195,7 +195,7 @@ const FilterFeature = {
         const materiasUnicas = new Set();
         const valoresUnicos = new Set();
 
-        AppState.colaDescargas.forEach(c => {
+        appState.colaDescargas.forEach(c => {
           materiasUnicas.add(c.carpeta.toUpperCase());
           valoresUnicos.add(faceta.leerDeCola(c));
         });

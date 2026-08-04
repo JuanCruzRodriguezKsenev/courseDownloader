@@ -9,11 +9,11 @@
  * contexto. Vive acá y no en `entrypoints/` porque WXT trata como entrypoint a todo
  * archivo suelto de esa carpeta.
  *
- * **Todo lo de acá es un export nombrado; el global es la excepción, no la regla** — y desde
- * la Fase 7a la excepción se está achicando. El service worker ya no lee ninguno: recibe sus
- * ocho colaboradores por parámetro desde `entrypoints/background.js`. Los cinco que quedan
- * publicados los busca el popup en `globalThis` (`popup.js` y las islas Preact), y se van con
- * la Fase 7b. Convención del patrón dual → docs/coding-standards.md §Módulos ES + global.
+ * **Casi todo lo de acá es sólo un export nombrado.** De los once globals que llegó a
+ * publicar queda **uno**: `Utils`, porque lo leen los dos módulos `.js` del adaptador de
+ * sitio (ver su bloque más abajo). Los otros diez se fueron entre las Fases 7a, 7b y 7c, a
+ * medida que sus lectores pasaron a recibirlos inyectados.
+ * Convención del patrón dual → docs/coding-standards.md §Módulos ES + global.
  */
 import AlmacenamientoChrome from "./chrome/almacenamiento";
 import MensajeriaChrome from "./chrome/mensajeria";
@@ -41,11 +41,11 @@ import { SitioActivo } from "../sitio/ramonnet/config";
 /**
  * Adaptadores de plataforma activos en esta build.
  *
- * **Cuáles se publican como global y cuáles no, desde la Fase 7a**: el criterio ya no es "lo
- * consume código vanilla", sino **quién** lo consume. El service worker recibe los suyos por
- * parámetro (`iniciarServiceWorker`, en `entrypoints/background.js`), así que sus adaptadores
- * viven sólo como export nombrado. Los que siguen publicándose son los que lee el popup, que
- * todavía los busca en `globalThis` — eso se termina en la Fase 7b.
+ * **Desde la Fase 7c este archivo no publica un solo global.** Todo sale como export
+ * nombrado y lo inyectan los dos entrypoints: el service worker por `iniciarServiceWorker`
+ * (7a) y el popup por `iniciarPopup` + el montaje de las islas (7b/7c). Lo que todavía viaja
+ * por `globalThis` no son servicios sino MÓDULOS —los puentes de las islas, las factories de
+ * las features, el adaptador de sitio— y eso es materia de la Fase 8.
  */
 export const almacenamiento = AlmacenamientoChrome;
 
@@ -57,7 +57,6 @@ export const mensajeria = MensajeriaChrome;
 export const programador = ProgramadorChrome;
 
 export const HistorialFallos = crearHistorialFallos(almacenamiento);
-(globalThis as Record<string, unknown>).HistorialFallos = HistorialFallos;
 
 /**
  * OJO: `AppState` es estado del POPUP. Este archivo lo importan los dos entrypoints, así que el
@@ -67,7 +66,6 @@ export const HistorialFallos = crearHistorialFallos(almacenamiento);
  * módulo popup-only, ahí sí conviene una raíz por contexto.
  */
 export const AppState = crearAppState(almacenamiento, mensajeria);
-(globalThis as Record<string, unknown>).AppState = AppState;
 
 /**
  * El daemon de conexión SÍ corre en los dos contextos, y a propósito: popup y SW mantienen
@@ -81,7 +79,6 @@ export const AppState = crearAppState(almacenamiento, mensajeria);
 export const Conexion = crearConexion(almacenamiento, {
   urlSondeoInternet: SitioActivo.urlSondeoInternet,
 });
-(globalThis as Record<string, unknown>).Conexion = Conexion;
 
 /**
  * `Utils` dejó de ser un archivo y pasó a ser **un ensamblado** (Fase 6a): sus funciones se
@@ -114,6 +111,13 @@ export const HlsEngine = crearHlsEngine({
   backend: BunClient,
 });
 
+/**
+ * `Utils` es el ÚNICO global que sobrevive a la Fase 7c, y no por olvido: lo leen
+ * `sitio/ramonnet/parserTitulos.js` y `resolverManifiesto.js`, que siguen en `.js` y entran
+ * como globals a propósito (para que las puertas del sitio no dependan del orden de carga).
+ * Lo destapó `no-undef` al sacar la declaración del ESLint: la medición del corte había
+ * mirado `popup/` y no `sitio/`. Se va con la Fase 8, junto con esos dos módulos.
+ */
 export const Utils = {
   ...texto,
   ...media,
@@ -121,6 +125,7 @@ export const Utils = {
   ...descargas,
   fetchConReintentos: crearFetchConReintentos(Conexion),
 };
+
 (globalThis as Record<string, unknown>).Utils = Utils;
 
 export const EstadosProgreso = crearEstadosProgreso(almacenamiento);

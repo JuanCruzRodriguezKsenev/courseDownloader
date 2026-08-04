@@ -88,6 +88,8 @@ const QueueFeature = {
       setVerificandoConexion,
       setReintentandoCola,
       mensajeria,
+      appState,
+      conexion,
     } = ctx;
 
     // Chequeo de red previo a arrancar/reanudar. NO sondea por su cuenta: le pide
@@ -101,7 +103,7 @@ const QueueFeature = {
     // gate de arranque es el mismo de siempre y la caída de servidor tiene su
     // propio camino (banner/daemon), no bloquea desde acá.
     async function verificarRedAntesDeDescargar() {
-      const estado = await Conexion.verificarAhora();
+      const estado = await conexion.verificarAhora();
       return estado.internet;
     }
 
@@ -123,33 +125,33 @@ const QueueFeature = {
       const idsNuevos = new Set(nuevosEncolados.map(n => n.id));
 
       // Combinar en el array de la cola desacoplado
-      AppState.colaDescargas = [...AppState.colaDescargas, ...nuevosEncolados];
+      appState.colaDescargas = [...appState.colaDescargas, ...nuevosEncolados];
 
       // Cambiar estado en listado visible
       items.forEach(c => { c.estado = 'process'; c.seleccionado = false; });
-      nodos.queueBadge.textContent = AppState.colaDescargas.length;
+      nodos.queueBadge.textContent = appState.colaDescargas.length;
 
-      if (AppState.ráfagaEnCurso) {
+      if (appState.ráfagaEnCurso) {
         // No molestar
       } else {
         nodos.txtEstado.textContent = `📥 ¡Clases agregadas! Pasá a la pestaña de Fila para iniciar.`;
       }
 
-      AppState.respaldar();
+      appState.respaldar();
       aplicarFiltros();
 
       // Rollback del optimistic update: saca sólo lo que agregamos (por id, robusto ante
       // encolados intermedios) y restaura estado/selección de los ítems tocados.
       const revertirInyeccion = (motivo) => {
         console.warn('[popup] La inyección en cola no se confirmó; revirtiendo optimistic update:', motivo);
-        AppState.colaDescargas = AppState.colaDescargas.filter(item => !idsNuevos.has(item.id));
+        appState.colaDescargas = appState.colaDescargas.filter(item => !idsNuevos.has(item.id));
         estadoPrevioItems.forEach(({ ref, estado, seleccionado }) => {
           ref.estado = estado;
           ref.seleccionado = seleccionado;
         });
-        nodos.queueBadge.textContent = AppState.colaDescargas.length;
+        nodos.queueBadge.textContent = appState.colaDescargas.length;
         nodos.txtEstado.textContent = `⚠️ No se pudieron agregar las clases a la Fila. Reintentá.`;
-        AppState.respaldar();
+        appState.respaldar();
         aplicarFiltros();
       };
 
@@ -171,21 +173,21 @@ const QueueFeature = {
       const titulosAQuitar = new Set(items.map(c => c.titulo));
 
       // Determinar si la selección maestro "Todos" estaba activa para heredarla
-      const visiblesPendientes = AppState.listadoClasesGlobal.filter(i => i.visible && i.estado === 'pending');
+      const visiblesPendientes = appState.listadoClasesGlobal.filter(i => i.visible && i.estado === 'pending');
       const seleccionMaestraActiva = visiblesPendientes.length > 0 && visiblesPendientes.every(i => i.seleccionado);
 
       // Filtrar de la fila local
-      AppState.colaDescargas = AppState.colaDescargas.filter(c => !titulosAQuitar.has(c.titulo));
+      appState.colaDescargas = appState.colaDescargas.filter(c => !titulosAQuitar.has(c.titulo));
 
       // Restablecer estados a pending en el listado global
-      AppState.listadoClasesGlobal.forEach(c => {
+      appState.listadoClasesGlobal.forEach(c => {
         if (titulosAQuitar.has(c.titulo)) {
           c.estado = 'pending';
           c.seleccionado = seleccionMaestraActiva;
         }
       });
 
-      nodos.queueBadge.textContent = AppState.colaDescargas.length;
+      nodos.queueBadge.textContent = appState.colaDescargas.length;
       nodos.masterCheck.checked = false;
       resetSeleccionFila();
       if (nodos.btnToggleSelect) {
@@ -195,7 +197,7 @@ const QueueFeature = {
       const selectWrapper = document.getElementById('ui-master-select-wrapper');
       if (selectWrapper) selectWrapper.style.display = 'none';
 
-      AppState.respaldar();
+      appState.respaldar();
       actualizarContadores();
 
       // El re-render se hace cuando el SW terminó de procesar TODAS las remociones. Un fallo
@@ -215,12 +217,12 @@ const QueueFeature = {
     // Deja el botón deshabilitado, marca la bandera y avisa al SW.
     function solicitarFrenadoSuave() {
       nodos.btnSoftCancel.disabled = true;
-      AppState.banderaFrenadoSolicitado = true;
+      appState.banderaFrenadoSolicitado = true;
 
       nodos.txtEstado.innerHTML = "";
       const spanDesc = document.createElement('span');
       spanDesc.style.color = "var(--accent-orange)";
-      spanDesc.textContent = AppState.videoActualEnTransmisiónSW || "Video actual";
+      spanDesc.textContent = appState.videoActualEnTransmisiónSW || "Video actual";
       nodos.txtEstado.append("Frenando al terminar:", document.createElement('br'), spanDesc);
 
       mensajeria.notificar({ action: "activar_frenado_suave" });
@@ -244,7 +246,7 @@ const QueueFeature = {
     // Arranque de la cola: verifica red, congela la UI en "descargando" y avisa
     // al SW. Si no hay red, muestra el alert de conexión caída y no arranca.
     async function iniciarDescargaCola() {
-      const cola = AppState.colaDescargas;
+      const cola = appState.colaDescargas;
       if (cola.length === 0) return;
 
       setVerificandoConexion(true);
@@ -274,14 +276,14 @@ const QueueFeature = {
       setReintentandoCola(false);
 
       if (!redDisponible) {
-        const primerItem = AppState.colaDescargas[0];
-        const tituloFallado = primerItem ? primerItem.titulo : (AppState.videoFalladoParaReintento || "clase");
+        const primerItem = appState.colaDescargas[0];
+        const tituloFallado = primerItem ? primerItem.titulo : (appState.videoFalladoParaReintento || "clase");
         mostrarAlerta("internet", tituloFallado);
         return;
       }
 
-      AppState.fallaConexionActiva = null;
-      AppState.videoFalladoParaReintento = null;
+      appState.fallaConexionActiva = null;
+      appState.videoFalladoParaReintento = null;
 
       // Restaurar la UI de descarga (quitar el banner) YA, al reanudar. No alcanza con
       // esperar al primer update_progress_bar: como acá dejamos fallaConexionActiva en

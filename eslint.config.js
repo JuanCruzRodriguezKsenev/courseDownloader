@@ -14,20 +14,19 @@ const tseslint = require("typescript-eslint");
 // Objetos que un archivo expone en window/self y otro consume como global
 // (patrón dual-export del proyecto — docs/coding-standards.md).
 const globalesDelProyecto = {
+  // NINGÚN SERVICIO vive acá desde la Fase 7c: los 11 que hubo —los 3 puertos, SessionState,
+  // EstadosProgreso, Cola, HlsEngine, AppState, Conexion, Utils, HistorialFallos, Mensajeria,
+  // Renderers— salieron entre las Fases 7a/7b/7c, cuando sus lectores pasaron a recibirlos
+  // inyectados. Volver a declarar uno acá es volver a permitir leerlo de globalThis sin que
+  // no-undef diga nada, o sea desandar la re-arquitectura en silencio.
+  //
+  // Lo que queda son MÓDULOS que se publican a sí mismos y que otro archivo consume sin
+  // importarlos: los puentes de las islas, las factories de features y el adaptador de sitio.
+  // Eso es materia de la Fase 8.
+  // `Utils` es el único servicio que sigue siendo global: lo leen parserTitulos.js y
+  // resolverManifiesto.js, los dos módulos .js del adaptador de sitio. Se va con la Fase 8.
   Utils: "readonly",
   BunClient: "readonly",
-  Conexion: "readonly",
-  HistorialFallos: "readonly",
-  // Puerto de mensajería: lo publica plataforma/composicion.ts y lo lee popup.js, que se lo
-  // pasa por ctx a las features. Se va con la Fase 7b.
-  //
-  // Los seis que estaban acá —Almacenamiento, Programador, SessionState, EstadosProgreso,
-  // Cola, HlsEngine— salieron en la Fase 7a: su único consumidor era background.js, que
-  // ahora los recibe por parámetro. Ya no son globals cross-archivo, así que declararlos
-  // volvería a permitir leerlos de globalThis sin que no-undef diga nada.
-  // Mensajeria salió en la Fase 7b: su único lector era popup.js, que ahora lo recibe.
-  AppState: "readonly",
-  Renderers: "readonly",
   Scraper: "readonly",
   ServerConnectionFeature: "readonly",
   QueueFeature: "readonly",
@@ -114,11 +113,16 @@ module.exports = [
   },
 
   // Tests: módulos ES (import desde 'vitest') sobre Node.
+  //
+  // `AppState` se declara SÓLO acá: desde la Fase 7c ya no es un global de producción —los
+  // consumidores lo reciben inyectado— pero varios harnesses lo siembran en `globalThis` y
+  // lo leen pelado para sembrar/inspeccionar estado. Es un global de test, y declararlo en
+  // este bloque (y no en `globalesDelProyecto`) es lo que mantiene esa distinción visible.
   {
     files: ["**/*.test.js"],
     languageOptions: {
       sourceType: "module",
-      globals: { ...globals.node },
+      globals: { ...globals.node, AppState: "readonly" },
     },
   },
 ];

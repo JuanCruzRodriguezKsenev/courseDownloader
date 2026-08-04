@@ -10,23 +10,27 @@
  * serverConnection.js x4). Con esto es un derivado puro del estado: cambia la
  * conexión → el puntito se re-deriva solo. Imposible desincronizar.
  *
- * Se carga como <script type="module"> DESPUÉS de los scripts clásicos, así que
- * window.Conexion (core/conexion/conexion.ts) ya existe. El daemon lo arranca popup.js
- * (iniciarDetectorEstado); esta isla sólo se SUSCRIBE y renderiza.
+ * Desde la Fase 7c el daemon entra INYECTADO: la monta `entrypoints/popup/main.js`
+ * pasándole `conexion`, en vez de que el módulo se auto-montara y lo buscara en
+ * `window.Conexion`. El daemon lo arranca popup.js (iniciarDetectorEstado); esta isla sólo
+ * se SUSCRIBE y renderiza.
  * ==========================================================================
  */
 import { html, render, useState, useEffect } from '../vendor/htm-preact-standalone.module.js';
 
 // Hook puente: re-renderiza cuando el daemon Conexion notifica un cambio.
 // (El equivalente de useSyncExternalStore para nuestra fuente de verdad.)
-export function useConexion() {
+// FASE 7C: el daemon entra por parámetro. Lo comparte la isla `onboarding`, que también lo
+// recibe por prop y se lo pasa acá — por eso el hook lo toma como argumento en vez de
+// resolverlo por su cuenta.
+export function useConexion(conexion) {
   const [, forzar] = useState(0);
-  useEffect(() => window.Conexion.suscribir(() => forzar(n => n + 1)), []);
-  return window.Conexion.get();
+  useEffect(() => conexion.suscribir(() => forzar(n => n + 1)), []);
+  return conexion.get();
 }
 
-export function StatusDot() {
-  const c = useConexion();
+export function StatusDot({ conexion }) {
+  const c = useConexion(conexion);
   const ok = c.completa;
   return html`<div
     class="status-dot ${ok ? 'online' : 'offline'}"
@@ -34,13 +38,10 @@ export function StatusDot() {
   ></div>`;
 }
 
-export function montar(root) {
-  if (root && typeof window !== 'undefined' && window.Conexion) {
-    render(html`<${StatusDot} />`, root);
+// FASE 7C: la monta el entrypoint del popup, no este módulo al evaluarse. El auto-montaje
+// era lo que ataba la isla al orden de imports y a que el global ya existiera.
+export function montar(root, { conexion }) {
+  if (root && conexion) {
+    render(html`<${StatusDot} conexion=${conexion} />`, root);
   }
-}
-
-// Auto-montaje en el popup real (no corre en los tests, que importan los componentes).
-if (typeof document !== 'undefined') {
-  montar(document.getElementById('preact-status-dot'));
 }

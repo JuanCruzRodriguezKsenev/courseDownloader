@@ -191,13 +191,14 @@
  *
  * @param {object} deps
  * @param {object} deps.appState    Estado del popup (`core/estado/appState.ts`).
+ * @param {object} deps.conexion    Daemon de estado de conexión; se lo pasa a las features.
  * @param {object} deps.mensajeria  PuertoMensajeria: el IPC hacia el service worker.
  * @param {object} deps.utils       Ensamblado `Utils` (Fase 6a).
  * @param {object} deps.backend     Cliente del backend Bun.
  * @param {object} deps.sitio       Adaptador de sitio (Capa 2).
  * @param {object} deps.renderers   Pintado vanilla que todavía no es isla.
  */
-export function iniciarPopup({ appState, mensajeria, utils, backend, sitio, renderers }) {
+export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, sitio, renderers }) {
   document.addEventListener('DOMContentLoaded', async () => {
     console.log("🤖 [POPUP-CORE] Orquestador unificado V5.4.1 activo. Sincronización de escáner híbrido (Chrome/Bun) integrada.");
 
@@ -350,6 +351,8 @@ export function iniciarPopup({ appState, mensajeria, utils, backend, sitio, rend
     // callbacks (referencias diferidas a funciones hoisted de popup.js).
     const _serverConnection = ServerConnectionFeature.crear({
       nodos,
+      appState,
+      conexion,
       configurarBotonesUX: (modo, txt, dis) => configurarBotonesUX(modo, txt, dis),
       onReintentarCola: () => ejecutarReintentoDeCola(),
       onReescanearAula: () => ejecutarPaso1EscaneoRamonAutomatico()
@@ -375,7 +378,9 @@ export function iniciarPopup({ appState, mensajeria, utils, backend, sitio, rend
       setReintentandoCola: (v) => { reintentandoColaActivo = v; },
       // PuertoMensajeria (Fase 5c): lo publica plataforma/composicion.ts. La feature ya no
       // toca chrome.runtime; el IPC entra por acá.
-      mensajeria: mensajeria
+      mensajeria: mensajeria,
+      appState,
+      conexion,
     });
     const encolarItemsEnCaliente = _queue.encolarItemsEnCaliente;
     const quitarItemsDeColaEnLote = _queue.quitarItemsDeColaEnLote;
@@ -388,6 +393,7 @@ export function iniciarPopup({ appState, mensajeria, utils, backend, sitio, rend
       nodos,
       filtrosActivos,
       sitio: sitio,
+      appState,
       renderizar: () => renderizarListadoInterfaz(),
       actualizarContadores: () => actualizarContadoresBoton()
     });
@@ -403,6 +409,7 @@ export function iniciarPopup({ appState, mensajeria, utils, backend, sitio, rend
     // (arriba) y se instancia antes de init/scraping, que llaman actualizarBadgeFaceta y
     // verificarYMostrarAsistenteFaceta. Ver popup/features/faceta.js + sitio/ramonnet/config.js.
     const _faceta = FacetaFeature.crear({
+      appState,
       badge: nodos.facetaBadge,
       sitio: sitio,
       aplicarFiltros: () => aplicarFiltrosCruzados()

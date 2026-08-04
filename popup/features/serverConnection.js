@@ -89,16 +89,18 @@ const ServerConnectionFeature = {
       nodos,
       configurarBotonesUX,
       onReintentarCola,
-      onReescanearAula
+      onReescanearAula,
+      appState,
+      conexion,
     } = ctx;
 
-    // El estado de conexión NO vive acá: lo posee el daemon Conexion (core/conexion/conexion.ts).
+    // El estado de conexión NO vive acá: lo posee el daemon conexion (core/conexion/conexion.ts).
     // Esta feature sólo se SUSCRIBE a sus cambios y reacciona (UI + recuperación de cola).
     let suscrito = false;
     let previoCompleta = null;  // transición de "ambas conexiones OK" (para recuperación).
 
     // NOTA: el puntito de estado (statusDot) ya NO se pinta acá — lo posee la isla
-    // Preact features/conexionHeader.preact.js, que lo deriva del daemon Conexion.
+    // Preact features/conexionHeader.preact.js, que lo deriva del daemon conexion.
 
     async function cargarRutaServidorSilencioso() {
       if (!nodos.btnExplore) return;
@@ -170,7 +172,7 @@ const ServerConnectionFeature = {
       iniciarDetectorEstado();
     }
 
-    // Reacción a los cambios del daemon Conexion (core/conexion/conexion.ts), la fuente única
+    // Reacción a los cambios del daemon conexion (core/conexion/conexion.ts), la fuente única
     // de verdad. Esta feature NO sondea: sólo consume el estado que le llega por push.
     //   1. Recuperación de cola pausada: reanuda apenas vuelve la conexión que faltaba.
     //   2. Banner offline pasivo: muestra el del servidor o el de internet según cuál
@@ -182,24 +184,24 @@ const ServerConnectionFeature = {
       // se suscribe al daemon directo — refleja la conexión SIEMPRE, incluso durante
       // una descarga (por eso ya no importa que este handler aborte en la guarda).
       // Acá sólo queda la UI de descarga: banner/lista/recuperación de cola.
-      if (AppState.ráfagaEnCurso && !AppState.fallaConexionActiva) return;
+      if (appState.ráfagaEnCurso && !appState.fallaConexionActiva) return;
 
       const completaAntes = previoCompleta;
       previoCompleta = estado.completa;
 
       // Recuperación de una cola pausada por error: reanudar apenas vuelve la conexión que
-      // faltaba (edge-triggered: Conexion notifica sólo en transición).
-      if (AppState.fallaConexionActiva === "internet" && estado.internet) {
+      // faltaba (edge-triggered: conexion notifica sólo en transición).
+      if (appState.fallaConexionActiva === "internet" && estado.internet) {
         onReintentarCola();
         return;
       }
-      if (AppState.fallaConexionActiva === "servidor" && estado.servidor) {
+      if (appState.fallaConexionActiva === "servidor" && estado.servidor) {
         console.log("🔌 [UI-AUTOHEAL] Servidor Bun recuperado. Reanudando descarga masiva...");
         onReintentarCola();
         return;
       }
       // Cola pausada pero aún falta la conexión: la UI de descarga interrumpida ya se encarga.
-      if (AppState.fallaConexionActiva) return;
+      if (appState.fallaConexionActiva) return;
 
       // Sin cola pausada. Falta alguna conexión (detección pasiva): mostrar el banner del
       // que falte (servidor tiene prioridad). Si ya está el banner correcto, no re-renderiza.
@@ -226,7 +228,7 @@ const ServerConnectionFeature = {
 
           const tabsBar = document.querySelector(".tabs-bar");
           if (tabsBar) tabsBar.style.display = "flex";
-          nodos.filtersBar.style.display = AppState.pestañaActiva === "disponibles" ? "flex" : "none";
+          nodos.filtersBar.style.display = appState.pestañaActiva === "disponibles" ? "flex" : "none";
 
           cargarRutaServidorSilencioso(); // restaura el path mostrado (PC: ...)
           onReescanearAula();
@@ -238,8 +240,8 @@ const ServerConnectionFeature = {
     function iniciarDetectorEstado() {
       if (suscrito) return;
       suscrito = true;
-      Conexion.suscribir(reaccionarAConexion);
-      Conexion.iniciar();
+      conexion.suscribir(reaccionarAConexion);
+      conexion.iniciar();
     }
 
     return { cargarRutaServidorSilencioso, activarEstadoOfflineUI, iniciarDetectorEstado, reaccionarAConexion };

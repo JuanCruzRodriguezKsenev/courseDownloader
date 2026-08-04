@@ -40,7 +40,9 @@ describe('Isla Preact: Onboarding', () => {
     globalThis.window.AppState = { tutorialCompletado: false, respaldar: vi.fn() };
     // El slide "Página Correcta" linkea a la URL que declara el adaptador de sitio.
     globalThis.window.SitioActivo = SitioActivo;
-    montar(root);
+    // FASE 7C: las dependencias entran por el montaje, no por window.* (que el harness
+    // sigue sembrando arriba para no cambiar la forma de los dobles).
+    montar(root, { conexion, appState: window.AppState, sitio: window.SitioActivo });
     await flush(); // deja correr el useEffect que suscribe al store ANTES de operar.
   });
 
@@ -54,13 +56,20 @@ describe('Isla Preact: Onboarding', () => {
 
   // Fase 6c: el onboarding era la ÚNICA parte de la UI que nombraba a Ramón Net. Ahora el
   // copy sale de `PuertoSitio`, así que sumar un portal es cambiar el descriptor y no tocar
-  // el componente. El componente lee el descriptor en el render, no al montar.
+  // el componente. Lo que afirma este test —que el copy es del descriptor y no está
+  // hardcodeado— no cambió; sí cambió CÓMO se le entrega: desde la Fase 7c el descriptor
+  // entra al montar la isla, no se lee de `window.SitioActivo` en cada render. Por eso acá
+  // se re-monta con el portal falso en vez de reasignar el global.
   it('el copy nombra al portal y a su faceta desde el descriptor, no hardcodeados', async () => {
-    globalThis.window.SitioActivo = {
-      nombre: 'Portal Falso',
-      urlListado: 'https://falso.test/listado',
-      faceta: { etiqueta: 'Comisión' },
-    };
+    montar(root, {
+      conexion,
+      appState: window.AppState,
+      sitio: {
+        nombre: 'Portal Falso',
+        urlListado: 'https://falso.test/listado',
+        faceta: { etiqueta: 'Comisión' },
+      },
+    });
     const api = crear();
     api.mostrarOnboarding();
     await flush();

@@ -53,7 +53,8 @@ function crearFeature(overrides = {}) {
     mensajeria,
     ...overrides,
   };
-  const feature = QueueFeature.crear(ctx);
+  // FASE 7C: appState y conexion entran por ctx (los siembra el harness en globalThis).
+  const feature = QueueFeature.crear({ ...ctx, appState: globalThis.AppState, conexion: globalThis.Conexion });
   return { feature, ctx, nodos };
 }
 

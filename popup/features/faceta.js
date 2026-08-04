@@ -34,20 +34,20 @@
  */
 const FacetaFeature = {
   crear(ctx) {
-    const { badge, aplicarFiltros, sitio } = ctx;
+    const { badge, aplicarFiltros, sitio, appState } = ctx;
     const faceta = sitio.faceta;
 
-    // Lee/escribe la elección del usuario en AppState sin nombrar el concepto del
+    // Lee/escribe la elección del usuario en appState sin nombrar el concepto del
     // sitio (la clave la declara el descriptor).
-    const leerSeleccion = () => AppState[faceta.claveEstado];
-    const fijarSeleccion = (valor) => { AppState[faceta.claveEstado] = valor; };
+    const leerSeleccion = () => appState[faceta.claveEstado];
+    const fijarSeleccion = (valor) => { appState[faceta.claveEstado] = valor; };
 
     // Valores específicos presentes en el listado (excluye el valor común, que no es
     // una opción elegible). Unifica las 3 copias del mismo Array.from(new Set(...))
     // que vivían en popup.js.
     function valoresPresentes() {
       return Array.from(new Set(
-        AppState.listadoClasesGlobal
+        appState.listadoClasesGlobal
           .map(c => faceta.leer(c))
           .filter(valor => valor !== faceta.valorComun)
       ));
@@ -76,7 +76,7 @@ const FacetaFeature = {
         // deselecciones silenciosas por una elección que ya no aplica.
         if (!tieneVarios && elegido !== null) {
           fijarSeleccion(null);
-          AppState.respaldar();
+          appState.respaldar();
         }
       }
     }
@@ -84,14 +84,14 @@ const FacetaFeature = {
     function aplicarSeleccionSilenciosa(valorElegido) {
       fijarSeleccion(valorElegido);
 
-      AppState.listadoClasesGlobal.forEach(clase => {
+      appState.listadoClasesGlobal.forEach(clase => {
         if (clase.estado === 'pending') {
           const valor = faceta.leer(clase);
           clase.seleccionado = (valor === valorElegido || valor === faceta.valorComun);
         }
       });
 
-      AppState.respaldar();
+      appState.respaldar();
       actualizarBadge();
       aplicarFiltros();
     }
@@ -113,7 +113,7 @@ const FacetaFeature = {
       } else {
         console.log(`[FACETA:${faceta.id}] -> Uno o ningún valor específico. Reseteando selección.`);
         fijarSeleccion(null);
-        AppState.respaldar();
+        appState.respaldar();
         actualizarBadge();
       }
     }

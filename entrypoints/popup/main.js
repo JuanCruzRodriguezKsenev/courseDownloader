@@ -35,26 +35,40 @@ import '../../popup/features/faceta.js';
 // `DOMContentLoaded` se registra en el mismo momento que antes — los módulos ES son
 // diferidos, así que todo esto corre antes de que el evento dispare.
 import { iniciarPopup } from '../../popup.js';
-import { AppState, mensajeria, Utils } from '../../plataforma/composicion.ts';
+import { AppState, Conexion, HistorialFallos, mensajeria, Utils } from '../../plataforma/composicion.ts';
 import BunClient from '../../core/backend/bunClient.ts';
 import { SitioActivo } from '../../sitio/ramonnet/config.ts';
-import Renderers from '../../renderers.js';
+import crearRenderers from '../../renderers.js';
 
 iniciarPopup({
   appState: AppState,
+  conexion: Conexion,
   mensajeria,
   utils: Utils,
   backend: BunClient,
   sitio: SitioActivo,
-  renderers: Renderers,
+  renderers: crearRenderers(Utils),
 });
 
-// Islas Preact. Antes eran <script type="module"> sueltos al final del HTML; acá
-// siguen yendo al final por el mismo motivo: cuando montan, las globals que
-// consumen (Conexion, AppState, OnboardingFeature...) ya existen.
-import '../../popup/features/conexionHeader.preact.js';
-import '../../popup/features/onboarding.preact.js';
+// Islas Preact.
+//
+// Las tres que dependen de un servicio (el daemon, el estado, el historial) **ya no se
+// auto-montan**: las monta este entrypoint pasándoles la dependencia (Fase 7c). Eso es lo
+// que las desató del orden de imports y de que el global existiera al evaluarse.
+//
+// Las otras tres no leen ningún servicio —su estado es propio o llega por su puente— así que
+// siguen auto-montándose al importarse. Se las importa por efecto secundario, como antes.
+import { montar as montarStatusDot } from '../../popup/features/conexionHeader.preact.js';
+import { montar as montarOnboarding } from '../../popup/features/onboarding.preact.js';
+import { montar as montarCampanita } from '../../popup/features/campanita.preact.js';
 import '../../popup/features/rutaDisco.preact.js';
 import '../../popup/features/bannerConexion.preact.js';
 import '../../popup/features/listaClases.preact.js';
-import '../../popup/features/campanita.preact.js';
+
+montarStatusDot(document.getElementById('preact-status-dot'), { conexion: Conexion });
+montarOnboarding(document.getElementById('preact-onboarding'), {
+  conexion: Conexion,
+  appState: AppState,
+  sitio: SitioActivo,
+});
+montarCampanita(document.getElementById('preact-campanita'), { historial: HistorialFallos });

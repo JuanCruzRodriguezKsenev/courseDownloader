@@ -70,20 +70,19 @@ sigue.
 | 2 — Adaptador de sitio | `sitio/ramonnet/` | Todo lo específico del portal: scraper, parser de títulos, resolución del `.m3u8`, constantes, faceta, reglas dNR. Cumple `PuertoSitio`. | ✅ Completa (en TS desde 2026-08-03: `config.ts`; los otros 3 archivos siguen en `.js`) |
 | 3 — Adaptador de plataforma | `plataforma/chrome/` | Único lugar que toca la API del navegador. Implementa los puertos. | `almacenamiento.ts`, `mensajeria.ts`, `programador.ts`, `notificaciones.ts`, `descargas.ts`, `volcadoLegacy.ts`. Falta lo de la tabla de abajo |
 | Composición | `plataforma/composicion.ts` | Único lugar donde se eligen adaptadores concretos y se inyectan al núcleo. | Activa |
-| Entrypoints | `entrypoints/` | Puntos de entrada de WXT: resuelven dependencias y las inyectan; no contienen lógica. ✅ los dos inyectan: `background.js` (Fase 7a) y `popup/main.js` (Fase 7b). Lo que sigue leyendo globals no son los orquestadores sino las features y las islas (Fase 7c) |
+| Entrypoints | `entrypoints/` | Puntos de entrada de WXT: resuelven dependencias y las inyectan; no contienen lógica. ✅ los dos inyectan: `background.js` (Fase 7a) y `popup/main.js` (7b/7c, que además **monta** las 3 islas con dependencias). No queda ningún servicio en `globalThis` salvo `Utils` |
 
 **Los dos entrypoints ya no funcionan igual, y la diferencia importa al agregar un módulo.**
 El del service worker le **pasa** sus 8 dependencias a `iniciarServiceWorker(deps)`: agregarle
-una es sumar un parámetro, y si falta, es un `undefined` en la llamada. El del popup también
-inyecta desde la Fase 7b, pero su lista de imports **sigue siendo load-bearing** por lo que
-todavía no recibe nada: las features y las 6 islas leen sus globals de `globalThis`, y cada
-isla se **auto-monta al evaluarse**. Agregar un módulo ahí es insertar el import en la posición
-correcta, y equivocarse rompe en runtime sin que el bundler avise.
+una es sumar un parámetro, y si falta, es un `undefined` en la llamada. El del popup hace las
+dos cosas: inyecta (`iniciarPopup`) **y monta** las 3 islas que dependen de un servicio
+(`conexionHeader`, `onboarding`, `campanita`), que por eso dejaron de auto-montarse.
 
-Ojo con una sutileza de ES que la Fase 7b ya introdujo: los `import` se **hoistean**, así que
-las islas se montan *antes* de que corra `iniciarPopup(...)`, donde antes se montaban después
-de que `popup.js` registrara su listener de `DOMContentLoaded`. Es seguro —las islas leen sus
-globals perezosamente— pero es un cambio real de secuencia que nada verifica.
+Su lista de imports **sigue siendo load-bearing**, pero ya no por los servicios sino por los
+**módulos**: las otras 3 islas se auto-montan y publican sus puentes, las factories de features
+se publican solas, y los `.js` del adaptador de sitio leen `Utils`. Agregar un módulo ahí es
+insertar el import en la posición correcta, y equivocarse rompe en runtime sin que el bundler
+avise.
 
 **El `PuertoAlmacenamiento` ya no tiene consumidores pendientes**: con `background.js`
 migrado (Fase 5b, 2026-08-03) no queda ni un `chrome.storage` en el proyecto.

@@ -32,20 +32,20 @@ describe('Isla Preact: StatusDot', () => {
 
   it('renderiza OFFLINE cuando falta el servidor', () => {
     window.Conexion = mockConexion({ servidor: false, internet: true, completa: false });
-    render(html`<${StatusDot} />`, cont);
+    render(html`<${StatusDot} conexion=${window.Conexion} />`, cont);
     expect(cont.querySelector('.status-dot').className).toContain('offline');
   });
 
   it('renderiza ONLINE cuando la conexión está completa', () => {
     window.Conexion = mockConexion({ servidor: true, internet: true, completa: true });
-    render(html`<${StatusDot} />`, cont);
+    render(html`<${StatusDot} conexion=${window.Conexion} />`, cont);
     expect(cont.querySelector('.status-dot').className).toContain('online');
   });
 
   it('se re-renderiza SOLO al notificar el daemon (sin tocar el DOM a mano)', async () => {
     const cx = mockConexion({ servidor: true, internet: true, completa: true });
     window.Conexion = cx;
-    render(html`<${StatusDot} />`, cont);
+    render(html`<${StatusDot} conexion=${window.Conexion} />`, cont);
     await flush(); // deja que corra el useEffect (la suscripción)
     expect(cont.querySelector('.status-dot').className).toContain('online');
 
