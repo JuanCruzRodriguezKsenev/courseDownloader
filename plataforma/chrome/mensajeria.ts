@@ -18,6 +18,22 @@ function hayRuntime(): boolean {
   return typeof chrome !== "undefined" && !!chrome.runtime && !!chrome.runtime.sendMessage;
 }
 
+/**
+ * "No hay receptor" es el estado NORMAL de esta extensión, no una anomalía: el service worker
+ * avisa progreso mientras el popup está cerrado la mayor parte del tiempo. Loguear cada vez
+ * convertiría una descarga en cientos de warnings —`update_progress_bar` sale por fragmento— y
+ * taparía lo que sí importa en la consola del SW. Se avisa **una vez por acción** y por vida
+ * del contexto: alcanza para descubrir un mensaje que nadie escucha nunca, que es el bug que
+ * este log existe para revelar, sin convertirse en ruido de fondo.
+ */
+const accionesYaAvisadas = new Set<string>();
+
+function avisarSinReceptorUnaVez(accion: string, detalle?: string): void {
+  if (accionesYaAvisadas.has(accion)) return;
+  accionesYaAvisadas.add(accion);
+  console.warn(`[Mensajeria] "${accion}" sin receptor (no se repite este aviso):`, detalle);
+}
+
 export const MensajeriaChrome: PuertoMensajeria = {
   enviar<R = unknown>(mensaje: MensajeIPC): Promise<R> {
     return new Promise<R>((resolve, reject) => {
@@ -44,9 +60,7 @@ export const MensajeriaChrome: PuertoMensajeria = {
     // sin él, un envío sin receptor ensucia la consola con un rechazo no manejado.
     chrome.runtime.sendMessage(mensaje, () => {
       const error = chrome.runtime.lastError;
-      if (error) {
-        console.warn(`[Mensajeria] "${mensaje.action}" sin receptor:`, error.message);
-      }
+      if (error) avisarSinReceptorUnaVez(mensaje.action, error.message);
     });
   },
 

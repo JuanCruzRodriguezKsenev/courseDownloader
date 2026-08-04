@@ -11,12 +11,17 @@
  */
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 import { ProgramadorEnMemoria } from './core/puertos/programadorEnMemoria.ts';
+import { MensajeriaEnMemoria } from './core/puertos/mensajeriaEnMemoria.ts';
 
-let listener;               // el callback de chrome.runtime.onMessage
 const store = { local: {}, session: {} };
 
-/** Todo lo que el SW manda por IPC durante un test (para afirmar sobre el flujo). */
-let mensajesEnviados = [];
+/**
+ * El puerto de mensajería (Fase 5c). Reemplaza al mock de `chrome.runtime.onMessage` +
+ * `sendMessage`: el SW ya no toca ninguno de los dos. Los tests invocan handlers con
+ * `enviar()` y afirman sobre lo que el SW emitió mirando `notificados` — que a propósito NO
+ * incluye lo que mandó el propio test, cosa que el array único del mock viejo no distinguía.
+ */
+let mensajeria;
 /**
  * El puerto de programación del auto-heal (Fase 5c). Reemplaza al mock de `chrome.alarms`:
  * el SW ya no la toca. Ojo con una diferencia de fidelidad que el mock viejo no tenía —
@@ -34,7 +39,8 @@ let motor = {};
 /** Estado que reporta el daemon de conexión. */
 let estadoConexion = { servidor: true, internet: true, tipoFalla: null };
 
-const accionesEnviadas = () => mensajesEnviados.map(m => m.action);
+/** Lo que el SW EMITIÓ (no lo que el test mandó para invocarlo). */
+const accionesEnviadas = () => mensajeria.accionesNotificadas();
 
 /** Espera activa hasta que se cumpla `cond` (el loop encadena con setTimeout 60ms). */
 async function esperarA(cond, descripcion = 'condición', limiteMs = 2000) {
@@ -81,6 +87,12 @@ beforeAll(async () => {
   // porque el SW registra su oyente al evaluarse, igual que con el listener de IPC.
   programador = new ProgramadorEnMemoria();
   globalThis.Programador = programador;
+  // Puerto de mensajería (Fase 5c). El timeout generoso NO es decorativo: los handlers del SW
+  // devuelven `true` (respondo async) y contestan recién tras varios `await` contra storage.
+  // Con el 0ms por defecto, el puerto rechazaría antes de que llegue la respuesta y los tests
+  // fallarían por el reloj, no por la lógica.
+  mensajeria = new MensajeriaEnMemoria(5000);
+  globalThis.Mensajeria = mensajeria;
   globalThis.performance = globalThis.performance || { now: () => Date.now() };
   globalThis.Utils = {
     // Sólo lo que usa el bucle de descarga (el resto está cubierto en utils.test.js).
@@ -116,9 +128,10 @@ beforeAll(async () => {
     runtime: {
       lastError: null,
       onInstalled: noopEvent,
-      onMessage: { addListener: (cb) => { listener = cb; } },
-      // Devuelve promesa: el bucle encadena .catch(() => {}) sobre cada envío.
-      sendMessage: (msg) => { mensajesEnviados.push(msg); return Promise.resolve(); },
+      // El IPC del SW va entero por el PuertoMensajeria (Fase 5c): ni el receptor ni los
+      // emisores tocan chrome.runtime. Si alguno vuelve, que explote acá.
+      get onMessage() { throw new Error('el SW no debe usar chrome.runtime.onMessage: va por Mensajeria'); },
+      get sendMessage() { throw new Error('el SW no debe usar chrome.runtime.sendMessage: va por Mensajeria'); },
       getURL: (p) => p,
     },
     // El SW ya no toca chrome.storage: todo pasa por el puerto. Si algo vuelve a usarlo,
@@ -138,8 +151,9 @@ beforeAll(async () => {
 beforeEach(() => {
   store.local = {};
   store.session = {};
-  mensajesEnviados = [];
-  // La instancia se conserva (el SW ya enganchó su oyente); se limpia lo programado.
+  // Las dos instancias se conservan (el SW enganchó sus oyentes al cargarse); se limpia
+  // sólo lo acumulado: el registro de mensajes y lo que haya quedado programado.
+  mensajeria.limpiarRegistro();
   programador.cancelar(ALARMA_AUTOHEAL);
   fallosRegistrados = [];
   estadoConexion = { servidor: true, internet: true, tipoFalla: null };
@@ -160,16 +174,16 @@ afterEach(async () => {
   await invocar({ action: 'abortar_rafaga_inmediata' });
 });
 
-/** Invoca el listener IPC y resuelve con la respuesta de sendResponse. */
+/** Invoca el receptor IPC del SW y resuelve con lo que haya contestado. */
 function invocar(request) {
-  return new Promise((resolve) => {
-    listener(request, {}, (respuesta) => resolve(respuesta));
-  });
+  return mensajeria.enviar(request);
 }
 
 describe('listener IPC', () => {
-  it('devuelve false (síncrono) ante una acción desconocida', () => {
-    expect(listener({ action: 'accion_inexistente' }, {}, () => {})).toBe(false);
+  it('ante una acción desconocida el SW no responde (devuelve false, no abre el canal)', async () => {
+    // El receptor devuelve `false` síncrono, así que el puerto resuelve `undefined` en vez de
+    // quedarse esperando: es la forma que tiene el adaptador de decir "nadie se hizo cargo".
+    await expect(mensajeria.enviar({ action: 'accion_inexistente' })).resolves.toBeUndefined();
   });
 });
 
@@ -267,7 +281,7 @@ describe('bucle de descarga — camino feliz', () => {
     expect(store.local.colaDescargas).toEqual([]);
     expect(store.local.listaPersistente.map(c => c.estado)).toEqual(['downloaded', 'downloaded']);
     expect(store.local.SW_ESTADOS_PROGRESO).toEqual({});
-    const guardadas = mensajesEnviados.filter(m => m.action === 'clase_guardada_ok').map(m => m.titulo);
+    const guardadas = mensajeria.notificados.filter(m => m.action === 'clase_guardada_ok').map(m => m.titulo);
     expect(guardadas).toEqual(['Clase 1', 'Clase 2']);
   });
 
@@ -276,7 +290,7 @@ describe('bucle de descarga — camino feliz', () => {
 
     await esperarA(() => accionesEnviadas().includes('cola_completamente_vacia'), 'cola vacía');
 
-    const guardadas = mensajesEnviados.filter(m => m.action === 'clase_guardada_ok').map(m => m.titulo);
+    const guardadas = mensajeria.notificados.filter(m => m.action === 'clase_guardada_ok').map(m => m.titulo);
     expect(guardadas).toEqual(['Primera', 'Segunda']);
   });
 
@@ -289,7 +303,7 @@ describe('bucle de descarga — camino feliz', () => {
 
     await esperarA(() => accionesEnviadas().includes('cola_completamente_vacia'), 'cola vacía');
 
-    const progreso = mensajesEnviados.find(m => m.action === 'update_progress_bar');
+    const progreso = mensajeria.notificados.find(m => m.action === 'update_progress_bar');
     expect(progreso).toMatchObject({ titulo: 'Clase 1', percentage: 50 });
     expect(progreso.telemetry).toMatchObject({ fragsTerminados: 1, totalFrags: 2 });
   });
@@ -317,7 +331,7 @@ describe('bucle de descarga — rechazo 4xx del backend (bug 400)', () => {
     expect(store.local.colaDescargas).toEqual([]);
 
     // Aviso al popup + historial, y NADA de pausa/alarma.
-    expect(mensajesEnviados.find(m => m.action === 'clase_con_error')).toMatchObject({ titulo: 'Mala' });
+    expect(mensajeria.notificados.find(m => m.action === 'clase_con_error')).toMatchObject({ titulo: 'Mala' });
     expect(accionesEnviadas()).not.toContain('cola_pausada_por_error');
     expect(programador.nombresProgramados()).toEqual([]);
     await esperarA(() => fallosRegistrados.length === 1, 'fallo en historial');
@@ -336,7 +350,7 @@ describe('bucle de descarga — fallos que pausan la cola', () => {
     await arrancarCola([item('Clase 1', 1)]);
     await esperarA(() => accionesEnviadas().includes('cola_pausada_por_error'), 'pausa');
 
-    expect(mensajesEnviados.find(m => m.action === 'cola_pausada_por_error'))
+    expect(mensajeria.notificados.find(m => m.action === 'cola_pausada_por_error'))
       .toMatchObject({ errorType: 'sesion', titulo: 'Clase 1' });
     expect(store.session.colaPausadaPorError).toBe(true);
     expect(store.session.rafagaCorriendo).toBe(false);
@@ -352,7 +366,7 @@ describe('bucle de descarga — fallos que pausan la cola', () => {
     await arrancarCola([item('Clase 1', 1)]);
     await esperarA(() => accionesEnviadas().includes('cola_pausada_por_error'), 'pausa');
 
-    expect(mensajesEnviados.find(m => m.action === 'cola_pausada_por_error'))
+    expect(mensajeria.notificados.find(m => m.action === 'cola_pausada_por_error'))
       .toMatchObject({ errorType: 'servidor' });
     expect(programador.periodoDe(ALARMA_AUTOHEAL)).toBe(0.2);
     expect(store.session.tipoDeErrorConexion).toBe('servidor');
@@ -393,7 +407,7 @@ describe('frenado suave', () => {
     await arrancarCola([item('Clase 1', 1), item('Clase 2', 2)]);
     await esperarA(() => accionesEnviadas().includes('cola_completamente_vacia'), 'freno');
 
-    expect(mensajesEnviados.find(m => m.action === 'cola_completamente_vacia').suaveFrenado).toBe(true);
+    expect(mensajeria.notificados.find(m => m.action === 'cola_completamente_vacia').suaveFrenado).toBe(true);
     expect(store.session.rafagaCorriendo).toBe(false);
     // La primera terminó; la segunda quedó en la cola, intacta para reanudar después.
     expect(store.local.listaPersistente.find(c => c.titulo === 'Clase 1').estado).toBe('downloaded');

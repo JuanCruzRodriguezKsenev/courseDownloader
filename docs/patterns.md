@@ -4,13 +4,13 @@ Explicación de los patrones que sostienen el código actual — qué problema r
 
 ## IPC por acción con diccionario de handlers
 
-**Dónde**: `background.js` (`chrome.runtime.onMessage.addListener` + el objeto `manejadoresIPC`), llamado desde `popup.js` con `chrome.runtime.sendMessage({ action: "...", ...payload })`.
+**Dónde**: `background.js` (`Mensajeria.onMensaje` + el objeto `manejadoresIPC`), llamado desde `popup.js` con `Mensajeria.enviar/notificar({ action: "...", ...payload })`. Desde el 2026-08-03 **las dos puntas de las dos zonas** van por el puerto: no queda `chrome.runtime.sendMessage`/`onMessage` en el proyecto.
 
 **Qué hace**: todo el contrato entre popup y service worker pasa por un único canal de mensajes, despachado por el campo `action` (string). Acciones soportadas hoy: `escanear_carpeta_local`, `obtener_estados_en_progreso`, `inyectar_items_en_cola_activa`, `remover_item_de_cola`, `iniciar_descarga_cola`, `activar_frenado_suave`, `abortar_rafaga_inmediata`, `limpiar_estados_progreso`.
 
 **Por qué así**: es el único mecanismo de comunicación entre contextos de ejecución aislados que ofrece la plataforma de extensiones — no hay alternativa (no se pueden compartir referencias de memoria entre popup y service worker).
 
-**Convención a seguir**: cada acción se define como un método `async accion(request, sendResponse)` dentro del diccionario `manejadoresIPC`. El listener despacha por lookup (`manejadoresIPC[request.action]`), retorna `false` si no existe, y si existe lo envuelve en un IIFE async + `try/catch` global, retornando `true` de forma síncrona para mantener el canal abierto a una respuesta async. Cada handler termina en `sendResponse(...)`.
+**Convención a seguir**: cada acción se define como un método `async accion(request, responder)` dentro del diccionario `manejadoresIPC`. El listener despacha por lookup (`manejadoresIPC[request.action]`), retorna `false` si no existe, y si existe lo envuelve en un IIFE async + `try/catch` global, retornando `true` de forma síncrona para mantener el canal abierto a una respuesta async. Cada handler termina llamando a `responder(...)`. **Ese contrato del `true`/`false` sobrevivió a la migración a propósito**: es lo que mantiene abierto el canal, y rediseñar el despacho en el mismo corte que el cambio de mecanismo habría mezclado dos riesgos.
 
 **Lado emisor: `PuertoMensajeria` (Fase 5c)**. Quien *manda* mensajes ya no llama a
 `chrome.runtime.sendMessage`, sino al puerto (`core/puertos/mensajeria.ts`), que separa lo que
@@ -39,9 +39,16 @@ oyente del worker (`desengancharOyenteWorker`), que se engancha y desengancha va
 sesión. Si el manejador devuelve `true`, el canal queda abierto para responder async — misma
 convención que `chrome.runtime.onMessage`.
 
+**Cuándo `notificar` no debe hablar**: en el SW, "no hay receptor" es el estado **normal** —el
+popup está cerrado la mayor parte del tiempo y `update_progress_bar` sale por fragmento—, así
+que el adaptador Chrome avisa una sola vez por acción en vez de por envío. Un log que aparece
+siempre no informa nada y tapa lo que sí importa en la consola del service worker.
+
 **Referencia**: `popup/features/queue.js` fue el primer consumidor migrado (seis call-sites, uno
-de cada forma) y `popup.js` el segundo (los dos envíos + el oyente). El adaptador de navegador
-es `plataforma/chrome/mensajeria.ts`; el de tests, `core/puertos/mensajeriaEnMemoria.ts`.
+de cada forma), después `popup.js` (los dos envíos + el oyente), `shared/state.ts` y finalmente
+`background.js` con las dos puntas (2026-08-03): el receptor, los 7 avisos por `notificar()` y
+los 2 del camino legacy offscreen por `enviar()`, que sí esperan respuesta. El adaptador de
+navegador es `plataforma/chrome/mensajeria.ts`; el de tests, `core/puertos/mensajeriaEnMemoria.ts`.
 
 **Ojo con el conteo de `chrome.*` al migrar**: `chrome.runtime.lastError` no implica IPC. Es el
 mecanismo de error de toda la API de callbacks de `chrome.*`, así que los que quedan en

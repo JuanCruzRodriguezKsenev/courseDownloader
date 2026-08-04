@@ -19,8 +19,15 @@ import type { MensajeIPC, ManejadorMensaje, PuertoMensajeria, Responder } from "
 
 export class MensajeriaEnMemoria implements PuertoMensajeria {
   private manejadores = new Set<ManejadorMensaje>();
-  /** Todo lo enviado, en orden: los tests afirman sobre esto en vez de espiar un mock. */
+  /** Todo lo saliente, en orden: los tests afirman sobre esto en vez de espiar un mock. */
   readonly enviados: MensajeIPC[] = [];
+  /**
+   * Sólo lo que salió por `notificar()`. Es un subconjunto de `enviados`, y existe porque
+   * distinguir las dos intenciones es justamente para lo que está el puerto: un test que
+   * quiera afirmar "el SW avisó X" no debería ver también los mensajes que el propio test
+   * mandó para invocarlo.
+   */
+  readonly notificados: MensajeIPC[] = [];
 
   constructor(private timeoutMs = 0) {}
 
@@ -60,6 +67,7 @@ export class MensajeriaEnMemoria implements PuertoMensajeria {
 
   notificar(mensaje: MensajeIPC): void {
     this.enviados.push(mensaje);
+    this.notificados.push(mensaje);
     if (this.manejadores.size === 0) return; // fire-and-forget: nadie escucha, no pasa nada
     const noOp: Responder = () => {};
     this.manejadores.forEach((cb) => cb(mensaje, noOp));
@@ -73,5 +81,20 @@ export class MensajeriaEnMemoria implements PuertoMensajeria {
   /** Ayuda de tests: ¿qué acciones se enviaron, en orden? */
   accionesEnviadas(): string[] {
     return this.enviados.map((m) => m.action);
+  }
+
+  /** Ayuda de tests: ¿qué acciones se **notificaron**, en orden? */
+  accionesNotificadas(): string[] {
+    return this.notificados.map((m) => m.action);
+  }
+
+  /**
+   * Vacía el registro sin desregistrar manejadores. Para suites donde la instancia tiene que
+   * sobrevivir entre tests porque el código bajo prueba enganchó su oyente una sola vez al
+   * cargarse (es el caso del service worker).
+   */
+  limpiarRegistro(): void {
+    this.enviados.length = 0;
+    this.notificados.length = 0;
   }
 }

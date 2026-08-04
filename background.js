@@ -1,6 +1,19 @@
 /**
- * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V6.1.0)
+ * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V6.2.0)
  * ==========================================================================
+ * CHANGELOG v6.2.0:
+ * - [FASE 5C] El IPC del SW pasa entero al PuertoMensajeria, las DOS puntas: el receptor
+ *   (`chrome.runtime.onMessage` → `Mensajeria.onMensaje`, conservando el contrato del
+ *   `true`/`false` que mantiene abierto el canal) y los 9 emisores. Los 7 avisos al popup
+ *   —progreso, clase guardada/con error, cola vacía, cola pausada— van por `notificar()`,
+ *   que es fire-and-forget y hace explícito lo que antes decía un `.catch(() => {})`
+ *   colgado de cada envío. Los 2 del camino legacy offscreen (crear/revocar blob URL) van
+ *   por `enviar()`, porque sí esperan respuesta. Con esto el SW no toca `chrome.runtime`
+ *   salvo `onInstalled`, `getURL` y el `lastError` de notifications.
+ * - [FASE 5C] Efecto secundario atajado en el adaptador: `notificar()` logueaba un warning
+ *   por envío sin receptor, y "sin receptor" es el estado NORMAL acá (el popup está cerrado
+ *   la mayor parte del tiempo). Una descarga habría generado cientos de warnings, uno por
+ *   fragmento. El adaptador ahora avisa una sola vez por acción. Ver mensajeria.ts.
  * CHANGELOG v6.1.0:
  * - [FASE 5C] Los 8 call-sites de chrome.alarms (la alarma de auto-sanación) pasan al
  *   PuertoProgramador, que llega como global `Programador` desde composicion.ts. El nombre
@@ -243,7 +256,7 @@ async function obtenerBlobUrlDeOffscreen(blob) {
     }
   }
 
-  const response = await chrome.runtime.sendMessage({
+  const response = await Mensajeria.enviar({
     action: "crear_blob_url",
     blob: blob
   });
@@ -258,7 +271,7 @@ async function obtenerBlobUrlDeOffscreen(blob) {
 // Helper para cerrar el documento offscreen y liberar memoria
 async function cerrarOffscreenYRevocar(blobUrl) {
   try {
-    await chrome.runtime.sendMessage({
+    await Mensajeria.enviar({
       action: "revocar_blob_url",
       blobUrl: blobUrl
     });
@@ -486,8 +499,12 @@ const manejadoresIPC = {
   }
 };
 
-// Listener principal síncrono para mantener canal IPC
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+// Listener principal síncrono para mantener canal IPC.
+// Va por el PuertoMensajeria (Fase 5c). La forma se conserva tal cual, incluido el contrato
+// del `true`/`false` de retorno: el puerto lo respeta a propósito porque es lo que mantiene
+// abierto el canal para una respuesta asíncrona, y cambiarlo acá habría sido rediseñar el
+// despacho en el mismo corte que la migración.
+Mensajeria.onMensaje((request, responder) => {
   const manejador = request && manejadoresIPC[request.action];
   if (!manejador) {
     return false;
@@ -495,7 +512,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   (async () => {
     try {
-      await manejador(request, sendResponse);
+      await manejador(request, responder);
     } catch (errGlobal) {
       console.error("❌ [IPC-SW-ERROR] Falló procesamiento de mensaje interno:", errGlobal);
     }
@@ -531,7 +548,7 @@ async function procesarSiguienteElementoDeLaCola() {
       await SessionState.set({ rafagaCorriendo: false });
       loopActivo = false;
       await persistirEstadoFondo({});
-      chrome.runtime.sendMessage({ action: "cola_completamente_vacia" }).catch(() => {});
+      Mensajeria.notificar({ action: "cola_completamente_vacia" });
       return;
     }
 
@@ -604,7 +621,7 @@ async function procesarSiguienteElementoDeLaCola() {
               });
             }
 
-            chrome.runtime.sendMessage({
+            Mensajeria.notificar({
               action: "update_progress_bar",
               percentage: progreso.porcentaje,
               titulo: tituloInmutableVideo,
@@ -615,7 +632,7 @@ async function procesarSiguienteElementoDeLaCola() {
                 totalFrags: totalUrls,
                 velocidadMbs: velocidadMbs,
               }
-            }).catch(() => {});
+            });
           }
         }
       );
@@ -625,12 +642,12 @@ async function procesarSiguienteElementoDeLaCola() {
 
       // ─── [ENTRAMADO DUAL] FASE DE VOLCADO O CIERRE FINAL ───────────────────
       if (!postDownloadState.modoTurboBunActivo) {
-        chrome.runtime.sendMessage({
+        Mensajeria.notificar({
           action: "update_progress_bar",
           percentage: 100,
           titulo: tituloInmutableVideo,
           compiling: true
-        }).catch(() => {});
+        });
 
         const subRutaArchivo = `${subcarpetaFinal}/${tituloInmutableVideo}.mp4`;
         
@@ -668,11 +685,11 @@ async function procesarSiguienteElementoDeLaCola() {
         SW_ESTADOS_PROGRESO: estadosUpdate
       });
 
-      chrome.runtime.sendMessage({
+      Mensajeria.notificar({
         action: "clase_guardada_ok",
         titulo: tituloInmutableVideo,
         suaveFrenado: postWriteState.frenadoSuaveSolicitado,
-      }).catch(() => {});
+      });
 
       setTimeout(procesarSiguienteElementoDeLaCola, 60);
 
@@ -732,11 +749,11 @@ async function procesarSiguienteElementoDeLaCola() {
           SW_ESTADOS_PROGRESO: estadosUpdate
         });
         const motivoRechazo = `el backend rechazó sus fragmentos (HTTP ${errDescarga.httpStatus})`;
-        chrome.runtime.sendMessage({
+        Mensajeria.notificar({
           action: "clase_con_error",
           titulo: tituloInmutableVideo,
           motivo: motivoRechazo
-        }).catch(() => {});
+        });
         setTimeout(procesarSiguienteElementoDeLaCola, 60); // seguir con la próxima
         // Aviso persistente + notificación nativa (best-effort, DESPUÉS de garantizar la
         // continuación de la cola; registrarFallo no propaga). El popup abierto ya
@@ -776,7 +793,7 @@ async function notificarFrenoSuaveExitoso() {
   });
   loopActivo = false;
   await persistirEstadoFondo({});
-  chrome.runtime.sendMessage({ action: "cola_completamente_vacia", suaveFrenado: true }).catch(() => {});
+  Mensajeria.notificar({ action: "cola_completamente_vacia", suaveFrenado: true });
 }
 
 // Choke point único de aviso de fallos: persiste el fallo en el historial (para la
@@ -854,11 +871,11 @@ async function pausarColaPorErrorDeConexion(tipoError, titulo) {
     Programador.programar(ALARMA_AUTOHEAL, { periodoMin: PERIODO_AUTOHEAL_MIN });
   }
 
-  chrome.runtime.sendMessage({
+  Mensajeria.notificar({
     action: "cola_pausada_por_error",
     errorType: tipoError,
     titulo: titulo
-  }).catch(() => {});
+  });
 }
 
 async function reanudarColaDesdeBackground() {

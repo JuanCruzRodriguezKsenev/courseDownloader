@@ -78,15 +78,16 @@ Lo que **todavía** habla `chrome.*` directo, por API y no por archivo:
 
 | API | Dónde | Puerto que espera |
 |---|---|---|
-| `runtime` (IPC) | `background.js`, **las dos puntas**: 1 `onMessage` + 9 `sendMessage` | `PuertoMensajeria` ✅ existe — falta migrar el SW, que todavía no lo toca |
+| ~~`runtime` (IPC)~~ | ~~`background.js`, las dos puntas~~ | ✅ Migrado (2026-08-03). **No queda IPC crudo en el proyecto.** En `background.js` sobreviven `onInstalled`, `getURL` y el `lastError` de notifications, que no son IPC |
 | ~~`alarms`~~ | ~~`background.js` (auto-heal)~~ | ✅ Migrado (2026-08-03): `PuertoProgramador` + `plataforma/chrome/programador.ts` |
 | `notifications` | `background.js` | sin diseñar |
 | `tabs` / `windows` | `background.js`, `popup.js` | `PuertoTabs` (diseñado, sin construir) |
 | `scripting` | `popup.js` | `PuertoInyeccion` (diseñado, sin construir) |
 | `downloads` / `offscreen` | `background.js` | sólo el camino legacy no-Turbo (hoy inalcanzable) |
 
-El IPC del popup ya está migrado: `popup.js` y `popup/features/queue.js` pasaron al
-`PuertoMensajeria` en la Fase 5c.
+**El `PuertoMensajeria` tampoco tiene consumidores pendientes** desde el 2026-08-03: `popup.js`,
+`popup/features/queue.js`, `shared/state.ts` y `background.js` (las dos puntas) pasaron todos
+en la Fase 5c. No queda un `sendMessage`/`onMessage` crudo en el proyecto.
 
 > Cuidado al contar: los `chrome.runtime.lastError` que quedan en `popup.js` son de los
 > callbacks de `tabs`/`scripting`, no de mensajería. `lastError` es el mecanismo de error de
@@ -164,14 +165,20 @@ historia de qué se migró en qué fase no está acá: vive en `docs/rearquitect
 ### Capa 1 — `core/`
 
 `core/puertos/` tiene las **interfaces de los puertos**: `almacenamiento.ts` (persistencia),
-`mensajeria.ts` (IPC) y `sitio.ts` (`PuertoSitio`, el contrato que un adaptador de portal debe
-cumplir). Los dos primeros vienen con implementación en memoria
-(`almacenamientoEnMemoria.ts`, `mensajeriaEnMemoria.ts`) que permite testear lógica sin
-mockear `chrome.*` a mano, incluida una conversación popup↔SW completa in-process.
+`mensajeria.ts` (IPC), `programador.ts` (tareas diferidas) y `sitio.ts` (`PuertoSitio`, el
+contrato que un adaptador de portal debe cumplir). Los tres primeros vienen con implementación
+en memoria (`almacenamientoEnMemoria.ts`, `mensajeriaEnMemoria.ts`, `programadorEnMemoria.ts`)
+que permite testear lógica sin mockear `chrome.*` a mano, incluida una conversación popup↔SW
+completa in-process. Los tres dobles tienen tests propios: si el doble miente, todo lo que se
+apoye en él pasa verificando algo que en el navegador no ocurre.
 
 **`PuertoMensajeria` parte en dos lo que `chrome.runtime.sendMessage` mezclaba**: `enviar()`
 espera respuesta y rechaza si el canal falla; `notificar()` es fire-and-forget y no rechaza
 nunca. Elegir uno es explícito en cada call-site — contrato completo en `docs/patterns.md`.
+Detalle operativo que salió al migrar el SW: **"no hay receptor" es el estado normal**, no una
+anomalía —el popup está cerrado la mayor parte del tiempo—, así que el adaptador Chrome avisa
+**una vez por acción** y no por envío; si no, una sola descarga llenaba la consola del SW con
+un warning por fragmento.
 
 **`core/conexion/conexion.ts` (`Conexion`) es la fuente única de verdad del estado de
 conexión** (servidor + internet), corriendo en popup y en SW; se lee con `Conexion.get()` o se
