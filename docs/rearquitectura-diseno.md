@@ -6,12 +6,12 @@ La **decisión** y su justificación viven en `docs/adr/0008-arquitectura-nucleo
 objetivo, interfaces de los puertos, elección de bundler y orden de migración. Es el
 equivalente de `docs/preact-migration.md` pero para el corte núcleo/adaptadores.
 
-> **Estado (2026-08-04)**: **fases 0 a 6c completas**. Las tres capas existen y están pobladas:
-> `core/` (puertos, cola, motor HLS, conexión, estado, backend, historial, utilidades),
-> `sitio/ramonnet/` y `plataforma/chrome/` + la raíz de composición. Quedan la **Fase 7**
-> (entrypoints como composición) y la **Fase 8** (borrado del vanilla que no pasó por un
-> puerto: hoy `popup.js`, `renderers.js` y lo que queda de `background.js`). Ver la tabla de
-> avance al final y §Cómo retomar esto en una sesión nueva.
+> **Estado (2026-08-04)**: **fases 0 a 8a completas**. Las tres capas existen y están pobladas
+> —`core/`, `sitio/ramonnet/`, `plataforma/chrome/` + la raíz de composición—, los dos
+> entrypoints son composición real, y del `globalThis` quedan **5 nombres, todos de Capa 2**.
+> Queda la **Fase 8b** (el adaptador de sitio), y **no es un pendiente obvio**: ahí el global
+> es una decisión y puede ser correcto dejarlo como está — leer su fila antes de "limpiarlo".
+> Ver la tabla de avance al final y §Cómo retomar esto en una sesión nueva.
 >
 > *(El párrafo de estado anterior, del 2026-08-02, decía que seguía "todo en JS vanilla y sin
 > bundler". Se conserva la observación como recordatorio de la velocidad a la que este doc
@@ -302,13 +302,21 @@ por diseño— pasan a ser testeables sin navegador.
 **Fase 6 — Motor HLS → `core/hls/`** consumiendo puertos (llega con el pool ya testeado).
 
 **Fase 7 — `background.js` y `popup.js`** quedan como composición en `entrypoints/` (inyectan
-los adaptadores concretos en el núcleo).
+los adaptadores concretos en el núcleo). *Ejecutada partida en tres (7a/7b/7c) porque medir
+mostró que "el popup como composición" describía un corte mucho más chico que el objetivo —
+ver sus §Registro.*
 
 **Fase 8 — Sustitución y borrado del código vanilla de la raíz** — recién cuando los módulos
-nuevos (`core/`, `plataforma/`, `sitio/`) tengan **paridad de tests** con lo que reemplazan. Es
-un paso propio, no el efecto colateral de la Fase 7. Sin `src/`, "el vanilla de la raíz" ya no
-se distingue por la carpeta: son los archivos que todavía no pasaron por un puerto — hoy
-`popup.js`, `renderers.js`, `shared/utils.js` y lo que quede de `background.js`.
+nuevos (`core/`, `plataforma/`, `sitio/`) tengan **paridad de tests** con lo que reemplazan.
+
+> **Cómo terminó, y por qué el enunciado de arriba no describe lo que se hizo (2026-08-04).**
+> Al llegar acá **no quedaba nada que borrar**: `popup.js`, `renderers.js` y `background.js`
+> habían dejado de ser "vanilla suelto" en las fases 7a-7c —exportan una factory y reciben sus
+> dependencias—, así que la premisa de "sustituir y borrar" ya no aplicaba. Lo que sí quedaba
+> era el último mecanismo de la época sin bundler: módulos publicándose en `globalThis`. Eso
+> fue la **8a**. Y la **8b** —el adaptador de sitio— quedó explícitamente como *decisión
+> abierta*, no como pendiente: ahí el global es deliberado. La mención a `shared/utils.js` en
+> el enunciado original es de cuando ese archivo existía (se repartió en la Fase 6a).
 
 ### Cómo se elige el sitio activo — resuelto
 
@@ -695,8 +703,8 @@ Cerró lo que la 7b había dejado abierto: que **nadie lea un servicio de `globa
 **Lo que la medición no vio y encontró el linter.** Al sacar `Utils` de `globalesDelProyecto`,
 `no-undef` tiró 11 errores: `sitio/ramonnet/parserTitulos.js` y `resolverManifiesto.js` lo leen
 **en producción**. La medición del corte había mirado `popup.js`, `renderers.js` y
-`popup/features/` — y no `sitio/`. Así que `Utils` sigue publicado y se va con la Fase 8, junto
-con esos dos módulos. **Es el mismo error que ya se cometió en la 6c y en la 6**: medir el
+`popup/features/` — y no `sitio/`. Así que `Utils` sigue publicado; la 8a no lo tocó y su
+destino se decide en la **8b**, junto con el resto del adaptador de sitio. **Es el mismo error que ya se cometió en la 6c y en la 6**: medir el
 subconjunto que uno tiene en la cabeza en vez del árbol entero. Acá lo atajó una compuerta;
 vale recordar que sólo la atajó porque el global dejó de estar declarado.
 

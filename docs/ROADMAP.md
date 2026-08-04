@@ -6,10 +6,12 @@ Este documento cubre **trabajo técnico interno**, no features de producto nueva
 
 ---
 
-> **Re-arquitectura núcleo/adaptadores (Track B)**: su plan por fases vive en
-> `docs/rearquitectura-diseno.md` §Orden de migración, no acá (regla DRY, ADR-0007).
-> Estado al 2026-08-02: Capa 2 completa en vanilla; lo que sigue está bloqueado por una
-> decisión de empaquetado (una build por portal vs. registro en runtime).
+> **Re-arquitectura núcleo/adaptadores (Track B)**: su plan por fases y su estado viven en
+> `docs/rearquitectura-diseno.md` (§Orden de migración + §Estado de avance), no acá (regla DRY,
+> ADR-0007). **Al 2026-08-04 está esencialmente terminada** (fases 0 a 8a); lo único abierto es
+> una decisión, no una tarea. El párrafo anterior de esta nota decía que estaba "bloqueada por
+> una decisión de empaquetado": esa decisión se tomó el 2026-08-02 en ADR-0009 (registro de
+> sitios en runtime) y todo lo que dependía de ella ya se ejecutó.
 
 ## Estado (2026-07-19) — tanda de saldado de deuda (Track A: bug 400 + Fase 2 + tests del pool)
 
