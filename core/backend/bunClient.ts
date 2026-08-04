@@ -215,5 +215,4 @@ export const BunClient = {
 // Exportación (ver docs/coding-standards.md). Sigue publicando el global porque el
 // resto del código vanilla lo consume sin importar; el `export` es lo que permite que
 // el bundler arme el grafo de dependencias y que Vitest importe el módulo.
-(globalThis as Record<string, unknown>).BunClient = BunClient;
 export default BunClient;

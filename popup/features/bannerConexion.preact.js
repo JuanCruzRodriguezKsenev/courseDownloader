@@ -89,7 +89,8 @@ export function __resetStore() {
 }
 
 // Store global para que el vanilla (serverConnection.js) lo empuje.
-if (typeof window !== 'undefined') window.BannerConexion = _store;
+// FASE 8: el puente se exporta en vez de publicarse como global.
+export default _store;
 
 // Auto-montaje en el popup real (no corre en los tests, que importan los componentes).
 if (typeof document !== 'undefined') {

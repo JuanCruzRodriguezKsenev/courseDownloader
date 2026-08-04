@@ -83,5 +83,4 @@ export const AlmacenamientoChrome: PuertoAlmacenamiento = {
 };
 
 // Exportación (ver docs/coding-standards.md).
-(globalThis as Record<string, unknown>).AlmacenamientoChrome = AlmacenamientoChrome;
 export default AlmacenamientoChrome;

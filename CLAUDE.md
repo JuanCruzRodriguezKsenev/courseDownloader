@@ -5,11 +5,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > ## ⚠️ Trabajo en curso — leer esto primero
 >
 > Hay una **re-arquitectura activa** (puertos y adaptadores + TypeScript + WXT), ya en su
-> tramo final: **fases 0 a 7c completas; queda la 8 (borrado del vanilla que no pasó por un
-> puerto)** (al 2026-08-04). **Ningún servicio se lee ya de `globalThis`** salvo uno: `Utils`,
-> que leen los dos módulos `.js` del adaptador de sitio y se va con la 8. Lo que todavía viaja
-> por `globalThis` no son servicios sino módulos — puentes de islas, factories de features y
-> el adaptador de sitio. Antes de tocar código:
+> tramo final: **fases 0 a 8a completas; queda sólo la 8b (el adaptador de sitio)** (al
+> 2026-08-04). Del `globalThis` quedan **5 nombres, todos de Capa 2** (`Utils`, `SitioActivo`,
+> `SitioRamonNet`, `ParserTitulos`, `Scraper`; en el SW también `ResolverManifiesto`), y ahí el
+> global es **una decisión, no inercia** — ver la 8b antes de "limpiarlo". Antes de tocar código:
 >
 > **Leé `docs/rearquitectura-diseno.md` §Cómo retomar esto en una sesión nueva.** Ahí está el
 > orden de lectura, el estado por fase, qué sigue y con qué riesgo, y las 4 verificaciones a
@@ -97,7 +96,7 @@ Sources stayed at the repo root (`srcDir: '.'`); only **entrypoints** and **verb
 - **`manifest.json`** → generated from `wxt.config.ts`. Edit the config, never the output.
 - **`popup.html`** → `entrypoints/popup/index.html` (asset paths in it are relative, hence the `../../` prefixes).
 - **The `<script>`/`importScripts` load order** → replaced by the *import order* in the two entrypoints. **The two no longer work the same way**, and that's the thing to get right when adding a module:
-  - `entrypoints/popup/main.js` — **injects too, and it also mounts** (Phases 7b/7c): `iniciarPopup(deps)`, plus `montar(root, deps)` for the three islands that depend on a service (`conexionHeader`, `onboarding`, `campanita`) — those stopped auto-mounting, which is what untied them from load order. What keeps the remaining order load-bearing is **module** globals, not services: the other three islands still auto-mount and publish their bridges, the feature factories publish themselves, and the site adapter's `.js` siblings read `Utils`. So: site adapter first, islands' modules before `popup.js` needs their bridges. The bundler will not catch a wrong order — the popup breaks at runtime.
+  - `entrypoints/popup/main.js` — **injects and mounts** (Phases 7b/7c): `iniciarPopup(deps)`, plus `montar(root, deps)` for the three islands that depend on a service. Since Phase 8a its import order is **no longer load-bearing for the popup's own modules** — features and island bridges travel by `import`, so the bundler's graph resolves them. **The one thing still order-dependent is the site adapter** (`sitio/ramonnet/*.js`), which must be imported first because its globals are read lazily by everything else. Get that wrong and the popup breaks at runtime with nothing to warn you.
   - `entrypoints/background.js` — **injects instead** (Phase 7a): it calls `iniciarServiceWorker(deps)` with named dependencies, so order stopped mattering and a missing piece is an `undefined` in the call, not a `ReferenceError` mid-download. **Keep that call in the entrypoint's top level** — never inside `defineBackground`'s callback or behind an `await`, or MV3 loses the listeners on a cold start.
 - **`public/`** is copied verbatim into the output: `public/offscreen/` (the legacy offscreen document) and `public/sitio/ramonnet/rules.json` (the dNR ruleset, referenced by that path from `wxt.config.ts`). Files there are *not* bundled — they can't use ES imports and must stay self-contained.
 
@@ -127,7 +126,7 @@ The extension runs in isolated JS contexts (popup / service worker / offscreen �
 - **`ErrorBackend.tipoBackend: "rechazo"` means 4xx only** (skip the class), never 5xx (pause + auto-heal). That distinction is the bug-400 fix; it's a type now, not a comment.
 - **The download loop's failure classification has four branches and the order is load-bearing** (`core/cola/procesadorCola.ts`): user cancel → `"sesion"` → 4xx `"rechazo"` → anything else. The first three are classified **before** asking the connection daemon, because the daemon would mislabel every one of them. Each branch exists because of a real bug; read the module header before touching it.
 - **Progress has two destinations, not one**: the IPC to the popup *and* `actualizarConsolaBackend`, the bar in the Bun server window — which is the only one the user sees with the popup closed. Losing the second breaks nothing, so nothing catches it (that happened in Phase 6b; it has a test now).
-- **A module that gets decoupled from `chrome.*` is instantiated in `plataforma/composicion.ts`**, the composition root — and since Phase 7c it publishes **exactly one global**, `Utils`, kept only because the site adapter's two `.js` siblings read it. Everything else is a named export that an entrypoint injects. **Adding a `globalThis.X` there is walking the migration backwards**; if a new consumer needs something, it takes it as a parameter. Same for `globalesDelProyecto` in `eslint.config.js`: re-declaring a service there silently re-enables reading it off `globalThis`, and it was `no-undef` — not the measurement — that caught the last real reader.
+- **A module that gets decoupled from `chrome.*` is instantiated in `plataforma/composicion.ts`**, the composition root — and since Phase 7c it publishes **exactly one global**, `Utils`, kept only because the site adapter's `.js` siblings read it. A *sibling* module (a feature, an island bridge) is not injected at all: it travels by `import` (Phase 8a), because it isn't a swappable adapter. The exception is anything a test needs to double — the three island bridges `serverConnection.js` consumes go through `ctx` for exactly that reason. Everything else is a named export that an entrypoint injects. **Adding a `globalThis.X` there is walking the migration backwards**; if a new consumer needs something, it takes it as a parameter. Same for `globalesDelProyecto` in `eslint.config.js`: re-declaring a service there silently re-enables reading it off `globalThis`, and it was `no-undef` — not the measurement — that caught the last real reader.
 
 ### State ownership split
 

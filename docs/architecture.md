@@ -70,7 +70,7 @@ sigue.
 | 2 — Adaptador de sitio | `sitio/ramonnet/` | Todo lo específico del portal: scraper, parser de títulos, resolución del `.m3u8`, constantes, faceta, reglas dNR. Cumple `PuertoSitio`. | ✅ Completa (en TS desde 2026-08-03: `config.ts`; los otros 3 archivos siguen en `.js`) |
 | 3 — Adaptador de plataforma | `plataforma/chrome/` | Único lugar que toca la API del navegador. Implementa los puertos. | `almacenamiento.ts`, `mensajeria.ts`, `programador.ts`, `notificaciones.ts`, `descargas.ts`, `volcadoLegacy.ts`. Falta lo de la tabla de abajo |
 | Composición | `plataforma/composicion.ts` | Único lugar donde se eligen adaptadores concretos y se inyectan al núcleo. | Activa |
-| Entrypoints | `entrypoints/` | Puntos de entrada de WXT: resuelven dependencias y las inyectan; no contienen lógica. ✅ los dos inyectan: `background.js` (Fase 7a) y `popup/main.js` (7b/7c, que además **monta** las 3 islas con dependencias). No queda ningún servicio en `globalThis` salvo `Utils` |
+| Entrypoints | `entrypoints/` | Puntos de entrada de WXT: resuelven dependencias y las inyectan; no contienen lógica. ✅ los dos inyectan: `background.js` (7a) y `popup/main.js` (7b/7c, que además **monta** las 3 islas con dependencias). Desde la 8a los módulos hermanos entran por `import`: en `globalThis` quedan 5 nombres, todos de Capa 2 |
 
 **Los dos entrypoints ya no funcionan igual, y la diferencia importa al agregar un módulo.**
 El del service worker le **pasa** sus 8 dependencias a `iniciarServiceWorker(deps)`: agregarle

@@ -4,10 +4,13 @@
  *  - oculta por defecto; mostrar(tipo) pinta la .server-error-card correcta
  *  - el contenido cambia según el tipo (servidor / internet)
  *  - ocultar() la saca; cambiar de tipo re-renderiza
- *  - el store global window.BannerConexion expone la API que empuja serverConnection
+ *  - el store global puente expone la API que empuja serverConnection
  * Los useEffect de Preact se agendan vía rAF → se flushean esperando varios ciclos.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
+// FASE 8: el puente dejó de ser `puente` y se importa. La API que este archivo
+// afirma es la misma; lo que cambió es de dónde sale.
+import puente from './bannerConexion.preact.js';
 import { montar, __resetStore } from './bannerConexion.preact.js';
 
 async function flush() {
@@ -27,19 +30,19 @@ describe('Isla Preact: BannerConexion', () => {
 
   function card() { return root.querySelector('.server-error-card'); }
 
-  it('expone el store global window.BannerConexion con su API', () => {
-    expect(typeof window.BannerConexion.mostrar).toBe('function');
-    expect(typeof window.BannerConexion.ocultar).toBe('function');
-    expect(typeof window.BannerConexion.get).toBe('function');
+  it('expone el store global puente con su API', () => {
+    expect(typeof puente.mostrar).toBe('function');
+    expect(typeof puente.ocultar).toBe('function');
+    expect(typeof puente.get).toBe('function');
   });
 
   it('arranca oculto (sin card)', () => {
     expect(card()).toBeNull();
-    expect(window.BannerConexion.get()).toEqual({ visible: false, tipo: null });
+    expect(puente.get()).toEqual({ visible: false, tipo: null });
   });
 
   it('mostrar("servidor") pinta la card de servidor con su contenido', async () => {
-    window.BannerConexion.mostrar('servidor');
+    puente.mostrar('servidor');
     await flush();
     expect(card()).not.toBeNull();
     expect(card().dataset.tipo).toBe('servidor');
@@ -50,7 +53,7 @@ describe('Isla Preact: BannerConexion', () => {
   });
 
   it('mostrar("internet") pinta la card de internet', async () => {
-    window.BannerConexion.mostrar('internet');
+    puente.mostrar('internet');
     await flush();
     expect(card().dataset.tipo).toBe('internet');
     expect(card().querySelector('.server-error-icon').textContent).toBe('🌐');
@@ -58,18 +61,18 @@ describe('Isla Preact: BannerConexion', () => {
   });
 
   it('ocultar() saca la card', async () => {
-    window.BannerConexion.mostrar('servidor');
+    puente.mostrar('servidor');
     await flush();
     expect(card()).not.toBeNull();
-    window.BannerConexion.ocultar();
+    puente.ocultar();
     await flush();
     expect(card()).toBeNull();
   });
 
   it('cambiar de tipo re-renderiza la card (servidor -> internet)', async () => {
-    window.BannerConexion.mostrar('servidor');
+    puente.mostrar('servidor');
     await flush();
-    window.BannerConexion.mostrar('internet');
+    puente.mostrar('internet');
     await flush();
     expect(root.querySelectorAll('.server-error-card').length).toBe(1);
     expect(card().dataset.tipo).toBe('internet');

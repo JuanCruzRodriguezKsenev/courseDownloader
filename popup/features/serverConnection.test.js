@@ -98,7 +98,18 @@ describe('ServerConnectionFeature.crear', () => {
       onReescanearAula: vi.fn(),
     };
     // FASE 7C: appState y conexion entran por ctx (los siembra el harness en globalThis).
-    api = ServerConnectionFeature.crear({ ...ctx, appState: globalThis.AppState, conexion: globalThis.Conexion });
+    // FASE 8: los puentes de las islas entran por ctx. Los dobles se siguen creando igual
+    // (arriba, en globalThis) para no cambiar la forma del harness; lo único que cambia es
+    // que acá se los pasa explícito.
+    api = ServerConnectionFeature.crear({
+      ...ctx,
+      appState: globalThis.AppState,
+      conexion: globalThis.Conexion,
+      listaClases: globalThis.ListaClases,
+      rutaDisco: globalThis.RutaDisco,
+      bannerConexion: globalThis.BannerConexion,
+      backend: globalThis.BunClient,
+    });
   });
 
   // Emite un estado del daemon al suscriptor de la feature.

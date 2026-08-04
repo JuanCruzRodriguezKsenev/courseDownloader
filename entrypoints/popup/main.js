@@ -23,13 +23,6 @@ import '../../core/backend/bunClient.ts';
 // renderers/features/popup.js, que son los que consumen esos globals.
 import '../../plataforma/composicion.ts';
 
-// Render vanilla + features del popup.
-import '../../renderers.js';
-import '../../popup/features/serverConnection.js';
-import '../../popup/features/queue.js';
-import '../../popup/features/filters.js';
-import '../../popup/features/faceta.js';
-
 // Orquestador. Desde la Fase 7b no se importa por su efecto secundario: exporta
 // `iniciarPopup(deps)` y lo llamamos abajo con sus servicios por nombre. El listener de
 // `DOMContentLoaded` se registra en el mismo momento que antes — los módulos ES son
@@ -56,14 +49,13 @@ iniciarPopup({
 // auto-montan**: las monta este entrypoint pasándoles la dependencia (Fase 7c). Eso es lo
 // que las desató del orden de imports y de que el global existiera al evaluarse.
 //
-// Las otras tres no leen ningún servicio —su estado es propio o llega por su puente— así que
-// siguen auto-montándose al importarse. Se las importa por efecto secundario, como antes.
+// Las otras tres (`rutaDisco`, `bannerConexion`, `listaClases`) no leen ningún servicio y
+// siguen auto-montándose al evaluarse. Desde la Fase 8 **ya no se importan acá**: las importa
+// `popup.js`, que es quien usa sus puentes, así que su evaluación —y con ella el
+// auto-montaje— la arrastra el grafo del bundler.
 import { montar as montarStatusDot } from '../../popup/features/conexionHeader.preact.js';
 import { montar as montarOnboarding } from '../../popup/features/onboarding.preact.js';
 import { montar as montarCampanita } from '../../popup/features/campanita.preact.js';
-import '../../popup/features/rutaDisco.preact.js';
-import '../../popup/features/bannerConexion.preact.js';
-import '../../popup/features/listaClases.preact.js';
 
 montarStatusDot(document.getElementById('preact-status-dot'), { conexion: Conexion });
 montarOnboarding(document.getElementById('preact-onboarding'), {

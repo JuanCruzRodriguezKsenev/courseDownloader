@@ -92,6 +92,12 @@ const ServerConnectionFeature = {
       onReescanearAula,
       appState,
       conexion,
+      // FASE 8: los puentes de las islas entran por ctx y no por window. Van por acá y no
+      // por un import directo a propósito: los tests inyectan dobles de los tres.
+      listaClases,
+      rutaDisco,
+      bannerConexion,
+      backend,
     } = ctx;
 
     // El estado de conexión NO vive acá: lo posee el daemon conexion (core/conexion/conexion.ts).
@@ -105,14 +111,14 @@ const ServerConnectionFeature = {
     async function cargarRutaServidorSilencioso() {
       if (!nodos.btnExplore) return;
       try {
-        const ruta = await BunClient.obtenerRutaServidor();
+        const ruta = await backend.obtenerRutaServidor();
         if (ruta) {
           nodos.btnExplore.title = `Carpeta raíz actual: ${ruta} (Click para cambiar)`;
-          RutaDisco.mostrar(ruta);
+          rutaDisco.mostrar(ruta);
         }
       } catch (err) {
         console.warn("⚠️ No se pudo conectar al servidor Bun para obtener la ruta raíz:", err);
-        RutaDisco.mostrar("Desconectado", "Servidor desconectado");
+        rutaDisco.mostrar("Desconectado", "Servidor desconectado");
         nodos.txtEstado.textContent = "❌ Servidor Bun apagado. Enciéndalo en consola para operar.";
       }
     }
@@ -146,18 +152,18 @@ const ServerConnectionFeature = {
       nodos.masterCheck.checked = false;
       if (nodos.btnSort) nodos.btnSort.disabled = true;
 
-      // El banner lo pinta la isla Preact #2 (BannerConexion) en su propio root.
+      // El banner lo pinta la isla Preact #2 (bannerConexion) en su propio root.
       // La lista (#ui-list) se oculta mientras el banner ocupa su lugar (se repuebla
       // al reconectar, en reaccionarAConexion). Ocultar/vaciar lo hace la propia isla
       // #4 vía setOculta (devuelve null → Preact quita los hijos), NO un innerHTML="" +
       // display:none externo que desincronizaría su vdom. mostrar() es idempotente.
-      ListaClases.setOculta(true);
-      BannerConexion.mostrar(tipo);
+      listaClases.setOculta(true);
+      bannerConexion.mostrar(tipo);
       nodos.loader.style.display = 'none';
 
       // El path del disco sólo se pierde si el que cayó es el servidor Bun (localhost).
       if (tipo === "servidor") {
-        RutaDisco.mostrar("Desconectado", "Servidor desconectado");
+        rutaDisco.mostrar("Desconectado", "Servidor desconectado");
       }
       nodos.txtEstado.innerHTML = info.estadoTxt;
       configurarBotonesUX("sincronizar-disco", info.botonTxt, true);
@@ -207,7 +213,7 @@ const ServerConnectionFeature = {
       // que falte (servidor tiene prioridad). Si ya está el banner correcto, no re-renderiza.
       if (!estado.completa) {
         const tipo = !estado.servidor ? "servidor" : "internet";
-        const b = BannerConexion.get();
+        const b = bannerConexion.get();
         if (!b.visible || b.tipo !== tipo) {
           activarEstadoOfflineUI(tipo);
         }
@@ -216,9 +222,9 @@ const ServerConnectionFeature = {
 
       // Ambas conexiones OK y veníamos de un banner offline: re-habilitar y re-escanear.
       if (completaAntes !== true) {
-        if (BannerConexion.get().visible) {
-          BannerConexion.ocultar();
-          ListaClases.setOculta(false); // restaura la lista (la repuebla el re-escaneo).
+        if (bannerConexion.get().visible) {
+          bannerConexion.ocultar();
+          listaClases.setOculta(false); // restaura la lista (la repuebla el re-escaneo).
 
           nodos.folder.disabled = false;
           nodos.btnExplore.disabled = false;
@@ -251,5 +257,4 @@ const ServerConnectionFeature = {
 // Exportación (ver docs/coding-standards.md). Sigue publicando el global porque el
 // resto del código vanilla lo consume sin importar; el `export` es lo que permite que
 // el bundler arme el grafo de dependencias y que Vitest importe el módulo.
-globalThis.ServerConnectionFeature = ServerConnectionFeature;
 export default ServerConnectionFeature;

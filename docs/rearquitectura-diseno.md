@@ -704,6 +704,34 @@ Un test cambió de seam, no de aserción: `onboarding` afirmaba que el descripto
 **en cada render** (reasignaba `window.SitioActivo` a mitad del test). Ahora el descriptor entra
 al montar, así que el test re-monta con el portal falso. Las 4 aserciones quedaron intactas.
 
+### Registro de la Fase 8a — los hermanos entran por import (2026-08-04)
+
+La fase decía "borrado del vanilla de la raíz", pero después de la 7 no quedaba nada que
+borrar: `popup.js`, `renderers.js` y `background.js` ya no son "vanilla suelto" sino módulos
+que exportan una factory y reciben lo suyo. Lo que sí quedaba era el **último mecanismo**
+heredado de la época sin bundler: módulos que se publican en `globalThis` para que otro los
+consuma sin importarlos.
+
+- **Los 8 módulos del popup entran por `import`**: las 4 factories de features y los 4 puentes
+  de islas (`ListaClases`, `RutaDisco`, `BannerConexion`, `OnboardingFeature`), que pasaron de
+  `window.X = _store` a `export default _store`.
+- **Se importan y NO se inyectan, a propósito.** No son adaptadores intercambiables —no hay una
+  segunda implementación de "la feature de filtros"—; lo inyectable son los servicios. La
+  excepción son los 3 puentes que consume `serverConnection.js`, que **sí** van por `ctx`
+  porque sus tests inyectan dobles: el seam existía por una razón y se respetó.
+- **`BunClient` y `Renderers` también cayeron**, y dos publicaciones que ya estaban muertas:
+  `AlmacenamientoChrome` y `MensajeriaChrome` se publicaban solas y no las leía nadie desde que
+  existe la composición.
+- **El bundle del popup pasó de 16 globals a 5.** Verificado en el compilado.
+
+**El efecto que más vale**: el orden de imports de `entrypoints/popup/main.js` **dejó de ser
+load-bearing** para todo esto. Antes, insertar un import en la posición equivocada rompía el
+popup en runtime sin que nada avisara; ahora esas dependencias las resuelve el grafo del
+bundler. Lo único que conserva esa fragilidad es el adaptador de sitio, y ahí es deliberado.
+
+Cuatro tests de islas afirmaban sobre `window.X` (uno se llamaba literalmente "expone el store
+global"). Pasaron a importar el puente: la API que afirman es la misma, cambió de dónde sale.
+
 ### El próximo paso (al 2026-08-04)
 
 Los cortes 5c, 6, 6a, 6b, 6c y 7a están cerrados; el detalle de cada uno vive en su §Registro
@@ -712,7 +740,7 @@ más arriba, no en esta tabla. Lo que queda:
 | Qué | Estado / riesgo |
 |---|---|
 | **Fase 7b — el popup como composición** | El trabajo real, y el de más riesgo que queda. `popup.js` son 1460 líneas y **168 lecturas de globals, 150 de ellas `AppState`**; ADR-0005 define que su núcleo —init, wiring, orquestación de scraping/render— **no se extrae**: la 7b no es vaciarlo, es que reciba sus dependencias en vez de leer globals. El agravante es la cobertura: el núcleo de `popup.js` no tiene tests unitarios **por diseño**, así que acá no hay red de caracterización como la que tuvo el SW. Medir antes, y considerar caracterizar primero lo que se vaya a tocar. |
-| **Fase 8 — borrado del vanilla que no pasó por un puerto** | Sólo con paridad de tests. Hoy son `popup.js`, `renderers.js`, lo que quede de `background.js` y los tres módulos hermanos del adaptador de sitio (`scraper.js`, `parserTitulos.js`, `resolverManifiesto.js`), que siguen en `.js` **a propósito**: entran como globals para que las puertas del sitio no dependan del orden de carga. |
+| **Fase 8b — el adaptador de sitio** | Lo único que queda con globals: `Utils`, `SitioActivo`, `SitioRamonNet`, `ParserTitulos`, `Scraper`, `ResolverManifiesto`. **No es deuda por inercia, es una decisión**: las puertas de `config.ts` los leen perezosamente para no atarse al orden de carga, y `scraper.js` **no puede referenciar nada** —se inyecta serializado en la pestaña del portal, y romperlo no lo detecta ni el bundler, ni el lint, ni `tsc`, ni la suite—. Antes de tocarlo hay que decidir si el precio vale la pena; puede ser correcto dejarlo como está. |
 | **Puertos sin construir**, sin urgencia | `notifications` (queda el listener `onClicked`), `tabs`/`windows`, `scripting`. Ninguno bloquea nada. |
 
 **Antes de empezar cualquiera de las dos: medir.** Es lo que más rindió en toda la
@@ -763,7 +791,8 @@ en el tramo intermedio (en `state.js` no pasaba: `conexion.js` y `bunClient.ts` 
 | 7a — Entrypoints como composición: **el service worker** | ✅ **Hecha** (2026-08-04) y **verificada en navegador** (2026-08-04): arranque del SW sin excepción, IPC del popup, descarga real de punta a punta y **arranque en frío** (worker detenido a mano desde `chrome://serviceworker-internals/` y despertado con el popup) — el último es el que cubre el riesgo específico de MV3 con los listeners. `background.js` exporta `iniciarServiceWorker(deps)` y recibe 8 colaboradores por parámetro; la composición dejó de publicar 6 globals cuyo único consumidor era él. Los 18 tests pasaron sin tocar una aserción. Detalle en §Registro de la Fase 7a. |
 | 7b — Entrypoints como composición: **el popup**, primer tramo | ✅ **Hecha** y **verificada en navegador** (2026-08-04): popup completo con sus 6 islas montadas y una descarga real, que es lo que cubre el cambio de secuencia del hoisting de imports. `popup.js` exporta `iniciarPopup(deps)` y ya no lee un solo servicio de `globalThis`; se fue el global `Mensajeria`. Medir corrigió la especificación de la fila: los otros 4 globals los leen también las features y las islas, así que la fase necesita 11 módulos y no uno. Detalle en §Registro de la Fase 7b. |
 | 7c — Islas y features reciben sus dependencias | ✅ **Hecha** y **verificada en navegador** (2026-08-04): las 3 islas que ahora monta el entrypoint aparecen y reaccionan (puntito, onboarding, campanita con un fallo real), el panel de telemetría pinta —o sea que la factory `crearRenderers` quedó bien cableada— y filtros/faceta/cola andan. Se fueron `AppState`, `Conexion`, `HistorialFallos` y `Renderers`; las 3 islas que dependían de un servicio dejaron de auto-montarse y las monta el entrypoint. **`Utils` sobrevive**, y no por olvido: lo leen los dos módulos `.js` del adaptador de sitio — lo destapó `no-undef`, no la medición. Detalle en §Registro de la Fase 7c. |
-| 8 — Borrado del vanilla de la raíz | ⏳ No iniciada |
+| 8a — Los módulos hermanos entran por import, no por global | ✅ **Hecha** (2026-08-04). Cayeron **11 globals**: las 4 factories de features, los 4 puentes de islas, `Renderers`, `BunClient` y las 2 publicaciones muertas de los adaptadores Chrome. El bundle del popup pasó de 16 globals a 5. Detalle en §Registro de la Fase 8a. |
+| 8b — El adaptador de sitio | ⏳ No iniciada. Es todo lo que queda: `Utils`, `SitioActivo`, `SitioRamonNet`, `ParserTitulos`, `Scraper` (+ `ResolverManifiesto` en el SW). **Ojo: acá el global es una decisión, no deuda por inercia** — las puertas de `config.ts` los leen perezosamente a propósito, y `scraper.js` no puede referenciar NADA porque se inyecta serializado en la pestaña del portal. Antes de tocar esto hay que decidir si el precio vale la pena. |
 
 **Por qué aparecieron 6b y 6c (2026-08-03)**: la estructura objetivo de arriba incluye
 `core/cola/` y `ui/`, pero ninguna fila de esta tabla las reclamaba — la 8 ("borrado del

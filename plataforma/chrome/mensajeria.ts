@@ -88,5 +88,4 @@ export const MensajeriaChrome: PuertoMensajeria = {
 };
 
 // Exportación (ver docs/coding-standards.md).
-(globalThis as Record<string, unknown>).MensajeriaChrome = MensajeriaChrome;
 export default MensajeriaChrome;

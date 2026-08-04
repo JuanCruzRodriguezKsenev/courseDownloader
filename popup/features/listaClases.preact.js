@@ -175,7 +175,9 @@ export function __resetStore() {
 }
 
 // Store global para que el vanilla (popup.js / serverConnection.js) empuje datos.
-if (typeof window !== 'undefined') window.ListaClases = _store;
+// FASE 8: el puente se EXPORTA; lo importa quien lo usa (popup.js) en vez de buscarlo en
+// window. Era el último acoplamiento por global de esta isla.
+export default _store;
 
 // Auto-montaje en el popup real (los tests importan los componentes, no montan acá).
 if (typeof document !== 'undefined') {

@@ -7,6 +7,8 @@
  * Los useEffect de Preact se agendan vía rAF → se flushean esperando varios ciclos.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+// FASE 8: el puente dejó de ser `OnboardingFeature` y se importa.
+import OnboardingFeature from './onboarding.preact.js';
 import { montar, __resetStore } from './onboarding.preact.js';
 import { SitioActivo } from '../../sitio/ramonnet/config.ts';
 
@@ -47,7 +49,7 @@ describe('Isla Preact: Onboarding', () => {
   });
 
   function crear(over = {}) {
-    return window.OnboardingFeature.crear({
+    return OnboardingFeature.crear({
       btnHelp: document.getElementById('help'),
       onExplore: over.onExplore || vi.fn(),
       onComplete: over.onComplete || vi.fn(),

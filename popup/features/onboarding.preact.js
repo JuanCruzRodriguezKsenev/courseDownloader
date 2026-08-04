@@ -169,5 +169,6 @@ const OnboardingFeature = {
   },
 };
 
-if (typeof window !== 'undefined') window.OnboardingFeature = OnboardingFeature;
+// FASE 8: el puente se exporta en vez de publicarse como global.
+export default OnboardingFeature;
 

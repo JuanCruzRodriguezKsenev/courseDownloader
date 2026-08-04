@@ -177,6 +177,20 @@
  * ==========================================================================
  */
 
+// FASE 8: los módulos hermanos entran por import, no por globals. Se importan y NO se
+// inyectan porque no son adaptadores intercambiables —no hay una segunda implementación de
+// "la feature de filtros"—; lo inyectable son los servicios, y ésos siguen entrando por
+// parámetro. Efecto colateral que importa: el orden de imports del entrypoint deja de ser
+// load-bearing para todo esto, porque ahora lo resuelve el grafo del bundler.
+import FacetaFeature from './popup/features/faceta.js';
+import FilterFeature from './popup/features/filters.js';
+import QueueFeature from './popup/features/queue.js';
+import ServerConnectionFeature from './popup/features/serverConnection.js';
+import OnboardingFeature from './popup/features/onboarding.preact.js';
+import ListaClases from './popup/features/listaClases.preact.js';
+import RutaDisco from './popup/features/rutaDisco.preact.js';
+import BannerConexion from './popup/features/bannerConexion.preact.js';
+
 /**
  * Arranca el popup con sus dependencias ya resueltas (Fase 7b).
  *
@@ -353,6 +367,10 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       nodos,
       appState,
       conexion,
+      listaClases: ListaClases,
+      rutaDisco: RutaDisco,
+      bannerConexion: BannerConexion,
+      backend,
       configurarBotonesUX: (modo, txt, dis) => configurarBotonesUX(modo, txt, dis),
       onReintentarCola: () => ejecutarReintentoDeCola(),
       onReescanearAula: () => ejecutarPaso1EscaneoRamonAutomatico()

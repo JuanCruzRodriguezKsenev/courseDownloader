@@ -67,7 +67,8 @@ export function __resetStore() {
 // clásicos) lo empuje. Los módulos ES corren deferred, antes de DOMContentLoaded,
 // así que window.RutaDisco existe cuando esos call-sites se ejecutan (todos corren
 // en el flujo de init o en respuesta a eventos, nunca durante el parse).
-if (typeof window !== 'undefined') window.RutaDisco = _store;
+// FASE 8: el puente se exporta en vez de publicarse como global.
+export default _store;
 
 // Auto-montaje en el popup real (no corre en los tests, que importan los componentes).
 if (typeof document !== 'undefined') {

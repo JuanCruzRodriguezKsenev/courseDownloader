@@ -26,21 +26,13 @@ const globalesDelProyecto = {
   // `Utils` es el único servicio que sigue siendo global: lo leen parserTitulos.js y
   // resolverManifiesto.js, los dos módulos .js del adaptador de sitio. Se va con la Fase 8.
   Utils: "readonly",
-  BunClient: "readonly",
   Scraper: "readonly",
-  ServerConnectionFeature: "readonly",
-  QueueFeature: "readonly",
-  FilterFeature: "readonly",
-  FacetaFeature: "readonly",
+
   // Adaptador de sitio (Capa 2 — ADR-0008): sitio/<portal>/config.js.
   SitioRamonNet: "readonly",
   SitioActivo: "readonly",
   ResolverManifiesto: "readonly",
   ParserTitulos: "readonly",
-  BannerConexion: "readonly",
-  ListaClases: "readonly",
-  OnboardingFeature: "readonly",
-  RutaDisco: "readonly",
 };
 
 module.exports = [
