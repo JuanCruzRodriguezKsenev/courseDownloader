@@ -25,7 +25,7 @@ const globalesDelProyecto = {
   // Cola, HlsEngine— salieron en la Fase 7a: su único consumidor era background.js, que
   // ahora los recibe por parámetro. Ya no son globals cross-archivo, así que declararlos
   // volvería a permitir leerlos de globalThis sin que no-undef diga nada.
-  Mensajeria: "readonly",
+  // Mensajeria salió en la Fase 7b: su único lector era popup.js, que ahora lo recibe.
   AppState: "readonly",
   Renderers: "readonly",
   Scraper: "readonly",

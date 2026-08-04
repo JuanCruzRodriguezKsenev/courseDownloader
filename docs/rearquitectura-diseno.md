@@ -637,6 +637,44 @@ Efecto de borde que conviene mirar en la 7b: `plataforma/chrome/almacenamiento.t
 `MensajeriaChrome` al evaluarse. No lo consume nadie; quedó de antes de que existiera la
 composición.
 
+### Registro de la Fase 7b — el popup como composición, primer tramo (2026-08-04)
+
+**Medir volvió a corregir el plan, y esta vez el error era de especificación.** La fila decía
+"el popup como composición" como si el trabajo fuera `popup.js`. No lo es: los cinco globals
+que publicaba la composición **no los lee sólo el orquestador**.
+
+| Global | Módulos que lo leen | Call-sites |
+|---|---|---|
+| `AppState` | 7 — `popup.js` (153) + `queue`, `faceta`, `filters`, `serverConnection`, `onboarding`, `listaClases` | 197 |
+| `Conexion` | 7 — `serverConnection` (10), `conexionHeader`, `queue`, `rutaDisco`, `bannerConexion`, `onboarding`; **`popup.js` no lo lee** | 26 |
+| `Utils` | 3 — `popup.js`, `renderers.js`, `listaClases` | 7 |
+| `HistorialFallos` | 1 — la isla `campanita`; **`popup.js` no lo lee** | 6 |
+| `Mensajeria` | 1 — `popup.js` | 5 |
+
+O sea: **convertir `popup.js` entero borra exactamente UN global de cinco** (`Mensajeria`), y
+dos de los cinco ni siquiera lo tienen como lector. El objetivo de la fase —que nadie lea de
+`globalThis`— necesita **11 módulos**, no uno. Lo hecho en este tramo:
+
+- `popup.js` exporta `iniciarPopup(deps)` y recibe 6 servicios por parámetro (`appState`,
+  `mensajeria`, `utils`, `backend`, `sitio`, `renderers`). El archivo era **un solo
+  `addEventListener('DOMContentLoaded', ...)` de la línea 180 a la 1461**, así que el
+  envoltorio fue mecánico: mismo truco que la 7a, y las 168 lecturas quedaron en cero
+  verificadas por grep sobre el cuerpo.
+- Se fue el global `Mensajeria`.
+- **Lo que NO entró, a propósito**: las 7 referencias que le quedan a `popup.js` no son
+  servicios sino **módulos** —`ListaClases` (10), `RutaDisco` (6) y las cinco factories de
+  features—. Inyectarlas choca con que **las 6 islas se auto-montan al evaluarse**
+  (`if (typeof document !== 'undefined') montar(...)` al pie de cada archivo), que es
+  justamente lo que hace load-bearing el orden de imports del entrypoint. Ese nudo se corta
+  haciendo que el entrypoint las monte, y es un corte propio.
+
+**Efecto de orden de evaluación que hay que tener presente** (y verificar en navegador): en ES
+los `import` se hoistean, así que las islas ahora se montan **antes** de que se registre el
+listener de `DOMContentLoaded`, no después como cuando `popup.js` se importaba por su efecto
+secundario. Es seguro —las islas leen sus globals perezosamente y el listener igual queda
+registrado antes de que el evento dispare—, pero es un cambio real de secuencia y el bundler
+no dice nada.
+
 ### El próximo paso (al 2026-08-04)
 
 Los cortes 5c, 6, 6a, 6b, 6c y 7a están cerrados; el detalle de cada uno vive en su §Registro
@@ -694,7 +732,8 @@ en el tramo intermedio (en `state.js` no pasaba: `conexion.js` y `bunClient.ts` 
 | 6b — Cola de descarga → `core/cola/` | ✅ **Hecha** (2026-08-04, en dos tramos: `SessionState` primero, el bucle después). `background.js` pasó de 958 a 451 líneas. Salieron con él `core/cola/estadosProgreso.ts`, `plataforma/chrome/notificaciones.ts` y `plataforma/chrome/volcadoLegacy.ts`. Nota original: Va **después** de la 6 (el bucle maneja al motor) y de que el SW tenga sus puertos (5c: IPC receptor + alarmas). Es el bloque de lógica más grande que queda sin migrar, y ya tiene red: los 12 tests de caracterización del bucle y el auto-heal de `background.test.js`. |
 | 6c — UI: split genérico vs. de sitio | ✅ **Hecha** (2026-08-04), y resultó ser **mucho más chica de lo diseñado**: no hubo nada que partir. La UI ya era genérica salvo el copy del onboarding, que se parametrizó por `PuertoSitio.nombre`. El split de carpetas y el BEM/co-locación de CSS quedan **explícitamente descartados** — ver §Fase 6c. |
 | 7a — Entrypoints como composición: **el service worker** | ✅ **Hecha** (2026-08-04) y **verificada en navegador** (2026-08-04): arranque del SW sin excepción, IPC del popup, descarga real de punta a punta y **arranque en frío** (worker detenido a mano desde `chrome://serviceworker-internals/` y despertado con el popup) — el último es el que cubre el riesgo específico de MV3 con los listeners. `background.js` exporta `iniciarServiceWorker(deps)` y recibe 8 colaboradores por parámetro; la composición dejó de publicar 6 globals cuyo único consumidor era él. Los 18 tests pasaron sin tocar una aserción. Detalle en §Registro de la Fase 7a. |
-| 7b — Entrypoints como composición: **el popup** | ⏳ No iniciada. 168 lecturas de globals en `popup.js`, 150 de ellas `AppState`, y sin red de tests sobre su núcleo (ADR-0005). Es el corte de más riesgo que queda. |
+| 7b — Entrypoints como composición: **el popup**, primer tramo | ✅ **Hecha** (2026-08-04). `popup.js` exporta `iniciarPopup(deps)` y ya no lee un solo servicio de `globalThis`; se fue el global `Mensajeria`. Medir corrigió la especificación de la fila: los otros 4 globals los leen también las features y las islas, así que la fase necesita 11 módulos y no uno. Detalle en §Registro de la Fase 7b. |
+| 7c — Islas y features reciben sus dependencias | ⏳ No iniciada. Es lo que borra los 4 globals que quedan (`AppState`, `Conexion`, `Utils`, `HistorialFallos`). El nudo a cortar: **las 6 islas se auto-montan al evaluarse**, y eso es lo que hace load-bearing el orden de imports del entrypoint del popup. Cada isla tiene test propio, así que hay red — a diferencia del núcleo de `popup.js`. |
 | 8 — Borrado del vanilla de la raíz | ⏳ No iniciada |
 
 **Por qué aparecieron 6b y 6c (2026-08-03)**: la estructura objetivo de arriba incluye

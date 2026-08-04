@@ -177,1285 +177,1307 @@
  * ==========================================================================
  */
 
-document.addEventListener('DOMContentLoaded', async () => {
-  console.log("🤖 [POPUP-CORE] Orquestador unificado V5.4.1 activo. Sincronización de escáner híbrido (Chrome/Bun) integrada.");
+/**
+ * Arranca el popup con sus dependencias ya resueltas (Fase 7b).
+ *
+ * Antes este archivo se evaluaba por su efecto secundario y buscaba en `globalThis` todo lo
+ * que necesitaba. Ahora lo llama `entrypoints/popup/main.js` pasándole las piezas por nombre.
+ * El `addEventListener` sigue registrándose en el mismo momento: los módulos ES son
+ * diferidos, así que el entrypoint termina de evaluarse ANTES de que dispare
+ * `DOMContentLoaded`, igual que cuando el listener se registraba al importar.
+ *
+ * Lo que queda adentro es lo que ADR-0005 define como el estado final del orquestador: init,
+ * wiring de features/islas y la orquestación de scraping/render/IPC. **No se extrae.**
+ *
+ * @param {object} deps
+ * @param {object} deps.appState    Estado del popup (`core/estado/appState.ts`).
+ * @param {object} deps.mensajeria  PuertoMensajeria: el IPC hacia el service worker.
+ * @param {object} deps.utils       Ensamblado `Utils` (Fase 6a).
+ * @param {object} deps.backend     Cliente del backend Bun.
+ * @param {object} deps.sitio       Adaptador de sitio (Capa 2).
+ * @param {object} deps.renderers   Pintado vanilla que todavía no es isla.
+ */
+export function iniciarPopup({ appState, mensajeria, utils, backend, sitio, renderers }) {
+  document.addEventListener('DOMContentLoaded', async () => {
+    console.log("🤖 [POPUP-CORE] Orquestador unificado V5.4.1 activo. Sincronización de escáner híbrido (Chrome/Bun) integrada.");
 
-  const nodos = {
-    btnAction:       document.getElementById('ui-btn-action'),
-    btnStartQueue:   document.getElementById('ui-btn-start-queue'),
-    txtEstado:       document.getElementById('ui-msg-status'),
-    // #ui-list ya no se referencia por nodos: es dueño la isla Preact #4 (window.ListaClases).
-    search:          document.getElementById('ui-search'),
-    btnFilterPills:  document.getElementById('ui-btn-filter-pills'),
-    filterMenu:      document.getElementById('ui-filter-menu'),
-    masterCheck:     document.getElementById('ui-master-check'),
-    folder:          document.getElementById('ui-path-folder'),
-    progressCont:    document.getElementById('ui-progress-container'),
-    progressBar:     document.getElementById('ui-progress-bar'),
-    loader:          document.getElementById('ui-loader'),
-    loaderTxt:       document.getElementById('ui-loader-txt'),
-    filtersBar:      document.getElementById('ui-filter-bar'),
-    queueBadge:      document.getElementById('ui-queue-badge'),
-    tabDisp:         document.getElementById('tab-available'),
-    tabCola:         document.getElementById('tab-queue'),
-    cancelBox:       document.getElementById('ui-cancel-box'),
-    btnSoftCancel:   document.getElementById('ui-btn-soft-cancel'),
-    btnHardCancel:   document.getElementById('ui-btn-hard-cancel'),
-    panelTel:        document.getElementById('ui-telemetry'),
-    bytes:           document.getElementById('ui-tel-bytes'),
-    speed:           document.getElementById('ui-tel-speed'),
-    frags:           document.getElementById('ui-tel-frags'),
-    btnExplore:      document.getElementById('ui-btn-explore'),
-    facetaBadge:    document.getElementById('ui-faceta-badge'),
-    // El texto de la ruta (#preact-pc-path) lo posee la isla Preact
-    // features/rutaDisco.preact.js; se empuja vía window.RutaDisco (no hay ref nodos.*).
-    btnSort:         document.getElementById('ui-btn-sort'),
-    btnToggleSelect: document.getElementById('ui-btn-toggle-select'),
-    btnHelp:         document.getElementById('ui-btn-help')
-    // El overlay del onboarding y su DOM interno los posee la isla Preact
-    // features/onboarding.preact.js (ver ADR-0006). Ya no hay refs nodos.* a él.
-  };
+    const nodos = {
+      btnAction:       document.getElementById('ui-btn-action'),
+      btnStartQueue:   document.getElementById('ui-btn-start-queue'),
+      txtEstado:       document.getElementById('ui-msg-status'),
+      // #ui-list ya no se referencia por nodos: es dueño la isla Preact #4 (window.ListaClases).
+      search:          document.getElementById('ui-search'),
+      btnFilterPills:  document.getElementById('ui-btn-filter-pills'),
+      filterMenu:      document.getElementById('ui-filter-menu'),
+      masterCheck:     document.getElementById('ui-master-check'),
+      folder:          document.getElementById('ui-path-folder'),
+      progressCont:    document.getElementById('ui-progress-container'),
+      progressBar:     document.getElementById('ui-progress-bar'),
+      loader:          document.getElementById('ui-loader'),
+      loaderTxt:       document.getElementById('ui-loader-txt'),
+      filtersBar:      document.getElementById('ui-filter-bar'),
+      queueBadge:      document.getElementById('ui-queue-badge'),
+      tabDisp:         document.getElementById('tab-available'),
+      tabCola:         document.getElementById('tab-queue'),
+      cancelBox:       document.getElementById('ui-cancel-box'),
+      btnSoftCancel:   document.getElementById('ui-btn-soft-cancel'),
+      btnHardCancel:   document.getElementById('ui-btn-hard-cancel'),
+      panelTel:        document.getElementById('ui-telemetry'),
+      bytes:           document.getElementById('ui-tel-bytes'),
+      speed:           document.getElementById('ui-tel-speed'),
+      frags:           document.getElementById('ui-tel-frags'),
+      btnExplore:      document.getElementById('ui-btn-explore'),
+      facetaBadge:    document.getElementById('ui-faceta-badge'),
+      // El texto de la ruta (#preact-pc-path) lo posee la isla Preact
+      // features/rutaDisco.preact.js; se empuja vía window.RutaDisco (no hay ref nodos.*).
+      btnSort:         document.getElementById('ui-btn-sort'),
+      btnToggleSelect: document.getElementById('ui-btn-toggle-select'),
+      btnHelp:         document.getElementById('ui-btn-help')
+      // El overlay del onboarding y su DOM interno los posee la isla Preact
+      // features/onboarding.preact.js (ver ADR-0006). Ya no hay refs nodos.* a él.
+    };
 
-  // Fase 5c: antes esto guardaba la REFERENCIA al listener, sólo para poder pasársela después
-  // a removeListener. El puerto de mensajería devuelve directamente la función de baja, así
-  // que acá se guarda eso: desengancharlo es llamarla.
-  let desengancharOyenteWorker = null;
-  let modoSeleccionFilaActivo = false;
-  const filtrosActivos = {
-    estados: new Set(),
-    materias: new Set(),
-    valoresFaceta: new Set()
-  };
+    // Fase 5c: antes esto guardaba la REFERENCIA al listener, sólo para poder pasársela después
+    // a removeListener. El puerto de mensajería devuelve directamente la función de baja, así
+    // que acá se guarda eso: desengancharlo es llamarla.
+    let desengancharOyenteWorker = null;
+    let modoSeleccionFilaActivo = false;
+    const filtrosActivos = {
+      estados: new Set(),
+      materias: new Set(),
+      valoresFaceta: new Set()
+    };
 
-  // --- Isla Preact #3: Onboarding (welcome tour) — features/onboarding.preact.js ---
-  // Se cablea temprano porque el flujo de inicialización (más abajo) invoca
-  // mostrarOnboarding. lanzarSeleccionCarpetaFisica es una declaración de función
-  // (hoisted), así que la referencia diferida es segura.
-  // La isla Preact features/onboarding.preact.js expone window.OnboardingFeature.crear
-  // (misma firma que la feature vieja). Le pasamos el botón de ayuda (vive en el header,
-  // fuera de la isla) y los callbacks cruzados. El estado del servidor del slide de la
-  // carpeta ya NO se empuja desde acá: la isla lo deriva del daemon Conexion.
-  const _onboardingFeature = OnboardingFeature.crear({
-    btnHelp: nodos.btnHelp,
-    onExplore: () => lanzarSeleccionCarpetaFisica(),
-    // Al cerrar el tour de la PRIMERA vez (no el reabierto por el botón de ayuda),
-    // recién ahí conectamos al servidor y escaneamos el aula, para que el loader no
-    // aparezca detrás/antes del tutorial. conectarYArrancar es hoisted (ver init).
-    onComplete: () => conectarYArrancar()
-  });
-  const mostrarOnboarding = _onboardingFeature.mostrarOnboarding;
+    // --- Isla Preact #3: Onboarding (welcome tour) — features/onboarding.preact.js ---
+    // Se cablea temprano porque el flujo de inicialización (más abajo) invoca
+    // mostrarOnboarding. lanzarSeleccionCarpetaFisica es una declaración de función
+    // (hoisted), así que la referencia diferida es segura.
+    // La isla Preact features/onboarding.preact.js expone window.OnboardingFeature.crear
+    // (misma firma que la feature vieja). Le pasamos el botón de ayuda (vive en el header,
+    // fuera de la isla) y los callbacks cruzados. El estado del servidor del slide de la
+    // carpeta ya NO se empuja desde acá: la isla lo deriva del daemon Conexion.
+    const _onboardingFeature = OnboardingFeature.crear({
+      btnHelp: nodos.btnHelp,
+      onExplore: () => lanzarSeleccionCarpetaFisica(),
+      // Al cerrar el tour de la PRIMERA vez (no el reabierto por el botón de ayuda),
+      // recién ahí conectamos al servidor y escaneamos el aula, para que el loader no
+      // aparezca detrás/antes del tutorial. conectarYArrancar es hoisted (ver init).
+      onComplete: () => conectarYArrancar()
+    });
+    const mostrarOnboarding = _onboardingFeature.mostrarOnboarding;
 
-  // El listener del click en el badge de la faceta vive ahora en FacetaFeature
-  // (popup/features/faceta.js), cableado en su crear() más abajo.
+    // El listener del click en el badge de la faceta vive ahora en FacetaFeature
+    // (popup/features/faceta.js), cableado en su crear() más abajo.
 
-  if (nodos.btnSort) {
-    nodos.btnSort.addEventListener("click", () => {
-      if (AppState.pestañaActiva === "cola") {
-        if (AppState.ordenAscendente === true) {
-          AppState.ordenAscendente = false;
-        } else if (AppState.ordenAscendente === false) {
-          AppState.ordenAscendente = null; // FIFO natural
+    if (nodos.btnSort) {
+      nodos.btnSort.addEventListener("click", () => {
+        if (appState.pestañaActiva === "cola") {
+          if (appState.ordenAscendente === true) {
+            appState.ordenAscendente = false;
+          } else if (appState.ordenAscendente === false) {
+            appState.ordenAscendente = null; // FIFO natural
+          } else {
+            appState.ordenAscendente = true;
+          }
         } else {
-          AppState.ordenAscendente = true;
+          appState.ordenAscendente = (appState.ordenAscendente === null) ? true : !appState.ordenAscendente;
         }
-      } else {
-        AppState.ordenAscendente = (AppState.ordenAscendente === null) ? true : !AppState.ordenAscendente;
-      }
-      AppState.respaldar();
-      actualizarIconoSorteo();
-      renderizarListadoInterfaz();
-    });
-  }
+        appState.respaldar();
+        actualizarIconoSorteo();
+        renderizarListadoInterfaz();
+      });
+    }
 
-  if (nodos.btnToggleSelect) {
-    nodos.btnToggleSelect.addEventListener("click", () => {
-      modoSeleccionFilaActivo = !modoSeleccionFilaActivo;
-      if (modoSeleccionFilaActivo) {
-        nodos.btnToggleSelect.textContent = "Cancelar";
-        nodos.btnToggleSelect.title = "Desactivar selección múltiple";
-        const wrapper = document.getElementById('ui-master-select-wrapper');
-        if (wrapper) wrapper.style.display = 'flex';
-      } else {
-        nodos.btnToggleSelect.textContent = "Seleccionar";
-        nodos.btnToggleSelect.title = "Activar selección múltiple";
-        const wrapper = document.getElementById('ui-master-select-wrapper');
-        if (wrapper) wrapper.style.display = 'none';
+    if (nodos.btnToggleSelect) {
+      nodos.btnToggleSelect.addEventListener("click", () => {
+        modoSeleccionFilaActivo = !modoSeleccionFilaActivo;
+        if (modoSeleccionFilaActivo) {
+          nodos.btnToggleSelect.textContent = "Cancelar";
+          nodos.btnToggleSelect.title = "Desactivar selección múltiple";
+          const wrapper = document.getElementById('ui-master-select-wrapper');
+          if (wrapper) wrapper.style.display = 'flex';
+        } else {
+          nodos.btnToggleSelect.textContent = "Seleccionar";
+          nodos.btnToggleSelect.title = "Activar selección múltiple";
+          const wrapper = document.getElementById('ui-master-select-wrapper');
+          if (wrapper) wrapper.style.display = 'none';
         
-        // Deseleccionar todas las clases de la fila al cancelar
-        AppState.colaDescargas.forEach(c => c.seleccionado = false);
-        nodos.masterCheck.checked = false;
-        AppState.respaldar();
-      }
-      actualizarContadoresBoton();
-      aplicarFiltrosCruzados();
-    });
-  }
-
-  // Toggle visibility of popover menu
-  if (nodos.btnFilterPills) {
-    nodos.btnFilterPills.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const open = nodos.filterMenu.style.display === 'flex';
-      if (!open) {
-        renderizarFiltrosMenuPopover();
-      }
-      nodos.filterMenu.style.display = open ? 'none' : 'flex';
-      nodos.btnFilterPills.classList.toggle('open', !open);
-    });
-  }
-
-  // Close when clicking outside
-  document.addEventListener('click', () => {
-    if (nodos.filterMenu) {
-      nodos.filterMenu.style.display = 'none';
+          // Deseleccionar todas las clases de la fila al cancelar
+          appState.colaDescargas.forEach(c => c.seleccionado = false);
+          nodos.masterCheck.checked = false;
+          appState.respaldar();
+        }
+        actualizarContadoresBoton();
+        aplicarFiltrosCruzados();
+      });
     }
+
+    // Toggle visibility of popover menu
     if (nodos.btnFilterPills) {
-      nodos.btnFilterPills.classList.remove('open');
+      nodos.btnFilterPills.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const open = nodos.filterMenu.style.display === 'flex';
+        if (!open) {
+          renderizarFiltrosMenuPopover();
+        }
+        nodos.filterMenu.style.display = open ? 'none' : 'flex';
+        nodos.btnFilterPills.classList.toggle('open', !open);
+      });
     }
-  });
 
-  // Prevent close when clicking inside the popover
-  if (nodos.filterMenu) {
-    nodos.filterMenu.addEventListener('click', (e) => {
-      e.stopPropagation();
-    });
-  }
-  let verificandoConexionBoton = false;
-  let reintentandoColaActivo = false;
-
-  // --- Feature: conexión al servidor Bun (monitoreo/offline) — popup/features/serverConnection.js ---
-  // El módulo es dueño de su propio estado de monitoreo (intervalReconexion,
-  // comprobacionEnProgreso). Las llamadas cruzadas a queue/scan/UX se inyectan como
-  // callbacks (referencias diferidas a funciones hoisted de popup.js).
-  const _serverConnection = ServerConnectionFeature.crear({
-    nodos,
-    configurarBotonesUX: (modo, txt, dis) => configurarBotonesUX(modo, txt, dis),
-    onReintentarCola: () => ejecutarReintentoDeCola(),
-    onReescanearAula: () => ejecutarPaso1EscaneoRamonAutomatico()
-  });
-  const activarEstadoOfflineUI = _serverConnection.activarEstadoOfflineUI;
-  // Un único detector de estado de conexión, siempre activo mientras el popup está
-  // abierto: mantiene el indicador al día en ambos sentidos y recupera la cola/aula al
-  // reconectar. mostrarAlertDeConexionCaida lo (re)dispara vía este alias (idempotente).
-  const iniciarMonitoreoServidor = _serverConnection.iniciarDetectorEstado;
-  _serverConnection.iniciarDetectorEstado();
-
-  // Feature: mutaciones de la cola (agregar/quitar en lote). Ver popup/features/queue.js.
-  const _queue = QueueFeature.crear({
-    nodos,
-    aplicarFiltros: () => aplicarFiltrosCruzados(),
-    actualizarContadores: () => actualizarContadoresBoton(),
-    resetSeleccionFila: () => { modoSeleccionFilaActivo = false; },
-    onRestaurarPanel: (txt, limpiarCola) => restaurarPanelPorInterrupcion(txt, limpiarCola),
-    mostrarAlerta: (tipo, titulo) => mostrarAlertDeConexionCaida(tipo, titulo),
-    congelarUI: (titulo, pct, tel) => congelarUIPorDescargaActiva(titulo, pct, tel),
-    renderizar: () => renderizarListadoInterfaz(),
-    setVerificandoConexion: (v) => { verificandoConexionBoton = v; },
-    setReintentandoCola: (v) => { reintentandoColaActivo = v; },
-    // PuertoMensajeria (Fase 5c): lo publica plataforma/composicion.ts. La feature ya no
-    // toca chrome.runtime; el IPC entra por acá.
-    mensajeria: Mensajeria
-  });
-  const encolarItemsEnCaliente = _queue.encolarItemsEnCaliente;
-  const quitarItemsDeColaEnLote = _queue.quitarItemsDeColaEnLote;
-  const ejecutarReintentoDeCola = _queue.ejecutarReintentoDeCola;
-
-  // Feature: filtros y búsqueda. filtrosActivos se pasa POR REFERENCIA (objeto
-  // compartido) para no romper los call-sites externos que lo mutan (conmutarPestañaA).
-  // Ver popup/features/filters.js.
-  const _filters = FilterFeature.crear({
-    nodos,
-    filtrosActivos,
-    sitio: SitioActivo,
-    renderizar: () => renderizarListadoInterfaz(),
-    actualizarContadores: () => actualizarContadoresBoton()
-  });
-  const coincideConFiltrosCola = _filters.coincideConFiltrosCola;
-  const aplicarFiltrosCruzados = _filters.aplicarFiltrosCruzados;
-  const desbanearFiltros = _filters.desbanearFiltros;
-  const actualizarPillsUIState = _filters.actualizarPillsUIState;
-  const renderizarFiltrosMenuPopover = _filters.renderizarFiltrosMenuPopover;
-
-  // Feature: faceta del listado (badge + asistente de autoselección + su modal, y el
-  // listener del click en el badge). Genérica: qué ES la faceta —en Ramón Net, la
-  // cátedra— lo aporta el descriptor del sitio activo. Depende de aplicarFiltrosCruzados
-  // (arriba) y se instancia antes de init/scraping, que llaman actualizarBadgeFaceta y
-  // verificarYMostrarAsistenteFaceta. Ver popup/features/faceta.js + sitio/ramonnet/config.js.
-  const _faceta = FacetaFeature.crear({
-    badge: nodos.facetaBadge,
-    sitio: SitioActivo,
-    aplicarFiltros: () => aplicarFiltrosCruzados()
-  });
-  const actualizarBadgeFaceta = _faceta.actualizarBadge;
-  const verificarYMostrarAsistenteFaceta = _faceta.verificarYMostrarAsistente;
-  const perteneceASeleccionFaceta = _faceta.perteneceASeleccion;
-
-  nodos.btnAction.setAttribute('data-modo', 'sincronizar-disco');
-
-  // Forzar re-escaneo automático si la pestaña de Ramón Net cambia de dirección o se recarga
-  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status === 'complete' && tab.active && SitioActivo.esPaginaDelSitio(tab.url)) {
-      console.log("🔄 [POPUP] Pestaña Ramón Net actualizada. Re-escaneando...");
-      if (!AppState.fallaConexionActiva) {
-        ejecutarPaso1EscaneoRamonAutomatico();
+    // Close when clicking outside
+    document.addEventListener('click', () => {
+      if (nodos.filterMenu) {
+        nodos.filterMenu.style.display = 'none';
       }
-    }
-  });
+      if (nodos.btnFilterPills) {
+        nodos.btnFilterPills.classList.remove('open');
+      }
+    });
 
-  // Forzar re-escaneo si el usuario cambia a la pestaña de Ramón Net
-  chrome.tabs.onActivated.addListener((activeInfo) => {
-    chrome.tabs.get(activeInfo.tabId, (tab) => {
-      // OJO: este lastError es el de chrome.tabs, no IPC. El IPC de este archivo ya pasó
-      // entero al PuertoMensajeria (Fase 5c); lo que queda de chrome.* acá es tabs +
-      // scripting, que esperan sus propios puertos.
-      if (chrome.runtime.lastError || !tab) return;
-      if (tab.active && SitioActivo.esPaginaDelSitio(tab.url)) {
-        console.log("🔄 [POPUP] Pestaña Ramón Net enfocada. Re-escaneando...");
-        if (!AppState.fallaConexionActiva) {
+    // Prevent close when clicking inside the popover
+    if (nodos.filterMenu) {
+      nodos.filterMenu.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+    }
+    let verificandoConexionBoton = false;
+    let reintentandoColaActivo = false;
+
+    // --- Feature: conexión al servidor Bun (monitoreo/offline) — popup/features/serverConnection.js ---
+    // El módulo es dueño de su propio estado de monitoreo (intervalReconexion,
+    // comprobacionEnProgreso). Las llamadas cruzadas a queue/scan/UX se inyectan como
+    // callbacks (referencias diferidas a funciones hoisted de popup.js).
+    const _serverConnection = ServerConnectionFeature.crear({
+      nodos,
+      configurarBotonesUX: (modo, txt, dis) => configurarBotonesUX(modo, txt, dis),
+      onReintentarCola: () => ejecutarReintentoDeCola(),
+      onReescanearAula: () => ejecutarPaso1EscaneoRamonAutomatico()
+    });
+    const activarEstadoOfflineUI = _serverConnection.activarEstadoOfflineUI;
+    // Un único detector de estado de conexión, siempre activo mientras el popup está
+    // abierto: mantiene el indicador al día en ambos sentidos y recupera la cola/aula al
+    // reconectar. mostrarAlertDeConexionCaida lo (re)dispara vía este alias (idempotente).
+    const iniciarMonitoreoServidor = _serverConnection.iniciarDetectorEstado;
+    _serverConnection.iniciarDetectorEstado();
+
+    // Feature: mutaciones de la cola (agregar/quitar en lote). Ver popup/features/queue.js.
+    const _queue = QueueFeature.crear({
+      nodos,
+      aplicarFiltros: () => aplicarFiltrosCruzados(),
+      actualizarContadores: () => actualizarContadoresBoton(),
+      resetSeleccionFila: () => { modoSeleccionFilaActivo = false; },
+      onRestaurarPanel: (txt, limpiarCola) => restaurarPanelPorInterrupcion(txt, limpiarCola),
+      mostrarAlerta: (tipo, titulo) => mostrarAlertDeConexionCaida(tipo, titulo),
+      congelarUI: (titulo, pct, tel) => congelarUIPorDescargaActiva(titulo, pct, tel),
+      renderizar: () => renderizarListadoInterfaz(),
+      setVerificandoConexion: (v) => { verificandoConexionBoton = v; },
+      setReintentandoCola: (v) => { reintentandoColaActivo = v; },
+      // PuertoMensajeria (Fase 5c): lo publica plataforma/composicion.ts. La feature ya no
+      // toca chrome.runtime; el IPC entra por acá.
+      mensajeria: mensajeria
+    });
+    const encolarItemsEnCaliente = _queue.encolarItemsEnCaliente;
+    const quitarItemsDeColaEnLote = _queue.quitarItemsDeColaEnLote;
+    const ejecutarReintentoDeCola = _queue.ejecutarReintentoDeCola;
+
+    // Feature: filtros y búsqueda. filtrosActivos se pasa POR REFERENCIA (objeto
+    // compartido) para no romper los call-sites externos que lo mutan (conmutarPestañaA).
+    // Ver popup/features/filters.js.
+    const _filters = FilterFeature.crear({
+      nodos,
+      filtrosActivos,
+      sitio: sitio,
+      renderizar: () => renderizarListadoInterfaz(),
+      actualizarContadores: () => actualizarContadoresBoton()
+    });
+    const coincideConFiltrosCola = _filters.coincideConFiltrosCola;
+    const aplicarFiltrosCruzados = _filters.aplicarFiltrosCruzados;
+    const desbanearFiltros = _filters.desbanearFiltros;
+    const actualizarPillsUIState = _filters.actualizarPillsUIState;
+    const renderizarFiltrosMenuPopover = _filters.renderizarFiltrosMenuPopover;
+
+    // Feature: faceta del listado (badge + asistente de autoselección + su modal, y el
+    // listener del click en el badge). Genérica: qué ES la faceta —en Ramón Net, la
+    // cátedra— lo aporta el descriptor del sitio activo. Depende de aplicarFiltrosCruzados
+    // (arriba) y se instancia antes de init/scraping, que llaman actualizarBadgeFaceta y
+    // verificarYMostrarAsistenteFaceta. Ver popup/features/faceta.js + sitio/ramonnet/config.js.
+    const _faceta = FacetaFeature.crear({
+      badge: nodos.facetaBadge,
+      sitio: sitio,
+      aplicarFiltros: () => aplicarFiltrosCruzados()
+    });
+    const actualizarBadgeFaceta = _faceta.actualizarBadge;
+    const verificarYMostrarAsistenteFaceta = _faceta.verificarYMostrarAsistente;
+    const perteneceASeleccionFaceta = _faceta.perteneceASeleccion;
+
+    nodos.btnAction.setAttribute('data-modo', 'sincronizar-disco');
+
+    // Forzar re-escaneo automático si la pestaña de Ramón Net cambia de dirección o se recarga
+    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+      if (changeInfo.status === 'complete' && tab.active && sitio.esPaginaDelSitio(tab.url)) {
+        console.log("🔄 [POPUP] Pestaña Ramón Net actualizada. Re-escaneando...");
+        if (!appState.fallaConexionActiva) {
           ejecutarPaso1EscaneoRamonAutomatico();
         }
       }
     });
-  });
 
-  // Conecta con el servidor Bun, sincroniza con el SW y arranca el escaneo del aula.
-  // Se invoca al inicio si el tutorial ya estaba completo, o al cerrar el onboarding
-  // de la primera vez (onComplete). Es dueña de su propio loader (mostrar/ocultar).
-  async function conectarYArrancar() {
+    // Forzar re-escaneo si el usuario cambia a la pestaña de Ramón Net
+    chrome.tabs.onActivated.addListener((activeInfo) => {
+      chrome.tabs.get(activeInfo.tabId, (tab) => {
+        // OJO: este lastError es el de chrome.tabs, no IPC. El IPC de este archivo ya pasó
+        // entero al PuertoMensajeria (Fase 5c); lo que queda de chrome.* acá es tabs +
+        // scripting, que esperan sus propios puertos.
+        if (chrome.runtime.lastError || !tab) return;
+        if (tab.active && sitio.esPaginaDelSitio(tab.url)) {
+          console.log("🔄 [POPUP] Pestaña Ramón Net enfocada. Re-escaneando...");
+          if (!appState.fallaConexionActiva) {
+            ejecutarPaso1EscaneoRamonAutomatico();
+          }
+        }
+      });
+    });
+
+    // Conecta con el servidor Bun, sincroniza con el SW y arranca el escaneo del aula.
+    // Se invoca al inicio si el tutorial ya estaba completo, o al cerrar el onboarding
+    // de la primera vez (onComplete). Es dueña de su propio loader (mostrar/ocultar).
+    async function conectarYArrancar() {
+      try {
+        nodos.loaderTxt.textContent = "Conectando con el servidor Bun...";
+        nodos.loader.style.display = 'flex';
+
+        const ruta = await backend.obtenerRutaServidor();
+        if (ruta) {
+          const tabsBar = document.querySelector(".tabs-bar");
+          if (tabsBar) tabsBar.style.display = "flex";
+
+          nodos.folder.disabled = false;
+          nodos.btnExplore.disabled = false;
+          document.querySelector('.path-bar')?.classList.remove('offline');
+
+          nodos.btnExplore.title = `Carpeta raíz actual: ${ruta} (Click para cambiar)`;
+          RutaDisco.mostrar(ruta);
+          nodos.txtEstado.textContent = "Analizando aula virtual...";
+          // (el puntito de estado y el estado del servidor en el onboarding los derivan
+          //  las islas Preact del daemon Conexion — ya no se empujan imperativamente)
+
+          const respuestaFondo = await appState.sincronizarConBackground();
+
+          if (appState.ráfagaEnCurso) {
+            congelarUIPorDescargaActiva(appState.videoActualEnTransmisiónSW, respuestaFondo.porcentaje, respuestaFondo.telemetry);
+          } else if (respuestaFondo && respuestaFondo.colaPausadaPorError) {
+            appState.fallaConexionActiva = respuestaFondo.tipoDeErrorConexion;
+            appState.videoFalladoParaReintento = respuestaFondo.videoActual;
+            mostrarAlertDeConexionCaida(respuestaFondo.tipoDeErrorConexion, respuestaFondo.videoActual);
+          }
+
+          if (!appState.fallaConexionActiva) {
+            ejecutarPaso1EscaneoRamonAutomatico();
+          }
+        }
+      } catch (errConexion) {
+        console.warn("⚠️ Servidor Bun desconectado en inicio:", errConexion.message);
+        activarEstadoOfflineUI();
+      } finally {
+        nodos.loader.style.display = 'none';
+      }
+    }
+
     try {
-      nodos.loaderTxt.textContent = "Conectando con el servidor Bun...";
+      await appState.inicializarSincronizacionStorage();
+      actualizarIconoSorteo();
+      actualizarBadgeFaceta();
+      nodos.queueBadge.textContent = appState.colaDescargas.length;
+
+      // Primera vez: el tutorial va PRIMERO y solo. El estado del servidor dentro del
+      // onboarding lo mantiene al día el daemon (iniciarDetectorEstado, ya arrancado);
+      // la conexión + escaneo se difieren hasta cerrar el tour (onComplete), así el
+      // loader no aparece detrás/antes del tutorial. Si ya se completó, arrancamos ya.
+      if (!appState.tutorialCompletado) {
+        // El loader (.loader-overlay) tiene z-index MAYOR que el onboarding y arranca
+        // en display:flex por CSS; hay que ocultarlo o taparía el tour.
+        nodos.loader.style.display = 'none';
+        mostrarOnboarding();
+      } else {
+        await conectarYArrancar();
+      }
+    } catch (error) {
+      console.error("❌ Error en inicio del Orquestador:", error);
+      nodos.txtEstado.textContent = "⚠️ Error de inicialización interna.";
+      nodos.loader.style.display = 'none'; // el loader tapa el mensaje de error si queda visible
+    }
+
+    function lanzarSeleccionCarpetaFisica() {
+      nodos.btnExplore.disabled = true;
+      nodos.btnExplore.classList.add('loading');
+      const originalBtnHTML = nodos.btnExplore.innerHTML;
+      nodos.btnExplore.innerHTML = `<span class="spinner-inline"></span> Cargando...`;
+    
+      const rutaPrevia = RutaDisco.get();
+      RutaDisco.cargando("Abriendo explorador...");
+
+      // Mostrar loader de espera
+      nodos.loaderTxt.textContent = "Abriendo explorador de archivos...";
       nodos.loader.style.display = 'flex';
 
-      const ruta = await BunClient.obtenerRutaServidor();
-      if (ruta) {
-        const tabsBar = document.querySelector(".tabs-bar");
-        if (tabsBar) tabsBar.style.display = "flex";
+      backend.seleccionarCarpeta().then(res => {
+        if (res.success) {
+          RutaDisco.mostrar(res.ruta);
+          nodos.btnExplore.title = `Carpeta raíz actual: ${res.ruta} (Click para cambiar)`;
+          appState.sincronizacionDiscoCompletada = false;
 
-        nodos.folder.disabled = false;
-        nodos.btnExplore.disabled = false;
-        document.querySelector('.path-bar')?.classList.remove('offline');
-
-        nodos.btnExplore.title = `Carpeta raíz actual: ${ruta} (Click para cambiar)`;
-        RutaDisco.mostrar(ruta);
-        nodos.txtEstado.textContent = "Analizando aula virtual...";
-        // (el puntito de estado y el estado del servidor en el onboarding los derivan
-        //  las islas Preact del daemon Conexion — ya no se empujan imperativamente)
-
-        const respuestaFondo = await AppState.sincronizarConBackground();
-
-        if (AppState.ráfagaEnCurso) {
-          congelarUIPorDescargaActiva(AppState.videoActualEnTransmisiónSW, respuestaFondo.porcentaje, respuestaFondo.telemetry);
-        } else if (respuestaFondo && respuestaFondo.colaPausadaPorError) {
-          AppState.fallaConexionActiva = respuestaFondo.tipoDeErrorConexion;
-          AppState.videoFalladoParaReintento = respuestaFondo.videoActual;
-          mostrarAlertDeConexionCaida(respuestaFondo.tipoDeErrorConexion, respuestaFondo.videoActual);
+          // Disparar auto-sincronización inmediatamente
+          ejecutarPaso2SincronizarDiscoVeloz();
+        } else {
+          RutaDisco.mostrar(rutaPrevia.texto, rutaPrevia.titulo);
         }
-
-        if (!AppState.fallaConexionActiva) {
-          ejecutarPaso1EscaneoRamonAutomatico();
-        }
-      }
-    } catch (errConexion) {
-      console.warn("⚠️ Servidor Bun desconectado en inicio:", errConexion.message);
-      activarEstadoOfflineUI();
-    } finally {
-      nodos.loader.style.display = 'none';
-    }
-  }
-
-  try {
-    await AppState.inicializarSincronizacionStorage();
-    actualizarIconoSorteo();
-    actualizarBadgeFaceta();
-    nodos.queueBadge.textContent = AppState.colaDescargas.length;
-
-    // Primera vez: el tutorial va PRIMERO y solo. El estado del servidor dentro del
-    // onboarding lo mantiene al día el daemon (iniciarDetectorEstado, ya arrancado);
-    // la conexión + escaneo se difieren hasta cerrar el tour (onComplete), así el
-    // loader no aparece detrás/antes del tutorial. Si ya se completó, arrancamos ya.
-    if (!AppState.tutorialCompletado) {
-      // El loader (.loader-overlay) tiene z-index MAYOR que el onboarding y arranca
-      // en display:flex por CSS; hay que ocultarlo o taparía el tour.
-      nodos.loader.style.display = 'none';
-      mostrarOnboarding();
-    } else {
-      await conectarYArrancar();
-    }
-  } catch (error) {
-    console.error("❌ Error en inicio del Orquestador:", error);
-    nodos.txtEstado.textContent = "⚠️ Error de inicialización interna.";
-    nodos.loader.style.display = 'none'; // el loader tapa el mensaje de error si queda visible
-  }
-
-  function lanzarSeleccionCarpetaFisica() {
-    nodos.btnExplore.disabled = true;
-    nodos.btnExplore.classList.add('loading');
-    const originalBtnHTML = nodos.btnExplore.innerHTML;
-    nodos.btnExplore.innerHTML = `<span class="spinner-inline"></span> Cargando...`;
-    
-    const rutaPrevia = RutaDisco.get();
-    RutaDisco.cargando("Abriendo explorador...");
-
-    // Mostrar loader de espera
-    nodos.loaderTxt.textContent = "Abriendo explorador de archivos...";
-    nodos.loader.style.display = 'flex';
-
-    BunClient.seleccionarCarpeta().then(res => {
-      if (res.success) {
-        RutaDisco.mostrar(res.ruta);
-        nodos.btnExplore.title = `Carpeta raíz actual: ${res.ruta} (Click para cambiar)`;
-        AppState.sincronizacionDiscoCompletada = false;
-
-        // Disparar auto-sincronización inmediatamente
-        ejecutarPaso2SincronizarDiscoVeloz();
-      } else {
+      }).catch(err => {
         RutaDisco.mostrar(rutaPrevia.texto, rutaPrevia.titulo);
-      }
-    }).catch(err => {
-      RutaDisco.mostrar(rutaPrevia.texto, rutaPrevia.titulo);
-      console.error(err);
-      if (err instanceof TypeError || err.message?.includes("fetch") || err.message?.includes("connect")) {
-        activarEstadoOfflineUI();
-      }
-    }).finally(() => {
-      // El estado .loading-text lo apagó RutaDisco.mostrar (cargando:false) en cada rama.
-      nodos.btnExplore.disabled = false;
-      nodos.btnExplore.classList.remove('loading');
-      nodos.btnExplore.innerHTML = originalBtnHTML;
-      nodos.loader.style.display = 'none';
-    });
-  }
-
-  if (nodos.btnExplore) {
-    nodos.btnExplore.addEventListener('click', () => {
-      if (AppState.ocultarAdvertenciaExplorar) {
-        lanzarSeleccionCarpetaFisica();
-        return;
-      }
-
-      mostrarModalAdvertencia({
-        titulo: "Selección de Carpeta 📂",
-        cuerpo: "Por favor, seleccioná tu carpeta principal (ej: 'RamonNet').<br><br>El sistema creará y organizará automáticamente las subcarpetas por materia y cátedra dentro de ella.<br><br><strong>Nota:</strong> Evitá elegir directamente subcarpetas específicas de materias.",
-        checkboxKey: "ocultarAdvExplorar",
-        onConfirm: () => {
-          lanzarSeleccionCarpetaFisica();
+        console.error(err);
+        if (err instanceof TypeError || err.message?.includes("fetch") || err.message?.includes("connect")) {
+          activarEstadoOfflineUI();
         }
+      }).finally(() => {
+        // El estado .loading-text lo apagó RutaDisco.mostrar (cargando:false) en cada rama.
+        nodos.btnExplore.disabled = false;
+        nodos.btnExplore.classList.remove('loading');
+        nodos.btnExplore.innerHTML = originalBtnHTML;
+        nodos.loader.style.display = 'none';
       });
-    });
-  }
-
-  let advertenciaAulaMostradaEsteFoco = false;
-  if (nodos.folder) {
-    nodos.folder.addEventListener('focus', () => {
-      if (AppState.ocultarAdvertenciaAula || AppState.ráfagaEnCurso || advertenciaAulaMostradaEsteFoco) return;
-      
-      nodos.folder.blur();
-      advertenciaAulaMostradaEsteFoco = true;
-
-      mostrarModalAdvertencia({
-        titulo: "Modificación de Subcarpeta 📚",
-        cuerpo: "El descargador está diseñado para crear y gestionar las subcarpetas de materias automáticamente.<br><br>Podés modificar esta ruta si tenés una estructura personalizada, pero te aconsejamos dejar que el sistema opere con sus nombres por defecto para evitar inconsistencias.",
-        checkboxKey: "ocultarAdvAula",
-        onConfirm: () => {
-          setTimeout(() => {
-            nodos.folder.focus();
-            advertenciaAulaMostradaEsteFoco = false;
-          }, 150);
-        },
-        onCancel: () => {
-          advertenciaAulaMostradaEsteFoco = false;
-        }
-      });
-    });
-  }
-
-  function mostrarModalAdvertencia({ titulo, cuerpo, checkboxKey, onConfirm, onCancel }) {
-    document.querySelector(".adv-overlay")?.remove();
-
-    const overlay = document.createElement("div");
-    overlay.className = "adv-overlay";
-
-    const card = document.createElement("div");
-    card.className = "adv-card";
-
-    card.innerHTML = `
-      <h4>${titulo}</h4>
-      <p>${cuerpo}</p>
-    `;
-
-    const labelCheckbox = document.createElement("label");
-    labelCheckbox.className = "adv-checkbox-label";
-    labelCheckbox.innerHTML = `
-      <input type="checkbox" id="ui-adv-dontshow">
-      <span>No volver a mostrar este aviso</span>
-    `;
-    card.appendChild(labelCheckbox);
-
-    const buttons = document.createElement("div");
-    buttons.className = "adv-buttons";
-
-    const btnConfirm = document.createElement("button");
-    btnConfirm.className = "btn-adv-primary";
-    btnConfirm.textContent = "Entendido";
-    btnConfirm.addEventListener("click", () => {
-      const checked = document.getElementById("ui-adv-dontshow").checked;
-      if (checked) {
-        if (checkboxKey === "ocultarAdvExplorar") {
-          AppState.ocultarAdvertenciaExplorar = true;
-        } else if (checkboxKey === "ocultarAdvAula") {
-          AppState.ocultarAdvertenciaAula = true;
-        }
-        AppState.respaldar();
-      }
-      overlay.remove();
-      if (onConfirm) onConfirm();
-    });
-
-    const btnCancel = document.createElement("button");
-    btnCancel.className = "btn-adv-secondary";
-    btnCancel.textContent = "Cancelar";
-    btnCancel.addEventListener("click", () => {
-      overlay.remove();
-      if (onCancel) onCancel();
-    });
-
-    buttons.append(btnConfirm, btnCancel);
-    card.appendChild(buttons);
-    overlay.appendChild(card);
-    document.body.appendChild(overlay);
-  }
-
-  // cargarRutaServidorSilencioso, activarEstadoOfflineUI e iniciarMonitoreoServidor
-  // viven ahora en popup/features/serverConnection.js, instanciados más arriba como
-  // _serverConnection. Los dos últimos se exponen como alias locales.
-
-  let timerSincronizacionDebounce = null;
-  nodos.folder.addEventListener('input', () => {
-    const modoActual = nodos.btnAction.getAttribute('data-modo');
-    if (modoActual === 're-escanear') return; 
-
-    const nuevaRuta = nodos.folder.value.trim();
-    
-    // Actualizar la carpeta de destino en todas las clases no encoladas en caliente (KeyUp)
-    AppState.listadoClasesGlobal.forEach(c => {
-      if (c.estado !== 'process') {
-        c.carpeta = nuevaRuta;
-      }
-    });
-    
-    AppState.respaldar();
-    renderizarListadoInterfaz();
-    
-    // Debounce de la sincronización de archivos físicos con Bun (400ms)
-    clearTimeout(timerSincronizacionDebounce);
-    timerSincronizacionDebounce = setTimeout(() => {
-      AppState.sincronizacionDiscoCompletada = false;
-      ejecutarPaso2SincronizarDiscoVeloz();
-    }, 400);
-  });
-
-  nodos.tabDisp.addEventListener('click', () => conmutarPestañaA("disponibles", 'block', 'none', 'flex'));
-  nodos.tabCola.addEventListener('click', () => {
-    conmutarPestañaA("cola", 'none', 'block', 'none');
-    nodos.btnStartQueue.disabled = (AppState.colaDescargas.length === 0);
-  });
-
-  function conmutarPestañaA(id, actDisp, qDisp, _filtDisp) {
-    AppState.pestañaActiva = id;
-    nodos.tabDisp.classList.toggle('active', id === "disponibles");
-    nodos.tabCola.classList.toggle('active', id === "cola");
-    nodos.filtersBar.style.display = 'flex';
-    nodos.btnStartQueue.style.display = AppState.ráfagaEnCurso ? 'none' : qDisp;
-    
-    // Limpiar filtros activos y cerrar el menú
-    filtrosActivos.estados.clear();
-    filtrosActivos.materias.clear();
-    filtrosActivos.valoresFaceta.clear();
-    actualizarPillsUIState();
-    if (nodos.filterMenu) nodos.filterMenu.style.display = 'none';
-    if (nodos.btnFilterPills) nodos.btnFilterPills.classList.remove('open');
-
-    const selectWrapper = document.getElementById('ui-master-select-wrapper');
-    if (id === "disponibles") {
-      if (nodos.btnToggleSelect) nodos.btnToggleSelect.style.display = 'none';
-      if (selectWrapper) selectWrapper.style.display = 'flex';
-      modoSeleccionFilaActivo = false;
-    } else {
-      if (nodos.btnToggleSelect) {
-        nodos.btnToggleSelect.style.display = 'flex';
-        nodos.btnToggleSelect.textContent = "Seleccionar";
-        nodos.btnToggleSelect.title = "Activar selección múltiple";
-      }
-      if (selectWrapper) selectWrapper.style.display = 'none';
-      modoSeleccionFilaActivo = false;
     }
-    
-    actualizarContadoresBoton();
-    aplicarFiltrosCruzados();
-  }
 
-  function ejecutarPaso1EscaneoRamonAutomatico() {
-    nodos.loaderTxt.textContent = "Escaneando entorno de Ramón Net...";
-    nodos.loader.style.display = 'flex';
-    // Ocultar badge de cátedra al iniciar un nuevo escaneo para evitar estados inconsistentes
-    nodos.facetaBadge.style.display = "none";
-
-    const safetyTimeout = setTimeout(() => {
-      nodos.loader.style.display = 'none';
-      nodos.txtEstado.textContent = "⚠️ Timeout de carga del DOM.";
-      configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
-    }, 6000);
-
-    chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-      if (!tab || !SitioActivo.esPaginaDelSitio(tab.url)) {
-        clearTimeout(safetyTimeout);
-        nodos.txtEstado.textContent = "⚠️ No estás en Ramón Net.";
-        configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
-        if (AppState.listadoClasesGlobal.length > 0) { desbanearFiltros(); aplicarFiltrosCruzados(); }
-        nodos.loader.style.display = 'none'; 
-        return;
-      }
-
-      // Preservar en memoria los elementos que están en la cola de descarga activa
-      const itemsEnCola = AppState.listadoClasesGlobal.filter(c => c.estado === 'process');
-      AppState.sincronizacionDiscoCompletada = false;
-
-      chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: SitioActivo.escanearListado
-      }, (resultados) => {
-        clearTimeout(safetyTimeout);
-
-        // Controlar de forma resiliente si ocurrió un error de inyección (ej: permisos de host o página de sistema)
-        // lastError de chrome.scripting (la inyección), no de IPC — ver la nota de arriba.
-        if (chrome.runtime.lastError) {
-          console.error("❌ [POPUP-SCRIPT-ERROR] Falló inyección de script de escaneo:", chrome.runtime.lastError.message);
-          nodos.txtEstado.textContent = `❌ Error de escaneo: ${chrome.runtime.lastError.message}`;
-          nodos.loader.style.display = 'none';
-          configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
-          
-          // Cargar el listado anterior del storage para evitar dejar la interfaz vacía
-          AppState.inicializarSincronizacionStorage().then(() => {
-            if (AppState.listadoClasesGlobal.length > 0) {
-              desbanearFiltros();
-              aplicarFiltrosCruzados();
-              actualizarBadgeFaceta();
-            }
-          });
+    if (nodos.btnExplore) {
+      nodos.btnExplore.addEventListener('click', () => {
+        if (appState.ocultarAdvertenciaExplorar) {
+          lanzarSeleccionCarpetaFisica();
           return;
         }
 
-        const res = resultados?.[0];
-        try {
-          const resultado = res?.result || { materia: "biologia", enlaces: [] };
-          const enlaces = resultado.enlaces;
-          
-          nodos.folder.value = resultado.materia || "biologia";
-
-          if (!enlaces || enlaces.length === 0) {
-            AppState.listadoClasesGlobal = itemsEnCola;
-            AppState.respaldar();
-            nodos.search.disabled = true;
-            nodos.btnFilterPills.disabled = true;
-            nodos.masterCheck.disabled = true;
-            
-            ListaClases.render({ modo: 'card', card: {
-              tipo: 'info',
-              titulo: 'Sin clases detectadas',
-              descripcion: 'No encontramos enlaces de video en esta pestaña.<br>Asegurate de estar dentro de una clase de Ramón Net y hacé click en Re-escanear.',
-              icono: '🔍'
-            }});
-            
-            configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
-          } else {
-            const nuevasClases = enlaces.map((item, idx) => {
-              const materiaBase = nodos.folder.value.trim();
-              const tituloFinalEstandar = SitioActivo.parsearTitulo(item.texto, materiaBase);
-              const clasif = SitioActivo.clasificarCarpeta(item.texto, materiaBase);
-
-              return {
-                id: idx + Date.now(), // ID único dinámico para evitar colisiones con clases persistidas
-                numeroOriginal: idx + 1,
-                titulo: tituloFinalEstandar,
-                urlInterna: item.href,
-                catedra: clasif.catedra,
-                carpeta: clasif.carpeta,
-                estado: 'pending',
-                seleccionado: false,
-                visible: true
-              };
-            });
-
-            // Combinar evitando duplicar elementos que ya están en la cola
-            const titulosEnCola = new Set(itemsEnCola.map(c => c.titulo));
-            const clasesNuevasFiltradas = nuevasClases.filter(c => !titulosEnCola.has(c.titulo));
-
-            AppState.listadoClasesGlobal = [...itemsEnCola, ...clasesNuevasFiltradas];
-            AppState.sincronizacionDiscoCompletada = false;
-            AppState.respaldar();
-            desbanearFiltros(); 
-            nodos.masterCheck.checked = false;
-            renderizarListadoInterfaz();
-            // Mostrar asistente de autoselección si es multicátedra
-            verificarYMostrarAsistenteFaceta();
-            // Auto-sincronizar inmediatamente
-            ejecutarPaso2SincronizarDiscoVeloz();
+        mostrarModalAdvertencia({
+          titulo: "Selección de Carpeta 📂",
+          cuerpo: "Por favor, seleccioná tu carpeta principal (ej: 'RamonNet').<br><br>El sistema creará y organizará automáticamente las subcarpetas por materia y cátedra dentro de ella.<br><br><strong>Nota:</strong> Evitá elegir directamente subcarpetas específicas de materias.",
+          checkboxKey: "ocultarAdvExplorar",
+          onConfirm: () => {
+            lanzarSeleccionCarpetaFisica();
           }
-        } catch (e) {
-          console.error("❌ Error procesando payload de inyección:", e);
-          configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
-        } finally {
-          nodos.loader.style.display = 'none';
+        });
+      });
+    }
+
+    let advertenciaAulaMostradaEsteFoco = false;
+    if (nodos.folder) {
+      nodos.folder.addEventListener('focus', () => {
+        if (appState.ocultarAdvertenciaAula || appState.ráfagaEnCurso || advertenciaAulaMostradaEsteFoco) return;
+      
+        nodos.folder.blur();
+        advertenciaAulaMostradaEsteFoco = true;
+
+        mostrarModalAdvertencia({
+          titulo: "Modificación de Subcarpeta 📚",
+          cuerpo: "El descargador está diseñado para crear y gestionar las subcarpetas de materias automáticamente.<br><br>Podés modificar esta ruta si tenés una estructura personalizada, pero te aconsejamos dejar que el sistema opere con sus nombres por defecto para evitar inconsistencias.",
+          checkboxKey: "ocultarAdvAula",
+          onConfirm: () => {
+            setTimeout(() => {
+              nodos.folder.focus();
+              advertenciaAulaMostradaEsteFoco = false;
+            }, 150);
+          },
+          onCancel: () => {
+            advertenciaAulaMostradaEsteFoco = false;
+          }
+        });
+      });
+    }
+
+    function mostrarModalAdvertencia({ titulo, cuerpo, checkboxKey, onConfirm, onCancel }) {
+      document.querySelector(".adv-overlay")?.remove();
+
+      const overlay = document.createElement("div");
+      overlay.className = "adv-overlay";
+
+      const card = document.createElement("div");
+      card.className = "adv-card";
+
+      card.innerHTML = `
+        <h4>${titulo}</h4>
+        <p>${cuerpo}</p>
+      `;
+
+      const labelCheckbox = document.createElement("label");
+      labelCheckbox.className = "adv-checkbox-label";
+      labelCheckbox.innerHTML = `
+        <input type="checkbox" id="ui-adv-dontshow">
+        <span>No volver a mostrar este aviso</span>
+      `;
+      card.appendChild(labelCheckbox);
+
+      const buttons = document.createElement("div");
+      buttons.className = "adv-buttons";
+
+      const btnConfirm = document.createElement("button");
+      btnConfirm.className = "btn-adv-primary";
+      btnConfirm.textContent = "Entendido";
+      btnConfirm.addEventListener("click", () => {
+        const checked = document.getElementById("ui-adv-dontshow").checked;
+        if (checked) {
+          if (checkboxKey === "ocultarAdvExplorar") {
+            appState.ocultarAdvertenciaExplorar = true;
+          } else if (checkboxKey === "ocultarAdvAula") {
+            appState.ocultarAdvertenciaAula = true;
+          }
+          appState.respaldar();
+        }
+        overlay.remove();
+        if (onConfirm) onConfirm();
+      });
+
+      const btnCancel = document.createElement("button");
+      btnCancel.className = "btn-adv-secondary";
+      btnCancel.textContent = "Cancelar";
+      btnCancel.addEventListener("click", () => {
+        overlay.remove();
+        if (onCancel) onCancel();
+      });
+
+      buttons.append(btnConfirm, btnCancel);
+      card.appendChild(buttons);
+      overlay.appendChild(card);
+      document.body.appendChild(overlay);
+    }
+
+    // cargarRutaServidorSilencioso, activarEstadoOfflineUI e iniciarMonitoreoServidor
+    // viven ahora en popup/features/serverConnection.js, instanciados más arriba como
+    // _serverConnection. Los dos últimos se exponen como alias locales.
+
+    let timerSincronizacionDebounce = null;
+    nodos.folder.addEventListener('input', () => {
+      const modoActual = nodos.btnAction.getAttribute('data-modo');
+      if (modoActual === 're-escanear') return; 
+
+      const nuevaRuta = nodos.folder.value.trim();
+    
+      // Actualizar la carpeta de destino en todas las clases no encoladas en caliente (KeyUp)
+      appState.listadoClasesGlobal.forEach(c => {
+        if (c.estado !== 'process') {
+          c.carpeta = nuevaRuta;
         }
       });
-    });
-  }
-
-  // [REFACTORIZADO V5.4.1]: Motor de Sincronización Unificado e Híbrido (0% improvisación)
-  async function ejecutarPaso2SincronizarDiscoVeloz() {
-    configurarBotonesUX("sincronizar-disco", "", true);
-    nodos.btnAction.innerHTML = `<span class="spinner-inline"></span> Sincronizando disco local...`;
-    ListaClases.setAtenuada(true); // atenúa la lista durante la sincronización (isla dueña de #ui-list)
-
-    const subcarpetaFiltro = nodos.folder.value.trim().toLowerCase();
-
-    AppState.listadoClasesGlobal.forEach(clase => {
-      if (clase.estado !== 'process') {
-        clase.estado = 'pending';
-        clase.seleccionado = perteneceASeleccionFaceta(clase);
-      }
-    });
-
-    // Inyectores lógicos del resolvedor final de nombres
-    const resolverMapeoEnUI = (nombresEnDisco) => {
-      try {
-        const setArchivosNormalizados = new Set(
-          nombresEnDisco.map(nom => nom.toLowerCase().trim())
-        );
-
-        AppState.listadoClasesGlobal.forEach(clase => {
-          if (clase.estado === 'process') return; 
-
-          const tituloNormalizado = clase.titulo.toLowerCase().trim();
-          let yaExiste = setArchivosNormalizados.has(tituloNormalizado);
-
-          if (!yaExiste) {
-            for (const nom of setArchivosNormalizados) {
-              if (nom.includes(tituloNormalizado)) {
-                yaExiste = true;
-                break;
-              }
-            }
-          }
-
-          clase.estado = yaExiste ? 'downloaded' : 'pending';
-          
-          clase.seleccionado = !yaExiste && perteneceASeleccionFaceta(clase);
-        });
-
-        AppState.sincronizacionDiscoCompletada = true;
-        desbanearFiltros();
-        AppState.respaldar(); 
-        
-        nodos.queueBadge.textContent = AppState.listadoClasesGlobal.filter(c => c.estado === 'process').length;
-        nodos.masterCheck.checked = AppState.listadoClasesGlobal.filter(i => i.visible && i.estado === 'pending').every(i => i.seleccionado);
-
-        configurarBotonesUX("descargar", "Agregar seleccionados a la cola 📥", false);
-        aplicarFiltrosCruzados();
-        actualizarContadoresBoton();
-      } catch (err) {
-        console.error("❌ Error en empaquetado de sincronización:", err);
-      } finally {
-        ListaClases.setAtenuada(false);
-      }
-    };
-
-    // ─── PIPELINE DE LECTURA DE DATOS (MULTIPLE O BUN SERVER DIRECTO) ────────
-    const carpetasUnicas = Array.from(new Set(AppState.listadoClasesGlobal.map(c => c.carpeta || subcarpetaFiltro)));
-    if (carpetasUnicas.length === 0) {
-      carpetasUnicas.push(subcarpetaFiltro);
-    }
-
-    try {
-      let todosLosArchivos = [];
-      const promesas = carpetasUnicas.map(carp => 
-        BunClient.escanearDisco(carp)
-          .then(data => data?.archivos || [])
-          .catch(e => {
-            if (e instanceof TypeError || e.message?.includes("fetch") || e.message?.includes("connect")) {
-              throw e;
-            }
-            console.warn(`⚠️ No se pudo escanear la carpeta ${carp}:`, e.message);
-            return [];
-          })
-      );
-      const resultados = await Promise.all(promesas);
-      todosLosArchivos = resultados.flat();
-
-      // (el puntito de estado lo maneja la isla Preact features/conexionHeader.preact.js)
-      const tabsBar = document.querySelector(".tabs-bar");
-      if (tabsBar) tabsBar.style.display = "flex";
-      
-      resolverMapeoEnUI(todosLosArchivos);
-    } catch (errFetch) {
-      console.error("❌ [UI-ERROR] Imposible conectar con el escáner de Bun:", errFetch.message);
-      activarEstadoOfflineUI();
-    }
-  }
-
-  nodos.btnSoftCancel.addEventListener('click', () => _queue.solicitarFrenadoSuave());
-  nodos.btnHardCancel.addEventListener('click', () => _queue.abortarRafagaInmediata());
-
-  nodos.btnAction.addEventListener('click', () => {
-    const modo = nodos.btnAction.getAttribute('data-modo');
-    if (modo === 're-escanear') {
-      ejecutarPaso1EscaneoRamonAutomatico();
-    } else if (modo === 'sincronizar-disco') {
-      ejecutarPaso2SincronizarDiscoVeloz();
-    } else if (modo === 'descargar') {
-      const elegidos = AppState.listadoClasesGlobal.filter(c => c.seleccionado && c.estado === 'pending');
-      if (elegidos.length > 0) encolarItemsEnCaliente(elegidos);
-    } else if (modo === 'reintentar-cola') {
-      ejecutarReintentoDeCola();
-    } else if (modo === 'quitar-de-cola') {
-      const seleccionados = AppState.colaDescargas.filter(c => c.seleccionado);
-      if (seleccionados.length > 0) quitarItemsDeColaEnLote(seleccionados);
-    }
-  });
-
-  nodos.btnStartQueue.addEventListener('click', () => _queue.iniciarDescargaCola());
-
-
-  nodos.search.addEventListener('input', aplicarFiltrosCruzados);
-  nodos.masterCheck.addEventListener('change', (e) => {
-    const check = e.target.checked;
-
-    if (AppState.pestañaActiva === "cola") {
-      const busqueda = nodos.search.value.toLowerCase().trim();
-      
-      const visibles = AppState.colaDescargas.filter(clase => {
-        const esActivo = AppState.videoActualEnTransmisiónSW === clase.titulo && AppState.ráfagaEnCurso;
-        return coincideConFiltrosCola(clase, busqueda) && !esActivo;
-      });
-
-      visibles.forEach(c => { c.seleccionado = check; });
-    } else {
-      if (!AppState.sincronizacionDiscoCompletada) return;
-      const visibles = AppState.listadoClasesGlobal.filter(c => c.visible);
-      AppState.conmutarSeleccionMasiva(check, visibles);
-    }
-
-    // Render state-driven: en vez de sincronizar cada checkbox/fila a mano (getElementById +
-    // classList), se muta sólo el estado (arriba) y se repinta el listado desde él. Deja el
-    // render como única vía de pintar filas (prep para la isla Preact #4, Etapa 0).
-    renderizarListadoInterfaz();
-    AppState.respaldar();
-    actualizarContadoresBoton();
-  });
-
-  function renderizarListadoInterfaz() {
-    // La isla Preact #4 (features/listaClases.preact.js) es dueña de #ui-list (hijos
-    // Y atributos de host, Etapa 2). Este render ya no construye DOM: mantiene la
-    // lógica de negocio (sincronizar con la cola, filtrar, ordenar) y EMPUJA un
-    // view-model al store window.ListaClases.render(vm).
-
-    if (AppState.fallaConexionActiva) {
-      // El título proviene del scraping del DOM de Ramón Net (contenido de terceros):
-      // se escapa antes de interpolarlo porque la card usa dangerouslySetInnerHTML.
-      const titulo = Utils.escaparHtml(AppState.videoFalladoParaReintento || "clase");
-      if (AppState.fallaConexionActiva === "sesion") {
-        ListaClases.render({ modo: 'card', card: {
-          tipo: 'error',
-          titulo: 'Sesión no iniciada',
-          descripcion: `No hay una sesión activa en Ramón Net.<br>Iniciá sesión en la plataforma y tocá <strong>Reintentar</strong>.<br><br><strong>Pausado en:</strong> ${titulo}`,
-          icono: '🔑'
-        }});
-      } else if (AppState.fallaConexionActiva === "servidor") {
-        ListaClases.render({ modo: 'card', card: {
-          tipo: 'error',
-          titulo: 'Servidor Desconectado',
-          descripcion: `El servidor local de Bun se desconectó.<br>Por favor, ejecutá <strong>iniciar.bat</strong> para reanudar.<br><br><strong>Pausado en:</strong> ${titulo}`,
-          icono: '🔌'
-        }});
-      } else {
-        ListaClases.render({ modo: 'card', card: {
-          tipo: 'error',
-          titulo: 'Conexión a Internet Caída',
-          descripcion: `Se interrumpió la conexión a internet.<br>La descarga se reanudará automáticamente apenas vuelva la red.<br><br><strong>Pausado en:</strong> ${titulo}`,
-          icono: '⚠️'
-        }});
-      }
-      return;
-    }
     
-    // Sincronizar el estado de disponibles con los elementos en la cola real
-    const titulosEnCola = new Set(AppState.colaDescargas.map(c => c.titulo));
-    AppState.listadoClasesGlobal.forEach(c => {
-      if (titulosEnCola.has(c.titulo)) {
-        c.estado = 'process';
-      } else if (c.estado === 'process') {
-        c.estado = 'pending'; // Regresar a pendiente si ya no está en la cola real
-      }
+      appState.respaldar();
+      renderizarListadoInterfaz();
+    
+      // Debounce de la sincronización de archivos físicos con Bun (400ms)
+      clearTimeout(timerSincronizacionDebounce);
+      timerSincronizacionDebounce = setTimeout(() => {
+        appState.sincronizacionDiscoCompletada = false;
+        ejecutarPaso2SincronizarDiscoVeloz();
+      }, 400);
     });
 
-    let filtrados = [];
-    if (AppState.pestañaActiva === "cola") {
-      const busqueda = nodos.search.value.toLowerCase().trim();
-      
-      filtrados = AppState.colaDescargas.filter(clase => coincideConFiltrosCola(clase, busqueda));
+    nodos.tabDisp.addEventListener('click', () => conmutarPestañaA("disponibles", 'block', 'none', 'flex'));
+    nodos.tabCola.addEventListener('click', () => {
+      conmutarPestañaA("cola", 'none', 'block', 'none');
+      nodos.btnStartQueue.disabled = (appState.colaDescargas.length === 0);
+    });
 
-      if (AppState.ordenAscendente !== null) {
-        filtrados.sort((a, b) => {
-          const comp = a.titulo.localeCompare(b.titulo, undefined, { numeric: true, sensitivity: 'base' });
-          return AppState.ordenAscendente ? comp : -comp;
-        });
+    function conmutarPestañaA(id, actDisp, qDisp, _filtDisp) {
+      appState.pestañaActiva = id;
+      nodos.tabDisp.classList.toggle('active', id === "disponibles");
+      nodos.tabCola.classList.toggle('active', id === "cola");
+      nodos.filtersBar.style.display = 'flex';
+      nodos.btnStartQueue.style.display = appState.ráfagaEnCurso ? 'none' : qDisp;
+    
+      // Limpiar filtros activos y cerrar el menú
+      filtrosActivos.estados.clear();
+      filtrosActivos.materias.clear();
+      filtrosActivos.valoresFaceta.clear();
+      actualizarPillsUIState();
+      if (nodos.filterMenu) nodos.filterMenu.style.display = 'none';
+      if (nodos.btnFilterPills) nodos.btnFilterPills.classList.remove('open');
+
+      const selectWrapper = document.getElementById('ui-master-select-wrapper');
+      if (id === "disponibles") {
+        if (nodos.btnToggleSelect) nodos.btnToggleSelect.style.display = 'none';
+        if (selectWrapper) selectWrapper.style.display = 'flex';
+        modoSeleccionFilaActivo = false;
       } else {
-        filtrados.sort((a, b) => (a.fechaEncolado || 0) - (b.fechaEncolado || 0));
+        if (nodos.btnToggleSelect) {
+          nodos.btnToggleSelect.style.display = 'flex';
+          nodos.btnToggleSelect.textContent = "Seleccionar";
+          nodos.btnToggleSelect.title = "Activar selección múltiple";
+        }
+        if (selectWrapper) selectWrapper.style.display = 'none';
+        modoSeleccionFilaActivo = false;
       }
-    } else {
-      filtrados = AppState.listadoClasesGlobal.filter(c => c.visible);
-      
-      // Ordenar por título (semana) de forma ascendente o descendente (orden natural tipo Windows)
-      filtrados.sort((a, b) => {
-        const comp = a.titulo.localeCompare(b.titulo, undefined, { numeric: true, sensitivity: 'base' });
-        return AppState.ordenAscendente ? comp : -comp;
-      });
+    
+      actualizarContadoresBoton();
+      aplicarFiltrosCruzados();
     }
 
-    if (filtrados.length === 0) {
-      if (AppState.pestañaActiva === "cola") {
-        ListaClases.render({ modo: 'card', card: {
-          tipo: 'info',
-          titulo: 'Fila de descarga vacía',
-          descripcion: 'No tenés clases agregadas en esta lista.<br>Volvé a "Clases Disponibles", marcá las clases y agregalas.',
-          icono: '📥'
-        }});
-      } else {
-        ListaClases.render({ modo: 'card', card: {
-          tipo: 'info',
-          titulo: 'No hay clases',
-          descripcion: 'No se encontraron clases que coincidan con la búsqueda o el filtro seleccionado.',
-          icono: '🔍'
-        }});
-      }
-      return;
-    }
+    function ejecutarPaso1EscaneoRamonAutomatico() {
+      nodos.loaderTxt.textContent = "Escaneando entorno de Ramón Net...";
+      nodos.loader.style.display = 'flex';
+      // Ocultar badge de cátedra al iniciar un nuevo escaneo para evitar estados inconsistentes
+      nodos.facetaBadge.style.display = "none";
 
-    // selectionMode espeja actualizarModoSeleccion: en Disponibles siempre activo;
-    // en Cola depende del toggle modoSeleccionFilaActivo.
-    const selectionMode = AppState.pestañaActiva === "disponibles" ? true : modoSeleccionFilaActivo;
+      const safetyTimeout = setTimeout(() => {
+        nodos.loader.style.display = 'none';
+        nodos.txtEstado.textContent = "⚠️ Timeout de carga del DOM.";
+        configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
+      }, 6000);
 
-    ListaClases.render({
-      modo: 'lista',
-      items: filtrados,
-      ctx: {
-        pestaña: AppState.pestañaActiva,
-        sincronizado: AppState.sincronizacionDiscoCompletada,
-        enCurso: AppState.ráfagaEnCurso,
-        videoActivo: AppState.videoActualEnTransmisiónSW,
-        selectionMode,
-        onCheckChange: (c, check) => {
-          c.seleccionado = check;
+      chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+        if (!tab || !sitio.esPaginaDelSitio(tab.url)) {
+          clearTimeout(safetyTimeout);
+          nodos.txtEstado.textContent = "⚠️ No estás en Ramón Net.";
+          configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
+          if (appState.listadoClasesGlobal.length > 0) { desbanearFiltros(); aplicarFiltrosCruzados(); }
+          nodos.loader.style.display = 'none'; 
+          return;
+        }
 
-          if (AppState.pestañaActiva === "cola") {
-            const busqueda = nodos.search.value.toLowerCase().trim();
-            const visibles = AppState.colaDescargas.filter(i => i.titulo.toLowerCase().includes(busqueda));
-            nodos.masterCheck.checked = visibles.length > 0 && visibles.every(i => i.seleccionado);
-          } else {
-            if (!AppState.sincronizacionDiscoCompletada) return;
-            nodos.masterCheck.checked = AppState.listadoClasesGlobal.filter(i => i.visible && i.estado === 'pending').every(i => i.seleccionado);
-          }
+        // Preservar en memoria los elementos que están en la cola de descarga activa
+        const itemsEnCola = appState.listadoClasesGlobal.filter(c => c.estado === 'process');
+        appState.sincronizacionDiscoCompletada = false;
 
-          actualizarContadoresBoton();
-          AppState.respaldar();
-          renderizarListadoInterfaz(); // re-empuja el vm para que la fila refleje seleccionado
-        },
-        onRemoverClick: (c) => {
-          console.log(`🗑️ [UI] Intento de remoción de la fila: "${c.titulo}"`);
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: sitio.escanearListado
+        }, (resultados) => {
+          clearTimeout(safetyTimeout);
+
+          // Controlar de forma resiliente si ocurrió un error de inyección (ej: permisos de host o página de sistema)
+          // lastError de chrome.scripting (la inyección), no de IPC — ver la nota de arriba.
+          if (chrome.runtime.lastError) {
+            console.error("❌ [POPUP-SCRIPT-ERROR] Falló inyección de script de escaneo:", chrome.runtime.lastError.message);
+            nodos.txtEstado.textContent = `❌ Error de escaneo: ${chrome.runtime.lastError.message}`;
+            nodos.loader.style.display = 'none';
+            configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
           
-          const esActivo = AppState.videoActualEnTransmisiónSW === c.titulo;
-          const esUltimoConRafaga = AppState.ráfagaEnCurso && AppState.colaDescargas.length <= 1;
-
-          // Determinar si la selección maestro "Todos" estaba activa para heredarla
-          const visiblesPendientes = AppState.listadoClasesGlobal.filter(i => i.visible && i.estado === 'pending');
-          const seleccionMaestraActiva = visiblesPendientes.length > 0 && visiblesPendientes.every(i => i.seleccionado);
-
-          if (esActivo || esUltimoConRafaga) {
-            // .finally: la limpieza local corre CONTESTE O NO el SW — Chrome invocaba el
-            // callback igual ante lastError, y si acá se colgara, la clase quedaría en
-            // 'process' y fuera de la cola visible sin forma de recuperarla.
-            Mensajeria.enviar({ action: "abortar_rafaga_inmediata" }).catch(() => undefined).finally(() => {
-              // Remover de la cola local para persistencia correcta
-              AppState.colaDescargas = AppState.colaDescargas.filter(i => i.titulo !== c.titulo);
-              c.estado = 'pending';
-              c.seleccionado = seleccionMaestraActiva;
-
-              // Actualizar disponibles
-              const matchDisp = AppState.listadoClasesGlobal.find(i => i.titulo === c.titulo);
-              if (matchDisp) {
-                matchDisp.estado = 'pending';
-                matchDisp.seleccionado = seleccionMaestraActiva;
+            // Cargar el listado anterior del storage para evitar dejar la interfaz vacía
+            appState.inicializarSincronizacionStorage().then(() => {
+              if (appState.listadoClasesGlobal.length > 0) {
+                desbanearFiltros();
+                aplicarFiltrosCruzados();
+                actualizarBadgeFaceta();
               }
-
-              nodos.queueBadge.textContent = AppState.colaDescargas.length;
-              renderizarListadoInterfaz(); // re-render desde estado en vez de div.remove() imperativo
-              AppState.respaldar();
-              restaurarPanelPorInterrupcion("🛑 Descargas detenidas porque se eliminó la clase de la fila.");
             });
             return;
           }
 
-          // Remover de la cola local
-          AppState.colaDescargas = AppState.colaDescargas.filter(i => i.titulo !== c.titulo);
-          renderizarListadoInterfaz(); // re-render desde estado en vez de div.remove() imperativo
-
-          // Actualizar estado en disponibles
-          const matchDisp = AppState.listadoClasesGlobal.find(i => i.titulo === c.titulo);
-          if (matchDisp) {
-            matchDisp.estado = 'pending';
-            matchDisp.seleccionado = seleccionMaestraActiva;
-          }
+          const res = resultados?.[0];
+          try {
+            const resultado = res?.result || { materia: "biologia", enlaces: [] };
+            const enlaces = resultado.enlaces;
           
-          nodos.queueBadge.textContent = AppState.colaDescargas.length;
-          AppState.respaldar();
+            nodos.folder.value = resultado.materia || "biologia";
 
-          // Igual que arriba: el re-render diferido no depende de que el SW conteste (la UI
-          // local ya se actualizó), así que va en .finally.
-          Mensajeria.enviar({ action: "remover_item_de_cola", titulo: c.titulo })
-            .catch(() => undefined)
-            .finally(() => {
-              setTimeout(aplicarFiltrosCruzados, 100);
-            });
-        },
-      }
-    });
+            if (!enlaces || enlaces.length === 0) {
+              appState.listadoClasesGlobal = itemsEnCola;
+              appState.respaldar();
+              nodos.search.disabled = true;
+              nodos.btnFilterPills.disabled = true;
+              nodos.masterCheck.disabled = true;
+            
+              ListaClases.render({ modo: 'card', card: {
+                tipo: 'info',
+                titulo: 'Sin clases detectadas',
+                descripcion: 'No encontramos enlaces de video en esta pestaña.<br>Asegurate de estar dentro de una clase de Ramón Net y hacé click en Re-escanear.',
+                icono: '🔍'
+              }});
+            
+              configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
+            } else {
+              const nuevasClases = enlaces.map((item, idx) => {
+                const materiaBase = nodos.folder.value.trim();
+                const tituloFinalEstandar = sitio.parsearTitulo(item.texto, materiaBase);
+                const clasif = sitio.clasificarCarpeta(item.texto, materiaBase);
 
-  }
+                return {
+                  id: idx + Date.now(), // ID único dinámico para evitar colisiones con clases persistidas
+                  numeroOriginal: idx + 1,
+                  titulo: tituloFinalEstandar,
+                  urlInterna: item.href,
+                  catedra: clasif.catedra,
+                  carpeta: clasif.carpeta,
+                  estado: 'pending',
+                  seleccionado: false,
+                  visible: true
+                };
+              });
 
-  function congelarUIPorDescargaActiva(titulo, pct, tel) {
-    AppState.videoActualEnTransmisiónSW = titulo;
-    AppState.ráfagaEnCurso = true;
-    document.body.classList.add('downloading');
-    
-    nodos.txtEstado.innerHTML = "";
-    const span = document.createElement('span');
-    span.style.color = "var(--accent-orange)";
-    span.textContent = titulo;
-    
-    const prefijo = AppState.banderaFrenadoSolicitado ? "Frenando al terminar:" : "Descargando:";
-    nodos.txtEstado.append(prefijo, document.createElement('br'), span);
+              // Combinar evitando duplicar elementos que ya están en la cola
+              const titulosEnCola = new Set(itemsEnCola.map(c => c.titulo));
+              const clasesNuevasFiltradas = nuevasClases.filter(c => !titulosEnCola.has(c.titulo));
 
-    nodos.btnStartQueue.style.display = 'none';
-    nodos.cancelBox.style.display = 'flex';
-    nodos.folder.disabled = false;
-    nodos.btnExplore.disabled = true;
-    if (nodos.turboSwitch) nodos.turboSwitch.disabled = true; 
-    
-    nodos.btnSoftCancel.disabled = AppState.banderaFrenadoSolicitado;
-    
-    nodos.progressBar.style.width = `${pct}%`;
-    nodos.progressCont.style.display = 'block';
-    if (tel) Renderers.pintarTelemetria(tel, nodos);
-    renderizarListadoInterfaz();
-    conectarEscuchadoresDelWorker();
-    
-    actualizarContadoresBoton();
-  }
-
-  function conectarEscuchadoresDelWorker() {
-    if (desengancharOyenteWorker) {
-      desengancharOyenteWorker();
-      desengancharOyenteWorker = null;
+              appState.listadoClasesGlobal = [...itemsEnCola, ...clasesNuevasFiltradas];
+              appState.sincronizacionDiscoCompletada = false;
+              appState.respaldar();
+              desbanearFiltros(); 
+              nodos.masterCheck.checked = false;
+              renderizarListadoInterfaz();
+              // Mostrar asistente de autoselección si es multicátedra
+              verificarYMostrarAsistenteFaceta();
+              // Auto-sincronizar inmediatamente
+              ejecutarPaso2SincronizarDiscoVeloz();
+            }
+          } catch (e) {
+            console.error("❌ Error procesando payload de inyección:", e);
+            configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
+          } finally {
+            nodos.loader.style.display = 'none';
+          }
+        });
+      });
     }
 
-    desengancharOyenteWorker = Mensajeria.onMensaje((req) => {
-      if (req.action === "update_progress_bar") {
-        let debeReRenderizar = false;
-        if (AppState.fallaConexionActiva) {
-          AppState.fallaConexionActiva = null;
-          AppState.videoFalladoParaReintento = null;
-          
-          nodos.cancelBox.style.display = 'flex';
-          nodos.btnStartQueue.style.display = 'none';
-          nodos.progressCont.style.display = 'block';
-          if (req.telemetry) nodos.panelTel.style.display = 'flex';
-          
-          debeReRenderizar = true;
-        }
+    // [REFACTORIZADO V5.4.1]: Motor de Sincronización Unificado e Híbrido (0% improvisación)
+    async function ejecutarPaso2SincronizarDiscoVeloz() {
+      configurarBotonesUX("sincronizar-disco", "", true);
+      nodos.btnAction.innerHTML = `<span class="spinner-inline"></span> Sincronizando disco local...`;
+      ListaClases.setAtenuada(true); // atenúa la lista durante la sincronización (isla dueña de #ui-list)
 
-        nodos.progressBar.style.width = `${req.percentage}%`;
-        
-        if (req.compiling && !AppState.modoTurboBun) {
-          nodos.txtEstado.innerHTML = "";
-          const spanComp = document.createElement('span');
-          spanComp.style.color = "var(--accent-warning-visible)";
-          spanComp.textContent = `Guardando en /${nodos.folder.value}/ por favor espere...`;
-          nodos.txtEstado.append("⚙️ Compilando archivo final...", document.createElement('br'), spanComp);
-        } else if (!req.compiling) {
-          if (AppState.videoActualEnTransmisiónSW !== req.titulo || debeReRenderizar) {
-            AppState.videoActualEnTransmisiónSW = req.titulo;
-            renderizarListadoInterfaz();
-            actualizarContadoresBoton();
-          }
-          nodos.txtEstado.innerHTML = "";
-          const spanDesc = document.createElement('span');
-          spanDesc.style.color = "var(--accent-orange)";
-          spanDesc.textContent = req.titulo;
-          
-          const prefijo = AppState.banderaFrenadoSolicitado ? "Frenando al terminar:" : "Descargando:";
-          nodos.txtEstado.append(prefijo, document.createElement('br'), spanDesc);
-          
-          nodos.btnSoftCancel.disabled = AppState.banderaFrenadoSolicitado;
-          
-          if (req.telemetry) Renderers.pintarTelemetria(req.telemetry, nodos);
-        }
-      }
-      if (req.action === "clase_guardada_ok") {
-        const obj = AppState.listadoClasesGlobal.find(c => c.titulo === req.titulo);
-        if (obj) { obj.estado = 'downloaded'; obj.seleccionado = false; }
-        
-        // También remover de la cola local
-        AppState.colaDescargas = AppState.colaDescargas.filter(c => c.titulo !== req.titulo);
-        AppState.respaldar();
-        
-        nodos.queueBadge.textContent = AppState.colaDescargas.length;
+      const subcarpetaFiltro = nodos.folder.value.trim().toLowerCase();
 
-        if (req.suaveFrenado) { restaurarPanelPorInterrupcion("🏁 Fila interrumpida de forma segura.", false); return; }
-        aplicarFiltrosCruzados();
+      appState.listadoClasesGlobal.forEach(clase => {
+        if (clase.estado !== 'process') {
+          clase.estado = 'pending';
+          clase.seleccionado = perteneceASeleccionFaceta(clase);
+        }
+      });
+
+      // Inyectores lógicos del resolvedor final de nombres
+      const resolverMapeoEnUI = (nombresEnDisco) => {
+        try {
+          const setArchivosNormalizados = new Set(
+            nombresEnDisco.map(nom => nom.toLowerCase().trim())
+          );
+
+          appState.listadoClasesGlobal.forEach(clase => {
+            if (clase.estado === 'process') return; 
+
+            const tituloNormalizado = clase.titulo.toLowerCase().trim();
+            let yaExiste = setArchivosNormalizados.has(tituloNormalizado);
+
+            if (!yaExiste) {
+              for (const nom of setArchivosNormalizados) {
+                if (nom.includes(tituloNormalizado)) {
+                  yaExiste = true;
+                  break;
+                }
+              }
+            }
+
+            clase.estado = yaExiste ? 'downloaded' : 'pending';
+          
+            clase.seleccionado = !yaExiste && perteneceASeleccionFaceta(clase);
+          });
+
+          appState.sincronizacionDiscoCompletada = true;
+          desbanearFiltros();
+          appState.respaldar(); 
+        
+          nodos.queueBadge.textContent = appState.listadoClasesGlobal.filter(c => c.estado === 'process').length;
+          nodos.masterCheck.checked = appState.listadoClasesGlobal.filter(i => i.visible && i.estado === 'pending').every(i => i.seleccionado);
+
+          configurarBotonesUX("descargar", "Agregar seleccionados a la cola 📥", false);
+          aplicarFiltrosCruzados();
+          actualizarContadoresBoton();
+        } catch (err) {
+          console.error("❌ Error en empaquetado de sincronización:", err);
+        } finally {
+          ListaClases.setAtenuada(false);
+        }
+      };
+
+      // ─── PIPELINE DE LECTURA DE DATOS (MULTIPLE O BUN SERVER DIRECTO) ────────
+      const carpetasUnicas = Array.from(new Set(appState.listadoClasesGlobal.map(c => c.carpeta || subcarpetaFiltro)));
+      if (carpetasUnicas.length === 0) {
+        carpetasUnicas.push(subcarpetaFiltro);
       }
+
+      try {
+        let todosLosArchivos = [];
+        const promesas = carpetasUnicas.map(carp => 
+          backend.escanearDisco(carp)
+            .then(data => data?.archivos || [])
+            .catch(e => {
+              if (e instanceof TypeError || e.message?.includes("fetch") || e.message?.includes("connect")) {
+                throw e;
+              }
+              console.warn(`⚠️ No se pudo escanear la carpeta ${carp}:`, e.message);
+              return [];
+            })
+        );
+        const resultados = await Promise.all(promesas);
+        todosLosArchivos = resultados.flat();
+
+        // (el puntito de estado lo maneja la isla Preact features/conexionHeader.preact.js)
+        const tabsBar = document.querySelector(".tabs-bar");
+        if (tabsBar) tabsBar.style.display = "flex";
       
-      if (req.action === "clase_con_error") {
-        // El SW saltó esta clase (hoy: el backend rechazó sus fragmentos con un 4xx
-        // determinístico — bug 400). NO es una caída de conexión: la cola sigue con la
-        // próxima. Espeja la limpieza de cola local de "clase_guardada_ok". La clase vuelve
-        // a 'pending' (no 'error'): se ve como una pendiente normal y es re-encolable — el
-        // fallo se comunica por la campanita + la notificación, no por un estado de fila.
-        console.error(`⚠️ [POPUP-ALERT] El SW saltó la clase: ${req.titulo} (${req.motivo})`);
-        const obj = AppState.listadoClasesGlobal.find(c => c.titulo === req.titulo);
-        if (obj) { obj.estado = 'pending'; obj.seleccionado = false; }
-        AppState.colaDescargas = AppState.colaDescargas.filter(c => c.titulo !== req.titulo);
-        AppState.respaldar();
-        nodos.queueBadge.textContent = AppState.colaDescargas.length;
-
-        nodos.txtEstado.textContent = "";
-        const spanErr = document.createElement('span');
-        spanErr.className = "text-danger";
-        // textContent, NUNCA innerHTML: req.titulo deriva de contenido scrapeado (regla docs/security.md).
-        spanErr.textContent = `Se saltó "${req.titulo}": ${req.motivo}.`;
-        nodos.txtEstado.append(`⚠️ `, spanErr);
-        setTimeout(aplicarFiltrosCruzados, 500);
+        resolverMapeoEnUI(todosLosArchivos);
+      } catch (errFetch) {
+        console.error("❌ [UI-ERROR] Imposible conectar con el escáner de Bun:", errFetch.message);
+        activarEstadoOfflineUI();
       }
+    }
 
-      if (req.action === "cola_completamente_vacia") {
-        if (req.suaveFrenado) {
-          restaurarPanelPorInterrupcion("🏁 Fila interrumpida de forma segura.", false);
-        } else {
-          restaurarPanelPorInterrupcion("🏁 ¡Procesamiento terminado!", true);
-        }
-      }
+    nodos.btnSoftCancel.addEventListener('click', () => _queue.solicitarFrenadoSuave());
+    nodos.btnHardCancel.addEventListener('click', () => _queue.abortarRafagaInmediata());
 
-      if (req.action === "cola_pausada_por_error") {
-        mostrarAlertDeConexionCaida(req.errorType, req.titulo);
+    nodos.btnAction.addEventListener('click', () => {
+      const modo = nodos.btnAction.getAttribute('data-modo');
+      if (modo === 're-escanear') {
+        ejecutarPaso1EscaneoRamonAutomatico();
+      } else if (modo === 'sincronizar-disco') {
+        ejecutarPaso2SincronizarDiscoVeloz();
+      } else if (modo === 'descargar') {
+        const elegidos = appState.listadoClasesGlobal.filter(c => c.seleccionado && c.estado === 'pending');
+        if (elegidos.length > 0) encolarItemsEnCaliente(elegidos);
+      } else if (modo === 'reintentar-cola') {
+        ejecutarReintentoDeCola();
+      } else if (modo === 'quitar-de-cola') {
+        const seleccionados = appState.colaDescargas.filter(c => c.seleccionado);
+        if (seleccionados.length > 0) quitarItemsDeColaEnLote(seleccionados);
       }
     });
-  }
 
-  async function restaurarPanelPorInterrupcion(txt, limpiarCola = false) {
-    document.body.classList.remove('downloading');
-    if (desengancharOyenteWorker) {
-      desengancharOyenteWorker();
-      desengancharOyenteWorker = null;
-    }
-    
-    const mantenerModoTurbo = AppState.modoTurboBun;
+    nodos.btnStartQueue.addEventListener('click', () => _queue.iniciarDescargaCola());
 
-    // Restablecer fallas de conexión al cancelar o interrumpir
-    AppState.fallaConexionActiva = null;
-    AppState.videoFalladoParaReintento = null;
 
-    if (limpiarCola) {
-      AppState.limpiarSesionLocal();
-    } else {
-      AppState.ráfagaEnCurso = false;
-      AppState.videoActualEnTransmisiónSW = "";
-      AppState.banderaFrenadoSolicitado = false;
-      await AppState.inicializarSincronizacionStorage();
-    }
-    
-    AppState.modoTurboBun = mantenerModoTurbo;
-    AppState.respaldar();
-    if (nodos.turboSwitch) {
-      nodos.turboSwitch.disabled = false;
-      nodos.turboSwitch.checked = mantenerModoTurbo;
-    }
+    nodos.search.addEventListener('input', aplicarFiltrosCruzados);
+    nodos.masterCheck.addEventListener('change', (e) => {
+      const check = e.target.checked;
 
-    nodos.progressCont.style.display = 'none';
-    nodos.panelTel.style.display = 'none';
-    nodos.cancelBox.style.display = 'none';
-    nodos.folder.disabled = false;
-    nodos.btnExplore.disabled = false;
-    
-    // Restablecer el botón de inicio de cola
-    nodos.btnStartQueue.innerHTML = "Iniciar descarga masiva 🚀";
-    
-    const countRestantes = AppState.colaDescargas.length;
-    nodos.queueBadge.textContent = countRestantes;
-    
-    if (!limpiarCola) {
-      conmutarPestañaA(AppState.pestañaActiva, 
-        AppState.pestañaActiva === "disponibles" ? 'block' : 'none', 
-        AppState.pestañaActiva === "cola" ? 'block' : 'none', 
-        AppState.pestañaActiva === "disponibles" ? 'flex' : 'none'
-      );
-      nodos.txtEstado.textContent = txt;
-    } else {
-      conmutarPestañaA("disponibles", 'block', 'none', 'flex');
-      nodos.txtEstado.textContent = txt;
-      ejecutarPaso1EscaneoRamonAutomatico();
-    }
+      if (appState.pestañaActiva === "cola") {
+        const busqueda = nodos.search.value.toLowerCase().trim();
+      
+        const visibles = appState.colaDescargas.filter(clase => {
+          const esActivo = appState.videoActualEnTransmisiónSW === clase.titulo && appState.ráfagaEnCurso;
+          return coincideConFiltrosCola(clase, busqueda) && !esActivo;
+        });
 
-    // Actualizar botones de acción y restablecer filtros visuales
-    actualizarContadoresBoton();
-    setTimeout(aplicarFiltrosCruzados, 100);
-  }
-
-  function actualizarMasterCheckState() {
-    if (AppState.pestañaActiva === "cola") {
-      const busqueda = nodos.search.value.toLowerCase().trim();
-      const visibles = AppState.colaDescargas.filter(clase => coincideConFiltrosCola(clase, busqueda));
-      nodos.masterCheck.checked = visibles.length > 0 && visibles.every(i => i.seleccionado);
-    } else {
-      const visibles = AppState.listadoClasesGlobal.filter(i => i.visible && i.estado === 'pending');
-      nodos.masterCheck.checked = visibles.length > 0 && visibles.every(i => i.seleccionado);
-    }
-  }
-
-  function actualizarModoSeleccion() {
-    // En Disponibles el modo selección está siempre activo; en Cola depende del toggle.
-    // La isla Preact #4 es dueña de la clase .selection-mode del host #ui-list.
-    const activo = AppState.pestañaActiva === "disponibles" ? true : modoSeleccionFilaActivo;
-    ListaClases.setSelectionMode(activo);
-  }
-
-  function actualizarContadoresBoton() {
-    actualizarMasterCheckState();
-    actualizarModoSeleccion();
-
-    if (AppState.fallaConexionActiva) {
-      let txt;
-      if (AppState.fallaConexionActiva === "sesion") {
-        txt = "Iniciar sesión y reintentar 🔄";
-      } else if (AppState.fallaConexionActiva === "internet") {
-        txt = "Reintentar conexión a internet 🔄";
+        visibles.forEach(c => { c.seleccionado = check; });
       } else {
-        txt = "Reintentar conexión con servidor 🔄";
+        if (!appState.sincronizacionDiscoCompletada) return;
+        const visibles = appState.listadoClasesGlobal.filter(c => c.visible);
+        appState.conmutarSeleccionMasiva(check, visibles);
       }
-      configurarBotonesUX("reintentar-cola", txt, reintentandoColaActivo);
-      nodos.btnAction.style.display = 'block';
-      nodos.btnStartQueue.style.display = 'none';
-      nodos.masterCheck.disabled = true;
-      return;
+
+      // Render state-driven: en vez de sincronizar cada checkbox/fila a mano (getElementById +
+      // classList), se muta sólo el estado (arriba) y se repinta el listado desde él. Deja el
+      // render como única vía de pintar filas (prep para la isla Preact #4, Etapa 0).
+      renderizarListadoInterfaz();
+      appState.respaldar();
+      actualizarContadoresBoton();
+    });
+
+    function renderizarListadoInterfaz() {
+      // La isla Preact #4 (features/listaClases.preact.js) es dueña de #ui-list (hijos
+      // Y atributos de host, Etapa 2). Este render ya no construye DOM: mantiene la
+      // lógica de negocio (sincronizar con la cola, filtrar, ordenar) y EMPUJA un
+      // view-model al store window.ListaClases.render(vm).
+
+      if (appState.fallaConexionActiva) {
+        // El título proviene del scraping del DOM de Ramón Net (contenido de terceros):
+        // se escapa antes de interpolarlo porque la card usa dangerouslySetInnerHTML.
+        const titulo = utils.escaparHtml(appState.videoFalladoParaReintento || "clase");
+        if (appState.fallaConexionActiva === "sesion") {
+          ListaClases.render({ modo: 'card', card: {
+            tipo: 'error',
+            titulo: 'Sesión no iniciada',
+            descripcion: `No hay una sesión activa en Ramón Net.<br>Iniciá sesión en la plataforma y tocá <strong>Reintentar</strong>.<br><br><strong>Pausado en:</strong> ${titulo}`,
+            icono: '🔑'
+          }});
+        } else if (appState.fallaConexionActiva === "servidor") {
+          ListaClases.render({ modo: 'card', card: {
+            tipo: 'error',
+            titulo: 'Servidor Desconectado',
+            descripcion: `El servidor local de Bun se desconectó.<br>Por favor, ejecutá <strong>iniciar.bat</strong> para reanudar.<br><br><strong>Pausado en:</strong> ${titulo}`,
+            icono: '🔌'
+          }});
+        } else {
+          ListaClases.render({ modo: 'card', card: {
+            tipo: 'error',
+            titulo: 'Conexión a Internet Caída',
+            descripcion: `Se interrumpió la conexión a internet.<br>La descarga se reanudará automáticamente apenas vuelva la red.<br><br><strong>Pausado en:</strong> ${titulo}`,
+            icono: '⚠️'
+          }});
+        }
+        return;
+      }
+    
+      // Sincronizar el estado de disponibles con los elementos en la cola real
+      const titulosEnCola = new Set(appState.colaDescargas.map(c => c.titulo));
+      appState.listadoClasesGlobal.forEach(c => {
+        if (titulosEnCola.has(c.titulo)) {
+          c.estado = 'process';
+        } else if (c.estado === 'process') {
+          c.estado = 'pending'; // Regresar a pendiente si ya no está en la cola real
+        }
+      });
+
+      let filtrados = [];
+      if (appState.pestañaActiva === "cola") {
+        const busqueda = nodos.search.value.toLowerCase().trim();
+      
+        filtrados = appState.colaDescargas.filter(clase => coincideConFiltrosCola(clase, busqueda));
+
+        if (appState.ordenAscendente !== null) {
+          filtrados.sort((a, b) => {
+            const comp = a.titulo.localeCompare(b.titulo, undefined, { numeric: true, sensitivity: 'base' });
+            return appState.ordenAscendente ? comp : -comp;
+          });
+        } else {
+          filtrados.sort((a, b) => (a.fechaEncolado || 0) - (b.fechaEncolado || 0));
+        }
+      } else {
+        filtrados = appState.listadoClasesGlobal.filter(c => c.visible);
+      
+        // Ordenar por título (semana) de forma ascendente o descendente (orden natural tipo Windows)
+        filtrados.sort((a, b) => {
+          const comp = a.titulo.localeCompare(b.titulo, undefined, { numeric: true, sensitivity: 'base' });
+          return appState.ordenAscendente ? comp : -comp;
+        });
+      }
+
+      if (filtrados.length === 0) {
+        if (appState.pestañaActiva === "cola") {
+          ListaClases.render({ modo: 'card', card: {
+            tipo: 'info',
+            titulo: 'Fila de descarga vacía',
+            descripcion: 'No tenés clases agregadas en esta lista.<br>Volvé a "Clases Disponibles", marcá las clases y agregalas.',
+            icono: '📥'
+          }});
+        } else {
+          ListaClases.render({ modo: 'card', card: {
+            tipo: 'info',
+            titulo: 'No hay clases',
+            descripcion: 'No se encontraron clases que coincidan con la búsqueda o el filtro seleccionado.',
+            icono: '🔍'
+          }});
+        }
+        return;
+      }
+
+      // selectionMode espeja actualizarModoSeleccion: en Disponibles siempre activo;
+      // en Cola depende del toggle modoSeleccionFilaActivo.
+      const selectionMode = appState.pestañaActiva === "disponibles" ? true : modoSeleccionFilaActivo;
+
+      ListaClases.render({
+        modo: 'lista',
+        items: filtrados,
+        ctx: {
+          pestaña: appState.pestañaActiva,
+          sincronizado: appState.sincronizacionDiscoCompletada,
+          enCurso: appState.ráfagaEnCurso,
+          videoActivo: appState.videoActualEnTransmisiónSW,
+          selectionMode,
+          onCheckChange: (c, check) => {
+            c.seleccionado = check;
+
+            if (appState.pestañaActiva === "cola") {
+              const busqueda = nodos.search.value.toLowerCase().trim();
+              const visibles = appState.colaDescargas.filter(i => i.titulo.toLowerCase().includes(busqueda));
+              nodos.masterCheck.checked = visibles.length > 0 && visibles.every(i => i.seleccionado);
+            } else {
+              if (!appState.sincronizacionDiscoCompletada) return;
+              nodos.masterCheck.checked = appState.listadoClasesGlobal.filter(i => i.visible && i.estado === 'pending').every(i => i.seleccionado);
+            }
+
+            actualizarContadoresBoton();
+            appState.respaldar();
+            renderizarListadoInterfaz(); // re-empuja el vm para que la fila refleje seleccionado
+          },
+          onRemoverClick: (c) => {
+            console.log(`🗑️ [UI] Intento de remoción de la fila: "${c.titulo}"`);
+          
+            const esActivo = appState.videoActualEnTransmisiónSW === c.titulo;
+            const esUltimoConRafaga = appState.ráfagaEnCurso && appState.colaDescargas.length <= 1;
+
+            // Determinar si la selección maestro "Todos" estaba activa para heredarla
+            const visiblesPendientes = appState.listadoClasesGlobal.filter(i => i.visible && i.estado === 'pending');
+            const seleccionMaestraActiva = visiblesPendientes.length > 0 && visiblesPendientes.every(i => i.seleccionado);
+
+            if (esActivo || esUltimoConRafaga) {
+              // .finally: la limpieza local corre CONTESTE O NO el SW — Chrome invocaba el
+              // callback igual ante lastError, y si acá se colgara, la clase quedaría en
+              // 'process' y fuera de la cola visible sin forma de recuperarla.
+              mensajeria.enviar({ action: "abortar_rafaga_inmediata" }).catch(() => undefined).finally(() => {
+                // Remover de la cola local para persistencia correcta
+                appState.colaDescargas = appState.colaDescargas.filter(i => i.titulo !== c.titulo);
+                c.estado = 'pending';
+                c.seleccionado = seleccionMaestraActiva;
+
+                // Actualizar disponibles
+                const matchDisp = appState.listadoClasesGlobal.find(i => i.titulo === c.titulo);
+                if (matchDisp) {
+                  matchDisp.estado = 'pending';
+                  matchDisp.seleccionado = seleccionMaestraActiva;
+                }
+
+                nodos.queueBadge.textContent = appState.colaDescargas.length;
+                renderizarListadoInterfaz(); // re-render desde estado en vez de div.remove() imperativo
+                appState.respaldar();
+                restaurarPanelPorInterrupcion("🛑 Descargas detenidas porque se eliminó la clase de la fila.");
+              });
+              return;
+            }
+
+            // Remover de la cola local
+            appState.colaDescargas = appState.colaDescargas.filter(i => i.titulo !== c.titulo);
+            renderizarListadoInterfaz(); // re-render desde estado en vez de div.remove() imperativo
+
+            // Actualizar estado en disponibles
+            const matchDisp = appState.listadoClasesGlobal.find(i => i.titulo === c.titulo);
+            if (matchDisp) {
+              matchDisp.estado = 'pending';
+              matchDisp.seleccionado = seleccionMaestraActiva;
+            }
+          
+            nodos.queueBadge.textContent = appState.colaDescargas.length;
+            appState.respaldar();
+
+            // Igual que arriba: el re-render diferido no depende de que el SW conteste (la UI
+            // local ya se actualizó), así que va en .finally.
+            mensajeria.enviar({ action: "remover_item_de_cola", titulo: c.titulo })
+              .catch(() => undefined)
+              .finally(() => {
+                setTimeout(aplicarFiltrosCruzados, 100);
+              });
+          },
+        }
+      });
+
     }
 
-    if (AppState.pestañaActiva !== "disponibles") {
-      const seleccionadosEnCola = AppState.colaDescargas.filter(c => c.seleccionado).length;
-      
-      // Permitir habilitar masterCheck en la fila siempre
-      nodos.masterCheck.disabled = false;
+    function congelarUIPorDescargaActiva(titulo, pct, tel) {
+      appState.videoActualEnTransmisiónSW = titulo;
+      appState.ráfagaEnCurso = true;
+      document.body.classList.add('downloading');
+    
+      nodos.txtEstado.innerHTML = "";
+      const span = document.createElement('span');
+      span.style.color = "var(--accent-orange)";
+      span.textContent = titulo;
+    
+      const prefijo = appState.banderaFrenadoSolicitado ? "Frenando al terminar:" : "Descargando:";
+      nodos.txtEstado.append(prefijo, document.createElement('br'), span);
 
-      if (seleccionadosEnCola > 0 && !AppState.ráfagaEnCurso) {
-        configurarBotonesUX("quitar-de-cola", `Quitar ${seleccionadosEnCola} clases de la fila 🗑️`, false);
+      nodos.btnStartQueue.style.display = 'none';
+      nodos.cancelBox.style.display = 'flex';
+      nodos.folder.disabled = false;
+      nodos.btnExplore.disabled = true;
+      if (nodos.turboSwitch) nodos.turboSwitch.disabled = true; 
+    
+      nodos.btnSoftCancel.disabled = appState.banderaFrenadoSolicitado;
+    
+      nodos.progressBar.style.width = `${pct}%`;
+      nodos.progressCont.style.display = 'block';
+      if (tel) renderers.pintarTelemetria(tel, nodos);
+      renderizarListadoInterfaz();
+      conectarEscuchadoresDelWorker();
+    
+      actualizarContadoresBoton();
+    }
+
+    function conectarEscuchadoresDelWorker() {
+      if (desengancharOyenteWorker) {
+        desengancharOyenteWorker();
+        desengancharOyenteWorker = null;
+      }
+
+      desengancharOyenteWorker = mensajeria.onMensaje((req) => {
+        if (req.action === "update_progress_bar") {
+          let debeReRenderizar = false;
+          if (appState.fallaConexionActiva) {
+            appState.fallaConexionActiva = null;
+            appState.videoFalladoParaReintento = null;
+          
+            nodos.cancelBox.style.display = 'flex';
+            nodos.btnStartQueue.style.display = 'none';
+            nodos.progressCont.style.display = 'block';
+            if (req.telemetry) nodos.panelTel.style.display = 'flex';
+          
+            debeReRenderizar = true;
+          }
+
+          nodos.progressBar.style.width = `${req.percentage}%`;
+        
+          if (req.compiling && !appState.modoTurboBun) {
+            nodos.txtEstado.innerHTML = "";
+            const spanComp = document.createElement('span');
+            spanComp.style.color = "var(--accent-warning-visible)";
+            spanComp.textContent = `Guardando en /${nodos.folder.value}/ por favor espere...`;
+            nodos.txtEstado.append("⚙️ Compilando archivo final...", document.createElement('br'), spanComp);
+          } else if (!req.compiling) {
+            if (appState.videoActualEnTransmisiónSW !== req.titulo || debeReRenderizar) {
+              appState.videoActualEnTransmisiónSW = req.titulo;
+              renderizarListadoInterfaz();
+              actualizarContadoresBoton();
+            }
+            nodos.txtEstado.innerHTML = "";
+            const spanDesc = document.createElement('span');
+            spanDesc.style.color = "var(--accent-orange)";
+            spanDesc.textContent = req.titulo;
+          
+            const prefijo = appState.banderaFrenadoSolicitado ? "Frenando al terminar:" : "Descargando:";
+            nodos.txtEstado.append(prefijo, document.createElement('br'), spanDesc);
+          
+            nodos.btnSoftCancel.disabled = appState.banderaFrenadoSolicitado;
+          
+            if (req.telemetry) renderers.pintarTelemetria(req.telemetry, nodos);
+          }
+        }
+        if (req.action === "clase_guardada_ok") {
+          const obj = appState.listadoClasesGlobal.find(c => c.titulo === req.titulo);
+          if (obj) { obj.estado = 'downloaded'; obj.seleccionado = false; }
+        
+          // También remover de la cola local
+          appState.colaDescargas = appState.colaDescargas.filter(c => c.titulo !== req.titulo);
+          appState.respaldar();
+        
+          nodos.queueBadge.textContent = appState.colaDescargas.length;
+
+          if (req.suaveFrenado) { restaurarPanelPorInterrupcion("🏁 Fila interrumpida de forma segura.", false); return; }
+          aplicarFiltrosCruzados();
+        }
+      
+        if (req.action === "clase_con_error") {
+          // El SW saltó esta clase (hoy: el backend rechazó sus fragmentos con un 4xx
+          // determinístico — bug 400). NO es una caída de conexión: la cola sigue con la
+          // próxima. Espeja la limpieza de cola local de "clase_guardada_ok". La clase vuelve
+          // a 'pending' (no 'error'): se ve como una pendiente normal y es re-encolable — el
+          // fallo se comunica por la campanita + la notificación, no por un estado de fila.
+          console.error(`⚠️ [POPUP-ALERT] El SW saltó la clase: ${req.titulo} (${req.motivo})`);
+          const obj = appState.listadoClasesGlobal.find(c => c.titulo === req.titulo);
+          if (obj) { obj.estado = 'pending'; obj.seleccionado = false; }
+          appState.colaDescargas = appState.colaDescargas.filter(c => c.titulo !== req.titulo);
+          appState.respaldar();
+          nodos.queueBadge.textContent = appState.colaDescargas.length;
+
+          nodos.txtEstado.textContent = "";
+          const spanErr = document.createElement('span');
+          spanErr.className = "text-danger";
+          // textContent, NUNCA innerHTML: req.titulo deriva de contenido scrapeado (regla docs/security.md).
+          spanErr.textContent = `Se saltó "${req.titulo}": ${req.motivo}.`;
+          nodos.txtEstado.append(`⚠️ `, spanErr);
+          setTimeout(aplicarFiltrosCruzados, 500);
+        }
+
+        if (req.action === "cola_completamente_vacia") {
+          if (req.suaveFrenado) {
+            restaurarPanelPorInterrupcion("🏁 Fila interrumpida de forma segura.", false);
+          } else {
+            restaurarPanelPorInterrupcion("🏁 ¡Procesamiento terminado!", true);
+          }
+        }
+
+        if (req.action === "cola_pausada_por_error") {
+          mostrarAlertDeConexionCaida(req.errorType, req.titulo);
+        }
+      });
+    }
+
+    async function restaurarPanelPorInterrupcion(txt, limpiarCola = false) {
+      document.body.classList.remove('downloading');
+      if (desengancharOyenteWorker) {
+        desengancharOyenteWorker();
+        desengancharOyenteWorker = null;
+      }
+    
+      const mantenerModoTurbo = appState.modoTurboBun;
+
+      // Restablecer fallas de conexión al cancelar o interrumpir
+      appState.fallaConexionActiva = null;
+      appState.videoFalladoParaReintento = null;
+
+      if (limpiarCola) {
+        appState.limpiarSesionLocal();
+      } else {
+        appState.ráfagaEnCurso = false;
+        appState.videoActualEnTransmisiónSW = "";
+        appState.banderaFrenadoSolicitado = false;
+        await appState.inicializarSincronizacionStorage();
+      }
+    
+      appState.modoTurboBun = mantenerModoTurbo;
+      appState.respaldar();
+      if (nodos.turboSwitch) {
+        nodos.turboSwitch.disabled = false;
+        nodos.turboSwitch.checked = mantenerModoTurbo;
+      }
+
+      nodos.progressCont.style.display = 'none';
+      nodos.panelTel.style.display = 'none';
+      nodos.cancelBox.style.display = 'none';
+      nodos.folder.disabled = false;
+      nodos.btnExplore.disabled = false;
+    
+      // Restablecer el botón de inicio de cola
+      nodos.btnStartQueue.innerHTML = "Iniciar descarga masiva 🚀";
+    
+      const countRestantes = appState.colaDescargas.length;
+      nodos.queueBadge.textContent = countRestantes;
+    
+      if (!limpiarCola) {
+        conmutarPestañaA(appState.pestañaActiva, 
+          appState.pestañaActiva === "disponibles" ? 'block' : 'none', 
+          appState.pestañaActiva === "cola" ? 'block' : 'none', 
+          appState.pestañaActiva === "disponibles" ? 'flex' : 'none'
+        );
+        nodos.txtEstado.textContent = txt;
+      } else {
+        conmutarPestañaA("disponibles", 'block', 'none', 'flex');
+        nodos.txtEstado.textContent = txt;
+        ejecutarPaso1EscaneoRamonAutomatico();
+      }
+
+      // Actualizar botones de acción y restablecer filtros visuales
+      actualizarContadoresBoton();
+      setTimeout(aplicarFiltrosCruzados, 100);
+    }
+
+    function actualizarMasterCheckState() {
+      if (appState.pestañaActiva === "cola") {
+        const busqueda = nodos.search.value.toLowerCase().trim();
+        const visibles = appState.colaDescargas.filter(clase => coincideConFiltrosCola(clase, busqueda));
+        nodos.masterCheck.checked = visibles.length > 0 && visibles.every(i => i.seleccionado);
+      } else {
+        const visibles = appState.listadoClasesGlobal.filter(i => i.visible && i.estado === 'pending');
+        nodos.masterCheck.checked = visibles.length > 0 && visibles.every(i => i.seleccionado);
+      }
+    }
+
+    function actualizarModoSeleccion() {
+      // En Disponibles el modo selección está siempre activo; en Cola depende del toggle.
+      // La isla Preact #4 es dueña de la clase .selection-mode del host #ui-list.
+      const activo = appState.pestañaActiva === "disponibles" ? true : modoSeleccionFilaActivo;
+      ListaClases.setSelectionMode(activo);
+    }
+
+    function actualizarContadoresBoton() {
+      actualizarMasterCheckState();
+      actualizarModoSeleccion();
+
+      if (appState.fallaConexionActiva) {
+        let txt;
+        if (appState.fallaConexionActiva === "sesion") {
+          txt = "Iniciar sesión y reintentar 🔄";
+        } else if (appState.fallaConexionActiva === "internet") {
+          txt = "Reintentar conexión a internet 🔄";
+        } else {
+          txt = "Reintentar conexión con servidor 🔄";
+        }
+        configurarBotonesUX("reintentar-cola", txt, reintentandoColaActivo);
         nodos.btnAction.style.display = 'block';
         nodos.btnStartQueue.style.display = 'none';
-      } else {
-        nodos.btnAction.style.display = 'none';
-        nodos.btnStartQueue.style.display = AppState.ráfagaEnCurso ? 'none' : 'block';
-        
-        if (verificandoConexionBoton) {
-          nodos.btnStartQueue.disabled = true;
-          nodos.btnStartQueue.innerHTML = `<span class="spinner-inline"></span> Verificando conexión...`;
+        nodos.masterCheck.disabled = true;
+        return;
+      }
+
+      if (appState.pestañaActiva !== "disponibles") {
+        const seleccionadosEnCola = appState.colaDescargas.filter(c => c.seleccionado).length;
+      
+        // Permitir habilitar masterCheck en la fila siempre
+        nodos.masterCheck.disabled = false;
+
+        if (seleccionadosEnCola > 0 && !appState.ráfagaEnCurso) {
+          configurarBotonesUX("quitar-de-cola", `Quitar ${seleccionadosEnCola} clases de la fila 🗑️`, false);
+          nodos.btnAction.style.display = 'block';
+          nodos.btnStartQueue.style.display = 'none';
         } else {
-          nodos.btnStartQueue.disabled = (AppState.colaDescargas.length === 0);
-          if (!AppState.ráfagaEnCurso) {
-            nodos.btnStartQueue.innerHTML = "Iniciar descarga masiva 🚀";
+          nodos.btnAction.style.display = 'none';
+          nodos.btnStartQueue.style.display = appState.ráfagaEnCurso ? 'none' : 'block';
+        
+          if (verificandoConexionBoton) {
+            nodos.btnStartQueue.disabled = true;
+            nodos.btnStartQueue.innerHTML = `<span class="spinner-inline"></span> Verificando conexión...`;
+          } else {
+            nodos.btnStartQueue.disabled = (appState.colaDescargas.length === 0);
+            if (!appState.ráfagaEnCurso) {
+              nodos.btnStartQueue.innerHTML = "Iniciar descarga masiva 🚀";
+            }
           }
         }
+        return;
       }
-      return;
+    
+      nodos.btnStartQueue.style.display = 'none';
+    
+      const modoActual = nodos.btnAction.getAttribute('data-modo');
+      if (modoActual === 're-escanear') return; 
+
+      if (!appState.sincronizacionDiscoCompletada) {
+        const isOffline = nodos.folder.disabled;
+        configurarBotonesUX("sincronizar-disco", isOffline ? "Buscando servidor... ⏳" : "Sincronizar carpeta local 📂", isOffline);
+        nodos.btnAction.style.display = 'block';
+        nodos.masterCheck.disabled = true;
+        return;
+      }
+
+      const sel = appState.listadoClasesGlobal.filter(c => c.seleccionado && c.estado === 'pending').length;
+
+      if (appState.ráfagaEnCurso) {
+        configurarBotonesUX("descargar", sel === 0 ? "Seleccioná clases" : `Agregar ${sel} clases a la fila 📥`, sel === 0);
+        nodos.btnAction.style.display = 'block';
+        nodos.masterCheck.disabled = false;
+      } else {
+        nodos.txtEstado.innerHTML = "";
+
+        configurarBotonesUX("descargar", sel === 0 ? "Seleccioná clases" : `Agregar ${sel} clases a la fila 📥`, sel === 0);
+        nodos.btnAction.style.display = 'block';
+        nodos.masterCheck.disabled = false;
+      }
     }
-    
-    nodos.btnStartQueue.style.display = 'none';
-    
-    const modoActual = nodos.btnAction.getAttribute('data-modo');
-    if (modoActual === 're-escanear') return; 
 
-    if (!AppState.sincronizacionDiscoCompletada) {
-      const isOffline = nodos.folder.disabled;
-      configurarBotonesUX("sincronizar-disco", isOffline ? "Buscando servidor... ⏳" : "Sincronizar carpeta local 📂", isOffline);
-      nodos.btnAction.style.display = 'block';
-      nodos.masterCheck.disabled = true;
-      return;
+    function configurarBotonesUX(modo, txt, dis) {
+      nodos.btnAction.setAttribute('data-modo', modo);
+      nodos.btnAction.className = `btn-action modo-${modo}`;
+      nodos.btnAction.textContent = txt;
+      nodos.btnAction.disabled = dis;
     }
 
-    const sel = AppState.listadoClasesGlobal.filter(c => c.seleccionado && c.estado === 'pending').length;
-
-    if (AppState.ráfagaEnCurso) {
-      configurarBotonesUX("descargar", sel === 0 ? "Seleccioná clases" : `Agregar ${sel} clases a la fila 📥`, sel === 0);
-      nodos.btnAction.style.display = 'block';
-      nodos.masterCheck.disabled = false;
-    } else {
-      nodos.txtEstado.innerHTML = "";
-
-      configurarBotonesUX("descargar", sel === 0 ? "Seleccioná clases" : `Agregar ${sel} clases a la fila 📥`, sel === 0);
-      nodos.btnAction.style.display = 'block';
-      nodos.masterCheck.disabled = false;
+    function mostrarAlertDeConexionCaida(errorType, titulo) {
+      appState.fallaConexionActiva = errorType;
+      appState.videoFalladoParaReintento = titulo;
+      appState.videoActualEnTransmisiónSW = titulo;
+    
+      nodos.cancelBox.style.display = 'none';
+      nodos.btnStartQueue.style.display = 'none';
+      nodos.progressCont.style.display = 'none';
+      nodos.panelTel.style.display = 'none';
+    
+      conectarEscuchadoresDelWorker();
+    
+      // Simplemente volver a renderizar y actualizar el botón en la pestaña activa sin redirigir
+      renderizarListadoInterfaz();
+      actualizarContadoresBoton();
+    
+      // Iniciar monitoreo para esperar la reconexión activa
+      iniciarMonitoreoServidor();
     }
-  }
 
-  function configurarBotonesUX(modo, txt, dis) {
-    nodos.btnAction.setAttribute('data-modo', modo);
-    nodos.btnAction.className = `btn-action modo-${modo}`;
-    nodos.btnAction.textContent = txt;
-    nodos.btnAction.disabled = dis;
-  }
-
-  function mostrarAlertDeConexionCaida(errorType, titulo) {
-    AppState.fallaConexionActiva = errorType;
-    AppState.videoFalladoParaReintento = titulo;
-    AppState.videoActualEnTransmisiónSW = titulo;
-    
-    nodos.cancelBox.style.display = 'none';
-    nodos.btnStartQueue.style.display = 'none';
-    nodos.progressCont.style.display = 'none';
-    nodos.panelTel.style.display = 'none';
-    
-    conectarEscuchadoresDelWorker();
-    
-    // Simplemente volver a renderizar y actualizar el botón en la pestaña activa sin redirigir
-    renderizarListadoInterfaz();
-    actualizarContadoresBoton();
-    
-    // Iniciar monitoreo para esperar la reconexión activa
-    iniciarMonitoreoServidor();
-  }
-
-  function actualizarIconoSorteo() {
-    if (!nodos.btnSort) return;
-    if (AppState.pestañaActiva === "cola" && AppState.ordenAscendente === null) {
-      nodos.btnSort.innerHTML = "Fila";
-      nodos.btnSort.title = "Orden: De llegada original (FIFO)";
-    } else {
-      nodos.btnSort.innerHTML = AppState.ordenAscendente ? "Sem. ↑" : "Sem. ↓";
-      nodos.btnSort.title = AppState.ordenAscendente ? "Orden: Semanas más viejas primero (Ascendente)" : "Orden: Semanas más nuevas primero (Descendente)";
+    function actualizarIconoSorteo() {
+      if (!nodos.btnSort) return;
+      if (appState.pestañaActiva === "cola" && appState.ordenAscendente === null) {
+        nodos.btnSort.innerHTML = "Fila";
+        nodos.btnSort.title = "Orden: De llegada original (FIFO)";
+      } else {
+        nodos.btnSort.innerHTML = appState.ordenAscendente ? "Sem. ↑" : "Sem. ↓";
+        nodos.btnSort.title = appState.ordenAscendente ? "Orden: Semanas más viejas primero (Ascendente)" : "Orden: Semanas más nuevas primero (Descendente)";
+      }
     }
-  }
 
-  // La lógica de la faceta (badge, autoselección silenciosa, asistente, modal y el
-  // listener del badge) vive en features/faceta.js, cableada más arriba como _faceta
-  // (window.FacetaFeature.crear) con el descriptor de SitioActivo. Cerró la Fase 2 del
-  // split (ADR-0005) y es la primera pieza de la Capa 2 (ADR-0008).
+    // La lógica de la faceta (badge, autoselección silenciosa, asistente, modal y el
+    // listener del badge) vive en features/faceta.js, cableada más arriba como _faceta
+    // (window.FacetaFeature.crear) con el descriptor de sitio. Cerró la Fase 2 del
+    // split (ADR-0005) y es la primera pieza de la Capa 2 (ADR-0008).
 
-  // El onboarding (overlay, carrusel, botón de ayuda y "Seleccionar Carpeta" del tour)
-  // vive ahora en la isla Preact features/onboarding.preact.js, cableada más arriba
-  // como _onboardingFeature (window.OnboardingFeature.crear).
-});
+    // El onboarding (overlay, carrusel, botón de ayuda y "Seleccionar Carpeta" del tour)
+    // vive ahora en la isla Preact features/onboarding.preact.js, cableada más arriba
+    // como _onboardingFeature (window.OnboardingFeature.crear).
+  });
+}

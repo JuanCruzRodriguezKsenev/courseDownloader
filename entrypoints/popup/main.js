@@ -30,8 +30,24 @@ import '../../popup/features/queue.js';
 import '../../popup/features/filters.js';
 import '../../popup/features/faceta.js';
 
-// Orquestador: va después de sus dependencias, como en popup.html.
-import '../../popup.js';
+// Orquestador. Desde la Fase 7b no se importa por su efecto secundario: exporta
+// `iniciarPopup(deps)` y lo llamamos abajo con sus servicios por nombre. El listener de
+// `DOMContentLoaded` se registra en el mismo momento que antes — los módulos ES son
+// diferidos, así que todo esto corre antes de que el evento dispare.
+import { iniciarPopup } from '../../popup.js';
+import { AppState, mensajeria, Utils } from '../../plataforma/composicion.ts';
+import BunClient from '../../core/backend/bunClient.ts';
+import { SitioActivo } from '../../sitio/ramonnet/config.ts';
+import Renderers from '../../renderers.js';
+
+iniciarPopup({
+  appState: AppState,
+  mensajeria,
+  utils: Utils,
+  backend: BunClient,
+  sitio: SitioActivo,
+  renderers: Renderers,
+});
 
 // Islas Preact. Antes eran <script type="module"> sueltos al final del HTML; acá
 // siguen yendo al final por el mismo motivo: cuando montan, las globals que

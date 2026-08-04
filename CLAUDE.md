@@ -5,10 +5,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > ## ⚠️ Trabajo en curso — leer esto primero
 >
 > Hay una **re-arquitectura activa** (puertos y adaptadores + TypeScript + WXT), ya en su
-> tramo final: **fases 0 a 7a completas; quedan la 7b (el popup como composición) y la 8
-> (borrado del vanilla que no pasó por un puerto)** (al 2026-08-04). La 7 se partió en dos al
-> medirla: el service worker eran 33 lecturas de globals y ya está hecho; `popup.js` son 168,
-> **150 de ellas `AppState`**, y sin red de tests sobre su núcleo. Antes de tocar código:
+> tramo final: **fases 0 a 7b completas; quedan la 7c (islas y features reciben sus
+> dependencias) y la 8 (borrado del vanilla que no pasó por un puerto)** (al 2026-08-04).
+> Medir partió la 7 en tres: los dos orquestadores ya no leen globals, pero eso borró sólo 2
+> de los 7 que había — **los 4 que quedan los leen las features y las islas, no `popup.js`**. Antes de tocar código:
 >
 > **Leé `docs/rearquitectura-diseno.md` §Cómo retomar esto en una sesión nueva.** Ahí está el
 > orden de lectura, el estado por fase, qué sigue y con qué riesgo, y las 4 verificaciones a
@@ -96,7 +96,7 @@ Sources stayed at the repo root (`srcDir: '.'`); only **entrypoints** and **verb
 - **`manifest.json`** → generated from `wxt.config.ts`. Edit the config, never the output.
 - **`popup.html`** → `entrypoints/popup/index.html` (asset paths in it are relative, hence the `../../` prefixes).
 - **The `<script>`/`importScripts` load order** → replaced by the *import order* in the two entrypoints. **The two no longer work the same way**, and that's the thing to get right when adding a module:
-  - `entrypoints/popup/main.js` — **order is load-bearing**: modules publish themselves as globals when evaluated (`globalThis.X = X`) and later ones consume those globals without importing them. Site adapter first, `popup.js` last, Preact islands after that. Adding a module means inserting its import at the right position; the bundler will not catch a wrong order, but the popup breaks at runtime. (Phase 7b is what ends this.)
+  - `entrypoints/popup/main.js` — **still order-dependent, but for a shrinking reason**. `popup.js` now gets injected (`iniciarPopup(deps)`, Phase 7b); what keeps the order load-bearing is that the **features and the 6 islands** still read `AppState`/`Conexion`/`Utils`/`HistorialFallos` off `globalThis`, and each island **auto-mounts when its module is evaluated**. So: site adapter first, composition before anything that reads its globals, islands last. The bundler will not catch a wrong order — the popup breaks at runtime. (Phase 7c is what ends this.) Note the ES subtlety it already introduced: `import` declarations hoist, so the islands now mount *before* `iniciarPopup(...)` runs, where they used to mount after `popup.js` registered its `DOMContentLoaded` listener.
   - `entrypoints/background.js` — **injects instead** (Phase 7a): it calls `iniciarServiceWorker(deps)` with named dependencies, so order stopped mattering and a missing piece is an `undefined` in the call, not a `ReferenceError` mid-download. **Keep that call in the entrypoint's top level** — never inside `defineBackground`'s callback or behind an `await`, or MV3 loses the listeners on a cold start.
 - **`public/`** is copied verbatim into the output: `public/offscreen/` (the legacy offscreen document) and `public/sitio/ramonnet/rules.json` (the dNR ruleset, referenced by that path from `wxt.config.ts`). Files there are *not* bundled — they can't use ES imports and must stay self-contained.
 

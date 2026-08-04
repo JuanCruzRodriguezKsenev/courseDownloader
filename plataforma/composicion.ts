@@ -49,10 +49,10 @@ import { SitioActivo } from "../sitio/ramonnet/config";
  */
 export const almacenamiento = AlmacenamientoChrome;
 
+// Ya no se publica como global: desde la Fase 7b su único lector, `popup.js`, lo recibe por
+// parámetro y se lo pasa por `ctx` a las features. Fue el primer global que la 7b pudo
+// borrar, y por ahora el único — los otros cuatro los leen también las islas y las features.
 export const mensajeria = MensajeriaChrome;
-// Publicado como global porque `popup.js` (todavía vanilla) se lo pasa por `ctx` a las
-// features que lo necesitan. Cuando popup.js sea composición (Fase 7b), esto se va.
-(globalThis as Record<string, unknown>).Mensajeria = mensajeria;
 
 export const programador = ProgramadorChrome;
 
