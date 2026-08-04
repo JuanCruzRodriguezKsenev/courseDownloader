@@ -13,10 +13,12 @@ const globalesDelProyecto = {
   BunClient: "readonly",
   Conexion: "readonly",
   HistorialFallos: "readonly",
-  // Puertos (Fases 5b/5c): los publica plataforma/composicion.ts. Almacenamiento lo consume
-  // background.js; Mensajeria, popup.js (que se lo pasa por ctx a las features).
+  // Puertos (Fases 5b/5c): los publica plataforma/composicion.ts. Almacenamiento y
+  // Programador los consume background.js; Mensajeria, popup.js (que se lo pasa por ctx a
+  // las features).
   Almacenamiento: "readonly",
   Mensajeria: "readonly",
+  Programador: "readonly",
   HlsEngine: "readonly",
   AppState: "readonly",
   Renderers: "readonly",

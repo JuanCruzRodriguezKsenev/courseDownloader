@@ -428,6 +428,34 @@ Qué NO cambió y conviene no confundir: `shared/` sigue existiendo con `state.t
 `state.ts` no puede seguir a `conexion.ts` todavía — le falta lo de la clave de faceta, que es
 la fila de abajo.
 
+### Registro del corte `PuertoProgramador` (2026-08-03)
+
+El puerto más chico de los tres del SW, y el único que se pudo hacer sin tocar el bucle de
+descarga. Lo que dejó, además del código:
+
+- **La interfaz esbozada en §Puertos no sobrevivió tal cual, y está bien**: se cayó el
+  `Promise<void>` de `programar`/`cancelar` (nadie espera nada: `chrome.alarms.create` no es
+  una operación que se aguarde) y `onDisparo` pasó a devolver la función de desuscripción,
+  como los otros dos puertos. El período quedó en **minutos decimales** en vez de milisegundos
+  a propósito: es la unidad de `chrome.alarms`, y cambiarla obligaba a convertir en el
+  adaptador y a releer los call-sites para ver cuál quedó en la unidad vieja.
+- **El doble en memoria no usa relojes**: los disparos los provoca el test
+  (`dispararAhora` / `dispararYEsperar`). Un test que espera 12 segundos reales no es un test,
+  y uno con timers falsos termina verificando el reloj de Vitest.
+- **`dispararYEsperar` nació de un problema concreto**: el handler del auto-heal es `async`
+  (consulta storage y el daemon), y el puerto —como `chrome.alarms`— ignora lo que devuelva.
+  Sin una forma de esperarlo, el test tenía que dormir un rato arbitrario: flakiness
+  disfrazada de test. El doble sí puede juntar las promesas, así que las junta.
+- **El doble es más estricto que el mock que reemplazó, y eso destapó una siembra floja**: sólo
+  notifica si la alarma está **programada**, igual que el navegador. Los 4 tests de auto-heal
+  simulaban el disparo sin que ninguna alarma existiera; ahora programan primero, que es lo que
+  de verdad pasa cuando la cola se pausa.
+- **Guarda de regresión**: `chrome.alarms` se sumó a `chrome.storage` como getter que tira en
+  el harness. Si alguien vuelve a usar la API directa, el test explota en vez de pasar.
+
+Sin cambios de comportamiento: los tests del auto-heal pasaron sin tocar una sola aserción de
+lógica — sólo cambió la forma de disparar y de afirmar sobre la alarma.
+
 ### El próximo paso (al 2026-08-03)
 
 Lo que sigue, de menor a mayor riesgo. **Empezar por el primero**: desbloquea dos mudanzas que
@@ -440,7 +468,7 @@ hoy no se pueden hacer.
 | **Generalizar la clave de faceta** (`claveEstado` → `facetaSeleccionada`, migración de `catedraElegida` en storage) | Es lo único que ata `shared/state.ts` a vocabulario del sitio, y por lo tanto lo que falta para mudarlo a `core/`. **Corrección al plan (2026-08-03)**: acá decía que a `state.ts` le faltaba el puerto de mensajería para su `sincronizarConBackground`; ese puerto existe desde la 5c, así que ese bloqueo ya no aplica — queda éste. El comentario en `sitio/ramonnet/config.ts` que describe el renombre esperaba un disparador ("cuando `AppState` pase a un puerto") que ya ocurrió en la 5b. |
 | **IPC de `background.js` al puerto — las dos puntas** (cierra 5c) | **Corrección (2026-08-03)**: esta fila decía "lado receptor" y subestimaba el corte. El SW **no toca el `PuertoMensajeria` en absoluto**: siguen crudos tanto el `chrome.runtime.onMessage` (1 listener) como los **9 `chrome.runtime.sendMessage`** de emisión (progreso, `cola_completamente_vacia`, telemetría). El puerto ya tiene `enviar`/`notificar`/`onMensaje` testeados; `background.js` ya tiene red de tests (17). Ojo al migrar la emisión: el SW notifica a un popup que puede estar cerrado, así que va `notificar()` (fire-and-forget), no `enviar()` — hoy eso se expresa como `.catch(() => {})` colgado de cada `sendMessage`. |
 | ~~**`sincronizarConBackground()` de `shared/state.ts` al puerto**~~ | ✅ **Hecho (2026-08-03)**, el mismo día en que se agregó la fila. `crearAppState(almacenamiento, mensajeria)`; `state.ts` queda sin ningún `chrome.*` y sus tests sin ningún mock de `chrome.*`. Se conservó el timeout de rescate de 3s **a propósito**: el puerto rechaza cuando no hay receptor, pero no cubre al receptor que acepta, promete responder async y no responde — que es justo lo que pasa con un SW dormido. Deja a `state.ts` a un solo paso de `core/`: falta la clave de faceta (fila de arriba). |
-| **`PuertoProgramador`** (cierra 5c) | Las alarmas del auto-heal (`chrome.alarms`). Interfaz esbozada arriba. Las 4 ramas del auto-heal ya están cubiertas por tests, así que hay con qué verificar. |
+| ~~**`PuertoProgramador`**~~ | ✅ **Hecho (2026-08-03)** — puerto + adaptador Chrome + adaptador en memoria con tests propios (7). Los 8 call-sites de `chrome.alarms` del SW pasaron al puerto y el harness de `background.test.js` dejó de mockear esa API: ahora, como con storage, **tira** si el SW la toca. Ver el registro abajo. |
 | **Fase 6 — motor HLS a `core/hls/`** | Llega con el pool ya testeado. |
 | **Fase 6b — cola de descarga a `core/cola/`** | El bloque de lógica más grande que queda en `background.js`. Va después de la 6 y de los puertos del SW; llega con los tests de caracterización del bucle ya escritos. |
 | **Fase 6c — split de UI genérica vs. de sitio + CSS co-locado** | Antes de la 7, para no cablear los entrypoints dos veces. |
@@ -483,7 +511,7 @@ en el tramo intermedio (en `state.js` no pasaba: `conexion.js` y `bunClient.ts` 
 | 4 — `core/`: BunClient en TypeScript (+ typescript-eslint y `tsc --noEmit` en verde) | ✅ Hecha (2026-08-02) |
 | 5a — `PuertoAlmacenamiento` + adaptador Chrome + adaptador en memoria + 1er consumidor migrado (historial de fallos) | ✅ Hecha (2026-08-02) |
 | 5b — `PuertoAlmacenamiento`: adaptadores + **todos** los consumidores | ✅ **Completa** (2026-08-03) — historial de fallos, `AppState`, daemon de conexión y `background.js`. No queda ni un `chrome.storage` en el proyecto. (`queue.js` figuraba acá por error: sus usos eran IPC → Fase 5c.) |
-| 5c — `PuertoMensajeria` (IPC) + `PuertoProgramador` (alarmas) + sus adaptadores | 🟡 En curso — `PuertoMensajeria` ✅ con sus dos adaptadores; migrados `queue.js` y `popup.js` (2026-08-03). Se sumó `PuertoSitio` + `sitio/ramonnet/config.ts` (2026-08-03), que destapó el tapón de `allowJs` y habilitó la mudanza del daemon de conexión a `core/conexion/` (2026-08-03). Migrado también el IPC de `shared/state.ts` (2026-08-03): fuera de `background.js` ya no queda un solo `sendMessage` crudo. **Falta**: el `PuertoProgramador` (alarmas del auto-heal) y el IPC de `background.js` **en sus dos puntas** (emisión y recepción — el SW todavía no toca el puerto) |
+| 5c — `PuertoMensajeria` (IPC) + `PuertoProgramador` (alarmas) + sus adaptadores | 🟡 En curso — `PuertoMensajeria` ✅ con sus dos adaptadores; migrados `queue.js` y `popup.js` (2026-08-03). Se sumó `PuertoSitio` + `sitio/ramonnet/config.ts` (2026-08-03), que destapó el tapón de `allowJs` y habilitó la mudanza del daemon de conexión a `core/conexion/` (2026-08-03). Migrado también el IPC de `shared/state.ts` (2026-08-03): fuera de `background.js` ya no queda un solo `sendMessage` crudo. `PuertoProgramador` ✅ con sus dos adaptadores, y los 8 `chrome.alarms` del SW migrados (2026-08-03). **Falta sólo**: el IPC de `background.js` **en sus dos puntas** (emisión y recepción — el SW todavía no toca el puerto) |
 | 6 — Motor HLS → `core/hls/` | ⏳ No iniciada |
 | 6b — Cola de descarga → `core/cola/` (FIFO + máquina de estados, hoy dentro de `background.js`) | ⏳ No iniciada. Va **después** de la 6 (el bucle maneja al motor) y de que el SW tenga sus puertos (5c: IPC receptor + alarmas). Es el bloque de lógica más grande que queda sin migrar, y ya tiene red: los 12 tests de caracterización del bucle y el auto-heal de `background.test.js`. |
 | 6c — UI: split genérico (`ui/comunes/`) vs. de sitio (`sitio/ramonnet/ui/`) + CSS co-locado por componente | ⏳ No iniciada. Diseñada en §UI de este doc (incluida la convención BEM y que `listaClases` hay que **partirla en dos**, no moverla). Va antes de la 7 para que los entrypoints cableen la estructura final una sola vez. |

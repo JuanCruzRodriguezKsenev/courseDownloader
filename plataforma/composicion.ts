@@ -16,6 +16,7 @@
  */
 import AlmacenamientoChrome from "./chrome/almacenamiento";
 import MensajeriaChrome from "./chrome/mensajeria";
+import ProgramadorChrome from "./chrome/programador";
 import { crearHistorialFallos } from "../core/historial/historialFallos";
 import { crearAppState } from "../shared/state";
 import { crearConexion } from "../core/conexion/conexion";
@@ -34,6 +35,12 @@ export const mensajeria = MensajeriaChrome;
 // Publicado como global porque `popup.js` (todavía vanilla) se lo pasa por `ctx` a las
 // features que lo necesitan. Cuando popup.js sea composición (Fase 7), esto se va.
 (globalThis as Record<string, unknown>).Mensajeria = mensajeria;
+
+export const programador = ProgramadorChrome;
+// Sólo lo consume el service worker (la alarma de auto-sanación), pero se publica desde acá
+// como los demás: el popup construye una instancia inerte, que degrada a no-op porque no
+// tiene `chrome.alarms` en su contexto.
+(globalThis as Record<string, unknown>).Programador = programador;
 
 export const HistorialFallos = crearHistorialFallos(almacenamiento);
 (globalThis as Record<string, unknown>).HistorialFallos = HistorialFallos;

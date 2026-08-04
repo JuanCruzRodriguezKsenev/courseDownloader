@@ -78,8 +78,8 @@ Lo que **todavía** habla `chrome.*` directo, por API y no por archivo:
 
 | API | Dónde | Puerto que espera |
 |---|---|---|
-| `runtime` (IPC) | `background.js` (lado receptor) | `PuertoMensajeria` ✅ existe — falta migrar el receptor |
-| `alarms` | `background.js` (auto-heal) | `PuertoProgramador` (diseñado, sin construir) |
+| `runtime` (IPC) | `background.js`, **las dos puntas**: 1 `onMessage` + 9 `sendMessage` | `PuertoMensajeria` ✅ existe — falta migrar el SW, que todavía no lo toca |
+| ~~`alarms`~~ | ~~`background.js` (auto-heal)~~ | ✅ Migrado (2026-08-03): `PuertoProgramador` + `plataforma/chrome/programador.ts` |
 | `notifications` | `background.js` | sin diseñar |
 | `tabs` / `windows` | `background.js`, `popup.js` | `PuertoTabs` (diseñado, sin construir) |
 | `scripting` | `popup.js` | `PuertoInyeccion` (diseñado, sin construir) |
@@ -197,6 +197,14 @@ clave local `historialFallos`, que respalda la campanita; lo escribe el SW en `r
 y lo lee/muta el popup. Schema → `docs/data-model.md`; diseño →
 `docs/notificaciones-fallos-diseno.md`).
 
+**`PuertoProgramador` no es "un timer con otra cara"** (`core/puertos/programador.ts`, 2026-08-03).
+Su razón de existir es que en MV3 el service worker se suspende y con él muere cualquier
+`setInterval`: la alarma sobrevive y **despierta al worker**. Por eso el único cliente es la
+auto-sanación. Dos detalles de contrato que el código de auto-heal ya asumía y ahora están
+escritos: `programar()` es **idempotente por nombre** (reprogramar reemplaza, no acumula), y el
+período va en **minutos decimales** —la unidad de `chrome.alarms`— para no tener que convertir
+en el adaptador ni releer call-sites buscando cuál quedó en la unidad vieja.
+
 **`ErrorBackend` convierte en tipo lo que era una convención en comentarios**:
 `tipoBackend: "rechazo"` marca **sólo** 4xx (saltear la clase), nunca 5xx (pausar +
 auto-heal). De esa distinción depende el fix del bug 400.
@@ -204,7 +212,10 @@ auto-heal). De esa distinción depende el fix del bug 400.
 ### Capa 3 — `plataforma/`
 
 `plataforma/chrome/almacenamiento.ts` implementa `PuertoAlmacenamiento` sobre
-`chrome.storage`; `plataforma/chrome/mensajeria.ts` implementa `PuertoMensajeria` sobre
+`chrome.storage`; `plataforma/chrome/programador.ts` implementa `PuertoProgramador` sobre
+`chrome.alarms` (adaptador fino: la API ya es idempotente por nombre y ya sobrevive a la
+suspensión, así que sólo traduce nombres y degrada a no-op donde no existe — el popup);
+`plataforma/chrome/mensajeria.ts` implementa `PuertoMensajeria` sobre
 `chrome.runtime`, y usa a propósito la forma **callback**, porque es la única que expone
 `chrome.runtime.lastError`: el adaptador siempre lo lee y lo convierte en rechazo o en
 warning.

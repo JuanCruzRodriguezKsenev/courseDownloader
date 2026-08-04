@@ -1,6 +1,16 @@
 /**
- * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V6.0.0)
+ * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V6.1.0)
  * ==========================================================================
+ * CHANGELOG v6.1.0:
+ * - [FASE 5C] Los 8 call-sites de chrome.alarms (la alarma de auto-sanación) pasan al
+ *   PuertoProgramador, que llega como global `Programador` desde composicion.ts. El nombre
+ *   y el período dejan de estar hardcodeados en 8 lugares y son constantes de módulo
+ *   (ALARMA_AUTOHEAL / PERIODO_AUTOHEAL_MIN). El período sigue en minutos decimales
+ *   —0.2 = 12s— porque es la unidad del puerto; cambiarla acá habría sido un cambio de
+ *   comportamiento disfrazado de mejora de API. Sin cambios de comportamiento: los tests
+ *   del auto-heal pasaron sin tocar una aserción de lógica, sólo la forma de disparar.
+ *   Lo que sigue en chrome.* directo acá: runtime (IPC, las dos puntas), notifications,
+ *   tabs/windows y el camino legacy downloads/offscreen.
  * CHANGELOG v6.0.0:
  * - [FASE 5B] Los 14 call-sites de chrome.storage (local + session) pasan al
  *   PuertoAlmacenamiento, que llega como global `Almacenamiento` publicado por
@@ -133,6 +143,13 @@
 // de este archivo (el bundler arma el grafo). Acá no queda nada que importar: el
 // `importScripts(...)` que había existía para el SW clásico que se cargaba desde la raíz
 // del repo, camino que desapareció al empaquetar con WXT (Fase 3).
+
+// Auto-sanación: la tarea diferida que revisa si volvió la conexión con la cola pausada.
+// Va por `PuertoProgramador` y no por `chrome.alarms` directo (Fase 5c). El período sigue
+// expresado en minutos decimales porque es la unidad del puerto — 0.2 min = 12 s, el valor
+// que este archivo usaba hardcodeado en el `create`.
+const ALARMA_AUTOHEAL = "alarma_autoheal";
+const PERIODO_AUTOHEAL_MIN = 0.2;
 
 // Helper para encapsular el estado en almacenamiento de sesión (persistente al SW, volátil al navegador)
 const SessionState = {
@@ -386,7 +403,7 @@ const manejadoresIPC = {
         abortadoPorUsuario: false
       });
 
-      chrome.alarms.clear("alarma_autoheal");
+      Programador.cancelar(ALARMA_AUTOHEAL);
 
       if (!loopActivo) {
         loopActivo = true;
@@ -418,7 +435,7 @@ const manejadoresIPC = {
       abortadoPorUsuario: true
     });
     loopActivo = false;
-    chrome.alarms.clear("alarma_autoheal");
+    Programador.cancelar(ALARMA_AUTOHEAL);
 
     if (controladorGraficoActivo) {
       try { controladorGraficoActivo.abort(); }
@@ -462,7 +479,7 @@ const manejadoresIPC = {
       tipoDeErrorConexion: ""
     });
     loopActivo = false;
-    chrome.alarms.clear("alarma_autoheal");
+    Programador.cancelar(ALARMA_AUTOHEAL);
     await persistirEstadoFondo({});
     await Almacenamiento.guardarLocal({ colaDescargas: [] });
     return sendResponse({ status: "limpio_ok" });
@@ -834,7 +851,7 @@ async function pausarColaPorErrorDeConexion(tipoError, titulo) {
   // reintentaría en loop contra el login. El usuario reintenta a mano tras iniciar sesión.
   if (tipoError !== "sesion") {
     // Creamos alarma para auto-verificación cada 12 segundos (periodInMinutes acepta decimales)
-    chrome.alarms.create("alarma_autoheal", { periodInMinutes: 0.2 });
+    Programador.programar(ALARMA_AUTOHEAL, { periodoMin: PERIODO_AUTOHEAL_MIN });
   }
 
   chrome.runtime.sendMessage({
@@ -845,7 +862,7 @@ async function pausarColaPorErrorDeConexion(tipoError, titulo) {
 }
 
 async function reanudarColaDesdeBackground() {
-  chrome.alarms.clear("alarma_autoheal");
+  Programador.cancelar(ALARMA_AUTOHEAL);
 
   await SessionState.set({
     colaPausadaPorError: false,
@@ -860,15 +877,15 @@ async function reanudarColaDesdeBackground() {
 }
 
 // Escuchador de Alarma para Auto-Sanación en segundo plano (funciona incluso si el SW se suspende)
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === "alarma_autoheal") {
+Programador.onDisparo(async (nombre) => {
+  if (nombre === ALARMA_AUTOHEAL) {
     const state = await SessionState.get();
     if (state.colaPausadaPorError) {
       // Guarda defensiva: el caso "sesion" no debe auto-reanudarse (el daemon no puede
       // detectar el login). No se crea alarma para él, pero si quedó una de un estado
       // previo, se limpia acá. El usuario reanuda a mano tras iniciar sesión.
       if (state.tipoDeErrorConexion === "sesion") {
-        chrome.alarms.clear("alarma_autoheal");
+        Programador.cancelar(ALARMA_AUTOHEAL);
         return;
       }
       try {
@@ -887,7 +904,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
         // Sigue sin conexión/servidor
       }
     } else {
-      chrome.alarms.clear("alarma_autoheal");
+      Programador.cancelar(ALARMA_AUTOHEAL);
     }
   }
 });

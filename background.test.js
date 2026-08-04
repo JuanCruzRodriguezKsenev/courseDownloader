@@ -10,15 +10,22 @@
  * en sendResponse garantiza que el store ya quedó consistente.
  */
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
+import { ProgramadorEnMemoria } from './core/puertos/programadorEnMemoria.ts';
 
 let listener;               // el callback de chrome.runtime.onMessage
-let oyenteAlarma;           // el callback de chrome.alarms.onAlarm
 const store = { local: {}, session: {} };
 
 /** Todo lo que el SW manda por IPC durante un test (para afirmar sobre el flujo). */
 let mensajesEnviados = [];
-/** Alarmas creadas/limpiadas, para el auto-heal. */
-let alarmas = { creadas: [], limpiadas: [] };
+/**
+ * El puerto de programación del auto-heal (Fase 5c). Reemplaza al mock de `chrome.alarms`:
+ * el SW ya no la toca. Ojo con una diferencia de fidelidad que el mock viejo no tenía —
+ * `dispararAhora` sólo notifica si la alarma está **programada**, igual que el navegador. Un
+ * test que simule un disparo tiene que programarla primero, como parte de sembrar el estado
+ * "la cola quedó pausada con su alarma viva".
+ */
+let programador;
+const ALARMA_AUTOHEAL = 'alarma_autoheal';
 /** Fallos registrados vía registrarFallo (historial + notificación). */
 let fallosRegistrados = [];
 
@@ -70,6 +77,10 @@ beforeAll(async () => {
   globalThis.importScripts = () => {};
   // Puerto de almacenamiento (Fase 5b): lo publica plataforma/composicion.ts en producción.
   globalThis.Almacenamiento = crearAlmacenamientoDePrueba();
+  // Puerto de programación (Fase 5c), el de la alarma de auto-sanación. Se crea una sola vez
+  // porque el SW registra su oyente al evaluarse, igual que con el listener de IPC.
+  programador = new ProgramadorEnMemoria();
+  globalThis.Programador = programador;
   globalThis.performance = globalThis.performance || { now: () => Date.now() };
   globalThis.Utils = {
     // Sólo lo que usa el bucle de descarga (el resto está cubierto en utils.test.js).
@@ -113,11 +124,8 @@ beforeAll(async () => {
     // El SW ya no toca chrome.storage: todo pasa por el puerto. Si algo vuelve a usarlo,
     // que explote en vez de pasar en silencio.
     get storage() { throw new Error('el SW no debe usar chrome.storage: va por Almacenamiento'); },
-    alarms: {
-      onAlarm: { addListener: (cb) => { oyenteAlarma = cb; } },
-      clear: (n) => { alarmas.limpiadas.push(n); },
-      create: (n, o) => { alarmas.creadas.push({ nombre: n, opciones: o }); },
-    },
+    // Mismo criterio que storage: el SW ya no toca chrome.alarms (va por Programador).
+    get alarms() { throw new Error('el SW no debe usar chrome.alarms: va por Programador'); },
     downloads: { search: async () => [] },
     notifications: { onClicked: noopEvent, create: () => {}, clear: () => {} },
     tabs: { query: async () => [], update: async () => {}, create: async () => {} },
@@ -131,7 +139,8 @@ beforeEach(() => {
   store.local = {};
   store.session = {};
   mensajesEnviados = [];
-  alarmas = { creadas: [], limpiadas: [] };
+  // La instancia se conserva (el SW ya enganchó su oyente); se limpia lo programado.
+  programador.cancelar(ALARMA_AUTOHEAL);
   fallosRegistrados = [];
   estadoConexion = { servidor: true, internet: true, tipoFalla: null };
   // Motor por defecto: 2 fragmentos y descarga exitosa.
@@ -310,7 +319,7 @@ describe('bucle de descarga — rechazo 4xx del backend (bug 400)', () => {
     // Aviso al popup + historial, y NADA de pausa/alarma.
     expect(mensajesEnviados.find(m => m.action === 'clase_con_error')).toMatchObject({ titulo: 'Mala' });
     expect(accionesEnviadas()).not.toContain('cola_pausada_por_error');
-    expect(alarmas.creadas).toHaveLength(0);
+    expect(programador.nombresProgramados()).toEqual([]);
     await esperarA(() => fallosRegistrados.length === 1, 'fallo en historial');
     expect(fallosRegistrados[0]).toMatchObject({ tipo: 'rechazo', titulo: 'Mala' });
   });
@@ -331,7 +340,7 @@ describe('bucle de descarga — fallos que pausan la cola', () => {
       .toMatchObject({ errorType: 'sesion', titulo: 'Clase 1' });
     expect(store.session.colaPausadaPorError).toBe(true);
     expect(store.session.rafagaCorriendo).toBe(false);
-    expect(alarmas.creadas).toHaveLength(0);
+    expect(programador.nombresProgramados()).toEqual([]);
     await esperarA(() => fallosRegistrados.length === 1, 'fallo en historial');
     expect(fallosRegistrados[0]).toMatchObject({ tipo: 'sesion' });
   });
@@ -345,7 +354,7 @@ describe('bucle de descarga — fallos que pausan la cola', () => {
 
     expect(mensajesEnviados.find(m => m.action === 'cola_pausada_por_error'))
       .toMatchObject({ errorType: 'servidor' });
-    expect(alarmas.creadas).toEqual([{ nombre: 'alarma_autoheal', opciones: { periodInMinutes: 0.2 } }]);
+    expect(programador.periodoDe(ALARMA_AUTOHEAL)).toBe(0.2);
     expect(store.session.tipoDeErrorConexion).toBe('servidor');
   });
 
@@ -364,7 +373,7 @@ describe('bucle de descarga — fallos que pausan la cola', () => {
 
     expect(accionesEnviadas()).not.toContain('cola_pausada_por_error');
     expect(fallosRegistrados).toEqual([]);
-    expect(alarmas.creadas).toHaveLength(0);
+    expect(programador.nombresProgramados()).toEqual([]);
   });
 });
 
@@ -400,10 +409,14 @@ describe('auto-heal por alarma', () => {
     store.local.listaPersistente = [{ titulo: 'Clase 1', estado: 'process' }];
     estadoConexion = { servidor: true, internet: true, tipoFalla: null };
 
-    await oyenteAlarma({ name: 'alarma_autoheal' });
+    // La alarma existe porque la cola se pausó: sin esto el disparo no notificaría a nadie,
+    // igual que en el navegador (ver la nota del harness sobre fidelidad).
+    programador.programar(ALARMA_AUTOHEAL, { periodoMin: 0.2 });
+
+    expect(await programador.dispararYEsperar(ALARMA_AUTOHEAL)).toBe(true);
     await esperarA(() => accionesEnviadas().includes('cola_completamente_vacia'), 'reanudó y drenó');
 
-    expect(alarmas.limpiadas).toContain('alarma_autoheal');
+    expect(programador.estaProgramada(ALARMA_AUTOHEAL)).toBe(false);
     expect(store.session.colaPausadaPorError).toBe(false);
     expect(store.local.listaPersistente[0].estado).toBe('downloaded');
   });
@@ -413,7 +426,11 @@ describe('auto-heal por alarma', () => {
     store.session.tipoDeErrorConexion = 'servidor';
     estadoConexion = { servidor: false, internet: true, tipoFalla: 'servidor' };
 
-    await oyenteAlarma({ name: 'alarma_autoheal' });
+    // La alarma existe porque la cola se pausó: sin esto el disparo no notificaría a nadie,
+    // igual que en el navegador (ver la nota del harness sobre fidelidad).
+    programador.programar(ALARMA_AUTOHEAL, { periodoMin: 0.2 });
+
+    expect(await programador.dispararYEsperar(ALARMA_AUTOHEAL)).toBe(true);
 
     expect(store.session.colaPausadaPorError).toBe(true);
     expect(accionesEnviadas()).not.toContain('cola_completamente_vacia');
@@ -423,17 +440,25 @@ describe('auto-heal por alarma', () => {
     store.session.colaPausadaPorError = true;
     store.session.tipoDeErrorConexion = 'sesion';
 
-    await oyenteAlarma({ name: 'alarma_autoheal' });
+    // La alarma existe porque la cola se pausó: sin esto el disparo no notificaría a nadie,
+    // igual que en el navegador (ver la nota del harness sobre fidelidad).
+    programador.programar(ALARMA_AUTOHEAL, { periodoMin: 0.2 });
 
-    expect(alarmas.limpiadas).toContain('alarma_autoheal');
+    expect(await programador.dispararYEsperar(ALARMA_AUTOHEAL)).toBe(true);
+
+    expect(programador.estaProgramada(ALARMA_AUTOHEAL)).toBe(false);
     expect(store.session.colaPausadaPorError).toBe(true);
   });
 
   it('sin cola pausada, la alarma sólo se limpia sola', async () => {
     store.session.colaPausadaPorError = false;
 
-    await oyenteAlarma({ name: 'alarma_autoheal' });
+    // La alarma existe porque la cola se pausó: sin esto el disparo no notificaría a nadie,
+    // igual que en el navegador (ver la nota del harness sobre fidelidad).
+    programador.programar(ALARMA_AUTOHEAL, { periodoMin: 0.2 });
 
-    expect(alarmas.limpiadas).toContain('alarma_autoheal');
+    expect(await programador.dispararYEsperar(ALARMA_AUTOHEAL)).toBe(true);
+
+    expect(programador.estaProgramada(ALARMA_AUTOHEAL)).toBe(false);
   });
 });

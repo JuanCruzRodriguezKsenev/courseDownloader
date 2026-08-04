@@ -106,7 +106,7 @@ Cada intento tiene además un **timeout propio de 10 s** (`AbortController` comp
 
 ## Circuit breaker ad-hoc (2 estados)
 
-**Dónde**: `pausarColaPorErrorDeConexion()` + la alarma `alarma_autoheal` (`chrome.alarms`) en `background.js:594-663`.
+**Dónde**: `pausarColaPorErrorDeConexion()` + la alarma `alarma_autoheal` en `background.js`. Desde el 2026-08-03 va por **`PuertoProgramador`** (`Programador.programar/cancelar/onDisparo`), no por `chrome.alarms` directo; el nombre y el período viven en las constantes `ALARMA_AUTOHEAL` / `PERIODO_AUTOHEAL_MIN` del mismo archivo. Por qué una alarma y no un `setInterval` → `docs/architecture.md` §Capa 1.
 
 **Qué hace**: cuando falla una descarga por conectividad, la cola se marca `colaPausadaPorError = true` y se registra una alarma que sondea cada ~12s si el recurso caído (internet o backend Bun) volvió, reanudando la cola automáticamente si es así.
 
