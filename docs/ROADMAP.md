@@ -140,9 +140,9 @@ tipados.
 ## Fase 6 (🟡 EN EJECUCIÓN desde 2026-08-02) — Re-arquitectura núcleo + adaptadores (+ TypeScript)
 
 > **Ojo con la numeración**: la "Fase 6" de este ROADMAP es **toda** la re-arquitectura, que
-> internamente tiene su propia numeración de fases 0-8. **Ya no está diferida**: al 2026-08-03
-> van completas sus fases 0-5b y a medias la 5c. El avance por fase y el próximo paso viven en
-> **`docs/rearquitectura-diseno.md`** — este ROADMAP no los duplica.
+> internamente tiene su propia numeración de fases 0-8. **Ya no está diferida**: al 2026-08-04
+> van completas sus fases 0 a 6c y quedan la 7 y la 8. El avance por fase y el próximo paso
+> viven en **`docs/rearquitectura-diseno.md`** — este ROADMAP no los duplica.
 
 **Objetivo**: convertir la extensión en un **template reutilizable** vía
 arquitectura de puertos y adaptadores (hexagonal), separando el código genérico del

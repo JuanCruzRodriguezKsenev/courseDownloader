@@ -16,7 +16,7 @@ Esta es la **fuente canónica** de la regla. `docs/coding-standards.md` la refer
 
 | Permiso | Para qué se usa |
 |---|---|
-| `declarativeNetRequest` | Bloquear requests de imagen/xhr/other a `bunnyinfra.net` (ver `sitio/ramonnet/rules.json`) — bloqueo intencional de contenido no esencial del CDN, no relacionado con el flujo de descarga. |
+| `declarativeNetRequest` | Bloquear requests de imagen/xhr/other a `bunnyinfra.net` (ver `public/sitio/ramonnet/rules.json`; vive en `public/` para que WXT lo copie a esa ruta exacta, que es la que referencia el manifest generado) — bloqueo intencional de contenido no esencial del CDN, no relacionado con el flujo de descarga. |
 | `downloads` | Path legacy no-Turbo (`chrome.downloads.download`), inactivo en la práctica hoy — ver `docs/tech-stack.md`. |
 | `storage` | `chrome.storage.local`/`.session` — ver `docs/data-model.md`. |
 | `scripting` | Inyectar `Scraper.escanearAulaVirtual` en la pestaña activa de Ramón Net. |

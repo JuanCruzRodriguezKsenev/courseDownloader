@@ -130,7 +130,7 @@ Cada intento tiene además un **timeout propio de 10 s** (`AbortController` comp
 
 ## Sesiones únicas de descarga (idempotencia ad-hoc)
 
-**Dónde**: `videoActualSessionId` en `SessionState`, enviado como header `x-session-id` en `BunClient.enviarFragmentoStream` (`shared/bunClient.js`).
+**Dónde**: `videoActualSessionId` en `SessionState`, enviado como header `x-session-id` en `BunClient.enviarFragmentoStream` (`core/backend/bunClient.ts`).
 
 **Qué hace**: cada intento de descarga de una clase genera un `sessionId` único (`Date.now().toString()`). El backend Bun lo usa para distinguir fragmentos de intentos distintos y evitar que una cancelación seguida de un reintento mezcle fragmentos huérfanos de la sesión anterior con la nueva.
 

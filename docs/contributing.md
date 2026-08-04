@@ -23,7 +23,7 @@ ya no se escribe a mano — lo genera el build.
 ## Debuggear
 
 - **Popup**: clic derecho sobre el ícono de la extensión → "Inspeccionar popup" (o abrirlo y F12) para DevTools de `popup.js`/`sitio/ramonnet/scraper.js`.
-- **Service worker**: en `chrome://extensions/`, clic en "service worker" bajo la tarjeta de la extensión, para DevTools de `background.js`/`background/hlsEngine.js`.
+- **Service worker**: en `chrome://extensions/`, clic en "service worker" bajo la tarjeta de la extensión, para DevTools del service worker: `background.js` y todo lo que la composición le enchufa (`core/cola/`, `core/hls/`).
 
 ## Flujo de git
 

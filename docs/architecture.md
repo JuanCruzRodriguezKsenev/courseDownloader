@@ -66,9 +66,9 @@ sigue.
 
 | Capa | Carpeta | Regla | Estado |
 |---|---|---|---|
-| 1 — Núcleo genérico | `core/` | Cero `chrome.*`, cero Ramón Net. Todo TypeScript. Depende sólo de puertos (`core/puertos/`). | Parcial: `backend/bunClient.ts`, `historial/historialFallos.ts`, `puertos/` (`almacenamiento.ts`, `mensajeria.ts`, `sitio.ts`) |
+| 1 — Núcleo genérico | `core/` | Cero `chrome.*`, cero Ramón Net. Todo TypeScript. Depende sólo de puertos (`core/puertos/`). | ✅ **Completa** (2026-08-04): `puertos/` (4 interfaces + 3 dobles en memoria), `cola/` (bucle + estado de sesión + espejo de progreso), `hls/`, `conexion/`, `estado/`, `backend/`, `historial/`, `util/` |
 | 2 — Adaptador de sitio | `sitio/ramonnet/` | Todo lo específico del portal: scraper, parser de títulos, resolución del `.m3u8`, constantes, faceta, reglas dNR. Cumple `PuertoSitio`. | ✅ Completa (en TS desde 2026-08-03: `config.ts`; los otros 3 archivos siguen en `.js`) |
-| 3 — Adaptador de plataforma | `plataforma/chrome/` | Único lugar que toca la API del navegador. Implementa los puertos. | Parcial: `almacenamiento.ts`, `mensajeria.ts` |
+| 3 — Adaptador de plataforma | `plataforma/chrome/` | Único lugar que toca la API del navegador. Implementa los puertos. | `almacenamiento.ts`, `mensajeria.ts`, `programador.ts`, `notificaciones.ts`, `descargas.ts`, `volcadoLegacy.ts`. Falta lo de la tabla de abajo |
 | Composición | `plataforma/composicion.ts` | Único lugar donde se eligen adaptadores concretos y se inyectan al núcleo. | Activa |
 | Entrypoints | `entrypoints/` | Puntos de entrada de WXT: importan en orden y no contienen lógica. | ✅ |
 
@@ -81,10 +81,10 @@ Lo que **todavía** habla `chrome.*` directo, por API y no por archivo:
 |---|---|---|
 | ~~`runtime` (IPC)~~ | ~~`background.js`, las dos puntas~~ | ✅ Migrado (2026-08-03). **No queda IPC crudo en el proyecto.** En `background.js` sobreviven `onInstalled`, `getURL` y el `lastError` de notifications, que no son IPC |
 | ~~`alarms`~~ | ~~`background.js` (auto-heal)~~ | ✅ Migrado (2026-08-03): `PuertoProgramador` + `plataforma/chrome/programador.ts` |
-| `notifications` | `background.js` | sin diseñar |
+| `notifications` | `background.js` (sólo el listener `onClicked`; el disparo ya está en `plataforma/chrome/notificaciones.ts`) | sin diseñar |
 | `tabs` / `windows` | `background.js`, `popup.js` | `PuertoTabs` (diseñado, sin construir) |
 | `scripting` | `popup.js` | `PuertoInyeccion` (diseñado, sin construir) |
-| `downloads` / `offscreen` | `background.js` | sólo el camino legacy no-Turbo (hoy inalcanzable) |
+| `downloads` / `offscreen` | `plataforma/chrome/volcadoLegacy.ts` + `descargas.ts` (y un `downloads.search` en `background.js`) | ya en Capa 3; es el camino legacy no-Turbo, hoy inalcanzable |
 
 **El `PuertoMensajeria` tampoco tiene consumidores pendientes** desde el 2026-08-03: `popup.js`,
 `popup/features/queue.js`, `core/estado/appState.ts` y `background.js` (las dos puntas) pasaron todos
@@ -145,17 +145,15 @@ historia de qué se migró en qué fase no está acá: vive en `docs/rearquitect
 
 ### Service worker
 
-- **`background.js`** — el único lugar donde las descargas ocurren de verdad. Dueño de la cola
-  FIFO persistente, procesa un ítem por vez (`procesarSiguienteElementoDeLaCola`) y sobrevive
-  a la suspensión del SW guardando lo volátil-pero-durable en el ámbito de sesión
-  (`SessionState`) y la cola/progreso de vida larga en el local. **El storage va por
-  `PuertoAlmacenamiento`** (el global `Almacenamiento` que publica
-  `plataforma/composicion.ts`). Registra la alarma `alarma_autoheal` que reanuda la cola
-  cuando la conexión caída vuelve; tanto ese chequeo de recuperación como la clasificación de
-  errores de descarga pasan por el daemon `Conexion`, no por sondas propias. Lo que todavía
-  habla `chrome.*` directo está en la tabla de §Las capas.
-- El **motor HLS** ya no vive en esta zona: es Capa 1 desde la Fase 6 (`core/hls/hlsEngine.ts`,
-  abajo). El SW lo instancia vía la composición y lo maneja pasándole el contexto de la ráfaga.
+- **`background.js`** — sigue siendo el único lugar donde las descargas ocurren de verdad, pero
+  desde la Fase 6b es sobre todo **cableado** (958 → 451 líneas). Lo que queda: los handlers
+  IPC (`manejadoresIPC`), los listeners de `chrome.*` que no tienen puerto todavía
+  (`onInstalled`, el click en la notificación, `tabs`/`windows`), y el arranque que reanuda la
+  cola cuando el SW despierta con una descarga pendiente. Todo lo demás se lo pide a los
+  globals que publica `plataforma/composicion.ts`.
+- **La cola y el motor ya no viven en esta zona**: son Capa 1 desde las Fases 6b y 6
+  (`core/cola/procesadorCola.ts`, `core/hls/hlsEngine.ts`, abajo). El SW no los construye —
+  los recibe armados de la composición— y los maneja por su API.
 - **`public/offscreen/offscreen.js`** — documento offscreen del camino legacy no-Turbo (los
   service workers no tienen `URL.createObjectURL`). Vive en `public/`, se copia tal cual y no
   se bundlea. No se ejercita mientras Turbo esté forzado.

@@ -6,12 +6,17 @@ La **decisión** y su justificación viven en `docs/adr/0008-arquitectura-nucleo
 objetivo, interfaces de los puertos, elección de bundler y orden de migración. Es el
 equivalente de `docs/preact-migration.md` pero para el corte núcleo/adaptadores.
 
-> **Estado (2026-08-02)**: diseño aceptado y **ejecución arrancada por la Capa 2** — el
-> adaptador de sitio `sitio/ramonnet/` ya existe y concentra el descriptor de faceta, las
-> constantes del portal, la resolución del `.m3u8` y el parser de títulos; el motor HLS y el
-> daemon de conexión quedaron genéricos. Sigue **todo en JS vanilla y sin bundler**: las
-> Capas 1/3 (puertos + adaptador de navegador) y TypeScript/WXT no empezaron, y son las que
-> traen el paso de build. Ver la tabla de avance al final.
+> **Estado (2026-08-04)**: **fases 0 a 6c completas**. Las tres capas existen y están pobladas:
+> `core/` (puertos, cola, motor HLS, conexión, estado, backend, historial, utilidades),
+> `sitio/ramonnet/` y `plataforma/chrome/` + la raíz de composición. Quedan la **Fase 7**
+> (entrypoints como composición) y la **Fase 8** (borrado del vanilla que no pasó por un
+> puerto: hoy `popup.js`, `renderers.js` y lo que queda de `background.js`). Ver la tabla de
+> avance al final y §Cómo retomar esto en una sesión nueva.
+>
+> *(El párrafo de estado anterior, del 2026-08-02, decía que seguía "todo en JS vanilla y sin
+> bundler". Se conserva la observación como recordatorio de la velocidad a la que este doc
+> envejece: es el mismo motivo por el que el §UI de la Fase 6c describía un código que ya no
+> existía.)*
 
 ## Objetivo en una línea
 
@@ -352,7 +357,7 @@ Los números esperados de cada una (cantidad de tests, warnings tolerados) está
 `docs/testing.md` §Baseline de las verificaciones, que es su hogar canónico — acá no se
 repiten para que no puedan quedar desfasados.
 
-**Verificación en navegador: hecha (2026-08-02)**. Durante un tiempo las Fases 1 a 5a
+**Verificación en navegador: al día.** Cada corte de esta sesión se verificó antes de mergear, y esa disciplina encontró los dos únicos defectos que la suite no podía ver (un warning que describía mal una condición del navegador y la barra de progreso del backend que un refactor se comió). Registro histórico de cómo se llegó a la regla: Durante un tiempo las Fases 1 a 5a
 estuvieron en `main` sin que nadie hubiera abierto la extensión compilada en Chrome (decisión
 explícita del dueño del repo, con la recomendación contraria sobre la mesa). El checklist de
 §Verificación pendiente ya se corrió sobre `.output/chrome-mv3/` y pasó, así que **5b arranca
@@ -592,26 +597,22 @@ día. Esta fase estuvo cinco fases sin tocarse y en el medio se le fue el 90% de
 que nadie actualizara su descripción. **Medir antes de ejecutar** encontró lo mismo acá, en la
 6 (los globals del SW que un grep con punto no veía) y en la 6a (el prerrequisito de `Utils`).
 
-### El próximo paso (al 2026-08-03)
+### El próximo paso (al 2026-08-04)
 
-Lo que sigue, de menor a mayor riesgo. **Empezar por el primero**: desbloquea dos mudanzas que
-hoy no se pueden hacer.
+Los cortes 5c, 6, 6a, 6b y 6c están cerrados; el detalle de cada uno vive en su §Registro más
+arriba, no en esta tabla. Lo que queda:
 
-| Qué | Por qué / qué desbloquea |
+| Qué | Estado / riesgo |
 |---|---|
-| ~~**`sitio/ramonnet/config.js` → TypeScript**~~ | ✅ **Hecho (2026-08-03)** — ver el registro de abajo. El tapón ya no está: `composicion.ts` puede importar el adaptador de sitio. |
-| ~~**Inyectar `urlSondeoInternet` + mudar `shared/conexion.ts` → `core/conexion/`**~~ | ✅ **Hecho (2026-08-03)** — ver el registro de abajo. `core/` estrena su primer módulo de lógica (no de contrato ni de I/O). |
-| ~~**Generalizar la clave de faceta**~~ | ✅ **Hecho (2026-08-03)**, junto con la mudanza que habilitaba: `shared/state.ts` → `core/estado/appState.ts`. Trajo la **única migración de datos del proyecto** (`catedraElegida` → `facetaElegida`), documentada en `docs/data-model.md` con sus 3 tests. Nota original, que ya se cumplió: era lo único que ataba el archivo a vocabulario del sitio, y por lo tanto lo que faltaba para mudarlo a `core/`. **Corrección al plan (2026-08-03)**: acá decía que a `state.ts` le faltaba el puerto de mensajería para su `sincronizarConBackground`; ese puerto existe desde la 5c, así que ese bloqueo ya no aplica — queda éste. El comentario en `sitio/ramonnet/config.ts` que describe el renombre esperaba un disparador ("cuando `AppState` pase a un puerto") que ya ocurrió en la 5b. |
-| ~~**IPC de `background.js` al puerto — las dos puntas**~~ | ✅ **Hecho (2026-08-03), y con esto cierra la 5c.** La fila decía "lado receptor" y subestimaba el corte: el SW no tocaba el puerto en absoluto. Migrados el receptor y los 9 emisores (7 `notificar()`, 2 `enviar()` del camino legacy offscreen). Ver el registro abajo. |
-| ~~**`sincronizarConBackground()` de `shared/state.ts` al puerto**~~ | ✅ **Hecho (2026-08-03)**, el mismo día en que se agregó la fila. `crearAppState(almacenamiento, mensajeria)`; `state.ts` queda sin ningún `chrome.*` y sus tests sin ningún mock de `chrome.*`. Se conservó el timeout de rescate de 3s **a propósito**: el puerto rechaza cuando no hay receptor, pero no cubre al receptor que acepta, promete responder async y no responde — que es justo lo que pasa con un SW dormido. Deja a `state.ts` a un solo paso de `core/`: falta la clave de faceta (fila de arriba). |
-| ~~**`PuertoProgramador`**~~ | ✅ **Hecho (2026-08-03)** — puerto + adaptador Chrome + adaptador en memoria con tests propios (7). Los 8 call-sites de `chrome.alarms` del SW pasaron al puerto y el harness de `background.test.js` dejó de mockear esa API: ahora, como con storage, **tira** si el SW la toca. Ver el registro abajo. |
-| **Fase 6 — motor HLS a `core/hls/`** | Llega con el pool ya testeado. |
-| ~~**Fase 6b — cola de descarga a `core/cola/`**~~ | ✅ **Hecha (2026-08-04)**. |
-| ~~**Fase 6c — split de UI genérica vs. de sitio + CSS co-locado**~~ | ✅ **Hecha (2026-08-04)**, y mucho más chica de lo diseñado. |
-| **Fases 7 y 8** | Entrypoints como composición, y borrado del vanilla de la raíz (sólo con paridad de tests). |
+| **Fase 7 — entrypoints como composición** | `background.js` ya está a mitad de camino: son 451 líneas y casi todo es cableado (handlers IPC + listeners de `chrome.*`). `popup.js` (1460 líneas) es el trabajo real, y ADR-0005 define que su núcleo —init, wiring, orquestación de scraping/render— **no se extrae**: la 7 no es vaciarlo, es que reciba sus dependencias en vez de leer globals. |
+| **Fase 8 — borrado del vanilla que no pasó por un puerto** | Sólo con paridad de tests. Hoy son `popup.js`, `renderers.js`, lo que quede de `background.js` y los tres módulos hermanos del adaptador de sitio (`scraper.js`, `parserTitulos.js`, `resolverManifiesto.js`), que siguen en `.js` **a propósito**: entran como globals para que las puertas del sitio no dependan del orden de carga. |
+| **Puertos sin construir**, sin urgencia | `notifications` (queda el listener `onClicked`), `tabs`/`windows`, `scripting`. Ninguno bloquea nada. |
 
-Sin puerto todavía y sin urgencia: `notifications`, `tabs`/`windows`, `scripting`, y el camino
-legacy `downloads`/`offscreen` (hoy inalcanzable, ver `docs/tech-stack.md` §Por qué Bun).
+**Antes de empezar cualquiera de las dos: medir.** Es lo que más rindió en toda la
+re-arquitectura, y falló en la dirección contraria las cuatro veces —el corte resultó más
+grande (Fase 6: dos globals del SW que un grep por `Modulo.` no ve; 6b: tres extracciones
+escondidas) o mucho más chico (6c: el 90% de lo diseñado ya no existía)—. **Un plan escrito
+antes de ejecutar describe el código del día en que se escribió.**
 
 **Regla de proceso que se consolidó ejecutando 5b/5c y conviene mantener**: una rama por corte,
 los 4 chequeos en verde, **el dueño verifica en Chrome**, y recién ahí el merge. La suite no
