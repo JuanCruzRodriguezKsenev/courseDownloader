@@ -1052,10 +1052,23 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       });
 
       let filtrados = [];
+      // [MULTISITIO CORTE 6A] La clase que se está bajando va SIEMPRE primera y no la tocan ni
+      // el filtro ni el orden. Estos dos flags viajan en el vm para que la isla sepa dónde va la
+      // línea divisoria y si lo de abajo quedó vacío por el filtro.
+      let anclaActiva = false;
+      let sinResultados = false;
       if (appState.pestañaActiva === "cola") {
         const busqueda = nodos.search.value.toLowerCase().trim();
-      
-        filtrados = appState.colaDescargas.filter(clase => coincideConFiltrosCola(clase, busqueda));
+
+        // Se saca ANTES de filtrar: es la fila que más se mira y la única que no se puede
+        // permitir que desaparezca por haber filtrado otra cátedra.
+        const esLaQueBaja = (clase) =>
+          appState.ráfagaEnCurso && clase.titulo === appState.videoActualEnTransmisiónSW;
+        const laQueBaja = appState.colaDescargas.find(esLaQueBaja);
+
+        filtrados = appState.colaDescargas.filter(
+          clase => !esLaQueBaja(clase) && coincideConFiltrosCola(clase, busqueda)
+        );
 
         if (appState.ordenAscendente !== null) {
           filtrados.sort((a, b) => {
@@ -1064,6 +1077,14 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           });
         } else {
           filtrados.sort((a, b) => (a.fechaEncolado || 0) - (b.fechaEncolado || 0));
+        }
+
+        if (laQueBaja) {
+          anclaActiva = true;
+          // Que el resto quede vacío ya NO es "la lista está vacía": hay una descarga en curso.
+          // Sin esto se caería en la tarjeta de "no hay clases" y se perdería la fila anclada.
+          sinResultados = filtrados.length === 0;
+          filtrados.unshift(laQueBaja);
         }
       } else {
         filtrados = appState.listadoClasesGlobal.filter(c => c.visible);
@@ -1106,6 +1127,8 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           sincronizado: appState.sincronizacionDiscoCompletada,
           enCurso: appState.ráfagaEnCurso,
           videoActivo: appState.videoActualEnTransmisiónSW,
+          anclaActiva,
+          sinResultados,
           selectionMode,
           onCheckChange: (c, check) => {
             c.seleccionado = check;

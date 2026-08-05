@@ -162,12 +162,62 @@ Tres caminos, en orden de costo:
    cuando hay mezcla. Barato, sin mentiras, degrada bien.
 3. **Filtro compuesto sitio + faceta**. Lo más potente y lo que más complica el popover.
 
-**Recomendación: la 2**, y postergar el resto. Mezclar portales en la cola va a ser el caso raro
-(uno baja de un aula por vez); pagar UI compleja por adelantado para eso es exactamente el error
-que la Fase 6c documentó — diseñar contra un uso imaginado.
+**Recomendación (2026-08-04): la 2**, y postergar el resto. Mezclar portales en la cola va a ser
+el caso raro (uno baja de un aula por vez); pagar UI compleja por adelantado para eso es
+exactamente el error que la Fase 6c documentó — diseñar contra un uso imaginado.
 
 **Nota**: arreglar el punto 3 de arriba (el `leerDeCola` cruzado) **no** depende de esta
 decisión. Es un bug de corrección y va igual.
+
+### Resuelto el 2026-08-05: ninguna de las tres, una cuarta
+
+El dueño propuso una forma que no estaba en la lista, y midiendo el código resultó mejor que las
+tres: **el portal es una casilla maestra, y debajo van sus facetas con su propio vocabulario.**
+Se elige portal y el filtro de faceta pasa a ser *exactamente el de hoy*. Con un solo portal en
+la cola la sección Portal no aparece y la pantalla queda idéntica a la actual — que era la mejor
+virtud de la opción 2, conservada sin quedarse sin filtro.
+
+Por qué no es la opción 3, que se le parece: la 3 es **cruzada** (todas las facetas de todos los
+portales a la vez, se puede marcar Cátedra A junto con Comisión 1) y ésta es **en cascada**. La
+diferencia se paga en el popover, y **el popover ya está hecho de secciones** —
+`renderizarFiltrosMenuPopover` arma "Estado" y la faceta con el mismo mecanismo — así que "Portal"
+es una sección más, no una estructura nueva.
+
+**Lo que la medición corrigió de la recomendación anterior**: la 2 se eligió sin haber mirado el
+popover. No estaba mal razonada, estaba razonada sin ese dato.
+
+**Lo que la medición corrigió del entusiasmo propio**: se argumentó primero que esta forma no
+tocaba `filtrosActivos`. Con selección de varios portales a la vez eso es falso — `valoresFaceta`
+es un `Set` de strings planos y dos portales pueden tener una faceta con la misma etiqueta, así
+que el valor hay que **calificarlo por portal**. Sigue siendo más barato que la 3, pero no es
+gratis. Lo que sí es gratis: `filtrosActivos` **no se persiste** (se arma en `popup.js` y viaja
+por referencia), así que ese cambio no lleva migración.
+
+### Y dos cosas más que el mismo corte se lleva puestas
+
+**El orden pasa a ser criterio + sentido.** Hoy `btnSort` cicla a ciegas entre tres estados
+(fila, semana ↑, semana ↓). Se separa en cuatro criterios —llegada, nombre, faceta, portal— más
+un botón que invierte el activo. Con eso **LIFO deja de ser un criterio**: es "de llegada"
+invertido, y cada criterio que se sume después trae sus dos sentidos gratis.
+
+- El criterio **"portal" ordena por portal y, dentro de cada uno, por llegada**. Elegirlo es
+  *agrupar*, no reordenar: si además saltara a alfabético, un click estaría cambiando dos cosas.
+  Para alfabético ya está "nombre", y así los criterios quedan ortogonales.
+- La etiqueta del criterio de faceta **sale del descriptor** cuando hay un solo portal
+  ("Cátedra"), y es genérica cuando hay mezcla ("Faceta"): con dos portales el eje no tiene un
+  nombre único, y la UI no puede hardcodear el vocabulario de uno (ADR-0008).
+- **Esto sí lleva migración**: `ordenAscendente` se persiste y hoy es tri-estado (`null` = FIFO,
+  `true`/`false` = nombre ↑/↓), o sea que ya mezcla criterio y sentido. Pasa a dos campos, 1 a 1 y
+  sin pérdida.
+
+**La clase que se está bajando queda clavada arriba**, separada por una línea divisoria, y ni el
+filtro ni el orden la tocan. Es la fila que más se mira y la única que no se puede permitir que
+desaparezca por haber filtrado otra cátedra.
+
+**Y la decisión de fondo que esto destapó**: si el orden manda de verdad sobre qué se baja. Se
+resolvió que **sí** — el array pasa a ser el orden y el SW deja de ordenar. Tiene ADR propio
+([ADR-0011](adr/0011-el-orden-de-la-cola-lo-decide-el-popup.md)) porque cambia de dueño una
+invariante, y es lo que convierte al corte 6 en cuatro sub-cortes.
 
 ---
 
@@ -255,7 +305,10 @@ la regla que en toda la re-arquitectura atajó los únicos 3 defectos que llegar
 | 3 | `procesadorCola`: de `sitio` fijo a `sitios.obtener(id)` | ✅ **Hecho y verificado en navegador** (2026-08-04): descarga real de punta a punta. Los 12 tests de caracterización agarraron el cambio de contrato, que es para lo que existen. +2 tests del caso nuevo. **Ojo con la distinción que destapó**: `sitioId` ausente (dato viejo) y `sitioId` desconocido (huérfano) NO son lo mismo — ver §La trampa del corte 3 |
 | 4 | `leerDeCola` contra el sitio del ítem (bug de corrección) | ✅ **Hecho** (2026-08-04). +2 tests, uno con la cola mezclada de verdad. El resolvedor con migración pasó a ser **un export compartido** de la composición: si el bucle y el filtro resolvieran distinto, un ítem se descargaría con un portal y se mostraría clasificado con otro |
 | 5 | El popup estampa `sitioId` al escanear + resuelve por pestaña | Medio. Sin tests sobre el núcleo de `popup.js` (ADR-0005) |
-| 6 | Filtro de faceta con cola mezclada (decisión de UX) | Bajo |
+| 6a | La clase que se está bajando, clavada arriba + divisor | ✅ **Hecho** (2026-08-05), **pendiente de verificación en navegador**. `popup.js` saca la fila activa ANTES de filtrar y la pone primera; la isla sólo pinta el divisor (sigue siendo vista pura). +7 tests. El CSS extendió `styles/list.css` en vez de crear hoja nueva —así no hay `@import` que olvidar— y se comprobó que salió en el bundle, que es la falla silenciosa que esa regla previene. Apareció un caso que no estaba en el diseño: con el filtro vacío **y** descarga en curso, la lista NO está vacía, así que no corresponde la tarjeta de estado — va el ancla + una nota |
+| 6b | El orden como criterio + sentido. Nace `popup/features/orden.js` y se lleva las tres piezas sueltas de `popup.js` (listener, comparador, etiqueta del botón); `criterioOrden` entra en AppState con la migración del tri-estado | Bajo-medio. **Gana cobertura**: hoy el orden vive en el núcleo de `popup.js`, que no tiene tests |
+| 6c | La sección Portal con casilla maestra y estado parcial; `valoresFaceta` calificado por portal. **Sin migración** (`filtrosActivos` es de memoria) | Bajo. `filters.test.js` ya tiene el doble de `sitios` con cola mezclada |
+| 6d | El SW deja de ordenar y confía en el array; el popup persiste la cola reordenada — **ADR-0011**. Depende del 6b (necesita el criterio persistido) | **Alto. El único que toca código de descarga.** Verificación en navegador obligatoria; los 12 tests de caracterización del bucle tienen que seguir verdes sin tocarlos |
 | 7 | Manifest + el primer adaptador real del segundo portal | Verificación en navegador, no hay otra red |
 | 8 | El click de la notificación resuelve la pestaña con el sitio del ítem, no con `sitioAsumido` (bug de corrección — ver §5) | ✅ **Hecho** (2026-08-05), **pendiente de verificación en navegador**. Se hizo antes del 7, como preveía esta fila. +19 tests, con un segundo portal en los dobles: con uno solo el bug es invisible. **Y con esto `sitioAsumido` salió del service worker**: el SW ya no tiene UN portal. El dato viaja adentro del `notificationId` (§5) porque el worker se suspende y se lleva cualquier mapa en memoria |
 

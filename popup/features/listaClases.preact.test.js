@@ -163,3 +163,106 @@ describe('Isla Preact: ListaClases', () => {
     expect(items().length).toBe(1); // el vm seguía en el store → re-render
   });
 });
+
+// [MULTISITIO CORTE 6A] La fila anclada + su divisoria.
+//
+// Lo que se afirma acá es SÓLO lo que es de la isla: que pinte el divisor detrás de la primera
+// fila y la nota cuando el resto quedó vacío. Que la clase que baja venga primera lo decide
+// popup.js al armar el vm — la isla no reordena, y estos tests lo dan por hecho a propósito.
+describe('Isla Preact: ListaClases — ancla de la descarga en curso', () => {
+  let root;
+
+  beforeEach(async () => {
+    __resetStore();
+    document.body.innerHTML = '<main id="root"></main>';
+    root = document.getElementById('root');
+    montar(root);
+    await flush();
+  });
+
+  const items = () => root.querySelectorAll('.video-item');
+  const divisores = () => root.querySelectorAll('.cola-divisor');
+
+  const ctxCola = (over = {}) => ctxBase({
+    pestaña: 'cola',
+    enCurso: true,
+    videoActivo: 'Semana 02',
+    anclaActiva: true,
+    sinResultados: false,
+    ...over,
+  });
+
+  const colaCon = (ctx, lista) => puente.render({ modo: 'lista', ctx, items: lista });
+
+  const TRES = [
+    { id: 1, titulo: 'Semana 02', estado: 'process', seleccionado: false },
+    { id: 2, titulo: 'Semana 03', estado: 'pending', seleccionado: false },
+    { id: 3, titulo: 'Semana 04', estado: 'pending', seleccionado: false },
+  ];
+
+  it('pinta una divisoria detrás de la primera fila', async () => {
+    colaCon(ctxCola(), TRES);
+    await flush();
+
+    expect(items().length).toBe(3);
+    expect(divisores().length).toBe(1);
+  });
+
+  it('la divisoria va DESPUÉS de la fila anclada, no antes', async () => {
+    colaCon(ctxCola(), TRES);
+    await flush();
+
+    const hijos = Array.from(root.children);
+    expect(hijos[0].classList.contains('video-item')).toBe(true);
+    expect(hijos[0].querySelector('.video-label').textContent).toBe('Semana 02');
+    expect(hijos[1].classList.contains('cola-divisor')).toBe(true);
+  });
+
+  it('la fila anclada lleva .bajando y su badge, el resto no', async () => {
+    colaCon(ctxCola(), TRES);
+    await flush();
+
+    const filas = items();
+    expect(filas[0].classList.contains('bajando')).toBe(true);
+    expect(filas[0].querySelector('.badge').textContent).toBe('Bajando');
+    expect(filas[1].classList.contains('bajando')).toBe(false);
+    expect(filas[2].classList.contains('bajando')).toBe(false);
+  });
+
+  it('sin ancla (nada bajando) no hay divisoria: la cola se pinta plana', async () => {
+    colaCon(ctxCola({ enCurso: false, videoActivo: null, anclaActiva: false }), TRES);
+    await flush();
+
+    expect(items().length).toBe(3);
+    expect(divisores().length).toBe(0);
+  });
+
+  it('si el filtro dejó el resto vacío, queda el ancla + la nota, NO la tarjeta de vacío', async () => {
+    // Es el caso que hacía falta separar: "no hay resultados" no es "la lista está vacía"
+    // cuando hay una descarga en curso.
+    colaCon(ctxCola({ sinResultados: true }), [TRES[0]]);
+    await flush();
+
+    expect(items().length).toBe(1);
+    expect(items()[0].querySelector('.video-label').textContent).toBe('Semana 02');
+    expect(divisores().length).toBe(1);
+    expect(root.querySelector('.cola-sin-resultados')).not.toBeNull();
+    expect(root.querySelector('.info-card')).toBeNull();
+  });
+
+  it('con resultados NO aparece la nota de vacío', async () => {
+    colaCon(ctxCola(), TRES);
+    await flush();
+
+    expect(root.querySelector('.cola-sin-resultados')).toBeNull();
+  });
+
+  it('la tarjeta de estado sigue ganando: modo card no pinta filas ni divisoria', async () => {
+    puente.render({ modo: 'card', card: { tipo: 'info', titulo: 'Fila vacía', descripcion: 'x', icono: '📥' } });
+    await flush();
+
+    expect(items().length).toBe(0);
+    expect(divisores().length).toBe(0);
+    expect(root.querySelector('.info-card')).not.toBeNull();
+  });
+});
