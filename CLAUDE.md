@@ -5,10 +5,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > ## ⚠️ Trabajo en curso — leer esto primero
 >
 > Hay una **re-arquitectura activa** (puertos y adaptadores + TypeScript + WXT), ya en su
-> tramo final: **fases 0 a 8a completas; queda sólo la 8b (el adaptador de sitio)** (al
-> 2026-08-04). Del `globalThis` quedan **5 nombres, todos de Capa 2** (`Utils`, `SitioActivo`,
-> `SitioRamonNet`, `ParserTitulos`, `Scraper`; en el SW también `ResolverManifiesto`), y ahí el
-> global es **una decisión, no inercia** — ver la 8b antes de "limpiarlo". Antes de tocar código:
+> tramo final: **fases 0 a 8a completas** (al 2026-08-04); la 8b queda como *decisión abierta*,
+> no como pendiente. Del `globalThis` quedan **5 nombres, todos de Capa 2** (`Utils`,
+> `SitioRamonNet`, `ParserTitulos`, `Scraper`, `ResolverManifiesto`), y ahí el global es **una
+> decisión, no inercia** — ver la 8b antes de "limpiarlo".
+>
+> **Y hay un segundo frente activo desde el 2026-08-04: el multi-sitio** (que la misma extensión
+> maneje N portales). Cortes 1 a 4 hechos; quedan el 5 (el popup resolviendo por pestaña, el de
+> más riesgo: sin tests sobre el núcleo de `popup.js`) y el 6. El diseño y el estado por corte
+> están en `docs/multisitio-diseno.md`; la decisión de fondo, en ADR-0010. Antes de tocar
+> código:
 >
 > **Leé `docs/rearquitectura-diseno.md` §Cómo retomar esto en una sesión nueva.** Ahí está el
 > orden de lectura, el estado por fase, qué sigue y con qué riesgo, y las 4 verificaciones a
@@ -122,6 +128,7 @@ The extension runs in isolated JS contexts (popup / service worker / offscreen �
 - **Connection state has one owner: the `Conexion` daemon.** Never add an ad-hoc `/api/health` call or internet-HEAD probe anywhere else — read `Conexion.get()` or subscribe.
 - **A new UI concern is a feature, not a free function in `popup.js`** — `Feature.crear(ctx)`, dependencies through `ctx` (`nodos`, callbacks, `ctx.mensajeria`, `ctx.sitio`). What's left in `popup.js` (init + wiring + render/scraping/IPC orchestration) is the end state ADR-0005 defines, and `scraping` is explicitly **not** to be extracted. Gotcha if you touch filters: `filtrosActivos` travels **by reference** in `ctx`, because `popup.js` still mutates it.
 - **A new Preact island's DOM boundary must be a region the vanilla code holds no `nodos.*` references to** (stale refs) — read `docs/preact-migration.md` before adding one.
+- **The site is a property of the item, not of the build** (ADR-0010). `sitio/ramonnet/config.ts` describes *its* portal and nothing more; **which portal is active is `sitio/registro.ts`'s call** — `resolverPorUrl()` for the active tab, `obtener(sitioId)` for anything that outlives the tab. **Never re-add a `SitioActivo`-style alias inside a portal's config**: that was exactly the shape in which ADR-0009 sat "decided but not built" for two days. And know the distinction that bites: a **missing** `sitioId` is pre-multi-site data and resolves to the legacy portal; a **present but unregistered** one is an orphan and must not resolve — conflating them either skips a real user's whole queue or downloads with the wrong adapter, both silently. That rule lives in **one** place, the `sitios` export of `plataforma/composicion.ts`, shared by the SW and the popup so they cannot diverge (`docs/multisitio-diseno.md` §La trampa del corte 3).
 - **Site-specific constants go in `sitio/<portal>/config.ts`**, never inline in a feature or in the engine; one enters `PuertoSitio` only if something *outside* `sitio/` reads it. The flip side: don't re-add portal vocabulary to `Utils`, `HlsEngine` or `Conexion`, which are generic now. **The one exception is the next bullet** — the injected scraper cannot reach `config.ts` at all.
 - **`Scraper.escanearAulaVirtual` (`sitio/ramonnet/scraper.js`) runs in the portal's tab, not in the extension**, so it must stay **self-contained and serializable** — no extension global, not even a module-level constant of its own file; everything travels through `args`. Hoisting a selector out of it into `config.ts` — the move the previous bullet otherwise asks for — breaks scanning at runtime and **nothing catches it**: not the bundler, not lint, not `tsc`, not the suite. Verify in the browser. Full rule → `docs/architecture.md` §Capa 2.
 - **`ErrorBackend.tipoBackend: "rechazo"` means 4xx only** (skip the class), never 5xx (pause + auto-heal). That distinction is the bug-400 fix; it's a type now, not a comment.
@@ -143,6 +150,6 @@ Most files carry a version-numbered docstring banner at the top (e.g. `V5.6.0`) 
 
 ### Key domain-specific behavior to preserve
 
-- **Title parsing** (`sitio/ramonnet/parserTitulos.js` — `formatTitleStructured` / `clasificarCatedraYCarpeta`, reached via `SitioActivo.parsearTitulo` / `.clasificarCarpeta`; was in `shared/utils.js` until v6.0.0, a file that no longer exists): derives the canonical filename + cátedra/folder from messy scraped titles. It's the most regression-sensitive logic in the project (regex order matters) — if a change silently mis-files or mis-names classes, look here. Mechanism, the `>12` date heuristic, and the classification order → `docs/patterns.md` §Sanitización de nombres de archivo y parsing de títulos.
+- **Title parsing** (`sitio/ramonnet/parserTitulos.js` — `formatTitleStructured` / `clasificarCatedraYCarpeta`, reached via the injected descriptor's gates (`sitio.parsearTitulo` / `.clasificarCarpeta`); was in `shared/utils.js` until v6.0.0, a file that no longer exists): derives the canonical filename + cátedra/folder from messy scraped titles. It's the most regression-sensitive logic in the project (regex order matters) — if a change silently mis-files or mis-names classes, look here. Mechanism, the `>12` date heuristic, and the classification order → `docs/patterns.md` §Sanitización de nombres de archivo y parsing de títulos.
 - **M3U8 resolution** (`ResolverManifiesto.resolver`, `sitio/ramonnet/resolverManifiesto.js` — was `HlsEngine.extraerEnlaceMaestroM3u8Clasico` until 2026-08-02): fragile against upstream markup changes by construction, and its regex fallbacks degrade *silently* (they can resolve another class's video instead of failing). **If downloads start bringing the wrong video, look here first, not at the engine** — the engine only ever receives the already-resolved URL. Mechanism and the four consequences → `docs/architecture.md` §Capa 2.
 - **`declarativeNetRequest`** (`public/sitio/ramonnet/rules.json`) blocks `bunnyinfra.net` image/xhr/other requests — intentional, not a bug (rationale → `docs/security.md` permisos).

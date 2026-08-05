@@ -17,14 +17,22 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 ### Soporte para un segundo portal: la selección de sitio no existe, y hay vocabulario filtrado
 
 - **Estado**: 🔴 abierto (hallado el 2026-08-04, auditando la arquitectura tras la Fase 8a).
-- **Qué pasa**: ADR-0009 decidió **registro de sitios en runtime** (una sola build que resuelve
-  el adaptador por URL). Esa decisión **nunca se construyó**: hoy
-  `sitio/ramonnet/config.ts:177` es `const SitioActivo: PuertoSitio = SitioRamonNet;`, un alias
-  fijo. No hay registro ni resolución por pestaña.
+- **Estado (2026-08-04, tarde)**: **en construcción, no ya sólo registrado.** El dueño confirmó
+  que el objetivo es multi-sitio; hay diseño (`docs/multisitio-diseno.md`), ADR-0010 y **los
+  cortes 1 a 4 hechos**: el registro existe (`sitio/registro.ts`), los ítems llevan `sitioId`
+  con su migración, el bucle de descarga resuelve el portal por ítem y el filtro de la cola
+  deriva la faceta con el descriptor correcto. **Quedan el corte 5** (el popup resolviendo por
+  pestaña — el de más riesgo, sin tests sobre el núcleo de `popup.js`) **y el 6** (la decisión
+  de UX del filtro con la cola mezclada). El detalle por corte vive en el diseño, no acá.
+- **Qué pasaba (el hallazgo original)**: ADR-0009 decidió **registro de sitios en runtime** y esa
+  decisión **nunca se había construido**: `sitio/ramonnet/config.ts` tenía
+  `const SitioActivo: PuertoSitio = SitioRamonNet`, un alias fijo — un portal declarándose a sí
+  mismo el activo. Sin registro ni resolución por pestaña.
 - **Qué habría que tocar fuera de `sitio/` para sumar un portal** (medido, no estimado):
   - 6 imports con la ruta del portal hardcodeada en los dos entrypoints
     (`entrypoints/background.js:24-29`, `entrypoints/popup/main.js:14-33`).
-  - `plataforma/composicion.ts:39`, que importa `SitioActivo` desde `../sitio/ramonnet/config`.
+  - `plataforma/composicion.ts`, que importaba el portal directo (✅ resuelto en el corte 2:
+    ahora importa el registro).
   - `wxt.config.ts`: 4 `host_permissions` del portal + su CDN, y la ruta única del ruleset dNR
     (`rule_resources` acepta varios; hoy hay uno).
 - **Vocabulario del portal filtrado a capas genéricas** (código, no comentarios):
