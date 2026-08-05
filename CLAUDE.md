@@ -12,13 +12,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 >
 > **Y hay un segundo frente activo desde el 2026-08-04: el multi-sitio** (que la misma extensión
 > maneje N portales). **Son 8 cortes**: el que sigue es el 5 (el popup resolviendo por
-> pestaña), que es el de más riesgo porque no hay tests sobre el núcleo de `popup.js`; el 7 es
-> el que recién entrega la feature —el manifest y el primer adaptador real del segundo portal,
-> sin más red que la verificación en navegador—; y el 8 es un bug de corrección hallado el
-> 2026-08-05 (el click de la notificación de fallo enfoca el portal asumido, no el del ítem)
-> que no necesita el segundo portal y conviene hacer antes del 7. **Cuáles están hechos se lee
-> en `docs/multisitio-diseno.md` §Orden de cortes, no acá** (esa tabla es la fuente viva);
-> la decisión de fondo, en ADR-0010. Antes de tocar código:
+> pestaña), que es el de más riesgo porque no hay tests sobre el núcleo de `popup.js`, y el 7
+> es el que recién entrega la feature —el manifest y el primer adaptador real del segundo
+> portal, sin más red que la verificación en navegador—. **Cuáles están hechos se lee en
+> `docs/multisitio-diseno.md` §Orden de cortes, no acá** (esa tabla es la fuente viva); la
+> decisión de fondo, en ADR-0010. Dato de arquitectura que ya cambió y conviene tener: **el
+> service worker no tiene UN portal** — el bucle resuelve el del ítem (corte 3) y la
+> notificación el suyo por el `notificationId` (corte 8), así que `sitioAsumido` sólo sigue
+> vivo del lado del popup. Antes de tocar código:
 >
 > **Leé `docs/rearquitectura-diseno.md` §Cómo retomar esto en una sesión nueva.** Ahí está el
 > orden de lectura, el estado por fase, qué sigue y con qué riesgo, y las 4 verificaciones a

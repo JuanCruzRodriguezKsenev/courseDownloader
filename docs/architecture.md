@@ -195,7 +195,9 @@ historia de qué se migró en qué fase no está acá: vive en `docs/rearquitect
   cola cuando el SW despierta con una descarga pendiente.
 - **No lee un solo global desde la Fase 7a**: exporta `iniciarServiceWorker(deps)` y recibe sus
   8 colaboradores (los 3 puertos, `SessionState`, `EstadosProgreso`, la cola, el cliente del
-  backend y el adaptador de sitio) desde `entrypoints/background.js`. **Regla al tocarlo**: la
+  backend y —desde el corte 8 del multi-sitio— `resolverSitioDeNotificacion`, que reemplazó al
+  adaptador de sitio fijo: **el SW ya no tiene UN portal**, resuelve el del ítem que falló a
+  partir del `notificationId`) desde `entrypoints/background.js`. **Regla al tocarlo**: la
   llamada va en el **top-level** del entrypoint, nunca dentro del callback de
   `defineBackground` ni detrás de un `await` — MV3 exige que los listeners queden registrados
   en el arranque sincrónico del worker, y perderlos no lo detecta ninguna de las cuatro

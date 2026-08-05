@@ -27,7 +27,7 @@ import { crearHlsEngine } from "../core/hls/hlsEngine";
 import { crearEstadoSesion } from "../core/cola/estadoSesion";
 import { crearEstadosProgreso } from "../core/cola/estadosProgreso";
 import { crearProcesadorCola } from "../core/cola/procesadorCola";
-import { notificarFallo } from "./chrome/notificaciones";
+import { notificarFallo, sitioIdDeNotificacion } from "./chrome/notificaciones";
 import { crearVolcadoLegacy } from "./chrome/volcadoLegacy";
 import BunClient from "../core/backend/bunClient";
 import { crearHistorialFallos } from "../core/historial/historialFallos";
@@ -142,6 +142,20 @@ export const EstadosProgreso = crearEstadosProgreso(almacenamiento);
  *   - `sitioId` presente pero desconocido → huérfano, no se resuelve.
  */
 export const sitios = { obtener: (id?: string) => Sitios.obtener(id ?? SITIO_LEGADO) };
+
+/**
+ * De un `notificationId` al portal cuya pestaña hay que enfocar (corte 8).
+ *
+ * Vive acá y no en `background.js` por la misma razón que `sitios`: es **la misma regla de
+ * resolución** que usa el bucle, y dos copias pueden divergir. El SW recibe esto inyectado y
+ * no sabe cómo está armado el id.
+ *
+ * Devuelve `undefined` cuando el portal es huérfano — y ahí el click no debe abrir nada. Que
+ * "no sabemos a dónde llevarlo" se note es correcto; adivinar un portal es exactamente el bug
+ * que este corte arregla.
+ */
+export const sitioDeNotificacionDeFallo = (notificationId: string) =>
+  sitios.obtener(sitioIdDeNotificacion(notificationId));
 
 /**
  * El procesador de la cola: el bucle FIFO + la clasificación de fallos, que fue el bloque más

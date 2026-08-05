@@ -82,8 +82,9 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 #### Sub-ítem: el click en la notificación de fallo enfoca el portal equivocado
 
-- **Estado**: 🔴 abierto (hallado el 2026-08-05, revisando esta deuda tras el corte 4). Es el
-  **corte 8** de `docs/multisitio-diseno.md`, y su §5 tiene el detalle.
+- **Estado**: ✅ **resuelto el 2026-08-05** (hallado ese mismo día, revisando esta deuda tras el
+  corte 4), **pendiente de verificación en navegador**. Fue el **corte 8** de
+  `docs/multisitio-diseno.md`, y su §5 tiene el detalle del cómo.
 - **Dónde**: `background.js:474-490`, el listener de `chrome.notifications.onClicked`. Resuelve
   la pestaña a enfocar con `sitio.patronPestañas` / `sitio.urlSondeoInternet`, y ese `sitio` es
   el `sitioAsumido` que le inyecta `entrypoints/background.js:48` — el andamio del corte 2.
@@ -94,9 +95,12 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 - **Por qué no lo vio la medición original**: barrió el bucle de descarga y la UI, no los
   listeners sueltos del service worker. Vale como corrección del alcance de aquella medición,
   no sólo como ítem suelto.
-- **Fix propuesto**: resolver con el `sitioId` del ítem (existe desde el corte 1) vía el export
-  compartido de la composición, el mismo que usa el bucle — si resolvieran distinto se
-  reintroduce la divergencia del punto 3 del diseño.
+- **Fix aplicado**: el `sitioId` del ítem viaja **adentro del `notificationId`** y el SW lo
+  resuelve con `sitioDeNotificacionDeFallo`, un export nuevo de `plataforma/composicion.ts`
+  construido sobre el MISMO `sitios.obtener` que usa el bucle — si resolvieran distinto se
+  reintroduce la divergencia del punto 3. Va en el id y no en un `Map` porque el SW se suspende
+  y se lo lleva, mientras la notificación sobrevive en pantalla. +19 tests. **De paso,
+  `sitioAsumido` salió del service worker**: era su último lector.
 
 ---
 

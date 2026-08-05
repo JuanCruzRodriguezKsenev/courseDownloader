@@ -8,7 +8,7 @@
 
 | Verificación | Baseline esperado |
 |---|---|
-| `npm test` | 26 archivos, 278 tests, todo en verde |
+| `npm test` | 27 archivos, 297 tests, todo en verde |
 | `npm run lint` | **0 errores, 0 warnings** |
 | `npx tsc --noEmit` | sin salida (limpio) |
 | `npm run build` | compila a `.output/chrome-mv3/` |
@@ -20,7 +20,10 @@ usar) se limpiaron con `catch {}` y prefijo `_`, sin tocar comportamiento.
 **Ojo con el alcance de `tsc`, que no es automático**: `allowJs` está en `false` y los dos
 entrypoints son `.js`, así que `tsc` los saltea junto con todo su grafo de imports. Lo que
 realmente typechequea es el `include` de `tsconfig.json` — hoy `core/`, `plataforma/` y
-`sitio/`: **39 archivos de fuente** (31 + 7 + 1, medidos con `--listFiles` el 2026-08-04).
+`sitio/`: **42 archivos** (31 + 8 + 3, tests `.ts` incluidos, medidos con `--listFiles` el
+2026-08-05). *(Decía 39 desde el 2026-08-04 y ya estaba corto por 2 esa misma tarde: el corte 2
+del multi-sitio sumó `sitio/registro.ts` y su test sin que nadie re-midiera. Es el recordatorio
+de que este número no se mantiene solo.)*
 **`shared/` salió del `include` en la Fase 6a: la carpeta dejó de existir.** `entrypoints/`
 figura en la lista pero **aporta cero archivos** — los dos son `.js`, y ahí está la trampa, no
 la salida. Una carpeta con `.ts` que no esté listada pasa la compuerta en

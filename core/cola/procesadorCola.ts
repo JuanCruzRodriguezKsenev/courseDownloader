@@ -121,7 +121,12 @@ export interface DependenciasCola {
   };
   historial: { registrar(tipo: string, titulo: string, motivo: string): Promise<unknown> };
   /** Capa 3: notificación nativa del SO. Best-effort, no puede propagar. */
-  notificarFallo(tipo: string, titulo: string, motivo: string): void;
+  /**
+   * Aviso nativo del fallo. El `sitioId` viaja hasta acá (corte 8) porque el click en la
+   * notificación tiene que enfocar la pestaña del portal DEL ÍTEM: el SW no tiene pestaña de
+   * la cual deducirlo, y el portal asumido es justo el que da la respuesta equivocada.
+   */
+  notificarFallo(tipo: string, titulo: string, motivo: string, sitioId?: string): void;
   /** Métricas de progreso ya formateadas. */
   calcularMetricas(
     bytes: number,
@@ -177,14 +182,22 @@ export function crearProcesadorCola(deps: DependenciasCola) {
    * aviso es un efecto secundario best-effort y la salud de la cola nunca debe depender de que
    * funcione — fue una regresión real (un `chrome.notifications` ausente frenaba la cola).
    */
-  async function registrarFallo(tipo: string, titulo: string, motivo: string): Promise<void> {
+  async function registrarFallo(
+    tipo: string,
+    titulo: string,
+    motivo: string,
+    sitioId?: string
+  ): Promise<void> {
     try {
       await historial.registrar(tipo, titulo, motivo);
     } catch (e) {
       console.warn("[SW] No se pudo registrar el fallo en el historial:", e);
     }
     try {
-      notificarFallo(tipo, titulo, motivo);
+      // El `sitioId` va SÓLO a la notificación, no al historial: la campanita se lee con el
+      // popup abierto, que ya resuelve el portal por pestaña. Meterlo también en el historial
+      // sería cambiar la forma del storage (`docs/data-model.md`) sin un lector que lo pida.
+      notificarFallo(tipo, titulo, motivo, sitioId);
     } catch (e) {
       console.warn("[SW] No se pudo disparar la notificación de fallo:", e);
     }
@@ -200,7 +213,8 @@ export function crearProcesadorCola(deps: DependenciasCola) {
   async function pausarPorError(
     tipoError: string,
     titulo: string,
-    nombreSitio?: string
+    nombreSitio?: string,
+    sitioId?: string
   ): Promise<void> {
     await sesion.set({
       colaPausadaPorError: true,
@@ -213,7 +227,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
     // El nombre sale del portal DEL ÍTEM, no de uno fijo. El fallback genérico cubre el caso
     // en que se pausa sin ítem resuelto: mejor "el portal" que un nombre equivocado.
     const motivos = motivosPausa(nombreSitio ?? "el portal");
-    void registrarFallo(tipoError, titulo, motivos[tipoError] || "error de conexión");
+    void registrarFallo(tipoError, titulo, motivos[tipoError] || "error de conexión", sitioId);
 
     // Auto-heal sólo para fallas que el daemon PUEDE detectar recuperadas. El caso "sesion"
     // no: el daemon ve la red OK, así que la alarma reintentaría en loop contra el login.
@@ -290,7 +304,10 @@ export function crearProcesadorCola(deps: DependenciasCola) {
           motivo: motivoHuerfano,
         });
         setTimeout(procesarSiguiente, 60);
-        void registrarFallo("rechazo", tituloInmutableVideo, motivoHuerfano);
+        // El id huérfano viaja igual, y a propósito: el resolvedor compartido lo va a rechazar
+        // y el click no va a abrir ninguna pestaña. Es la conducta correcta —no sabemos a qué
+        // portal llevar al usuario— y la única alternativa sería adivinar, que es el bug.
+        void registrarFallo("rechazo", tituloInmutableVideo, motivoHuerfano, elementoActual.sitioId);
         return;
       }
 
@@ -466,7 +483,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
         // internet=true y diría "internet".
         if (err?.tipoConexion === "sesion") {
           console.warn(`🔑 [SW] Descarga de "${tituloInmutableVideo}" pausada: no hay sesión activa en ${sitioDelItem.nombre}.`);
-          await pausarPorError("sesion", tituloInmutableVideo, sitioDelItem.nombre);
+          await pausarPorError("sesion", tituloInmutableVideo, sitioDelItem.nombre, elementoActual.sitioId);
           return;
         }
 
@@ -501,7 +518,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
           });
           setTimeout(procesarSiguiente, 60); // seguir con la próxima
           // Aviso DESPUÉS de garantizar la continuación de la cola.
-          void registrarFallo("rechazo", tituloInmutableVideo, motivoRechazo);
+          void registrarFallo("rechazo", tituloInmutableVideo, motivoRechazo, elementoActual.sitioId);
           return;
         }
 
@@ -522,7 +539,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
               ? "servidor"
               : "internet";
         }
-        await pausarPorError(tipoError, tituloInmutableVideo, sitioDelItem.nombre);
+        await pausarPorError(tipoError, tituloInmutableVideo, sitioDelItem.nombre, elementoActual.sitioId);
       }
     } catch (errStorage) {
       console.error("❌ [CRÍTICO-STORAGE] No se pudo leer el storage local de la cola:", errStorage);

@@ -126,6 +126,27 @@ desde el corte 1 el ítem lleva `sitioId`. Es resolver con `sitios.obtener(id)` 
 bucle, usando el mismo export compartido de la composición que el corte 4 dejó — si el bucle y
 la notificación resolvieran distinto, volvemos a la divergencia del punto 3. Va como **corte 8**.
 
+**✅ Resuelto el 2026-08-05, y el cómo tiene una decisión que no era obvia.** El `sitioId` viaja
+**adentro del `notificationId`** (`fallo|<sitioId>|<único>`), no en un `Map` en memoria del SW.
+La razón es el ciclo de vida de MV3: el worker se suspende y se lleva el `Map`, **pero la
+notificación sigue en pantalla**; cuando el click llega, el worker revive sin el dato y no tiene
+a quién preguntarle. El id lo custodia Chrome, así que es el único canal que sobrevive. Sin
+storage nuevo, y sin tocar la forma del historial (`docs/data-model.md` no cambia).
+
+Detalles que el corte dejó fijados, y que conviene no re-descubrir:
+- El id **dejó de ser `""`**, que era como Chrome lo autogeneraba. La unicidad —lo que hace que
+  los fallos se **apilen** en vez de reemplazarse— ahora la pone un sufijo `timestamp-random`.
+  Perderla sería una regresión silenciosa: se vería *una* notificación en vez de N.
+- El `sitioId` va **URL-encodeado**: hoy los ids de portal son slugs, pero `PuertoSitio` no lo
+  exige y un `|` partiría el parseo.
+- La distinción del corte 3 se sostiene punta a punta: un id **ausente** (o un `notificationId`
+  viejo, anterior a este corte, que puede seguir en pantalla tras recargar la extensión) migra
+  al portal legado; uno **presente pero desconocido** sale tal cual y el resolvedor lo rechaza,
+  y entonces **el click no abre ninguna pestaña**. Eso último es deliberado: no sabemos a dónde
+  llevar al usuario, y adivinar es exactamente el bug.
+- **`sitioAsumido` ya no se lee en el service worker.** Era su último lector; el andamio del
+  corte 2 sobrevive sólo del lado del popup, hasta el corte 5.
+
 ---
 
 ## Las decisiones de UX, y cuál es la única de verdad
@@ -236,7 +257,7 @@ la regla que en toda la re-arquitectura atajó los únicos 3 defectos que llegar
 | 5 | El popup estampa `sitioId` al escanear + resuelve por pestaña | Medio. Sin tests sobre el núcleo de `popup.js` (ADR-0005) |
 | 6 | Filtro de faceta con cola mezclada (decisión de UX) | Bajo |
 | 7 | Manifest + el primer adaptador real del segundo portal | Verificación en navegador, no hay otra red |
-| 8 | El click de la notificación resuelve la pestaña con el sitio del ítem, no con `sitioAsumido` (bug de corrección — ver §5) | Bajo. **El número es de registro, no de orden obligatorio**: como el 4, es un bug de corrección que no necesita el segundo portal y se puede testear con una cola mezclada a mano. Hacerlo antes del 7 es válido y probablemente mejor — es lo último que sigue leyendo el andamio `sitioAsumido` en el SW |
+| 8 | El click de la notificación resuelve la pestaña con el sitio del ítem, no con `sitioAsumido` (bug de corrección — ver §5) | ✅ **Hecho** (2026-08-05), **pendiente de verificación en navegador**. Se hizo antes del 7, como preveía esta fila. +19 tests, con un segundo portal en los dobles: con uno solo el bug es invisible. **Y con esto `sitioAsumido` salió del service worker**: el SW ya no tiene UN portal. El dato viaja adentro del `notificationId` (§5) porque el worker se suspende y se lleva cualquier mapa en memoria |
 
 **Los cortes 1 y 2 son seguros y se pueden hacer ya**, antes de tener el segundo portal: dejan el
 andamiaje listo sin cambiar una sola conducta.

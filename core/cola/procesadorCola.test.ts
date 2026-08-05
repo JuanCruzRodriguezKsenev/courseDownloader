@@ -32,6 +32,10 @@ function montar(over: Record<string, any> = {}) {
     ...(over.motor || {}),
   };
 
+  // Se declara afuera para poder afirmar sobre él: el corte 8 hizo que el `sitioId` del ítem
+  // viaje hasta la notificación, y eso hay que poder verlo desde los tests.
+  const notificarFallo = over.notificarFallo ?? vi.fn();
+
   // `over` va ANTES de `motor` a propósito: si fuera después, un override parcial del motor
   // reemplazaría el objeto entero y se llevaría puestos los métodos que el test no redefine.
   const cola = crearProcesadorCola({
@@ -50,7 +54,7 @@ function montar(over: Record<string, any> = {}) {
           : undefined,
     },
     historial: { registrar: vi.fn().mockResolvedValue({}) },
-    notificarFallo: vi.fn(),
+    notificarFallo,
     calcularMetricas: () => ({ porcentaje: 50, telemetry: { velocidadTexto: "1.5" } }),
     actualizarConsolaBackend: vi.fn(),
     guardarBlobLegacy: vi.fn(),
@@ -63,7 +67,7 @@ function montar(over: Record<string, any> = {}) {
     motor,
   });
 
-  return { cola, almacenamiento, sesion, mensajeria, programador, motor };
+  return { cola, almacenamiento, sesion, mensajeria, programador, motor, notificarFallo };
 }
 
 const item = (titulo: string) => ({ titulo, urlInterna: `https://p/${titulo}`, fechaEncolado: 1 });
@@ -232,5 +236,67 @@ describe("alDispararAutoheal", () => {
 
     await expect(cola.alDispararAutoheal()).resolves.toBe(false);
     await expect(sesion.get()).resolves.toMatchObject({ colaPausadaPorError: true });
+  });
+});
+
+// [MULTISITIO CORTE 8] El aviso de fallo lleva el portal DEL ÍTEM. El service worker no tiene
+// pestaña de la cual deducirlo, así que si el dato no sale de acá, el click de la notificación
+// no tiene con qué decidir a dónde llevar al usuario.
+describe("el sitioId del ítem viaja hasta el aviso de fallo", () => {
+  it("una pausa por sesión caída lo pasa a notificarFallo", async () => {
+    const { cola, almacenamiento, sesion, notificarFallo, motor } = montar();
+    motor.compilarTranscodificacionStream.mockRejectedValue(
+      Object.assign(new Error("login"), { tipoConexion: "sesion" })
+    );
+    await sesion.set({ rafagaCorriendo: true });
+    await almacenamiento.guardarLocal({
+      colaDescargas: [{ ...item("Clase 1"), sitioId: "prueba" }],
+      listaPersistente: [{ titulo: "Clase 1", estado: "process" }],
+    });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    expect(notificarFallo).toHaveBeenCalledWith("sesion", "Clase 1", expect.any(String), "prueba");
+  });
+
+  it("un ítem sin sitioId lo pasa como undefined, no inventa uno", async () => {
+    // Es lo que hace que el click resuelva al portal legado por la vía de la migración, en vez
+    // de por un valor adivinado acá. Capa 1 no sabe cuál es el portal legado, y no debe.
+    const { cola, almacenamiento, sesion, notificarFallo, motor } = montar();
+    motor.compilarTranscodificacionStream.mockRejectedValue(
+      Object.assign(new Error("login"), { tipoConexion: "sesion" })
+    );
+    await sesion.set({ rafagaCorriendo: true });
+    await almacenamiento.guardarLocal({
+      colaDescargas: [item("Vieja")],
+      listaPersistente: [{ titulo: "Vieja", estado: "process" }],
+    });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    expect(notificarFallo).toHaveBeenCalledWith("sesion", "Vieja", expect.any(String), undefined);
+  });
+
+  it("la huérfana avisa CON su id desconocido, para que el click no resuelva nada", async () => {
+    // Pasar undefined acá sería peor que no avisar: el resolvedor lo migraría al portal legado
+    // y el click abriría un portal que no es el del ítem — el bug que este corte arregla.
+    const { cola, almacenamiento, sesion, notificarFallo } = montar();
+    await sesion.set({ rafagaCorriendo: true });
+    await almacenamiento.guardarLocal({
+      colaDescargas: [{ ...item("Huerfana"), sitioId: "portal-borrado" }],
+      listaPersistente: [{ titulo: "Huerfana", estado: "process" }],
+    });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    expect(notificarFallo).toHaveBeenCalledWith(
+      "rechazo",
+      "Huerfana",
+      expect.any(String),
+      "portal-borrado"
+    );
   });
 });

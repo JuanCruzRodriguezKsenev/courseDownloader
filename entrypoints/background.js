@@ -26,7 +26,9 @@ import '../sitio/ramonnet/parserTitulos.js';
 import '../sitio/ramonnet/resolverManifiesto.js';
 
 import BunClient from '../core/backend/bunClient.ts';
-import { sitioAsumido as SitioActivo } from '../sitio/registro.ts';
+// [MULTISITIO CORTE 8] Acá se importaba `sitioAsumido`: el SW era el último lector del andamio
+// del corte 2. Ya no hay UN sitio del lado del service worker — el bucle resuelve por ítem
+// (corte 3) y la notificación por su id (corte 8).
 import {
   almacenamiento,
   mensajeria,
@@ -34,6 +36,7 @@ import {
   SessionState,
   EstadosProgreso,
   Cola,
+  sitioDeNotificacionDeFallo,
 } from '../plataforma/composicion.ts';
 import { iniciarServiceWorker } from '../background.js';
 
@@ -45,7 +48,7 @@ iniciarServiceWorker({
   estadosProgreso: EstadosProgreso,
   cola: Cola,
   backend: BunClient,
-  sitio: SitioActivo,
+  resolverSitioDeNotificacion: sitioDeNotificacionDeFallo,
 });
 
 // WXT requiere esta forma como entrypoint. Los listeners ya quedaron registrados por la
