@@ -48,7 +48,12 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 - **Qué NO haría falta tocar**, y vale registrarlo porque es la evidencia de que la
   re-arquitectura sirvió: toda la UI (features + las 6 islas son genéricas), `core/` entero
   salvo las 3 líneas de arriba, y `plataforma/` completa.
-- **Fix propuesto**: **no construirlo especulativamente.** Las 3 fugas de `core/` sí conviene
+- **Diseño (2026-08-04)**: ya no es sólo un hallazgo — el cómo está en
+  `docs/multisitio-diseno.md` y la decisión de fondo en ADR-0010. **Los cortes 1 y 2 de ese doc
+  (`sitioId` en los ítems + el registro con un solo portal) son seguros y se pueden hacer sin
+  tener el segundo adaptador**: no cambian ninguna conducta.
+- **Fix propuesto (revisado)**: el dueño confirmó que el objetivo ES multi-sitio, así que se
+  construye. Lo que sigue vigente del criterio original: Las 3 fugas de `core/` sí conviene
   cerrarlas (son violaciones de la regla declarada de Capa 1 y salen baratas: parametrizar el
   copy por `PuertoSitio.nombre`, como ya se hizo con el onboarding). El registro y los strings
   de `popup.js` recién cuando exista un segundo portal real — planificar contra código
