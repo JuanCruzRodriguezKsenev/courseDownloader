@@ -132,6 +132,18 @@ export const Utils = {
 export const EstadosProgreso = crearEstadosProgreso(almacenamiento);
 
 /**
+ * Resolvedor de sitios **con la migración aplicada**, compartido por el service worker y el
+ * popup. Que sea uno solo importa: si el bucle y el filtro de la cola resolvieran distinto,
+ * un ítem se descargaría con un portal y se mostraría clasificado con otro.
+ *
+ * La regla, y por qué vive acá y no en el registro ni en el núcleo (ver
+ * `docs/multisitio-diseno.md` §La trampa del corte 3):
+ *   - `sitioId` ausente  → dato de antes del multi-sitio: vino de `SITIO_LEGADO`.
+ *   - `sitioId` presente pero desconocido → huérfano, no se resuelve.
+ */
+export const sitios = { obtener: (id?: string) => Sitios.obtener(id ?? SITIO_LEGADO) };
+
+/**
  * El procesador de la cola: el bucle FIFO + la clasificación de fallos, que fue el bloque más
  * grande de `background.js` hasta la Fase 6b.
  *
@@ -163,7 +175,7 @@ export const Cola = crearProcesadorCola({
    * `AppState`, que es del popup—, así que sin esto una cola encolada antes del corte 1 se
    * saltearía entera como huérfana.
    */
-  sitios: { obtener: (id) => Sitios.obtener(id ?? SITIO_LEGADO) },
+  sitios,
   historial: HistorialFallos,
   notificarFallo,
   calcularMetricas: progreso.calcularMétricasProgreso,

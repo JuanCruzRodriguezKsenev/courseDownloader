@@ -76,8 +76,15 @@ descriptor lo re-deriva con `clasificarCarpeta(titulo, carpeta)`, que es **espec
 portal**. Con la cola mezclada, la fila de un portal se clasifica con el parser del otro — y
 como el parser devuelve algo (no tira), el filtro simplemente muestra mal sin avisar.
 
-**Cambio**: `leerDeCola` se resuelve contra `sitios.obtener(item.sitioId).faceta`, no contra "la"
-faceta. Con eso el bug desaparece **sin** decidir nada de UX.
+**Cambio** (hecho en el corte 4): `leerDeCola` se resuelve contra
+`sitios.obtener(item.sitioId)?.faceta`, no contra "la" faceta. El bug desaparece **sin** decidir
+nada de UX.
+
+Un detalle que apareció al implementarlo: el resolvedor-con-migración dejó de armarse en el
+sitio de uso y pasó a ser un **export compartido** de `plataforma/composicion.ts`, que consumen
+el service worker *y* el popup. Si cada uno resolviera por su cuenta, podrían divergir — y la
+forma que tomaría esa divergencia es fea: un ítem descargado con un portal y mostrado
+clasificado con otro.
 
 ### 4. El daemon de conexión sondea un solo origen
 
@@ -195,7 +202,7 @@ la regla que en toda la re-arquitectura atajó los únicos 3 defectos que llegar
 | 1 | `sitioId` en `Clase`/`ColaItem` + migración por defecto + `data-model.md` | ✅ **Hecho y verificado en navegador** (2026-08-04). Se estampa al escanear y se hereda al encolar; la normalización va al cargar. +3 tests de la migración. Nadie lo lee todavía: no cambia ninguna conducta |
 | 2 | `sitio/registro.ts` con un solo portal adentro | ✅ **Hecho y verificado en navegador** (2026-08-04). Con N=1 el comportamiento es idéntico. Además **se fue el alias `SitioActivo` de `sitio/ramonnet/config.ts`**: un portal ya no se declara a sí mismo el activo — eso lo decide el registro. Queda `sitioAsumido` como andamio explícito, que borran los cortes 3 y 5. +8 tests |
 | 3 | `procesadorCola`: de `sitio` fijo a `sitios.obtener(id)` | ✅ **Hecho y verificado en navegador** (2026-08-04): descarga real de punta a punta. Los 12 tests de caracterización agarraron el cambio de contrato, que es para lo que existen. +2 tests del caso nuevo. **Ojo con la distinción que destapó**: `sitioId` ausente (dato viejo) y `sitioId` desconocido (huérfano) NO son lo mismo — ver §La trampa del corte 3 |
-| 4 | `leerDeCola` contra el sitio del ítem (bug de corrección) | Bajo |
+| 4 | `leerDeCola` contra el sitio del ítem (bug de corrección) | ✅ **Hecho** (2026-08-04). +2 tests, uno con la cola mezclada de verdad. El resolvedor con migración pasó a ser **un export compartido** de la composición: si el bucle y el filtro resolvieran distinto, un ítem se descargaría con un portal y se mostraría clasificado con otro |
 | 5 | El popup estampa `sitioId` al escanear + resuelve por pestaña | Medio. Sin tests sobre el núcleo de `popup.js` (ADR-0005) |
 | 6 | Filtro de faceta con cola mezclada (decisión de UX) | Bajo |
 | 7 | Manifest + el primer adaptador real del segundo portal | Verificación en navegador, no hay otra red |

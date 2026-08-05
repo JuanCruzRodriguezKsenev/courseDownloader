@@ -39,10 +39,25 @@
  */
 const FilterFeature = {
   crear(ctx) {
-    const { nodos, filtrosActivos, renderizar, actualizarContadores, sitio, appState } = ctx;
+    const { nodos, filtrosActivos, renderizar, actualizarContadores, sitio, appState, sitios } = ctx;
     // Eje de clasificación propio del sitio (en Ramón Net: la cátedra). Esta feature
     // filtra POR la faceta sin saber qué representa — ver sitio/ramonnet/config.js.
     const faceta = sitio.faceta;
+
+    /**
+     * La faceta de un ítem DE LA COLA sale de su propio portal, no del sitio activo.
+     *
+     * `ColaItem` no persiste el valor de la faceta: el descriptor lo re-deriva con
+     * `clasificarCarpeta()`, que es específica del portal. Con la cola mezclada —y está
+     * desacoplada de la pestaña justamente para poder mezclarse— re-derivar con el descriptor
+     * equivocado devuelve un valor **plausible pero falso**, sin tirar ningún error. Ese es el
+     * bug que arregla el corte 4 de `docs/multisitio-diseno.md`.
+     *
+     * Si el portal no resuelve (ítem huérfano), devuelve `undefined`: el ítem simplemente no
+     * matchea un filtro de faceta activo, que es el comportamiento que ya tenía un ítem sin
+     * valor.
+     */
+    const facetaDeCola = (item) => sitios.obtener(item && item.sitioId)?.faceta;
 
     // Predicado compartido del filtrado de la pestaña Cola. Unifica las 3 copias
     // que vivían duplicadas en popup.js (masterCheck, renderizarListadoInterfaz,
@@ -52,7 +67,7 @@ const FilterFeature = {
       const coincideTexto = clase.titulo.toLowerCase().includes(busqueda);
       const coincideMateria = filtrosActivos.materias.size === 0 || filtrosActivos.materias.has(clase.carpeta.toUpperCase());
       const coincideFaceta = filtrosActivos.valoresFaceta.size === 0
-        || filtrosActivos.valoresFaceta.has(faceta.leerDeCola(clase));
+        || filtrosActivos.valoresFaceta.has(facetaDeCola(clase)?.leerDeCola(clase));
       return coincideTexto && coincideMateria && coincideFaceta;
     }
 
@@ -197,7 +212,7 @@ const FilterFeature = {
 
         appState.colaDescargas.forEach(c => {
           materiasUnicas.add(c.carpeta.toUpperCase());
-          valoresUnicos.add(faceta.leerDeCola(c));
+          valoresUnicos.add(facetaDeCola(c)?.leerDeCola(c));
         });
 
         // --- Sección Materias ---

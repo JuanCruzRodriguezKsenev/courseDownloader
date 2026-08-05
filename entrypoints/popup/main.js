@@ -28,7 +28,7 @@ import '../../plataforma/composicion.ts';
 // `DOMContentLoaded` se registra en el mismo momento que antes — los módulos ES son
 // diferidos, así que todo esto corre antes de que el evento dispare.
 import { iniciarPopup } from '../../popup.js';
-import { AppState, Conexion, HistorialFallos, mensajeria, Utils } from '../../plataforma/composicion.ts';
+import { AppState, Conexion, HistorialFallos, mensajeria, sitios, Utils } from '../../plataforma/composicion.ts';
 import BunClient from '../../core/backend/bunClient.ts';
 import { sitioAsumido as SitioActivo } from '../../sitio/registro.ts';
 import crearRenderers from '../../renderers.js';
@@ -40,6 +40,8 @@ iniciarPopup({
   utils: Utils,
   backend: BunClient,
   sitio: SitioActivo,
+  // Resolvedor por id, con la migración aplicada: el MISMO que usa el service worker.
+  sitios,
   renderers: crearRenderers(Utils),
 });
 

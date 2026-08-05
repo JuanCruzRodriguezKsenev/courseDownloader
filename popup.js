@@ -209,10 +209,12 @@ import BannerConexion from './popup/features/bannerConexion.preact.js';
  * @param {object} deps.mensajeria  PuertoMensajeria: el IPC hacia el service worker.
  * @param {object} deps.utils       Ensamblado `Utils` (Fase 6a).
  * @param {object} deps.backend     Cliente del backend Bun.
- * @param {object} deps.sitio       Adaptador de sitio (Capa 2).
+ * @param {object} deps.sitio       Adaptador del portal de la pestaña activa (Capa 2).
+ * @param {object} deps.sitios      Resolvedor por `sitioId`, para lo que mezcla portales
+ *                                  (la cola). Ver ADR-0010.
  * @param {object} deps.renderers   Pintado vanilla que todavía no es isla.
  */
-export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, sitio, renderers }) {
+export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, sitio, sitios, renderers }) {
   document.addEventListener('DOMContentLoaded', async () => {
     console.log("🤖 [POPUP-CORE] Orquestador unificado V5.4.1 activo. Sincronización de escáner híbrido (Chrome/Bun) integrada.");
 
@@ -411,6 +413,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       nodos,
       filtrosActivos,
       sitio: sitio,
+      sitios,
       appState,
       renderizar: () => renderizarListadoInterfaz(),
       actualizarContadores: () => actualizarContadoresBoton()

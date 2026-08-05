@@ -42,7 +42,14 @@ function crearFeature(overrides = {}) {
     ...overrides,
   };
   // FASE 7C: appState entra por ctx (lo sembró globalThis.AppState más arriba).
-  const feature = FilterFeature.crear({ ...ctx, appState: globalThis.AppState });
+  // CORTE 4 (multi-sitio): `sitios` resuelve el portal DE CADA ÍTEM de la cola. Por defecto
+  // todo resuelve a Ramón Net —que es el comportamiento de una instalación de un solo
+  // portal—; el test de cola mezclada de abajo lo sobreescribe.
+  const feature = FilterFeature.crear({
+    sitios: { obtener: () => SitioRamonNet },
+    ...ctx,
+    appState: globalThis.AppState,
+  });
   return { feature, ctx, nodos, filtrosActivos };
 }
 
@@ -84,6 +91,41 @@ describe('FilterFeature.coincideConFiltrosCola', () => {
     filtrosActivos.valoresFaceta.clear();
     filtrosActivos.valoresFaceta.add('B');
     expect(feature.coincideConFiltrosCola({ titulo: 'x', carpeta: 'biologia' }, '')).toBe(false);
+  });
+
+  // EL bug que arregla el corte 4 de docs/multisitio-diseno.md. `ColaItem` no persiste el
+  // valor de la faceta: el descriptor lo RE-DERIVA con clasificarCarpeta(), que es específica
+  // del portal. Si se re-deriva con el descriptor equivocado, sale un valor plausible pero
+  // falso — y sin error, porque el parser devuelve algo igual.
+  it('deriva la faceta con el descriptor DEL PORTAL DE CADA ÍTEM, no con el del sitio activo', () => {
+    const facetaOtroPortal = { ...SitioRamonNet.faceta, leerDeCola: () => 'COMISION-1' };
+    const { feature, filtrosActivos } = crearFeature({
+      sitios: {
+        obtener: (id) =>
+          id === 'otroportal' ? { faceta: facetaOtroPortal } : SitioRamonNet,
+      },
+    });
+    ParserTitulos.clasificarCatedraYCarpeta = (t, c) => ({ catedra: 'A', carpeta: c });
+
+    filtrosActivos.valoresFaceta.add('COMISION-1');
+    // El ítem del otro portal matchea por SU faceta...
+    expect(
+      feature.coincideConFiltrosCola({ titulo: 'x', carpeta: 'bio', sitioId: 'otroportal' }, '')
+    ).toBe(true);
+    // ...y el de Ramón Net no, aunque estén en la misma cola.
+    expect(
+      feature.coincideConFiltrosCola({ titulo: 'x', carpeta: 'bio', sitioId: 'ramonnet' }, '')
+    ).toBe(false);
+  });
+
+  it('un ítem huérfano (portal no registrado) no matchea un filtro de faceta activo', () => {
+    const { feature, filtrosActivos } = crearFeature({
+      sitios: { obtener: (id) => (id === 'ramonnet' ? SitioRamonNet : undefined) },
+    });
+    filtrosActivos.valoresFaceta.add('A');
+    expect(
+      feature.coincideConFiltrosCola({ titulo: 'x', carpeta: 'bio', sitioId: 'borrado' }, '')
+    ).toBe(false);
   });
 });
 
