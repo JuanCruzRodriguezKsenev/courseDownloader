@@ -146,7 +146,10 @@ export const Cola = crearProcesadorCola({
   programador,
   conexion: Conexion,
   motor: HlsEngine,
-  sitio: { resolverManifiesto: (url, signal) => SitioActivo.resolverManifiesto(url, signal) },
+  sitio: {
+    resolverManifiesto: (url, signal) => SitioActivo.resolverManifiesto(url, signal),
+    nombre: SitioActivo.nombre,
+  },
   historial: HistorialFallos,
   notificarFallo,
   calcularMetricas: progreso.calcularMétricasProgreso,

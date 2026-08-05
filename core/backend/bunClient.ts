@@ -48,8 +48,14 @@ export interface ErrorBackend extends Error {
 }
 
 // Default de fábrica del backend Bun. Sobreescribible SIN editar código:
-//  - global globalThis.RAMONNET_BUN_BASE_URL (leído al cargar el módulo, ej. tests de integración)
+//  - global globalThis.BUN_BASE_URL (leído al cargar el módulo, ej. tests de integración)
 //  - en runtime/tests: BunClient.configurarBaseUrl(url)
+//
+// El nombre canónico es BUN_BASE_URL desde el 2026-08-04: se llamaba RAMONNET_BUN_BASE_URL y
+// era vocabulario de portal en Capa 1, que ADR-0008 prohíbe. **El alias viejo se sigue
+// leyendo** —está documentado en docs/deployment.md y puede estar seteado en algún script del
+// backend, que es un repo aparte y no se versiona con éste—; romperlo en silencio para ganar
+// un renombre no vale la pena.
 const BASE_URL_DEFECTO = "http://localhost:3001";
 
 function normalizarBaseUrl(url: unknown): string {
@@ -60,7 +66,9 @@ function normalizarBaseUrl(url: unknown): string {
 
 export const BunClient = {
   baseUrl: normalizarBaseUrl(
-    (globalThis as Record<string, unknown>).RAMONNET_BUN_BASE_URL || BASE_URL_DEFECTO
+    (globalThis as Record<string, unknown>).BUN_BASE_URL ||
+      (globalThis as Record<string, unknown>).RAMONNET_BUN_BASE_URL ||
+      BASE_URL_DEFECTO
   ),
 
   /**

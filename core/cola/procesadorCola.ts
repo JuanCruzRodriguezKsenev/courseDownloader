@@ -44,12 +44,19 @@ import type { MetadataHls, ContextoRafaga, CallbacksRafaga } from "../hls/hlsEng
 export const ALARMA_AUTOHEAL = "alarma_autoheal";
 export const PERIODO_AUTOHEAL_MIN = 0.2;
 
-/** Copy por tipo de pausa; viaja al historial y a la notificación. */
-const MOTIVOS_PAUSA: Record<string, string> = {
-  sesion: "no hay sesión activa en Ramón Net",
+/**
+ * Copy por tipo de pausa; viaja al historial de fallos y a la notificación del SO.
+ *
+ * Es una FUNCIÓN del nombre del portal, no una constante: el texto de `sesion` lo nombra, y
+ * Capa 1 no puede tener vocabulario de sitio (ADR-0008). Antes decía "Ramón Net" hardcodeado
+ * — era una de las tres fugas que destapó la auditoría del 2026-08-04, y la única de las tres
+ * que llegaba a los ojos del usuario.
+ */
+const motivosPausa = (nombreSitio: string): Record<string, string> => ({
+  sesion: `no hay sesión activa en ${nombreSitio}`,
   servidor: "se perdió la conexión con el servidor local",
   internet: "se perdió la conexión a internet",
-};
+});
 
 export interface ItemCola {
   titulo: string;
@@ -85,7 +92,11 @@ export interface DependenciasCola {
     ): Promise<Blob | null>;
   };
   /** Del adaptador de sitio: página de la clase → URL del manifiesto. */
-  sitio: { resolverManifiesto(urlClase: string, signal: AbortSignal): Promise<string> };
+  sitio: {
+    resolverManifiesto(urlClase: string, signal: AbortSignal): Promise<string>;
+    /** Nombre del portal, para el copy que ve el usuario. Capa 1 no lo puede saber. */
+    nombre: string;
+  };
   historial: { registrar(tipo: string, titulo: string, motivo: string): Promise<unknown> };
   /** Capa 3: notificación nativa del SO. Best-effort, no puede propagar. */
   notificarFallo(tipo: string, titulo: string, motivo: string): void;
@@ -173,7 +184,8 @@ export function crearProcesadorCola(deps: DependenciasCola) {
     loopActivo = false;
 
     // El aviso va DESPUÉS de persistir la pausa: que quede el estado es lo crítico.
-    void registrarFallo(tipoError, titulo, MOTIVOS_PAUSA[tipoError] || "error de conexión");
+    const motivos = motivosPausa(sitio.nombre);
+    void registrarFallo(tipoError, titulo, motivos[tipoError] || "error de conexión");
 
     // Auto-heal sólo para fallas que el daemon PUEDE detectar recuperadas. El caso "sesion"
     // no: el daemon ve la red OK, así que la alarma reintentaría en loop contra el login.
@@ -396,7 +408,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
         // crash, es accionable por el usuario. Se clasifica ANTES del daemon, que vería
         // internet=true y diría "internet".
         if (err?.tipoConexion === "sesion") {
-          console.warn(`🔑 [SW] Descarga de "${tituloInmutableVideo}" pausada: no hay sesión activa en Ramón Net.`);
+          console.warn(`🔑 [SW] Descarga de "${tituloInmutableVideo}" pausada: no hay sesión activa en ${sitio.nombre}.`);
           await pausarPorError("sesion", tituloInmutableVideo);
           return;
         }

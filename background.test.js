@@ -118,6 +118,8 @@ beforeAll(async () => {
   // El adaptador de sitio: la resolución del .m3u8 salió del motor en la Capa 2.
   globalThis.SitioActivo = {
     resolverManifiesto: async () => 'https://cdn/video.m3u8',
+    // El nombre del portal alimenta el copy de la pausa (Capa 1 no lo puede saber).
+    nombre: 'Portal de Prueba',
     patronPestañas: 'https://portal/*',
     urlSondeoInternet: 'https://portal',
   };

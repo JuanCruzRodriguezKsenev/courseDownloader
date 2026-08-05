@@ -28,13 +28,19 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
   - `wxt.config.ts`: 4 `host_permissions` del portal + su CDN, y la ruta única del ruleset dNR
     (`rule_resources` acepta varios; hoy hay uno).
 - **Vocabulario del portal filtrado a capas genéricas** (código, no comentarios):
-  - `core/cola/procesadorCola.ts:49` — `MOTIVOS_PAUSA.sesion = "no hay sesión activa en Ramón
-    Net"`. **No es un log**: viaja al historial de fallos y a la notificación del SO.
-  - `core/cola/procesadorCola.ts:399` — el mismo string en un `console.warn`.
-  - `core/backend/bunClient.ts:63` — lee `globalThis.RAMONNET_BUN_BASE_URL`; el nombre de la
-    perilla de configuración es del portal, en Capa 1.
-  - `popup.js` — 7 strings de UI que nombran al portal (líneas 444, 459, 584, 744, 758, 811,
-    1016) y `catedra:` como nombre de campo en la 827. Más `background.js:490`.
+  - ✅ **Las 3 de `core/` se cerraron el 2026-08-04.** El copy de pausa pasó de la constante
+    `MOTIVOS_PAUSA` a `motivosPausa(nombreSitio)`, y el procesador recibe `sitio.nombre` como
+    colaborador — era la única de las tres que **llegaba a los ojos del usuario** (viaja al
+    historial de fallos y a la notificación del SO). La perilla `RAMONNET_BUN_BASE_URL` pasó a
+    llamarse `BUN_BASE_URL`, **conservando el alias viejo**: está documentada desde 2026-07-17
+    y puede estar seteada en el repo del backend, que es aparte y no se versiona con éste.
+    `tsc` cazó los dos dobles de test que faltaban actualizar, que es exactamente para lo que
+    el colaborador está tipado.
+  - 🔴 **Sigue abierto en la UI**: `popup.js` tiene 7 strings que nombran al portal (líneas
+    444, 459, 584, 744, 758, 811, 1016) y `catedra:` como nombre de campo en la 827. Más
+    `background.js:490`. **No se tocaron a propósito**: son copy de usuario, no una violación
+    de capa —`popup.js` no es Capa 1—, y parametrizarlos sin un segundo portal real que
+    valide el resultado es trabajo contra código imaginado.
 - **Impacto**: la regla de dependencia de la arquitectura **sí se cumple** (`core/` no importa
   nada de `sitio/` ni de `plataforma/`, y `PuertoSitio` es un contrato que `tsc` hace cumplir).
   Lo que no se cumple es la promesa práctica de ADR-0008: *"sumar un portal = escribir un

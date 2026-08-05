@@ -40,7 +40,7 @@ function montar(over: Record<string, any> = {}) {
     sesion,
     mensajeria,
     programador,
-    sitio: { resolverManifiesto: vi.fn().mockResolvedValue("https://cdn/v.m3u8") },
+    sitio: { resolverManifiesto: vi.fn().mockResolvedValue("https://cdn/v.m3u8"), nombre: "Portal de Prueba" },
     historial: { registrar: vi.fn().mockResolvedValue({}) },
     notificarFallo: vi.fn(),
     calcularMetricas: () => ({ porcentaje: 50, telemetry: { velocidadTexto: "1.5" } }),

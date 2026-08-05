@@ -26,7 +26,7 @@ La extensión depende de que este servidor esté corriendo para cualquier operac
 
 ### Contrato de endpoints (lado extensión)
 
-Lo que la extensión **espera** del backend, derivado de `core/backend/bunClient.ts` (esa es la fuente de verdad ejecutable: si cambia, esta tabla se actualiza en el mismo PR). El host base es `http://localhost:3001` por defecto, sobreescribible sin editar código vía `globalThis.RAMONNET_BUN_BASE_URL` o `BunClient.configurarBaseUrl(url)`.
+Lo que la extensión **espera** del backend, derivado de `core/backend/bunClient.ts` (esa es la fuente de verdad ejecutable: si cambia, esta tabla se actualiza en el mismo PR). El host base es `http://localhost:3001` por defecto, sobreescribible sin editar código vía `globalThis.BUN_BASE_URL` o `BunClient.configurarBaseUrl(url)`. (El nombre anterior, `RAMONNET_BUN_BASE_URL`, **se sigue leyendo como alias**: nombraba al portal dentro de Capa 1, que ADR-0008 prohíbe, pero está documentado desde 2026-07-17 y puede estar seteado en el repo del backend, que es aparte.)
 
 | Método + ruta | Entrada | Respuesta que consume la extensión |
 |---|---|---|
