@@ -171,7 +171,7 @@ describe("AppState.inicializarSincronizacionStorage", () => {
 });
 
 describe("AppState.respaldar", () => {
-  it("persiste las 8 claves en UNA sola escritura (invariante multi-clave del puerto)", async () => {
+  it("persiste las 10 claves en UNA sola escritura (invariante multi-clave del puerto)", async () => {
     const spy = vi.spyOn(almacenamiento, "guardarLocal");
     app.listadoClasesGlobal = [{ titulo: "A" }];
     app.colaDescargas = [{ id: 7 }];
@@ -191,6 +191,10 @@ describe("AppState.respaldar", () => {
         "ocultarAdvAula",
         "ocultarAdvExplorar",
         "ordenAscendente",
+        // El par propio de la Cola (corte 6b). `ordenAscendente` sigue existiendo y es el
+        // sentido de Disponibles: el tri-estado viejo servía a las dos pestañas.
+        "criterioOrdenCola",
+        "ordenColaAscendente",
         "tutorialCompletado",
       ].sort()
     );
@@ -325,5 +329,74 @@ describe("AppState.sincronizarConBackground", () => {
     await app.sincronizarConBackground();
 
     expect(mensajeria.accionesEnviadas()).toEqual(["obtener_estados_en_progreso"]);
+  });
+});
+
+// [MULTISITIO CORTE 6B] Migración del orden de la Cola.
+//
+// El tri-estado `ordenAscendente` servía a las DOS pestañas con reglas distintas: Disponibles
+// sólo mira su verdad/falsedad (así que `null` era descendente) y la Cola lo leía como
+// `null` = FIFO / `true`|`false` = nombre ↑|↓. Estos tests fijan que la Cola estrene su par
+// propio SIN dar vuelta Disponibles, que es el error que un split ingenuo cometería en silencio.
+describe("migración del orden de la Cola (corte 6b)", () => {
+  async function cargarCon(persistido: Record<string, unknown>) {
+    const almacenamiento = new AlmacenamientoEnMemoria();
+    await almacenamiento.guardarLocal(persistido);
+    const app = crearAppState(almacenamiento, new MensajeriaEnMemoria(1000));
+    await app.inicializarSincronizacionStorage();
+    return app;
+  }
+
+  it("ordenAscendente null (FIFO) → criterio 'llegada' ascendente", async () => {
+    const app = await cargarCon({ ordenAscendente: null });
+
+    expect(app.criterioOrdenCola).toBe("llegada");
+    expect(app.ordenColaAscendente).toBe(true);
+  });
+
+  it("ordenAscendente true → criterio 'nombre' ascendente", async () => {
+    const app = await cargarCon({ ordenAscendente: true });
+
+    expect(app.criterioOrdenCola).toBe("nombre");
+    expect(app.ordenColaAscendente).toBe(true);
+  });
+
+  it("ordenAscendente false → criterio 'nombre' descendente", async () => {
+    const app = await cargarCon({ ordenAscendente: false });
+
+    expect(app.criterioOrdenCola).toBe("nombre");
+    expect(app.ordenColaAscendente).toBe(false);
+  });
+
+  it("la migración NO toca ordenAscendente: Disponibles conserva su sentido", async () => {
+    // Es el punto entero. Con `null`, Disponibles ordenaba DESCENDENTE (sólo mira truthiness).
+    // Derivarlo a `true` acá habría dado vuelta esa pestaña en toda instalación existente.
+    const app = await cargarCon({ ordenAscendente: null });
+
+    expect(app.ordenAscendente).toBeNull();
+  });
+
+  it("sin nada persistido, arranca en llegada ascendente", async () => {
+    const app = await cargarCon({});
+
+    expect(app.criterioOrdenCola).toBe("llegada");
+    expect(app.ordenColaAscendente).toBe(true);
+  });
+
+  it("con el par nuevo ya persistido, se lee tal cual y NO se re-migra", async () => {
+    const app = await cargarCon({
+      ordenAscendente: true,          // diría 'nombre' si se re-migrara
+      criterioOrdenCola: "portal",
+      ordenColaAscendente: false,
+    });
+
+    expect(app.criterioOrdenCola).toBe("portal");
+    expect(app.ordenColaAscendente).toBe(false);
+  });
+
+  it("un criterio desconocido en storage cae a 'llegada' en vez de romper el orden", async () => {
+    const app = await cargarCon({ criterioOrdenCola: "inventado", ordenColaAscendente: true });
+
+    expect(app.criterioOrdenCola).toBe("llegada");
   });
 });

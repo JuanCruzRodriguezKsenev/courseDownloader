@@ -136,6 +136,94 @@
     }
   }
 
+  /* El botón de orden pasó a abrir un panel (corte 6b), así que necesita el mismo
+     contexto de posicionamiento que el de filtros. No lleva el `flex:1` de aquél:
+     el botón se sigue midiendo por su contenido. */
+  .sort-dropdown {
+    position: relative;
+    display: inline-block;
+    flex: 0 0 auto;
+    max-width: none;
+  }
+
+  /* Cabecera del panel de orden: el título y el ↑↓ conviven en la misma línea, así
+     el sentido no ocupa una fila y se lee como lo que es (un modificador del
+     criterio, no un criterio más). */
+  .orden-cabecera {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 2px;
+    margin-bottom: 0.25rem;
+  }
+
+  .popover-section-title.sin-borde {
+    border-bottom: 0;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .orden-direccion {
+    display: flex;
+    background-color: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xs);
+    overflow: hidden;
+
+    .dir-btn {
+      background: none;
+      border: none;
+      font-family: inherit;
+      font-size: var(--text-sm);
+      font-weight: var(--font-bold);
+      color: var(--text-muted);
+      padding: 1px 7px;
+      cursor: pointer;
+      line-height: 1.5;
+
+      &:hover { color: var(--text-main); }
+
+      &.activo {
+        background-color: rgba(var(--accent-orange-rgb), var(--alpha-hover));
+        color: var(--accent-orange);
+      }
+    }
+  }
+
+  /* Radio del criterio activo. Es radio y no checkbox a propósito: los criterios son
+     excluyentes, a diferencia de los filtros. */
+  .radio-orden {
+    width: 12px;
+    height: 12px;
+    border: 1.5px solid var(--text-muted);
+    border-radius: 50%;
+    flex-shrink: 0;
+    position: relative;
+
+    &.marcado {
+      border-color: var(--accent-orange);
+
+      &::after {
+        content: "";
+        position: absolute;
+        inset: 2.5px;
+        border-radius: 50%;
+        background-color: var(--accent-orange);
+      }
+    }
+  }
+
+  .orden-pie {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    padding: 5px 0.3rem 0;
+    border-top: 1px solid var(--border-color);
+    margin-top: var(--space-xs);
+    line-height: 1.35;
+  }
+
   .btn-sort {
     flex-shrink: 0;
     background-color: var(--bg-main);

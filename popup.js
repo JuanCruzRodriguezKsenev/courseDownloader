@@ -184,6 +184,7 @@
 // load-bearing para todo esto, porque ahora lo resuelve el grafo del bundler.
 import FacetaFeature from './popup/features/faceta.js';
 import FilterFeature from './popup/features/filters.js';
+import OrdenFeature from './popup/features/orden.js';
 import QueueFeature from './popup/features/queue.js';
 import ServerConnectionFeature from './popup/features/serverConnection.js';
 import OnboardingFeature from './popup/features/onboarding.preact.js';
@@ -226,6 +227,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       search:          document.getElementById('ui-search'),
       btnFilterPills:  document.getElementById('ui-btn-filter-pills'),
       filterMenu:      document.getElementById('ui-filter-menu'),
+      sortMenu:        document.getElementById('ui-sort-menu'),
       masterCheck:     document.getElementById('ui-master-check'),
       folder:          document.getElementById('ui-path-folder'),
       progressCont:    document.getElementById('ui-progress-container'),
@@ -286,24 +288,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     // El listener del click en el badge de la faceta vive ahora en FacetaFeature
     // (popup/features/faceta.js), cableado en su crear() más abajo.
 
-    if (nodos.btnSort) {
-      nodos.btnSort.addEventListener("click", () => {
-        if (appState.pestañaActiva === "cola") {
-          if (appState.ordenAscendente === true) {
-            appState.ordenAscendente = false;
-          } else if (appState.ordenAscendente === false) {
-            appState.ordenAscendente = null; // FIFO natural
-          } else {
-            appState.ordenAscendente = true;
-          }
-        } else {
-          appState.ordenAscendente = (appState.ordenAscendente === null) ? true : !appState.ordenAscendente;
-        }
-        appState.respaldar();
-        actualizarIconoSorteo();
-        renderizarListadoInterfaz();
-      });
-    }
+    // [MULTISITIO CORTE 6B] El listener del orden vive ahora en OrdenFeature
+    // (popup/features/orden.js), junto con el comparador y la etiqueta del botón, que
+    // también estaban sueltos acá. Se cablea en su crear() más abajo.
 
     if (nodos.btnToggleSelect) {
       nodos.btnToggleSelect.addEventListener("click", () => {
@@ -423,6 +410,17 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     const desbanearFiltros = _filters.desbanearFiltros;
     const actualizarPillsUIState = _filters.actualizarPillsUIState;
     const renderizarFiltrosMenuPopover = _filters.renderizarFiltrosMenuPopover;
+
+    // Feature: orden de la pestaña Cola (corte 6b). Se lleva el listener del botón, el
+    // comparador y la etiqueta, que estaban sueltos en este archivo. Recibe `sitios` —no un
+    // sitio fijo— porque los criterios `faceta` y `portal` se resuelven contra el descriptor
+    // de CADA ítem: la cola puede mezclar portales (ADR-0010).
+    const _orden = OrdenFeature.crear({
+      nodos,
+      appState,
+      sitios,
+      renderizar: () => renderizarListadoInterfaz()
+    });
 
     // Feature: faceta del listado (badge + asistente de autoselección + su modal, y el
     // listener del click en el badge). Genérica: qué ES la faceta —en Ramón Net, la
@@ -1070,14 +1068,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           clase => !esLaQueBaja(clase) && coincideConFiltrosCola(clase, busqueda)
         );
 
-        if (appState.ordenAscendente !== null) {
-          filtrados.sort((a, b) => {
-            const comp = a.titulo.localeCompare(b.titulo, undefined, { numeric: true, sensitivity: 'base' });
-            return appState.ordenAscendente ? comp : -comp;
-          });
-        } else {
-          filtrados.sort((a, b) => (a.fechaEncolado || 0) - (b.fechaEncolado || 0));
-        }
+        // [CORTE 6B] El comparador es de OrdenFeature: sabe de criterio, sentido y de resolver
+        // la faceta/portal contra el descriptor de CADA ítem (la cola puede mezclar portales).
+        filtrados.sort(_orden.comparador());
 
         if (laQueBaja) {
           anclaActiva = true;
@@ -1515,15 +1508,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       iniciarMonitoreoServidor();
     }
 
+    // [MULTISITIO CORTE 6B] `actualizarIconoSorteo` pasó a ser `_orden.actualizarBoton()`.
+    // Este alias se conserva porque lo llaman dos call-sites (el cambio de pestaña y la
+    // reconexión) y renombrarlos no aporta nada.
     function actualizarIconoSorteo() {
-      if (!nodos.btnSort) return;
-      if (appState.pestañaActiva === "cola" && appState.ordenAscendente === null) {
-        nodos.btnSort.innerHTML = "Fila";
-        nodos.btnSort.title = "Orden: De llegada original (FIFO)";
-      } else {
-        nodos.btnSort.innerHTML = appState.ordenAscendente ? "Sem. ↑" : "Sem. ↓";
-        nodos.btnSort.title = appState.ordenAscendente ? "Orden: Semanas más viejas primero (Ascendente)" : "Orden: Semanas más nuevas primero (Descendente)";
-      }
+      _orden.actualizarBoton();
     }
 
     // La lógica de la faceta (badge, autoselección silenciosa, asistente, modal y el

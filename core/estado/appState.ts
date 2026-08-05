@@ -88,8 +88,20 @@ const CLAVES_PERSISTIDAS = [
   "ocultarAdvExplorar",
   "ocultarAdvAula",
   "ordenAscendente",
+  "criterioOrdenCola",
+  "ordenColaAscendente",
   "tutorialCompletado",
 ] as const;
+
+/**
+ * Criterios de orden de la pestaña Cola (corte 6b del multi-sitio).
+ *
+ * `faceta` y `portal` se resuelven contra el descriptor de CADA ítem, no contra uno fijo: la
+ * cola puede mezclar portales (ADR-0010). `portal` ordena por portal y, dentro de cada uno, por
+ * llegada — elegirlo es *agrupar*, no reordenar.
+ */
+export const CRITERIOS_ORDEN_COLA = ["llegada", "nombre", "faceta", "portal"] as const;
+export type CriterioOrdenCola = (typeof CRITERIOS_ORDEN_COLA)[number];
 
 /**
  * Clave anterior de la faceta, leída sólo para migrar. Hasta el 2026-08-03 la elección se
@@ -130,7 +142,17 @@ interface DatosPersistidos {
   catedraElegida?: string | null;
   ocultarAdvExplorar?: boolean;
   ocultarAdvAula?: boolean;
+  /**
+   * Tri-estado histórico. **Servía a las dos pestañas con semánticas distintas**, que es la
+   * razón por la que el corte 6b NO lo partió en dos y le agregó un par propio a la cola:
+   *   - Disponibles: sólo mira su verdad/falsedad → `null` ordenaba DESCENDENTE.
+   *   - Cola: `null` = FIFO, `true`/`false` = nombre ascendente/descendente.
+   * Un split ingenuo (`null` → ascendente) habría dado vuelta el orden de Disponibles en toda
+   * instalación existente, sin que nada lo dijera. Sigue siendo el sentido de Disponibles.
+   */
   ordenAscendente?: boolean;
+  criterioOrdenCola?: string;
+  ordenColaAscendente?: boolean;
   tutorialCompletado?: boolean;
 }
 
@@ -148,6 +170,9 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: 
     ocultarAdvertenciaExplorar: false,
     ocultarAdvertenciaAula: false,
     ordenAscendente: true,
+    /** Pestaña Cola: qué criterio y en qué sentido (corte 6b). Independiente de Disponibles. */
+    criterioOrdenCola: "llegada" as CriterioOrdenCola,
+    ordenColaAscendente: true,
     tutorialCompletado: false,
 
     async inicializarSincronizacionStorage(): Promise<void> {
@@ -186,6 +211,26 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: 
       app.ocultarAdvertenciaExplorar = data.ocultarAdvExplorar || false;
       app.ocultarAdvertenciaAula = data.ocultarAdvAula || false;
       app.ordenAscendente = data.ordenAscendente !== undefined ? data.ordenAscendente : true;
+
+      // [MULTISITIO CORTE 6B] Migración del orden de la Cola.
+      //
+      // Antes, el tri-estado `ordenAscendente` decía las dos cosas a la vez para esta pestaña:
+      // `null` = FIFO, `true`/`false` = nombre ascendente/descendente. Ahora el criterio y el
+      // sentido son campos propios, y se derivan del valor viejo 1 a 1 y sin pérdida.
+      //
+      // `ordenAscendente` NO se toca: sigue siendo el sentido de Disponibles, donde `null`
+      // significa descendente. Derivarlo hacia `true` acá habría dado vuelta esa pestaña en toda
+      // instalación existente — el tri-estado servía a dos consumidores con reglas distintas.
+      if (data.criterioOrdenCola !== undefined) {
+        app.criterioOrdenCola = (CRITERIOS_ORDEN_COLA as readonly string[]).includes(data.criterioOrdenCola)
+          ? (data.criterioOrdenCola as CriterioOrdenCola)
+          : "llegada";
+        app.ordenColaAscendente = data.ordenColaAscendente !== undefined ? data.ordenColaAscendente : true;
+      } else {
+        app.criterioOrdenCola = data.ordenAscendente == null ? "llegada" : "nombre";
+        app.ordenColaAscendente = data.ordenAscendente == null ? true : data.ordenAscendente;
+      }
+
       app.tutorialCompletado = data.tutorialCompletado || false;
       app.modoTurboBun = true;
     },
@@ -208,6 +253,8 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: 
           ocultarAdvExplorar: app.ocultarAdvertenciaExplorar,
           ocultarAdvAula: app.ocultarAdvertenciaAula,
           ordenAscendente: app.ordenAscendente,
+          criterioOrdenCola: app.criterioOrdenCola,
+          ordenColaAscendente: app.ordenColaAscendente,
           tutorialCompletado: app.tutorialCompletado,
         })
         .catch((e: unknown) => {
