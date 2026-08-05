@@ -320,6 +320,10 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     if (nodos.btnFilterPills) {
       nodos.btnFilterPills.addEventListener('click', (e) => {
         e.stopPropagation();
+        // [CORTE 6B] El `stopPropagation` de arriba impide que el listener global cierre este
+        // popover en el mismo click que lo abre — pero también impide que cierre el de orden.
+        // Por eso se lo cierra a mano: si no, quedan los dos abiertos, superpuestos.
+        _orden.cerrarMenu();
         const open = nodos.filterMenu.style.display === 'flex';
         if (!open) {
           renderizarFiltrosMenuPopover();
@@ -329,7 +333,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       });
     }
 
-    // Close when clicking outside
+    // Close when clicking outside — cierra LOS DOS popovers (filtros y orden).
     document.addEventListener('click', () => {
       if (nodos.filterMenu) {
         nodos.filterMenu.style.display = 'none';
@@ -337,6 +341,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       if (nodos.btnFilterPills) {
         nodos.btnFilterPills.classList.remove('open');
       }
+      _orden.cerrarMenu();
     });
 
     // Prevent close when clicking inside the popover
@@ -419,7 +424,12 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       nodos,
       appState,
       sitios,
-      renderizar: () => renderizarListadoInterfaz()
+      renderizar: () => renderizarListadoInterfaz(),
+      // La feature no toca el DOM del popover ajeno: pide que lo cierren.
+      cerrarOtrosPaneles: () => {
+        if (nodos.filterMenu) nodos.filterMenu.style.display = 'none';
+        if (nodos.btnFilterPills) nodos.btnFilterPills.classList.remove('open');
+      }
     });
 
     // Feature: faceta del listado (badge + asistente de autoselección + su modal, y el
@@ -721,6 +731,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       actualizarPillsUIState();
       if (nodos.filterMenu) nodos.filterMenu.style.display = 'none';
       if (nodos.btnFilterPills) nodos.btnFilterPills.classList.remove('open');
+      // El panel de orden también: los criterios son distintos por pestaña, así que dejarlo
+      // abierto al cambiar mostraría los de la pestaña que se está dejando.
+      _orden.cerrarMenu();
 
       const selectWrapper = document.getElementById('ui-master-select-wrapper');
       if (id === "disponibles") {

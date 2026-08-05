@@ -51,9 +51,10 @@ function montar(over = {}) {
   };
 
   const renderizar = vi.fn();
+  const cerrarOtrosPaneles = vi.fn();
   const nodos = { btnSort: document.getElementById('btn'), sortMenu: document.getElementById('menu') };
-  const feature = OrdenFeature.crear({ nodos, appState, sitios, renderizar });
-  return { feature, appState, nodos, renderizar };
+  const feature = OrdenFeature.crear({ nodos, appState, sitios, renderizar, cerrarOtrosPaneles });
+  return { feature, appState, nodos, renderizar, cerrarOtrosPaneles };
 }
 
 const ordenar = (feature, lista) => [...lista].sort(feature.comparador()).map((c) => c.titulo);
@@ -321,5 +322,71 @@ describe('OrdenFeature — Disponibles tiene sus propios ejes', () => {
 
     expect(appState.ordenAscendente).toBe(false);
     expect(appState.ordenColaAscendente).toBe(true);
+  });
+});
+
+// El cierre de los popovers. El proyecto los cierra con un listener global en `document`, y
+// cada botón hace `stopPropagation()` para que su propio click no cierre lo que acaba de abrir.
+// La consecuencia que mordió: un botón que frena la propagación TAMPOCO dispara el cierre del
+// otro panel, así que los dos quedaban abiertos y superpuestos.
+describe('OrdenFeature — la exclusión mutua con el popover de filtros', () => {
+  it('abrir el panel de orden pide cerrar el de filtros', () => {
+    const { nodos, cerrarOtrosPaneles } = montar();
+
+    nodos.btnSort.click();
+
+    expect(cerrarOtrosPaneles).toHaveBeenCalled();
+    expect(nodos.sortMenu.style.display).toBe('flex');
+  });
+
+  it('el click en el botón NO se propaga: si no, el cierre global lo cerraría al instante', () => {
+    const { nodos } = montar();
+    const enDocumento = vi.fn();
+    document.addEventListener('click', enDocumento);
+
+    nodos.btnSort.click();
+
+    expect(enDocumento).not.toHaveBeenCalled();
+    expect(nodos.sortMenu.style.display).toBe('flex');
+    document.removeEventListener('click', enDocumento);
+  });
+
+  it('el click ADENTRO del panel tampoco se propaga: elegir no lo cierra', () => {
+    const { feature, nodos } = montar();
+    feature.renderizarMenu();
+    nodos.sortMenu.style.display = 'flex';
+    const enDocumento = vi.fn();
+    document.addEventListener('click', enDocumento);
+
+    nodos.sortMenu.querySelectorAll('.popover-option')[1].click();
+
+    expect(enDocumento).not.toHaveBeenCalled();
+    document.removeEventListener('click', enDocumento);
+  });
+
+  it('cerrarMenu() lo cierra y apaga el estado activo del botón', () => {
+    // Es lo que llaman el cierre global, el botón de filtros y el cambio de pestaña.
+    const { feature, nodos } = montar();
+    nodos.btnSort.click();
+    expect(nodos.sortMenu.style.display).toBe('flex');
+
+    feature.cerrarMenu();
+
+    expect(nodos.sortMenu.style.display).toBe('none');
+    expect(nodos.btnSort.classList.contains('active')).toBe(false);
+  });
+
+  it('sin cerrarOtrosPaneles en el ctx no rompe (la dependencia es opcional)', () => {
+    document.body.innerHTML = '<button id="btn"></button><div id="menu" style="display:none"></div>';
+    const nodos = { btnSort: document.getElementById('btn'), sortMenu: document.getElementById('menu') };
+    const feature = OrdenFeature.crear({
+      nodos,
+      appState: { pestañaActiva: 'cola', colaDescargas: [], criterioOrdenCola: 'llegada', respaldar: vi.fn() },
+      sitios,
+      renderizar: vi.fn(),
+    });
+
+    expect(() => nodos.btnSort.click()).not.toThrow();
+    expect(feature).toBeTruthy();
   });
 });

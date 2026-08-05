@@ -45,12 +45,20 @@
  *   - ctx.appState    : lee/escribe criterioOrdenCola + ordenColaAscendente, y respalda.
  *   - ctx.sitios      : resolvedor por `sitioId` (el compartido de la composición).
  *   - ctx.renderizar(): re-render del listado tras cambiar el orden.
+ *   - ctx.cerrarOtrosPaneles(): cierra el popover de filtros. Ver la nota de abajo.
+ *
+ * **Cómo cierra el panel, que no es obvio.** El proyecto usa un listener global en `document`
+ * que cierra los popovers ante cualquier click, y cada botón hace `stopPropagation()` para que
+ * su propio click no los cierre en el mismo gesto que los abre. Eso tiene una consecuencia que
+ * mordió: **un botón que frena la propagación no dispara el cierre del otro panel**, así que
+ * los dos popovers pueden quedar abiertos a la vez. Por eso cada botón cierra explícitamente al
+ * otro antes de abrirse — y esta feature no toca el DOM del popover ajeno, lo pide por `ctx`.
  *
  * Expone: comparador(), renderizarMenu(), actualizarBoton(), alternarMenu(), cerrarMenu().
  */
 const OrdenFeature = {
   crear(ctx) {
-    const { nodos, appState, sitios, renderizar } = ctx;
+    const { nodos, appState, sitios, renderizar, cerrarOtrosPaneles } = ctx;
 
     /** El portal de un ítem de la cola, con la migración ya aplicada por el resolvedor. */
     const portalDe = (item) => sitios.obtener(item && item.sitioId);
@@ -282,7 +290,19 @@ const OrdenFeature = {
     // Disponibles con el toggle viejo, y el resultado fue que el mismo botón hacía dos cosas
     // según dónde estabas — se notaba al primer uso.
     if (nodos.btnSort) {
-      nodos.btnSort.addEventListener("click", alternarMenu);
+      nodos.btnSort.addEventListener("click", (e) => {
+        // `stopPropagation` para que el listener global de `document` no cierre este panel en
+        // el mismo click que lo abre; y por eso mismo hay que cerrar el otro a mano.
+        e.stopPropagation();
+        if (cerrarOtrosPaneles) cerrarOtrosPaneles();
+        alternarMenu();
+      });
+    }
+
+    // Clickear ADENTRO del panel no lo cierra: elegir un criterio o el sentido son gestos que
+    // dejan el panel abierto, igual que en el popover de filtros.
+    if (nodos.sortMenu) {
+      nodos.sortMenu.addEventListener("click", (e) => e.stopPropagation());
     }
 
     return { comparador, renderizarMenu, actualizarBoton, alternarMenu, cerrarMenu, criteriosDisponibles };
