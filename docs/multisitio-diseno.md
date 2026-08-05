@@ -192,9 +192,9 @@ la regla que en toda la re-arquitectura atajó los únicos 3 defectos que llegar
 
 | # | Corte | Riesgo |
 |---|---|---|
-| 1 | `sitioId` en `Clase`/`ColaItem` + migración por defecto + `data-model.md` | ✅ **Hecho** (2026-08-04). Se estampa al escanear y se hereda al encolar; la normalización va al cargar. +3 tests de la migración. Nadie lo lee todavía: no cambia ninguna conducta |
-| 2 | `sitio/registro.ts` con un solo portal adentro | ✅ **Hecho** (2026-08-04). Con N=1 el comportamiento es idéntico. Además **se fue el alias `SitioActivo` de `sitio/ramonnet/config.ts`**: un portal ya no se declara a sí mismo el activo — eso lo decide el registro. Queda `sitioAsumido` como andamio explícito, que borran los cortes 3 y 5. +8 tests |
-| 3 | `procesadorCola`: de `sitio` fijo a `sitios.obtener(id)` | ✅ **Hecho** (2026-08-04). Los 12 tests de caracterización agarraron el cambio de contrato, que es para lo que existen. +2 tests del caso nuevo. **Ojo con la distinción que destapó**: `sitioId` ausente (dato viejo) y `sitioId` desconocido (huérfano) NO son lo mismo — ver §La trampa del corte 3 |
+| 1 | `sitioId` en `Clase`/`ColaItem` + migración por defecto + `data-model.md` | ✅ **Hecho y verificado en navegador** (2026-08-04). Se estampa al escanear y se hereda al encolar; la normalización va al cargar. +3 tests de la migración. Nadie lo lee todavía: no cambia ninguna conducta |
+| 2 | `sitio/registro.ts` con un solo portal adentro | ✅ **Hecho y verificado en navegador** (2026-08-04). Con N=1 el comportamiento es idéntico. Además **se fue el alias `SitioActivo` de `sitio/ramonnet/config.ts`**: un portal ya no se declara a sí mismo el activo — eso lo decide el registro. Queda `sitioAsumido` como andamio explícito, que borran los cortes 3 y 5. +8 tests |
+| 3 | `procesadorCola`: de `sitio` fijo a `sitios.obtener(id)` | ✅ **Hecho y verificado en navegador** (2026-08-04): descarga real de punta a punta. Los 12 tests de caracterización agarraron el cambio de contrato, que es para lo que existen. +2 tests del caso nuevo. **Ojo con la distinción que destapó**: `sitioId` ausente (dato viejo) y `sitioId` desconocido (huérfano) NO son lo mismo — ver §La trampa del corte 3 |
 | 4 | `leerDeCola` contra el sitio del ítem (bug de corrección) | Bajo |
 | 5 | El popup estampa `sitioId` al escanear + resuelve por pestaña | Medio. Sin tests sobre el núcleo de `popup.js` (ADR-0005) |
 | 6 | Filtro de faceta con cola mezclada (decisión de UX) | Bajo |
