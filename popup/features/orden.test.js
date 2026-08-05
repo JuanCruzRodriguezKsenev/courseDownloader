@@ -13,16 +13,19 @@
 import { describe, it, expect, vi } from 'vitest';
 import OrdenFeature from './orden.js';
 
+// Los descriptores reales exponen los DOS accesores y no son intercambiables: `leer` toma el
+// campo ya parseado de una clase del listado, `leerDeCola` re-deriva del título porque un
+// ColaItem no persiste el valor. Los dobles los traen ambos para no mentir sobre el contrato.
 const PORTAL_A = {
   id: 'ramonnet',
   nombre: 'RamonNet',
-  faceta: { etiqueta: 'Cátedra', leerDeCola: (c) => c.catedra },
+  faceta: { etiqueta: 'Cátedra', leer: (c) => c.catedra, leerDeCola: (c) => c.catedra },
 };
 
 const PORTAL_B = {
   id: 'otro',
   nombre: 'Otro Portal',
-  faceta: { etiqueta: 'Comisión', leerDeCola: (c) => c.comision },
+  faceta: { etiqueta: 'Comisión', leer: (c) => c.comision, leerDeCola: (c) => c.comision },
 };
 
 /** Imita al resolvedor compartido de la composición, migración incluida. */
@@ -228,19 +231,95 @@ describe('OrdenFeature — la etiqueta del botón', () => {
     expect(desc.nodos.btnSort.textContent).toBe('Nombre ↓');
   });
 
-  it('en Disponibles conserva el texto de siempre: esa pestaña no cambió', () => {
-    const { feature, nodos } = montar({ pestañaActiva: 'disponibles', ordenAscendente: true });
+  it('en Disponibles muestra su propio criterio y sentido', () => {
+    const { feature, nodos } = montar({
+      pestañaActiva: 'disponibles',
+      criterioOrdenDisponibles: 'estado',
+      ordenAscendente: true,
+    });
     feature.actualizarBoton();
 
-    expect(nodos.btnSort.textContent).toBe('Sem. ↑');
+    expect(nodos.btnSort.textContent).toBe('Estado ↑');
   });
 
-  it('en Disponibles el botón sigue alternando el sentido, sin abrir panel', () => {
-    const { appState, nodos } = montar({ pestañaActiva: 'disponibles', ordenAscendente: true });
+  it('en Disponibles el botón ABRE el panel, igual que en Cola', () => {
+    // La primera versión del corte dejó acá el toggle viejo, y el mismo botón terminaba
+    // haciendo dos cosas según la pestaña. Este test fija que no vuelva a pasar.
+    const { nodos } = montar({ pestañaActiva: 'disponibles' });
 
     nodos.btnSort.click();
 
+    expect(nodos.sortMenu.style.display).toBe('flex');
+  });
+});
+
+describe('OrdenFeature — Disponibles tiene sus propios ejes', () => {
+  const clase = (over) => ({ titulo: 'X', estado: 'pending', sitioId: 'ramonnet', ...over });
+
+  const montarDisp = (over = {}) =>
+    montar({ pestañaActiva: 'disponibles', listadoClasesGlobal: [clase({})], ...over });
+
+  it('ofrece nombre, faceta y estado — sin llegada ni portal', () => {
+    // `llegada` no existe ahí (el listado no se encoló, se escaneó) y `portal` tampoco: sale
+    // del scrapeo de UNA pestaña, o sea un portal por construcción.
+    const { feature } = montarDisp();
+
+    expect(feature.criteriosDisponibles().map((c) => c.id)).toEqual(['nombre', 'faceta', 'estado']);
+  });
+
+  it('la faceta se lee con `leer`, no con `leerDeCola`', () => {
+    // No son intercambiables: `leerDeCola` re-deriva del título porque un ColaItem no persiste
+    // el valor; `leer` toma el campo ya parseado que sí trae una clase del listado.
+    const a = clase({ titulo: 'A', catedra: 'Z' });
+    const b = clase({ titulo: 'B', catedra: 'A' });
+    const { feature } = montarDisp({ criterioOrdenDisponibles: 'faceta', ordenAscendente: true });
+
+    expect(ordenar(feature, [a, b])).toEqual(['B', 'A']);
+  });
+
+  it('estado ordena pendientes → en fila → descargados, y desempata por nombre', () => {
+    const baj = clase({ titulo: 'B', estado: 'downloaded' });
+    const pen = clase({ titulo: 'C', estado: 'pending' });
+    const pro = clase({ titulo: 'A', estado: 'process' });
+    const { feature } = montarDisp({ criterioOrdenDisponibles: 'estado', ordenAscendente: true });
+
+    expect(ordenar(feature, [baj, pen, pro])).toEqual(['C', 'A', 'B']);
+  });
+
+  it('el default reproduce el orden por título que había antes del corte', () => {
+    const a = clase({ titulo: 'Semana 10' });
+    const b = clase({ titulo: 'Semana 9' });
+    const { feature } = montarDisp({ ordenAscendente: true });
+
+    expect(ordenar(feature, [a, b])).toEqual(['Semana 9', 'Semana 10']);
+  });
+
+  it('ordenAscendente null sigue significando DESCENDENTE, como antes', () => {
+    // El matiz de la instalación vieja: Disponibles sólo miraba la verdad/falsedad del campo.
+    const a = clase({ titulo: 'A' });
+    const b = clase({ titulo: 'B' });
+    const { feature } = montarDisp({ ordenAscendente: null });
+
+    expect(ordenar(feature, [a, b])).toEqual(['B', 'A']);
+  });
+
+  it('elegir criterio en Disponibles NO toca el de la Cola', () => {
+    const { feature, appState, nodos } = montarDisp({ criterioOrdenCola: 'portal' });
+    feature.renderizarMenu();
+
+    nodos.sortMenu.querySelectorAll('.popover-option')[2].click(); // "Estado"
+
+    expect(appState.criterioOrdenDisponibles).toBe('estado');
+    expect(appState.criterioOrdenCola).toBe('portal');
+  });
+
+  it('el ↑↓ de Disponibles escribe ordenAscendente, no el de la Cola', () => {
+    const { feature, appState, nodos } = montarDisp({ ordenAscendente: true, ordenColaAscendente: true });
+    feature.renderizarMenu();
+
+    nodos.sortMenu.querySelectorAll('.dir-btn')[1].click(); // ↓
+
     expect(appState.ordenAscendente).toBe(false);
-    expect(nodos.sortMenu.style.display).toBe('none');
+    expect(appState.ordenColaAscendente).toBe(true);
   });
 });

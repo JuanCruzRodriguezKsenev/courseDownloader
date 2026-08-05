@@ -86,9 +86,12 @@
     top: 28px;
     right: 0;
     width: 160px;
-    background-color: var(--bg-overlay);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    /* Opaco a propósito (2026-08-05). Antes era `--bg-overlay` (82%) + blur de 16px, o sea
+       vidrio esmerilado: se leía la lista por detrás de las opciones. NO se tocó el token,
+       porque `--bg-overlay` lo comparten cuatro fondos de modal (advertencia, faceta, loader,
+       onboarding) donde ver lo que hay atrás es justamente lo que corresponde. Un popover no
+       es un fondo de modal: es una superficie. */
+    background-color: var(--bg-surface);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     box-shadow: 0 4px 16px rgba(var(--shadow-rgb), 0.12);

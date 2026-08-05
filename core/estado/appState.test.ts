@@ -171,7 +171,7 @@ describe("AppState.inicializarSincronizacionStorage", () => {
 });
 
 describe("AppState.respaldar", () => {
-  it("persiste las 10 claves en UNA sola escritura (invariante multi-clave del puerto)", async () => {
+  it("persiste las 11 claves en UNA sola escritura (invariante multi-clave del puerto)", async () => {
     const spy = vi.spyOn(almacenamiento, "guardarLocal");
     app.listadoClasesGlobal = [{ titulo: "A" }];
     app.colaDescargas = [{ id: 7 }];
@@ -195,6 +195,8 @@ describe("AppState.respaldar", () => {
         // sentido de Disponibles: el tri-estado viejo servía a las dos pestañas.
         "criterioOrdenCola",
         "ordenColaAscendente",
+        // Disponibles guarda su criterio aparte; su sentido sigue siendo `ordenAscendente`.
+        "criterioOrdenDisponibles",
         "tutorialCompletado",
       ].sort()
     );

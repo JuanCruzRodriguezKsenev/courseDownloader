@@ -1081,12 +1081,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         }
       } else {
         filtrados = appState.listadoClasesGlobal.filter(c => c.visible);
-      
-        // Ordenar por título (semana) de forma ascendente o descendente (orden natural tipo Windows)
-        filtrados.sort((a, b) => {
-          const comp = a.titulo.localeCompare(b.titulo, undefined, { numeric: true, sensitivity: 'base' });
-          return appState.ordenAscendente ? comp : -comp;
-        });
+
+        // [CORTE 6B] Mismo comparador que la Cola: la feature sabe en qué pestaña está y usa
+        // los criterios de cada una. Con el default ('nombre' + ordenAscendente) el resultado
+        // es idéntico al orden por título que había acá.
+        filtrados.sort(_orden.comparador());
       }
 
       if (filtrados.length === 0) {

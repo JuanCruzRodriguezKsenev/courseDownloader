@@ -13,12 +13,22 @@
  *     después trae sus dos sentidos gratis, sin agregar filas al panel.
  *   - El botón muestra los dos juntos ("Fila ↑"), así se lee el orden sin abrir nada.
  *
+ * **Las dos pestañas usan el mismo panel, con criterios distintos** (unificado el 2026-08-05,
+ * después de que la primera versión dejara a Disponibles con el toggle viejo: el mismo botón
+ * hacía dos cosas según la pestaña, y eso se notaba al primer uso). Los criterios difieren
+ * porque los ejes que existen en cada pestaña difieren:
+ *
+ *   - Cola: llegada, nombre, faceta, portal.
+ *   - Disponibles: nombre, faceta, estado. No hay `llegada` —ese listado no se encoló, se
+ *     escaneó— ni `portal`, porque sale del scrapeo de UNA pestaña.
+ *
  * Reglas que no son obvias y conviene no desandar:
  *
- * - **El criterio es de la pestaña Cola, no global.** Disponibles sigue ordenando por título con
- *   `appState.ordenAscendente`, exactamente como antes. El tri-estado viejo servía a las dos
- *   pestañas con semánticas distintas (ver la migración en `core/estado/appState.ts`), así que
- *   la Cola tiene su propio par de campos y Disponibles quedó intacta.
+ * - **Cada pestaña guarda su criterio aparte**, y el sentido también: la Cola tiene
+ *   `criterioOrdenCola` + `ordenColaAscendente`; Disponibles, `criterioOrdenDisponibles` +
+ *   `ordenAscendente`. El tri-estado viejo servía a las dos con semánticas distintas (ver la
+ *   migración en `core/estado/appState.ts`), y separarlos es lo que evita que tocar una dé
+ *   vuelta la otra.
  * - **`faceta` y `portal` se resuelven contra el descriptor de CADA ítem** vía `ctx.sitios`, no
  *   contra un sitio fijo: la cola puede mezclar portales (ADR-0010). Resolver con el portal
  *   equivocado devuelve un valor plausible y falso, que es el bug del corte 4.
@@ -45,11 +55,23 @@ const OrdenFeature = {
     /** El portal de un ítem de la cola, con la migración ya aplicada por el resolvedor. */
     const portalDe = (item) => sitios.obtener(item && item.sitioId);
 
-    /** El valor de la faceta de un ítem, derivado con el descriptor de SU portal. */
+    const enCola = () => appState.pestañaActiva === "cola";
+
+    /**
+     * El valor de la faceta de un ítem, derivado con el descriptor de SU portal.
+     *
+     * Ojo con los dos accesores del descriptor, que no son intercambiables: `leerDeCola`
+     * RE-DERIVA el valor del título (un `ColaItem` no lo persiste), mientras que `leer` lo
+     * toma del campo ya parseado que trae una clase del listado.
+     */
     const facetaDe = (item) => {
       const faceta = portalDe(item)?.faceta;
-      return faceta ? (faceta.leerDeCola(item) ?? "") : "";
+      if (!faceta) return "";
+      return (enCola() ? faceta.leerDeCola(item) : faceta.leer(item)) ?? "";
     };
+
+    /** Orden de los estados de Disponibles: lo pendiente primero, lo terminado último. */
+    const RANGO_ESTADO = { pending: 0, process: 1, downloaded: 2 };
 
     const porTitulo = (a, b) =>
       a.titulo.localeCompare(b.titulo, undefined, { numeric: true, sensitivity: "base" });
@@ -70,33 +92,54 @@ const OrdenFeature = {
      * sola entre renders sin que el usuario haya tocado nada.
      */
     function comparador() {
-      const criterio = appState.criterioOrdenCola || "llegada";
-      const signo = appState.ordenColaAscendente === false ? -1 : 1;
+      const cola = enCola();
+      // El desempate por defecto cambia con la pestaña: en la Cola hay llegada, en Disponibles
+      // no existe ese dato y lo natural es el título.
+      const desempate = cola ? porLlegada : porTitulo;
 
-      const base = {
-        llegada: porLlegada,
-        nombre: porTitulo,
-        faceta: (a, b) =>
-          facetaDe(a).localeCompare(facetaDe(b), undefined, { numeric: true }) || porLlegada(a, b),
-        portal: (a, b) => {
-          const na = portalDe(a)?.nombre || "";
-          const nb = portalDe(b)?.nombre || "";
-          return na.localeCompare(nb) || porLlegada(a, b);
-        },
-      }[criterio] || porLlegada;
+      const criterio = cola
+        ? appState.criterioOrdenCola || "llegada"
+        : appState.criterioOrdenDisponibles || "nombre";
+
+      // `ordenAscendente` puede ser `null` en instalaciones viejas, y ahí significaba
+      // DESCENDENTE porque Disponibles sólo miraba su verdad/falsedad. Se conserva ese matiz.
+      const signo = cola ? (appState.ordenColaAscendente === false ? -1 : 1) : appState.ordenAscendente ? 1 : -1;
+
+      const base =
+        {
+          llegada: porLlegada,
+          nombre: porTitulo,
+          faceta: (a, b) =>
+            facetaDe(a).localeCompare(facetaDe(b), undefined, { numeric: true }) || desempate(a, b),
+          portal: (a, b) => {
+            const na = portalDe(a)?.nombre || "";
+            const nb = portalDe(b)?.nombre || "";
+            return na.localeCompare(nb) || porLlegada(a, b);
+          },
+          estado: (a, b) =>
+            (RANGO_ESTADO[a.estado] ?? 9) - (RANGO_ESTADO[b.estado] ?? 9) || porTitulo(a, b),
+        }[criterio] || desempate;
 
       return (a, b) => signo * base(a, b);
     }
 
-    /** Los criterios ofrecibles, con su etiqueta ya resuelta contra el portal (o genérica). */
+    /** Los criterios de la pestaña activa, con la etiqueta de faceta ya resuelta. */
     function criteriosDisponibles() {
-      const cola = appState.colaDescargas || [];
-      const mezclada = colaMezclada(cola);
+      const items = enCola() ? appState.colaDescargas || [] : appState.listadoClasesGlobal || [];
+      const mezclada = enCola() && colaMezclada(items);
 
       // Con un solo portal la etiqueta sale de su descriptor ("Cátedra"); con mezcla no hay un
-      // nombre único posible y se cae a lo genérico.
-      const primero = cola.length ? portalDe(cola[0]) : sitios.obtener(undefined);
-      const etiquetaFaceta = mezclada ? "Faceta" : (primero?.faceta?.etiqueta || "Faceta");
+      // nombre único posible y se cae a lo genérico (ADR-0008: la UI no hardcodea vocabulario).
+      const primero = items.length ? portalDe(items[0]) : sitios.obtener(undefined);
+      const etiquetaFaceta = mezclada ? "Faceta" : primero?.faceta?.etiqueta || "Faceta";
+
+      if (!enCola()) {
+        return [
+          { id: "nombre", etiqueta: "Nombre", corta: "Nombre" },
+          { id: "faceta", etiqueta: etiquetaFaceta, corta: etiquetaFaceta },
+          { id: "estado", etiqueta: "Estado", corta: "Estado" },
+        ];
+      }
 
       const lista = [
         { id: "llegada", etiqueta: "De llegada", corta: "Fila" },
@@ -107,8 +150,15 @@ const OrdenFeature = {
       return lista;
     }
 
+    const criterioActivo = () =>
+      enCola() ? appState.criterioOrdenCola || "llegada" : appState.criterioOrdenDisponibles || "nombre";
+
+    const esAscendente = () =>
+      enCola() ? appState.ordenColaAscendente !== false : Boolean(appState.ordenAscendente);
+
     function elegirCriterio(id) {
-      appState.criterioOrdenCola = id;
+      if (enCola()) appState.criterioOrdenCola = id;
+      else appState.criterioOrdenDisponibles = id;
       appState.respaldar();
       actualizarBoton();
       renderizarMenu();
@@ -116,7 +166,8 @@ const OrdenFeature = {
     }
 
     function elegirSentido(ascendente) {
-      appState.ordenColaAscendente = ascendente;
+      if (enCola()) appState.ordenColaAscendente = ascendente;
+      else appState.ordenAscendente = ascendente;
       appState.respaldar();
       actualizarBoton();
       renderizarMenu();
@@ -131,8 +182,9 @@ const OrdenFeature = {
       const criterios = criteriosDisponibles();
       // Si la cola dejó de estar mezclada, `portal` ya no se ofrece: hay que sacarlo de encima
       // o el orden queda apuntando a un criterio que el panel no muestra.
-      if (!criterios.some((c) => c.id === appState.criterioOrdenCola)) {
-        appState.criterioOrdenCola = "llegada";
+      if (!criterios.some((c) => c.id === criterioActivo())) {
+        if (enCola()) appState.criterioOrdenCola = "llegada";
+        else appState.criterioOrdenDisponibles = "nombre";
         appState.respaldar();
       }
 
@@ -155,12 +207,13 @@ const OrdenFeature = {
         { dir: true, txt: "↑", title: "Ascendente" },
         { dir: false, txt: "↓", title: "Descendente" },
       ].forEach(({ dir, txt, title }) => {
+        const activo = esAscendente() === dir;
         const b = document.createElement("button");
         b.type = "button";
-        b.className = "dir-btn" + (appState.ordenColaAscendente !== false === dir ? " activo" : "");
+        b.className = "dir-btn" + (activo ? " activo" : "");
         b.textContent = txt;
         b.title = title;
-        b.setAttribute("aria-pressed", String(appState.ordenColaAscendente !== false === dir));
+        b.setAttribute("aria-pressed", String(activo));
         b.addEventListener("click", () => elegirSentido(dir));
         direccion.appendChild(b);
       });
@@ -169,13 +222,14 @@ const OrdenFeature = {
       seccion.appendChild(cabecera);
 
       criterios.forEach((c) => {
+        const elegido = criterioActivo() === c.id;
         const op = document.createElement("div");
         op.className = "popover-option";
         op.setAttribute("role", "radio");
-        op.setAttribute("aria-checked", String(appState.criterioOrdenCola === c.id));
+        op.setAttribute("aria-checked", String(elegido));
 
         const radio = document.createElement("span");
-        radio.className = "radio-orden" + (appState.criterioOrdenCola === c.id ? " marcado" : "");
+        radio.className = "radio-orden" + (elegido ? " marcado" : "");
         op.appendChild(radio);
         op.appendChild(document.createTextNode(c.etiqueta));
 
@@ -183,7 +237,7 @@ const OrdenFeature = {
         seccion.appendChild(op);
       });
 
-      if (appState.criterioOrdenCola === "portal") {
+      if (criterioActivo() === "portal") {
         const pie = document.createElement("div");
         pie.className = "orden-pie";
         pie.textContent = "Dentro de cada portal, por orden de llegada.";
@@ -193,25 +247,15 @@ const OrdenFeature = {
       nodos.sortMenu.appendChild(seccion);
     }
 
-    /**
-     * La etiqueta del botón. En Cola muestra criterio + sentido; en Disponibles conserva el
-     * texto de siempre, porque esa pestaña sigue con el orden por título de antes.
-     */
+    /** La etiqueta del botón: criterio + sentido, igual en las dos pestañas. */
     function actualizarBoton() {
       if (!nodos.btnSort) return;
 
-      if (appState.pestañaActiva !== "cola") {
-        nodos.btnSort.textContent = appState.ordenAscendente ? "Sem. ↑" : "Sem. ↓";
-        nodos.btnSort.title = appState.ordenAscendente
-          ? "Orden: Semanas más viejas primero (Ascendente)"
-          : "Orden: Semanas más nuevas primero (Descendente)";
-        return;
-      }
-
-      const criterio = criteriosDisponibles().find((c) => c.id === appState.criterioOrdenCola);
-      const flecha = appState.ordenColaAscendente === false ? " ↓" : " ↑";
-      nodos.btnSort.textContent = (criterio ? criterio.corta : "Fila") + flecha;
-      nodos.btnSort.title = `Orden: ${criterio ? criterio.etiqueta : "De llegada"}${flecha}`;
+      const criterio = criteriosDisponibles().find((c) => c.id === criterioActivo());
+      const flecha = esAscendente() ? " ↑" : " ↓";
+      const porDefecto = enCola() ? "Fila" : "Nombre";
+      nodos.btnSort.textContent = (criterio ? criterio.corta : porDefecto) + flecha;
+      nodos.btnSort.title = `Orden: ${criterio ? criterio.etiqueta : porDefecto}${flecha}`;
     }
 
     function menuAbierto() {
@@ -234,20 +278,11 @@ const OrdenFeature = {
       else abrirMenu();
     }
 
-    // El botón hace dos cosas distintas según la pestaña, y es deliberado: el panel de criterios
-    // es un asunto de la Cola. En Disponibles conserva el toggle ascendente/descendente que ya
-    // tenía, porque ahí no hay más de un criterio posible.
+    // El botón abre el panel en LAS DOS pestañas. La primera versión de este corte dejó a
+    // Disponibles con el toggle viejo, y el resultado fue que el mismo botón hacía dos cosas
+    // según dónde estabas — se notaba al primer uso.
     if (nodos.btnSort) {
-      nodos.btnSort.addEventListener("click", () => {
-        if (appState.pestañaActiva === "cola") {
-          alternarMenu();
-          return;
-        }
-        appState.ordenAscendente = appState.ordenAscendente === null ? true : !appState.ordenAscendente;
-        appState.respaldar();
-        actualizarBoton();
-        renderizar();
-      });
+      nodos.btnSort.addEventListener("click", alternarMenu);
     }
 
     return { comparador, renderizarMenu, actualizarBoton, alternarMenu, cerrarMenu, criteriosDisponibles };
