@@ -11,11 +11,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > decisión, no inercia** — ver la 8b antes de "limpiarlo".
 >
 > **Y hay un segundo frente activo desde el 2026-08-04: el multi-sitio** (que la misma extensión
-> maneje N portales). **Son 7 cortes, no 6**: el que sigue es el 5 (el popup resolviendo por
-> pestaña), que es el de más riesgo porque no hay tests sobre el núcleo de `popup.js`; y el
-> último, el 7, es el que recién entrega la feature — el manifest y el primer adaptador real
-> del segundo portal, sin más red que la verificación en navegador. **Cuáles están hechos se
-> lee en `docs/multisitio-diseno.md` §Orden de cortes, no acá** (esa tabla es la fuente viva);
+> maneje N portales). **Son 8 cortes**: el que sigue es el 5 (el popup resolviendo por
+> pestaña), que es el de más riesgo porque no hay tests sobre el núcleo de `popup.js`; el 7 es
+> el que recién entrega la feature —el manifest y el primer adaptador real del segundo portal,
+> sin más red que la verificación en navegador—; y el 8 es un bug de corrección hallado el
+> 2026-08-05 (el click de la notificación de fallo enfoca el portal asumido, no el del ítem)
+> que no necesita el segundo portal y conviene hacer antes del 7. **Cuáles están hechos se lee
+> en `docs/multisitio-diseno.md` §Orden de cortes, no acá** (esa tabla es la fuente viva);
 > la decisión de fondo, en ADR-0010. Antes de tocar código:
 >
 > **Leé `docs/rearquitectura-diseno.md` §Cómo retomar esto en una sesión nueva.** Ahí está el
@@ -62,7 +64,7 @@ Start at **`docs/architecture.md`**. Full map:
 - `docs/ROADMAP.md` — phased plan to pay down the backlog, in dependency order.
 - `docs/preact-migration.md` — live status of the incremental Preact-islands migration of the popup (which islands are done/next, the DOM-boundary rule, and a recipe for adding one). See also ADR-0006.
 - `docs/rearquitectura-diseno.md` — execution design (the "how") for the ports-and-adapters + TypeScript re-architecture: target folder layout, port interfaces, the generic-vs-site UI/CSS split, testing strategy under the new layers, bundler choice, migration order + execution rules (coexistence with the vanilla root, per-phase verification, rollback). The *decision* lives in ADR-0008 (supersedes ADR-0001); this is its counterpart design/status doc, like `preact-migration.md`. **The live per-phase status lives there, not here** (§Estado de avance) — read its §Cómo retomar esto en una sesión nueva first, and see the banner at the top of this file for the one-line summary. Note the doc's original `src/` layout was dropped in execution: `wxt.config.ts` sets `srcDir: '.'`, so sources stayed at the repo root.
-- `docs/multisitio-diseno.md` — execution design for making **one installed extension serve N portals** (the goal ADR-0009 chose and never built). Read it before touching the site layer: it holds the measured consumer map, the four real coupling points, and the cut order. Its decision counterpart is ADR-0010 (**the site is a property of the item, not of the build**) — that one exists because "resolve by URL" works for the popup and *not* for the service worker, whose queue is deliberately detached from any tab.
+- `docs/multisitio-diseno.md` — execution design for making **one installed extension serve N portals** (the goal ADR-0009 chose and never built). Read it before touching the site layer: it holds the measured consumer map, the five real coupling points, and the cut order. Note what the fifth one teaches: the original measurement swept the download loop and the UI but **not the service worker's loose listeners**, and missed a user-visible wrong-portal bug for a day — when you measure the site coupling, sweep the listeners too. Its decision counterpart is ADR-0010 (**the site is a property of the item, not of the build**) — that one exists because "resolve by URL" works for the popup and *not* for the service worker, whose queue is deliberately detached from any tab.
 - `docs/notificaciones-fallos-diseno.md` — execution design/record for the failure-notifications feature (native OS notification + persistent bell Preact island `campanita`, backed by the `historialFallos` storage key + the `core/historial/historialFallos.ts` module). Implemented (2026-07-20); the canonical detail lives in `data-model.md`/`security.md`/`patterns.md`/`preact-migration.md`, this is the "how"/rationale record.
 
 Security rule (operational summary — full policy and rationale in `docs/security.md`): scraped/third-party text must never be interpolated into `.innerHTML` unescaped. Since Preact island #4 the live list renders through `<TarjetaEstado>`/`<FilaClase>` (`listaClases.preact.js`), so escape at the `window.ListaClases` view-model boundary that feeds them. The original `popup.js` XSS is fixed (2026-07-16).

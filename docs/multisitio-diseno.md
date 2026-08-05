@@ -39,7 +39,11 @@ Y hay una asimetría que decide casi todo el diseño:
 - **La cola NO.** Está desacoplada a propósito (`docs/data-model.md`: sobrevive a cambios de
   materia y de pestaña) — o sea que **puede contener clases de dos portales a la vez**.
 
-De ahí salen los cuatro puntos de acoplamiento reales.
+De ahí salen los puntos de acoplamiento reales. **Son cinco, y el quinto llegó tarde**: los
+cuatro primeros son los de la medición original (2026-08-04); el §5 apareció el 2026-08-05
+revisando la deuda, porque aquel barrido cubrió el bucle de descarga y la UI pero **no los
+listeners sueltos del service worker**. Vale como advertencia sobre el alcance de la medición,
+no sólo como ítem.
 
 ### 1. `procesadorCola` recibe un sitio fijo
 
@@ -71,7 +75,7 @@ había otro portal) y evita tocar los datos del usuario. Mismo criterio que la m
 
 ### 3. `faceta.leerDeCola` re-deriva con el parser del sitio equivocado
 
-Este es el más silencioso de los cuatro. `ColaItem` **no lleva** el valor de la faceta: el
+Este es el más silencioso de los cinco. `ColaItem` **no lleva** el valor de la faceta: el
 descriptor lo re-deriva con `clasificarCarpeta(titulo, carpeta)`, que es **específica del
 portal**. Con la cola mezclada, la fila de un portal se clasifica con el parser del otro — y
 como el parser devuelve algo (no tira), el filtro simplemente muestra mal sin avisar.
@@ -95,6 +99,32 @@ puerto). Con N portales, "hay internet" pasa a ser "llego a *cuál*".
 **Recomendación**: no sobre-diseñar. El daemon sigue con **una** sonda —la del portal del ítem
 en descarga, y en el popup la de la pestaña activa—; si a futuro hace falta estado por portal,
 eso es un rediseño del daemon y merece su propio corte.
+
+### 5. El click en la notificación de fallo enfoca la pestaña del portal asumido
+
+Hallado el 2026-08-05, revisando la deuda tras el corte 4 — **no estaba en la medición
+original**, que barrió el bucle de descarga y la UI pero no los listeners sueltos del SW.
+
+`background.js:474-490` (listener de `chrome.notifications.onClicked`) resuelve qué pestaña
+enfocar con el `sitio` que le inyecta el entrypoint, y ese `sitio` es `sitioAsumido`
+(`entrypoints/background.js:48`) — el andamio del corte 2:
+
+```js
+const [tab] = await chrome.tabs.query({ url: sitio.patronPestañas });
+...
+await chrome.tabs.create({ url: sitio.urlSondeoInternet });
+```
+
+**Es el mismo defecto que el corte 4**, con dos diferencias que lo hacen peor: está en el
+service worker (que por diseño no tiene pestaña de la cual deducir nada) y **le llega al
+usuario**. Con la cola mezclada, la notificación de una clase del portal B enfoca —o peor,
+*abre*— la pestaña del portal A. El follow-up accionable que la notificación promete lleva
+al lugar equivocado.
+
+**El dato para arreglarlo ya existe**: el fallo que dispara la notificación sale de un ítem, y
+desde el corte 1 el ítem lleva `sitioId`. Es resolver con `sitios.obtener(id)` igual que el
+bucle, usando el mismo export compartido de la composición que el corte 4 dejó — si el bucle y
+la notificación resolvieran distinto, volvemos a la divergencia del punto 3. Va como **corte 8**.
 
 ---
 
@@ -206,6 +236,7 @@ la regla que en toda la re-arquitectura atajó los únicos 3 defectos que llegar
 | 5 | El popup estampa `sitioId` al escanear + resuelve por pestaña | Medio. Sin tests sobre el núcleo de `popup.js` (ADR-0005) |
 | 6 | Filtro de faceta con cola mezclada (decisión de UX) | Bajo |
 | 7 | Manifest + el primer adaptador real del segundo portal | Verificación en navegador, no hay otra red |
+| 8 | El click de la notificación resuelve la pestaña con el sitio del ítem, no con `sitioAsumido` (bug de corrección — ver §5) | Bajo. **El número es de registro, no de orden obligatorio**: como el 4, es un bug de corrección que no necesita el segundo portal y se puede testear con una cola mezclada a mano. Hacerlo antes del 7 es válido y probablemente mejor — es lo último que sigue leyendo el andamio `sitioAsumido` en el SW |
 
 **Los cortes 1 y 2 son seguros y se pueden hacer ya**, antes de tener el segundo portal: dejan el
 andamiaje listo sin cambiar una sola conducta.
