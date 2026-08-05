@@ -11,15 +11,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > decisión, no inercia** — ver la 8b antes de "limpiarlo".
 >
 > **Y hay un segundo frente activo desde el 2026-08-04: el multi-sitio** (que la misma extensión
-> maneje N portales). **Son 8 cortes**: el que sigue es el 5 (el popup resolviendo por
-> pestaña), que es el de más riesgo porque no hay tests sobre el núcleo de `popup.js`, y el 7
-> es el que recién entrega la feature —el manifest y el primer adaptador real del segundo
-> portal, sin más red que la verificación en navegador—. **Cuáles están hechos se lee en
-> `docs/multisitio-diseno.md` §Orden de cortes, no acá** (esa tabla es la fuente viva); la
-> decisión de fondo, en ADR-0010. Dato de arquitectura que ya cambió y conviene tener: **el
-> service worker no tiene UN portal** — el bucle resuelve el del ítem (corte 3) y la
-> notificación el suyo por el `notificationId` (corte 8), así que `sitioAsumido` sólo sigue
-> vivo del lado del popup. Antes de tocar código:
+> maneje N portales), hoy **a mitad de camino y sin nada mergeado**. Al 2026-08-05 hay siete
+> cortes hechos en un **stack de cuatro ramas encadenadas** (no paralelas: cada una contiene a
+> las anteriores), **ninguno verificado en navegador**, y faltan cuatro. **Antes de escribir una
+> línea leé `docs/multisitio-diseno.md` §Cómo retomar esto en una sesión nueva** — está al final
+> de ese doc y tiene el stack, el checklist de Chrome y las trampas vivas. Dos que conviene
+> saber ya:
+>
+> - **⚠️ ADR-0011 está aceptada y NO está construida.** Dice que el array de `colaDescargas` *es*
+>   el orden de descarga; hoy el SW sigue ordenando por `fechaEncolado` y el orden del popup es
+>   sólo una vista. Eso es el corte 6d, pendiente. Es la misma forma en que ADR-0009 estuvo
+>   "decidida y no construida" y generó trabajo duplicado — **no asumas que ya funciona**.
+> - **El service worker ya no tiene UN portal**: el bucle resuelve el del ítem (corte 3) y la
+>   notificación el suyo por el `notificationId` (corte 8). `sitioAsumido` sólo sigue vivo del
+>   lado del popup, hasta el corte 5.
+>
+> La decisión de fondo del frente sigue siendo ADR-0010. Antes de tocar código:
 >
 > **Leé `docs/rearquitectura-diseno.md` §Cómo retomar esto en una sesión nueva.** Ahí está el
 > orden de lectura, el estado por fase, qué sigue y con qué riesgo, y las 4 verificaciones a
@@ -34,6 +41,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > que un refactor se comió (nada la afirmaba), y el empaquetado de la Fase 3. **Lo que la
 > suite no puede ver: el empaquetado, el orden de carga de los globals, el núcleo de
 > `popup.js` y cualquier efecto cuyo destino sea una ventana que no es el popup.**
+>
+> **Y hay evidencia fresca, del 2026-08-05**: abrir el popup encontró **otros tres defectos del
+> corte 6b** con la suite entera en verde — el orden de Disponibles quedó inconsistente con el
+> de la Cola, el popover se leía por detrás (era vidrio esmerilado al 82%), y los dos popovers
+> podían quedar abiertos a la vez. Ninguno era de lógica: **los tres eran de interacción o de
+> aspecto**, la clase de defecto que ningún test de este proyecto puede ver. Sumalos a la lista
+> de arriba como lo que son: el caso típico, no la excepción.
 >
 > El checklist concreto de esa verificación —7 puntos, no "probá que ande"— es
 > `docs/rearquitectura-diseno.md` §Verificación en navegador. Su disparador declarado es

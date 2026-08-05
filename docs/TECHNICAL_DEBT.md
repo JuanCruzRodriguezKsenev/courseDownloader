@@ -102,6 +102,22 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
   y se lo lleva, mientras la notificación sobrevive en pantalla. +19 tests. **De paso,
   `sitioAsumido` salió del service worker**: era su último lector.
 
+### El mecanismo de popovers de `popup.js` no tiene tests
+
+- **Estado**: 🔴 abierto (hallado el 2026-08-05, al sumar el segundo popover en el corte 6b).
+- **Dónde**: `popup.js` — el listener global de `document` que cierra los popovers, y el handler
+  de `btnFilterPills`. `OrdenFeature` sí quedó cubierta; esta mitad no.
+- **Qué pasa**: el mecanismo es "un listener global cierra todo, y cada botón hace
+  `stopPropagation()` para no cerrarse a sí mismo". Con **un** popover funcionaba y nadie lo
+  miraba. Al sumar el segundo aparecieron dos defectos que ningún test podía ver: los dos
+  quedaban abiertos a la vez (el botón que frena la propagación tampoco dispara el cierre del
+  otro) y el nuevo no cerraba con el click afuera.
+- **Por qué sigue abierto**: está en el núcleo de `popup.js`, que ADR-0005 declara no-extraíble.
+  Cubrirlo implica o bien extraer el manejo de popovers a una feature —que es un corte propio— o
+  bien un test de integración del popup, que hoy no existe como categoría.
+- **Mientras tanto**: si se agrega un tercer popover, **probarlo a mano contra los otros dos**.
+  Es la única red.
+
 ---
 
 **El resto: nada abierto (última revisión: 2026-08-03).** Los dos ítems que hubo —el sondeo ad-hoc de

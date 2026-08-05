@@ -272,7 +272,8 @@ const FilterFeature = {
   }
 };
 
-// Exportación (ver docs/coding-standards.md). Sigue publicando el global porque el
-// resto del código vanilla lo consume sin importar; el `export` es lo que permite que
-// el bundler arme el grafo de dependencias y que Vitest importe el módulo.
+// Exportación (ver docs/coding-standards.md). Desde la Fase 8a NO publica global: los
+// módulos hermanos viajan por `import` y no son adaptadores intercambiables. (Hasta el
+// 2026-08-05 este comentario decía que "sigue publicando el global", que era falso: la
+// 8a lo sacó y el texto quedó.)
 export default FilterFeature;

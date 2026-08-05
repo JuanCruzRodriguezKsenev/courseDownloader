@@ -1,10 +1,14 @@
 # Multi-sitio: una extensión, varios portales — diseño de ejecución
 
-**Estado**: diseño redactado (2026-08-04). **Corte 1 hecho**; del 2 al 7, pendientes.
+**Estado (2026-08-05)**: cortes 1 a 4, 6a, 6b y 8 hechos; **ninguno mergeado y ninguno verificado
+en navegador**. Faltan el 6c, el 6d, el 5 y el 7. → **Empezá por §Cómo retomar esto en una sesión
+nueva, al final del doc**: ahí está el stack de ramas, qué probar en Chrome y las dos trampas
+vivas (la migración del 6b y que ADR-0011 está aceptada pero **sin construir**).
 **Decisión de base**: [ADR-0009](adr/0009-registro-de-sitios-en-runtime.md) eligió *registro en
-runtime* sobre *una build por portal*, y [ADR-0010](adr/0010-el-sitio-es-del-item.md) resuelve
-el punto que la 0009 no vio. Este doc es el **cómo**, igual que `rearquitectura-diseno.md` es el
-cómo de ADR-0008.
+runtime* sobre *una build por portal*, [ADR-0010](adr/0010-el-sitio-es-del-item.md) resuelve
+el punto que la 0009 no vio, y [ADR-0011](adr/0011-el-orden-de-la-cola-lo-decide-el-popup.md)
+decide quién manda sobre el orden de la cola. Este doc es el **cómo**, igual que
+`rearquitectura-diseno.md` es el cómo de ADR-0008.
 
 > **Objetivo**: que la MISMA extensión instalada maneje N portales. La UI no cambia — está
 > pulida y es genérica; lo que se suma por portal es el adaptador de Capa 2 (scraper, parser,
@@ -318,3 +322,96 @@ andamiaje listo sin cambiar una sola conducta.
 **Antes de ejecutar cada uno: medir.** En la re-arquitectura el corte resultó de otro tamaño las
 cuatro veces que se saltó ese paso — y una de esas veces el error fue medir `popup/` y no
 `sitio/`. Medir el árbol entero, no el subconjunto que uno tiene en la cabeza.
+
+---
+
+## Cómo retomar esto en una sesión nueva
+
+Escrito el 2026-08-05, al final de la sesión que hizo los cortes 8, 6a y 6b. **Leé esto antes
+que el resto del doc**: dice dónde está todo y qué está a medio camino.
+
+### 1. Nada está mergeado, y las ramas son un stack, no ramas paralelas
+
+`main` está en el commit anterior al corte 4. Todo lo demás vive en cuatro ramas **encadenadas**:
+cada una contiene a las anteriores.
+
+```
+main
+ └─ feat/multisitio-corte4-faceta        corte 4 + 3 commits de docs
+     └─ feat/multisitio-corte8-notificacion   + corte 8
+         └─ feat/multisitio-corte6a-ancla         + corte 6a
+             └─ feat/multisitio-corte6b-orden         + corte 6b y sus 2 fixes
+```
+
+La regla del repo es "una rama por corte" y esto la cumple de nombre pero no de espíritu: **no
+son independientes**. Consecuencias prácticas:
+
+- Mergear `corte6b` se lleva puestos el 4, el 8 y el 6a. No se puede mergear uno solo del medio
+  sin rebase.
+- Del lado bueno: **compilar y probar la rama de arriba ejercita todo el stack**, así que una
+  sola pasada de verificación en navegador los cubre a los cuatro.
+- Si algo falla, la rama no aísla cuál corte lo rompió. Para eso está el historial, que sí tiene
+  un commit por corte.
+
+### 2. Lo que falta antes que cualquier código: probarlo en Chrome
+
+**Los cuatro cortes están sin verificar en navegador.** No es formalidad: en esta misma sesión,
+usar la extensión encontró **tres defectos que la suite no podía ver** —el orden de Disponibles
+quedó inconsistente con el de la Cola, el popover se leía por detrás, y los dos popovers podían
+quedar abiertos a la vez—. Ninguno era un bug de lógica; los tres eran de interacción o de
+aspecto, que es exactamente el punto ciego declarado del proyecto.
+
+El checklist son los 7 puntos de `rearquitectura-diseno.md` §Verificación en navegador. Sumale
+estos, que son de lo que se tocó acá:
+
+- Con una descarga en curso: que la fila quede clavada arriba de la divisoria y **no se mueva**
+  al filtrar, buscar ni cambiar el orden.
+- Filtrar hasta que no quede nada más: tiene que verse el ancla + la nota, **no** la tarjeta de
+  "no hay clases".
+- El panel de orden en **las dos pestañas**, con sus criterios distintos.
+- Abrir filtros y después orden (y al revés): sólo uno abierto. Click afuera: se cierran los dos.
+- Cambiar de pestaña con un panel abierto: se cierra.
+- Que el orden elegido **sobreviva a cerrar y reabrir el popup** (se persiste).
+- Y el que más importa: **que una instalación existente no cambie de orden sola** al actualizar.
+  La migración es el punto delicado del 6b — ver abajo.
+
+### 3. La trampa del 6b, que casi se ejecuta mal
+
+El plan decía partir `ordenAscendente` en dos. **Ese campo no era de la Cola: servía a las dos
+pestañas con reglas distintas.** Disponibles sólo mira su verdad/falsedad, así que `null` ahí
+significaba *descendente*, mientras que en la Cola significaba FIFO. Derivar `null → ascendente`
+habría dado vuelta el orden de Disponibles en toda instalación existente, sin que nada lo dijera.
+
+Lo que se hizo: la Cola estrenó `criterioOrdenCola` + `ordenColaAscendente`, Disponibles estrenó
+`criterioOrdenDisponibles` y **`ordenAscendente` quedó intacto** como su sentido. Detalle en
+`data-model.md`, y hay tests que afirman que Disponibles no se movió.
+
+### 4. ⚠️ ADR-0011 está aceptada y NO está construida
+
+`adr/0011-el-orden-de-la-cola-lo-decide-el-popup.md` dice que el array de `colaDescargas` **es**
+el orden de descarga y que el service worker deja de ordenar. **Eso es el corte 6d, y no se
+hizo.** Hoy el SW sigue haciendo `colaDescargas.sort(por fechaEncolado)` en cada vuelta
+(`core/cola/procesadorCola.ts`), así que el orden que se elige en el popup es **sólo una vista**.
+
+Es exactamente la forma en que ADR-0009 estuvo "decidida y no construida" dos días y generó
+trabajo duplicado. **No asumas que el SW ya obedece el array.** Si el 6d se posterga mucho, hay
+que decidir si la ADR se marca como pendiente de implementación o se supera con otra.
+
+### 5. Qué sigue, en orden
+
+| Qué | Estado | Nota |
+|---|---|---|
+| Verificar los 4 cortes en Chrome | ⏳ **Lo primero** | Una sola pasada cubre el stack entero |
+| Corte 6c — filtro por portal | Pendiente | El último barato. `filters.test.js` ya tiene el doble de `sitios` con cola mezclada |
+| Corte 6d — el orden manda de verdad | Pendiente | **Toca el bucle de descarga.** ADR-0011. Verificación en navegador no negociable |
+| Corte 5 — el popup resuelve por pestaña | Pendiente | El de más riesgo: sin tests sobre el núcleo de `popup.js` (ADR-0005) |
+| Corte 7 — segundo portal real | Bloqueado | Necesita un portal que no tenemos |
+
+### 6. Restos conocidos, chicos, que no son de ningún corte
+
+- **`popup.js` no tiene tests del mecanismo de popovers** (el listener global de `document`, el
+  botón de filtros). Lo que se agregó en el 6b cubre el lado de `OrdenFeature`; la otra mitad
+  sigue en el núcleo sin cobertura, que es donde los tres defectos de esta sesión se escondieron.
+- El popover de **Filtros** también dejó de ser translúcido, no sólo el de orden: son el mismo
+  componente y separarlos parecía peor. Si el vidrio esmerilado se quiere de vuelta ahí, hay que
+  separar las reglas.
