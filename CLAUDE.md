@@ -11,10 +11,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > decisión, no inercia** — ver la 8b antes de "limpiarlo".
 >
 > **Y hay un segundo frente activo desde el 2026-08-04: el multi-sitio** (que la misma extensión
-> maneje N portales). Cortes 1 a 4 hechos; quedan el 5 (el popup resolviendo por pestaña, el de
-> más riesgo: sin tests sobre el núcleo de `popup.js`) y el 6. El diseño y el estado por corte
-> están en `docs/multisitio-diseno.md`; la decisión de fondo, en ADR-0010. Antes de tocar
-> código:
+> maneje N portales). **Son 7 cortes, no 6**: el que sigue es el 5 (el popup resolviendo por
+> pestaña), que es el de más riesgo porque no hay tests sobre el núcleo de `popup.js`; y el
+> último, el 7, es el que recién entrega la feature — el manifest y el primer adaptador real
+> del segundo portal, sin más red que la verificación en navegador. **Cuáles están hechos se
+> lee en `docs/multisitio-diseno.md` §Orden de cortes, no acá** (esa tabla es la fuente viva);
+> la decisión de fondo, en ADR-0010. Antes de tocar código:
 >
 > **Leé `docs/rearquitectura-diseno.md` §Cómo retomar esto en una sesión nueva.** Ahí está el
 > orden de lectura, el estado por fase, qué sigue y con qué riesgo, y las 4 verificaciones a
@@ -32,13 +34,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 >
 > El checklist concreto de esa verificación —7 puntos, no "probá que ande"— es
 > `docs/rearquitectura-diseno.md` §Verificación en navegador. Su disparador declarado es
-> *"cada fase que toque empaquetado, entrypoints o el adaptador de sitio"*, o sea exactamente
-> lo que hacen las dos fases que quedan: corré esos 7 puntos antes de pedir el merge de la 7
-> o de la 8, no una prueba improvisada.
+> *"cada fase que toque empaquetado, entrypoints o el adaptador de sitio"*. Las fases que lo
+> disparaban ya se mergearon; **hoy quien lo dispara son los cortes del multi-sitio que
+> quedan** — el 5 toca el popup y el 7 toca manifest y adaptador de sitio, o sea de lleno.
+> Corré esos 7 puntos antes de pedir el merge, no una prueba improvisada.
 
 ## Project Overview
 
-RamonNet Video Downloader (Turbo Edition) is a Manifest V3 Chrome/Brave browser extension that bulk-downloads HLS-streamed recorded classes from the "Ramón Net" learning platform (`plataforma.ramonnet.com.ar`). It scrapes the class listing DOM, resolves each class's HLS `.m3u8` manifest, downloads and decrypts (AES-128-CBC) the `.ts` fragments concurrently, and streams the decrypted fragments to a companion local Bun backend server (`ramonnet-bun-backend`, a separate repo/folder not included here) running on `http://localhost:3001`, which assembles them on disk. **The extension is compiled** (since 2026-08-02, Phase 3 of the re-architecture): WXT + Vite bundle it into `.output/chrome-mv3/`, which is the folder loaded in the browser — *not* the repo root. `manifest.json` is no longer hand-written; it is generated from `wxt.config.ts`. ADR-0001 (no bundler) is superseded by ADR-0008. **The core is now TypeScript and lives in `core/`** — ports, download queue, HLS engine, connection daemon, popup state, backend client, failure history and pure utilities; `plataforma/` holds the Chrome side of every port, and `sitio/ramonnet/` everything about the portal. `chrome.*` does still appear outside `plataforma/`, deliberately — the inventory (by API, not by file) is in `docs/architecture.md` §Las capas, and you want it before touching Phase 7 or 8. What is still vanilla JS: `popup.js` (the orchestrator), `renderers.js`, `background.js` (now mostly wiring) and the site adapter's three sibling modules.
+RamonNet Video Downloader (Turbo Edition) is a Manifest V3 Chrome/Brave browser extension that bulk-downloads HLS-streamed recorded classes from the "Ramón Net" learning platform (`plataforma.ramonnet.com.ar`). It scrapes the class listing DOM, resolves each class's HLS `.m3u8` manifest, downloads and decrypts (AES-128-CBC) the `.ts` fragments concurrently, and streams the decrypted fragments to a companion local Bun backend server (`ramonnet-bun-backend`, a separate repo/folder not included here) running on `http://localhost:3001`, which assembles them on disk. **The extension is compiled** (since 2026-08-02, Phase 3 of the re-architecture): WXT + Vite bundle it into `.output/chrome-mv3/`, which is the folder loaded in the browser — *not* the repo root. `manifest.json` is no longer hand-written; it is generated from `wxt.config.ts`. ADR-0001 (no bundler) is superseded by ADR-0008. **The core is now TypeScript and lives in `core/`** — ports, download queue, HLS engine, connection daemon, popup state, backend client, failure history and pure utilities; `plataforma/` holds the Chrome side of every port, and `sitio/ramonnet/` everything about the portal. `chrome.*` does still appear outside `plataforma/`, deliberately — the inventory (by API, not by file) is in `docs/architecture.md` §Las capas, and you want it before touching Phase 7 or 8. What is still vanilla JS — **and the list matters, because `allowJs` is `false` and it's exactly which files are `.js` that sizes every migration slice**: `popup.js` (the orchestrator), `renderers.js`, `background.js` (now mostly wiring), the site adapter's three sibling modules, the **ten `popup/features/*.js`**, and the **two entrypoints** (`entrypoints/background.js` + `entrypoints/popup/main.js` — that last pair is why `tsc` skips the whole import graph; see the `allowJs` section below).
 
 ## Documentation as Code
 
@@ -81,6 +84,8 @@ npm run dev                           # WXT watch mode + HMR, readable sources
 ```
 
 The first four are the gate to run before starting work (see the banner at the top of this file); the bullets below are the *why* behind each.
+
+**On a fresh clone, `npm install` comes first — and not only for `node_modules`.** `tsconfig.json` extends `./.wxt/tsconfig.json`, and `.wxt/` is a gitignored build artifact generated by the `postinstall` hook (`wxt prepare`). Skip the install and `npx tsc --noEmit` fails on the missing base config, which reads like a broken repo rather than a missing step.
 
 - **Run tests**: `npm test` (single run) or `npm run test:watch`. To run one file/test: `npx vitest run core/util/texto.test.ts` or `npx vitest run -t "<test name>"`. **There is no `vitest.config.*` in the repo** — the suite runs on Vitest's defaults, which means the `node` environment: a test that touches the DOM (a `popup/features/` feature, any Preact island) needs `// @vitest-environment jsdom` as its own docblock at the top of the file, or it dies with `document is not defined` (about half the suite carries one — copy it from any sibling test). Modules are ES modules that also publish their object as a global side-effect (`globalThis.X = X; export default X`) — the export feeds the bundler and the tests, the global keeps ~200 existing call-sites working untouched. See `docs/coding-standards.md`. Tests sit next to what they cover, so `git ls-files '*.test.*'` is the inventory — don't look for a list here. **What the suite covers and what it deliberately doesn't → `docs/testing.md`, the canonical home for both the counts and the coverage narrative.**
 - **Lint**: `npm run lint` (ESLint 9 flat config, rules `no-undef`/`no-unused-vars`/`eqeqeq`; `.ts` goes through typescript-eslint). When you add a new cross-file global (a `globalThis.X` consumed elsewhere), add it to `globalesDelProyecto` in `eslint.config.js` or `no-undef` will false-positive. **A new *warning* is a regression here, not just an error** — the baseline is clean on both, and that's the part worth knowing before you shrug one off. The numbers themselves → `docs/testing.md`.
