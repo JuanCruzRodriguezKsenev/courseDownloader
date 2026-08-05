@@ -14,7 +14,44 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 ## 🔴 Abierto
 
-**Nada abierto (última revisión: 2026-08-03).** Los dos ítems que hubo —el sondeo ad-hoc de
+### Soporte para un segundo portal: la selección de sitio no existe, y hay vocabulario filtrado
+
+- **Estado**: 🔴 abierto (hallado el 2026-08-04, auditando la arquitectura tras la Fase 8a).
+- **Qué pasa**: ADR-0009 decidió **registro de sitios en runtime** (una sola build que resuelve
+  el adaptador por URL). Esa decisión **nunca se construyó**: hoy
+  `sitio/ramonnet/config.ts:177` es `const SitioActivo: PuertoSitio = SitioRamonNet;`, un alias
+  fijo. No hay registro ni resolución por pestaña.
+- **Qué habría que tocar fuera de `sitio/` para sumar un portal** (medido, no estimado):
+  - 6 imports con la ruta del portal hardcodeada en los dos entrypoints
+    (`entrypoints/background.js:24-29`, `entrypoints/popup/main.js:14-33`).
+  - `plataforma/composicion.ts:39`, que importa `SitioActivo` desde `../sitio/ramonnet/config`.
+  - `wxt.config.ts`: 4 `host_permissions` del portal + su CDN, y la ruta única del ruleset dNR
+    (`rule_resources` acepta varios; hoy hay uno).
+- **Vocabulario del portal filtrado a capas genéricas** (código, no comentarios):
+  - `core/cola/procesadorCola.ts:49` — `MOTIVOS_PAUSA.sesion = "no hay sesión activa en Ramón
+    Net"`. **No es un log**: viaja al historial de fallos y a la notificación del SO.
+  - `core/cola/procesadorCola.ts:399` — el mismo string en un `console.warn`.
+  - `core/backend/bunClient.ts:63` — lee `globalThis.RAMONNET_BUN_BASE_URL`; el nombre de la
+    perilla de configuración es del portal, en Capa 1.
+  - `popup.js` — 7 strings de UI que nombran al portal (líneas 444, 459, 584, 744, 758, 811,
+    1016) y `catedra:` como nombre de campo en la 827. Más `background.js:490`.
+- **Impacto**: la regla de dependencia de la arquitectura **sí se cumple** (`core/` no importa
+  nada de `sitio/` ni de `plataforma/`, y `PuertoSitio` es un contrato que `tsc` hace cumplir).
+  Lo que no se cumple es la promesa práctica de ADR-0008: *"sumar un portal = escribir un
+  adaptador de Capa 2"*. Hoy son ~5 lugares fuera de `sitio/` más el registro que falta.
+- **Qué NO haría falta tocar**, y vale registrarlo porque es la evidencia de que la
+  re-arquitectura sirvió: toda la UI (features + las 6 islas son genéricas), `core/` entero
+  salvo las 3 líneas de arriba, y `plataforma/` completa.
+- **Fix propuesto**: **no construirlo especulativamente.** Las 3 fugas de `core/` sí conviene
+  cerrarlas (son violaciones de la regla declarada de Capa 1 y salen baratas: parametrizar el
+  copy por `PuertoSitio.nombre`, como ya se hizo con el onboarding). El registro y los strings
+  de `popup.js` recién cuando exista un segundo portal real — planificar contra código
+  imaginado es el error que esta re-arquitectura cometió cuatro veces (ver los §Registro de las
+  Fases 6, 6b, 6c y 7c).
+
+---
+
+**El resto: nada abierto (última revisión: 2026-08-03).** Los dos ítems que hubo —el sondeo ad-hoc de
 `queue.js` y la deuda de verificación de las Fases 1-5a— se cerraron el 2026-08-02; están en la
 sección Resuelto. Lo que sigue **no es deuda**: es la re-arquitectura en curso, y su estado por
 fase vive en `docs/rearquitectura-diseno.md` (tabla de avance + §Cómo retomar). No dupliques

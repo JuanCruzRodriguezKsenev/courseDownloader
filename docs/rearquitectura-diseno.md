@@ -585,7 +585,14 @@ despertar del SW) y por qué el relleno usa `!= null` y no un chequeo por falsy.
    (`pending`/`process`/`downloaded`). La cátedra salió de ahí en la Fase 1, cuando la faceta
    se generalizó. No había nada que partir.
 2. **"Genéricos a `ui/comunes/`, de sitio a `sitio/ramonnet/ui/`."** Al medirlo, el split es
-   **100% / 0%**: la única parte de la UI que nombraba al portal era el copy del onboarding
+   **100% / 0%**… en `popup/features/`. **Esa conclusión era incompleta y se corrige acá
+   (2026-08-04)**: la medición miró las features y las islas, y no `popup.js`, que tiene **7
+   strings de UI nombrando al portal** (líneas 444, 459, 584, 744, 758, 811, 1016) más
+   `catedra:` como nombre de campo en la 827. La parte medida sigue siendo cierta —los
+   componentes son genéricos— pero "la UI ya era genérica" no lo es. Está anotado en
+   `docs/TECHNICAL_DEBT.md` §Abierto. Es el mismo error de alcance que la 7c: medir el
+   subconjunto que uno tiene en la cabeza. Con esa salvedad, lo que la fase midió: la única
+   parte de las features que nombraba al portal era el copy del onboarding
    (4 strings + la URL del listado). Se parametrizó con `PuertoSitio.nombre` —el mismo patrón
    que el plan ya recomendaba para la faceta: *parametrizar sale más barato que duplicar*— y
    con eso `sitio/ramonnet/ui/` queda **vacía por definición**. Mover `popup/features/` a
