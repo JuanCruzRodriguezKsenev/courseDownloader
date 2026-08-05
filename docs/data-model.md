@@ -19,9 +19,29 @@ Escrito principalmente por `AppState.respaldar()` (`core/estado/appState.ts`) de
 | `SW_ESTADOS_PROGRESO` | `Record<string, EstadoClase>` | SW (`persistirEstadoFondo`) | Mapa `titulo → estado` de progreso, espejo liviano para que el popup pueda reconciliar sin pedir el detalle completo. |
 | `historialFallos` | `HistorialFallo[]` (ver abajo) | SW (`registrarFallo` → `HistorialFallos.registrar`), popup (marcar leídas / limpiar) | Historial acotado (últimos 50, más-reciente-primero) de fallos terminales de descarga (rechazo 4xx / sesión / servidor / internet). Fuente de la campanita del popup; la escribe el SW aun con el popup cerrado. |
 
+### Migración: `sitioId` en `Clase` y `ColaItem` (2026-08-04)
+
+**Por qué**: con multi-sitio el portal deja de ser una propiedad de la build y pasa a ser un dato
+de cada ítem (ADR-0010). El service worker lo necesita porque la cola está **desacoplada de la
+pestaña** a propósito: cuando toma un ítem no hay ninguna URL que consultar para deducir de qué
+portal era.
+
+**Regla**: un ítem persistido **sin** `sitioId` se lee como `"ramonnet"`. Es correcto por
+construcción —hasta esta migración no existía otro portal— y no toca los datos en disco: la
+normalización pasa **al cargar**, en `inicializarSincronizacionStorage()`, igual que la
+migración de la faceta de abajo.
+
+**Ojo con el valor por defecto**: `SITIO_LEGADO` (`core/estado/appState.ts`) **describe el
+pasado, no el presente**. Si algún día cambia cuál es el portal principal, esa constante no
+cambia — lo guardado antes del multi-sitio sigue habiendo venido de Ramón Net.
+
+Cubierto por 3 tests en `core/estado/appState.test.ts` (ítem legado, ítem que ya trae su sitio,
+y lista vacía / entradas nulas).
+
 ### Migración: `catedraElegida` → `facetaElegida` (2026-08-03)
 
-Es la **única migración de datos que tuvo el proyecto**, y sirve de plantilla si aparece otra.
+Fue la **primera migración de datos del proyecto** y sirvió de plantilla para la de `sitioId`,
+justo arriba.
 El renombre no fue cosmético: mientras la clave y el campo en memoria se llamaran `catedra*`,
 `AppState` cargaba vocabulario de Ramón Net y no podía ser Capa 1 (hoy vive en
 `core/estado/appState.ts`).
@@ -48,8 +68,9 @@ adopta la vieja, la borra al adoptarla, y con las dos presentes gana la nueva.
   id: string,
   numeroOriginal: number,       // orden en que apareció en el scraping
   titulo: string,                 // título canónico ya formateado (ver ParserTitulos.formatTitleStructured)
-  urlInterna: string,             // URL de la página de la clase en Ramón Net
+  urlInterna: string,             // URL de la página de la clase en el portal
   carpeta: string,                // subcarpeta de destino (materia, lowercase)
+  sitioId: string,                // de qué portal salió (ADR-0010). Lo estampa el popup al escanear
   catedra?: "A"|"B"|"C"|"D"|"COMUN",
   estado: "pending" | "process" | "downloaded",
   seleccionado: boolean,          // checkbox en la UI
@@ -66,6 +87,7 @@ adopta la vieja, la borra al adoptarla, y con las dos presentes gana la nueva.
   titulo: string,
   urlInterna: string,
   carpeta: string,
+  sitioId: string,                // hereda el de la clase (ADR-0010), NO el del sitio activo
   fechaEncolado: number,          // Date.now() al momento de encolar — define el orden FIFO
   seleccionado?: boolean          // usado solo en modo selección múltiple de la pestaña Cola
 }

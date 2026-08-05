@@ -74,6 +74,8 @@
  * Expone: encolarItemsEnCaliente, quitarItemsDeColaEnLote, solicitarFrenadoSuave,
  *         abortarRafagaInmediata, iniciarDescargaCola, ejecutarReintentoDeCola.
  */
+
+import { SITIO_LEGADO } from '../../core/estado/appState.ts';
 const QueueFeature = {
   crear(ctx) {
     const {
@@ -117,7 +119,12 @@ const QueueFeature = {
         titulo: c.titulo,
         urlInterna: c.urlInterna,
         carpeta: carpeta,
-        fechaEncolado: Date.now() + idx
+        fechaEncolado: Date.now() + idx,
+        // ADR-0010: viaja con el ítem. Sale de la clase y NO del sitio activo a propósito —
+        // la cola sobrevive a que el usuario cambie de pestaña, así que "el sitio de ahora"
+        // no es necesariamente el de esta clase. El fallback cubre una clase persistida
+        // antes del multi-sitio que se encole después.
+        sitioId: c.sitioId || SITIO_LEGADO
       }));
 
       // Snapshot para revertir el optimistic update si el SW no confirma la persistencia

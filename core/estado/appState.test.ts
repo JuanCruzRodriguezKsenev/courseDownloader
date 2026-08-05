@@ -60,13 +60,52 @@ describe("AppState.inicializarSincronizacionStorage", () => {
 
     await app.inicializarSincronizacionStorage();
 
-    expect(app.listadoClasesGlobal).toEqual([{ titulo: "A", estado: "pending" }]);
-    expect(app.colaDescargas).toEqual([{ id: 1 }]);
+    // `sitioId` lo agrega la normalización de ADR-0010 (ver el describe de más abajo).
+    expect(app.listadoClasesGlobal).toEqual([{ titulo: "A", estado: "pending", sitioId: "ramonnet" }]);
+    expect(app.colaDescargas).toEqual([{ id: 1, sitioId: "ramonnet" }]);
     expect(app.sincronizacionDiscoCompletada).toBe(true);
     expect(app.facetaSeleccionada).toBe("B");
     expect(app.ocultarAdvertenciaExplorar).toBe(true);
     expect(app.ocultarAdvertenciaAula).toBe(true);
     expect(app.tutorialCompletado).toBe(true);
+  });
+
+  // Red de la migración de ADR-0010 (`sitioId` en los ítems). Mismo criterio que la de la
+  // faceta, de abajo: se corre sobre el storage REAL de una instalación existente, porque el
+  // valor de esto es exactamente que no rompa datos que ya están en disco.
+  describe("migración de sitioId (ADR-0010)", () => {
+    it("a un ítem sin sitioId le asume el portal legado, en la lista y en la cola", async () => {
+      await almacenamiento.guardarLocal({
+        listaPersistente: [{ titulo: "vieja", estado: "pending" }],
+        colaDescargas: [{ id: 9, titulo: "vieja" }],
+      });
+
+      await app.inicializarSincronizacionStorage();
+
+      expect(app.listadoClasesGlobal[0]).toMatchObject({ sitioId: "ramonnet" });
+      expect(app.colaDescargas[0]).toMatchObject({ sitioId: "ramonnet" });
+    });
+
+    it("respeta el sitioId que ya trae el ítem: el default NO pisa", async () => {
+      await almacenamiento.guardarLocal({
+        listaPersistente: [{ titulo: "nueva", estado: "pending", sitioId: "otroportal" }],
+        colaDescargas: [{ id: 10, sitioId: "otroportal" }],
+      });
+
+      await app.inicializarSincronizacionStorage();
+
+      expect(app.listadoClasesGlobal[0]).toMatchObject({ sitioId: "otroportal" });
+      expect(app.colaDescargas[0]).toMatchObject({ sitioId: "otroportal" });
+    });
+
+    it("no rompe con una lista vacía ni con entradas nulas", async () => {
+      await almacenamiento.guardarLocal({ listaPersistente: [], colaDescargas: [null] });
+
+      await app.inicializarSincronizacionStorage();
+
+      expect(app.listadoClasesGlobal).toEqual([]);
+      expect(app.colaDescargas).toEqual([null]);
+    });
   });
 
   // La faceta se guardaba como `catedraElegida` hasta el 2026-08-03. Estos tres tests son la

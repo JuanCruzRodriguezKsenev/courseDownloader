@@ -824,6 +824,10 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
                   numeroOriginal: idx + 1,
                   titulo: tituloFinalEstandar,
                   urlInterna: item.href,
+                  // ADR-0010: de qué portal salió. Se estampa ACÁ, que es el único momento en
+                  // que se sabe con certeza — el escaneo corre sobre una pestaña concreta.
+                  // Después la cola es independiente de la pestaña y ya no habría cómo deducirlo.
+                  sitioId: sitio.id,
                   catedra: clasif.catedra,
                   carpeta: clasif.carpeta,
                   estado: 'pending',

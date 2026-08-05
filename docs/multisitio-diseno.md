@@ -1,6 +1,6 @@
 # Multi-sitio: una extensión, varios portales — diseño de ejecución
 
-**Estado**: diseño redactado (2026-08-04). Sin implementar.
+**Estado**: diseño redactado (2026-08-04). **Corte 1 hecho**; del 2 al 7, pendientes.
 **Decisión de base**: [ADR-0009](adr/0009-registro-de-sitios-en-runtime.md) eligió *registro en
 runtime* sobre *una build por portal*, y [ADR-0010](adr/0010-el-sitio-es-del-item.md) resuelve
 el punto que la 0009 no vio. Este doc es el **cómo**, igual que `rearquitectura-diseno.md` es el
@@ -167,7 +167,7 @@ la regla que en toda la re-arquitectura atajó los únicos 3 defectos que llegar
 
 | # | Corte | Riesgo |
 |---|---|---|
-| 1 | `sitioId` en `Clase`/`ColaItem` + migración por defecto + `data-model.md` | Bajo. No cambia comportamiento: nadie lo lee todavía |
+| 1 | `sitioId` en `Clase`/`ColaItem` + migración por defecto + `data-model.md` | ✅ **Hecho** (2026-08-04). Se estampa al escanear y se hereda al encolar; la normalización va al cargar. +3 tests de la migración. Nadie lo lee todavía: no cambia ninguna conducta |
 | 2 | `sitio/registro.ts` con un solo portal adentro | Bajo. Con N=1 el comportamiento es idéntico al de hoy — se puede mergear y verificar sin tener un segundo adaptador |
 | 3 | `procesadorCola`: de `sitio` fijo a `sitios.obtener(id)` | **Medio-alto**. Contrato de Capa 1; tiene los 12 tests de caracterización de red |
 | 4 | `leerDeCola` contra el sitio del ítem (bug de corrección) | Bajo |

@@ -62,6 +62,12 @@ export interface ClaseEnLista {
   titulo?: string;
   estado?: string;
   seleccionado?: boolean;
+  /**
+   * De qué portal salió esta clase (ADR-0010: el sitio es propiedad del ítem, no de la build).
+   * Opcional en el tipo porque los datos previos al multi-sitio no lo traen; en memoria
+   * siempre está, porque se normaliza al cargar. Ver `SITIO_LEGADO`.
+   */
+  sitioId?: string;
   [clave: string]: unknown;
 }
 
@@ -95,6 +101,20 @@ const CLAVES_PERSISTIDAS = [
  * valor, la clave vieja se borra ahí mismo: la migración se paga una vez y no queda basura.
  */
 const CLAVE_FACETA_LEGACY = "catedraElegida";
+
+/**
+ * Portal que se le asume a un ítem persistido SIN `sitioId` (ADR-0010).
+ *
+ * No es un default de negocio ni "el portal principal": es una regla de **migración de datos**.
+ * Es correcta por construcción —hasta que existió el multi-sitio, Ramón Net era el único
+ * portal, así que todo lo guardado antes vino de ahí— y por eso el valor está clavado acá y no
+ * sale del registro de sitios: si mañana cambia cuál es el portal "por defecto", **este valor
+ * no debe cambiar**, porque describe el pasado.
+ *
+ * Se aplica al cargar (`inicializarSincronizacionStorage`), no al escribir: lo escrito nuevo ya
+ * viene estampado desde el scraping. Mismo criterio que `CLAVE_FACETA_LEGACY`.
+ */
+export const SITIO_LEGADO = "ramonnet";
 
 /** Claves que se borran al cerrar una sesión de trabajo (la faceta elegida sobrevive). */
 const CLAVES_DE_SESION = ["listaPersistente", "colaDescargas", "faseDiscoOk"];
@@ -140,10 +160,18 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: 
       // bug 400 lo usó al principio, ya revertido a 'pending') no lo reconoce el resto del
       // popup — se lo trata como 'pending' para que sea re-encolable y se renderice bien.
       // Ver docs/notificaciones-fallos-diseno.md.
-      app.listadoClasesGlobal = (data.listaPersistente || []).map((c) =>
-        c && c.estado === "error" ? { ...c, estado: "pending" } : c
+      //
+      // Y normalización de `sitioId` (ADR-0010): lo persistido antes del multi-sitio no lo
+      // trae. Se completa acá, al cargar, para que el resto del código pueda asumir que
+      // SIEMPRE está y no repita el `?? SITIO_LEGADO` en cada consumidor.
+      app.listadoClasesGlobal = (data.listaPersistente || []).map((c) => {
+        if (!c) return c;
+        const estado = c.estado === "error" ? "pending" : c.estado;
+        return { ...c, estado, sitioId: c.sitioId || SITIO_LEGADO };
+      });
+      app.colaDescargas = (data.colaDescargas || []).map((c) =>
+        c ? { ...c, sitioId: (c as ClaseEnLista).sitioId || SITIO_LEGADO } : c
       );
-      app.colaDescargas = data.colaDescargas || [];
       app.sincronizacionDiscoCompletada = data.faseDiscoOk || false;
       // Migración de la clave vieja (ver CLAVE_FACETA_LEGACY). La nueva gana si existe: si
       // ambas están, la vieja es un resto de una instalación migrada y ya no manda.
