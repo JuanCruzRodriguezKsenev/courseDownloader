@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // FASE 8: el puente dejó de ser `OnboardingFeature` y se importa.
 import OnboardingFeature from './onboarding.preact.js';
 import { montar, __resetStore } from './onboarding.preact.js';
-import { SitioActivo } from '../../sitio/ramonnet/config.ts';
+import { SitioRamonNet as SitioActivo } from '../../sitio/ramonnet/config.ts';
 
 // Daemon Conexion falso: get() devuelve el estado actual; emit() lo cambia y notifica.
 function fakeConexion(inicial = { servidor: false, internet: true }) {

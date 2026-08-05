@@ -26,7 +26,7 @@ import '../sitio/ramonnet/parserTitulos.js';
 import '../sitio/ramonnet/resolverManifiesto.js';
 
 import BunClient from '../core/backend/bunClient.ts';
-import { SitioActivo } from '../sitio/ramonnet/config.ts';
+import { sitioAsumido as SitioActivo } from '../sitio/registro.ts';
 import {
   almacenamiento,
   mensajeria,

@@ -30,7 +30,7 @@ import '../../plataforma/composicion.ts';
 import { iniciarPopup } from '../../popup.js';
 import { AppState, Conexion, HistorialFallos, mensajeria, Utils } from '../../plataforma/composicion.ts';
 import BunClient from '../../core/backend/bunClient.ts';
-import { SitioActivo } from '../../sitio/ramonnet/config.ts';
+import { sitioAsumido as SitioActivo } from '../../sitio/registro.ts';
 import crearRenderers from '../../renderers.js';
 
 iniciarPopup({

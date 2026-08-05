@@ -33,10 +33,11 @@ import BunClient from "../core/backend/bunClient";
 import { crearHistorialFallos } from "../core/historial/historialFallos";
 import { crearAppState } from "../core/estado/appState";
 import { crearConexion } from "../core/conexion/conexion";
-// Capa 2. Es el primer import del adaptador de sitio desde acá, y lo habilitó el corte
-// `config.js` → `config.ts` (Fase 5c): con `allowJs: false`, un `.ts` no puede importar un
-// `.js`. Los entrypoints ya lo importaban primero, así que no cambia el orden de evaluación.
-import { SitioActivo } from "../sitio/ramonnet/config";
+// Capa 2, vía el REGISTRO (multi-sitio, corte 2) y ya no importando el portal directo: quién
+// está activo lo decide `sitio/registro.ts`, no `sitio/ramonnet/`. El alias local conserva el
+// nombre `SitioActivo` para no mezclar este corte con un renombre de 6 usos; los cortes 3 y 5
+// se lo llevan cuando la resolución pase a ser por ítem y por pestaña.
+import { sitioAsumido as SitioActivo } from "../sitio/registro";
 
 /**
  * Adaptadores de plataforma activos en esta build.

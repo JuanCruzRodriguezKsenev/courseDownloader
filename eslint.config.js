@@ -29,8 +29,9 @@ const globalesDelProyecto = {
   Scraper: "readonly",
 
   // Adaptador de sitio (Capa 2 — ADR-0008): sitio/<portal>/config.js.
+  // `SitioActivo` salió en el corte 2 del multi-sitio: dejó de existir como global y como
+  // concepto del portal — quién está activo lo decide `sitio/registro.ts`, que se importa.
   SitioRamonNet: "readonly",
-  SitioActivo: "readonly",
   ResolverManifiesto: "readonly",
   ParserTitulos: "readonly",
 };

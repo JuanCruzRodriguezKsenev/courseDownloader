@@ -174,13 +174,15 @@ const SitioRamonNet: SitioRamonNetDescriptor = {
  * registro de adaptadores (por URL de pestaña en el popup, por ítem de cola en el SW);
  * mientras Ramón Net sea el único portal, sigue siendo esta constante.
  */
-const SitioActivo: PuertoSitio = SitioRamonNet;
+// [MULTISITIO CORTE 2] Acá vivía `const SitioActivo = SitioRamonNet`: un portal declarándose
+// a sí mismo el activo, que es la forma en que ADR-0009 quedó "decidida pero no construida".
+// La elección ahora es del registro genérico (`sitio/registro.ts`). Este archivo sólo describe
+// SU portal; qué portal está activo no es asunto suyo.
 
 // Exportación (ver docs/coding-standards.md). Sigue publicando el global porque el
 // resto del código vanilla lo consume sin importar; el `export` es lo que permite que
 // el bundler arme el grafo de dependencias y que Vitest/composicion.ts lo importen.
 (globalThis as Record<string, unknown>).SitioRamonNet = SitioRamonNet;
-(globalThis as Record<string, unknown>).SitioActivo = SitioActivo;
-export { SitioRamonNet, SitioActivo };
+export { SitioRamonNet };
 export type { SitioRamonNetDescriptor };
-export default SitioActivo;
+export default SitioRamonNet;
