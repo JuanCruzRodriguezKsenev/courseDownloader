@@ -31,13 +31,13 @@ import { notificarFallo } from "./chrome/notificaciones";
 import { crearVolcadoLegacy } from "./chrome/volcadoLegacy";
 import BunClient from "../core/backend/bunClient";
 import { crearHistorialFallos } from "../core/historial/historialFallos";
-import { crearAppState } from "../core/estado/appState";
+import { crearAppState, SITIO_LEGADO } from "../core/estado/appState";
 import { crearConexion } from "../core/conexion/conexion";
 // Capa 2, vía el REGISTRO (multi-sitio, corte 2) y ya no importando el portal directo: quién
 // está activo lo decide `sitio/registro.ts`, no `sitio/ramonnet/`. El alias local conserva el
 // nombre `SitioActivo` para no mezclar este corte con un renombre de 6 usos; los cortes 3 y 5
 // se lo llevan cuando la resolución pase a ser por ítem y por pestaña.
-import { sitioAsumido as SitioActivo } from "../sitio/registro";
+import { Sitios, sitioAsumido as SitioActivo } from "../sitio/registro";
 
 /**
  * Adaptadores de plataforma activos en esta build.
@@ -147,10 +147,23 @@ export const Cola = crearProcesadorCola({
   programador,
   conexion: Conexion,
   motor: HlsEngine,
-  sitio: {
-    resolverManifiesto: (url, signal) => SitioActivo.resolverManifiesto(url, signal),
-    nombre: SitioActivo.nombre,
-  },
+  /**
+   * El bucle resuelve el portal POR ÍTEM (ADR-0010). Recibe el registro envuelto, no crudo,
+   * y el envoltorio es donde se aplica la **migración**: un ítem sin `sitioId` es de antes del
+   * multi-sitio y viene de Ramón Net (`SITIO_LEGADO`).
+   *
+   * Va acá y no en el registro ni en el núcleo, y es deliberado: son **dos casos distintos**
+   * que no hay que confundir.
+   *   - `sitioId` ausente  → dato viejo, sí sabemos de dónde vino → se resuelve.
+   *   - `sitioId` presente pero desconocido → NO sabemos de dónde vino → huérfano, se saltea.
+   * Si el registro hiciera el fallback, el segundo caso se descargaría en silencio con el
+   * adaptador equivocado. Y si lo hiciera el núcleo, Capa 1 volvería a nombrar un portal.
+   *
+   * El SW lee `colaDescargas` de storage por su cuenta —no pasa por la normalización de
+   * `AppState`, que es del popup—, así que sin esto una cola encolada antes del corte 1 se
+   * saltearía entera como huérfana.
+   */
+  sitios: { obtener: (id) => Sitios.obtener(id ?? SITIO_LEGADO) },
   historial: HistorialFallos,
   notificarFallo,
   calcularMetricas: progreso.calcularMétricasProgreso,

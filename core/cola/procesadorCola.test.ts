@@ -40,7 +40,15 @@ function montar(over: Record<string, any> = {}) {
     sesion,
     mensajeria,
     programador,
-    sitio: { resolverManifiesto: vi.fn().mockResolvedValue("https://cdn/v.m3u8"), nombre: "Portal de Prueba" },
+    // El bucle resuelve el portal por ítem (ADR-0010): el doble es un REGISTRO, no un sitio.
+    // Imita al de producción, incluida su parte de migración: `undefined` resuelve (dato
+    // viejo, de antes del multi-sitio) y un id desconocido NO (huérfano). Ver composicion.ts.
+    sitios: {
+      obtener: (id: string | undefined) =>
+        id === undefined || id === "prueba"
+          ? { resolverManifiesto: resolverManifiestoDoble, nombre: "Portal de Prueba" }
+          : undefined,
+    },
     historial: { registrar: vi.fn().mockResolvedValue({}) },
     notificarFallo: vi.fn(),
     calcularMetricas: () => ({ porcentaje: 50, telemetry: { velocidadTexto: "1.5" } }),
@@ -60,6 +68,8 @@ function montar(over: Record<string, any> = {}) {
 
 const item = (titulo: string) => ({ titulo, urlInterna: `https://p/${titulo}`, fechaEncolado: 1 });
 const esperar = (ms = 30) => new Promise((r) => setTimeout(r, ms));
+
+const resolverManifiestoDoble = vi.fn().mockResolvedValue("https://cdn/v.m3u8");
 
 describe("arrancarSiNoCorre — la guarda contra dos ráfagas simultáneas", () => {
   it("dos llamadas seguidas NO arrancan dos bucles", async () => {
@@ -95,6 +105,53 @@ describe("arrancarSiNoCorre — la guarda contra dos ráfagas simultáneas", () 
 
     // Si no se liberara, la próxima ráfaga no arrancaría nunca.
     expect(cola.estaActivo()).toBe(false);
+  });
+});
+
+// ADR-0010: el portal se resuelve POR ÍTEM. Estos dos casos son la razón de ser del corte —
+// distinguir "dato viejo" de "portal desconocido", que hasta acá eran indistinguibles.
+describe("resolución del portal por ítem", () => {
+  it("saltea la clase y SIGUE si su portal no está registrado (huérfana)", async () => {
+    const { cola, almacenamiento, sesion, motor } = montar();
+    await sesion.set({ rafagaCorriendo: true });
+    await almacenamiento.guardarLocal({
+      colaDescargas: [{ ...item("Huerfana"), sitioId: "portal-borrado" }, item("Clase 2")],
+      listaPersistente: [{ titulo: "Huerfana", estado: "process" }],
+    });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    const local = almacenamiento._volcar().local as {
+      colaDescargas: { titulo: string }[];
+      listaPersistente: { titulo: string; estado?: string }[];
+    };
+    // Se fue de la cola y volvió a 'pending' (re-encolable, no un 'error' que la UI no pinta).
+    expect(local.colaDescargas.map((c) => c.titulo)).not.toContain("Huerfana");
+    expect(local.listaPersistente.find((c) => c.titulo === "Huerfana")?.estado).toBe("pending");
+    // Y lo crítico: NO pausó la cola. Pausar dispararía el auto-heal en loop contra algo que
+    // no se recupera solo — es el mismo razonamiento que la rama 4xx del bug 400.
+    expect((await sesion.get()).colaPausadaPorError).toBeFalsy();
+    // Siguió con la próxima.
+    expect(motor.compilarTranscodificacionStream).toHaveBeenCalled();
+  });
+
+  it("un ítem SIN sitioId (encolado antes del multi-sitio) NO se trata como huérfano", async () => {
+    // El SW lee `colaDescargas` de storage sin pasar por la normalización de AppState, que es
+    // del popup. Así que esto es real para cualquier instalación existente: sin la migración
+    // que aplica la composición, la cola entera se saltearía. El doble de `sitios` la imita.
+    const { cola, almacenamiento, sesion, motor } = montar();
+    await sesion.set({ rafagaCorriendo: true });
+    await almacenamiento.guardarLocal({
+      colaDescargas: [item("Vieja")],
+      listaPersistente: [{ titulo: "Vieja", estado: "process" }],
+    });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    expect(motor.compilarTranscodificacionStream).toHaveBeenCalled();
+    expect((await sesion.get()).colaPausadaPorError).toBeFalsy();
   });
 });
 

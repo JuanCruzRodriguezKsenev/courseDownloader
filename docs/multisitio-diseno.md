@@ -160,6 +160,31 @@ suite. Se verifica en el navegador. Ver `docs/architecture.md` §Capa 2.
 
 ---
 
+## La trampa del corte 3: "sin sitio" y "sitio desconocido" no son lo mismo
+
+Vale dejarlo escrito porque casi se cuela como bug y no lo habría visto ningún test existente.
+
+El registro devuelve `undefined` para un id que no conoce, y el bucle trata eso como **huérfano**:
+saltea la clase y sigue. Correcto. Pero el service worker **lee `colaDescargas` de storage por su
+cuenta** —no pasa por la normalización de `AppState`, que es del popup—, así que un ítem encolado
+antes del multi-sitio llega con `sitioId: undefined`… y se habría salteado también. **La cola
+entera de cualquier instalación existente, saltada en silencio.**
+
+Son dos casos que se parecen y significan lo contrario:
+
+| Caso | Qué sabemos | Qué corresponde |
+|---|---|---|
+| `sitioId` **ausente** | Es un dato de antes del multi-sitio: sí sabemos de dónde vino | Resolver al portal legado |
+| `sitioId` **presente pero desconocido** | NO sabemos de dónde vino | Saltear como huérfano |
+
+**Dónde vive la distinción**: en el envoltorio que arma `plataforma/composicion.ts`
+(`obtener: (id) => Sitios.obtener(id ?? SITIO_LEGADO)`), y no en el registro ni en el núcleo. Si
+la hiciera el registro, un id desconocido se descargaría en silencio con el adaptador equivocado
+—el bug que ADR-0010 previene—; si la hiciera el núcleo, Capa 1 volvería a nombrar un portal.
+La composición es el único lugar donde una regla de migración no ensucia a nadie.
+
+---
+
 ## Orden de cortes propuesto
 
 Cada uno en su rama, con los 4 chequeos en verde y verificación en navegador antes del merge —
@@ -169,7 +194,7 @@ la regla que en toda la re-arquitectura atajó los únicos 3 defectos que llegar
 |---|---|---|
 | 1 | `sitioId` en `Clase`/`ColaItem` + migración por defecto + `data-model.md` | ✅ **Hecho** (2026-08-04). Se estampa al escanear y se hereda al encolar; la normalización va al cargar. +3 tests de la migración. Nadie lo lee todavía: no cambia ninguna conducta |
 | 2 | `sitio/registro.ts` con un solo portal adentro | ✅ **Hecho** (2026-08-04). Con N=1 el comportamiento es idéntico. Además **se fue el alias `SitioActivo` de `sitio/ramonnet/config.ts`**: un portal ya no se declara a sí mismo el activo — eso lo decide el registro. Queda `sitioAsumido` como andamio explícito, que borran los cortes 3 y 5. +8 tests |
-| 3 | `procesadorCola`: de `sitio` fijo a `sitios.obtener(id)` | **Medio-alto**. Contrato de Capa 1; tiene los 12 tests de caracterización de red |
+| 3 | `procesadorCola`: de `sitio` fijo a `sitios.obtener(id)` | ✅ **Hecho** (2026-08-04). Los 12 tests de caracterización agarraron el cambio de contrato, que es para lo que existen. +2 tests del caso nuevo. **Ojo con la distinción que destapó**: `sitioId` ausente (dato viejo) y `sitioId` desconocido (huérfano) NO son lo mismo — ver §La trampa del corte 3 |
 | 4 | `leerDeCola` contra el sitio del ítem (bug de corrección) | Bajo |
 | 5 | El popup estampa `sitioId` al escanear + resuelve por pestaña | Medio. Sin tests sobre el núcleo de `popup.js` (ADR-0005) |
 | 6 | Filtro de faceta con cola mezclada (decisión de UX) | Bajo |

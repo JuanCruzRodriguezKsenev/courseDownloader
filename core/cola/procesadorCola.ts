@@ -58,11 +58,28 @@ const motivosPausa = (nombreSitio: string): Record<string, string> => ({
   internet: "se perdió la conexión a internet",
 });
 
+/**
+ * Lo único que el bucle necesita de un adaptador de sitio. Es un subconjunto estructural de
+ * `PuertoSitio` a propósito: mantiene los dobles de los tests chicos y deja explícito que el
+ * procesador no conoce el resto del contrato del portal.
+ */
+export interface SitioDeDescarga {
+  resolverManifiesto(urlClase: string, signal: AbortSignal): Promise<string>;
+  /** Nombre del portal, para el copy que ve el usuario. Capa 1 no lo puede saber. */
+  nombre: string;
+}
+
 export interface ItemCola {
   titulo: string;
   urlInterna: string;
   carpeta?: string;
   fechaEncolado?: number;
+  /**
+   * De qué portal salió (ADR-0010). Opcional porque un ítem encolado antes del multi-sitio no
+   * lo trae; `AppState` lo normaliza al cargar, pero el SW lee la cola de storage por su
+   * cuenta, así que acá puede llegar `undefined` y hay que tratarlo.
+   */
+  sitioId?: string;
 }
 
 export interface ClasePersistida {
@@ -91,11 +108,16 @@ export interface DependenciasCola {
       callbacks?: CallbacksRafaga
     ): Promise<Blob | null>;
   };
-  /** Del adaptador de sitio: página de la clase → URL del manifiesto. */
-  sitio: {
-    resolverManifiesto(urlClase: string, signal: AbortSignal): Promise<string>;
-    /** Nombre del portal, para el copy que ve el usuario. Capa 1 no lo puede saber. */
-    nombre: string;
+  /**
+   * Registro de sitios: el bucle resuelve el portal **por ítem**, no por composición
+   * (ADR-0010). La cola está desacoplada de la pestaña a propósito, así que puede mezclar
+   * portales y no hay ninguna URL de pestaña que consultar cuando el SW toma un ítem.
+   *
+   * `obtener` puede devolver `undefined` —un `sitioId` viene de storage y puede nombrar un
+   * portal que ya no está registrado—; el bucle lo trata como fallo determinístico.
+   */
+  sitios: {
+    obtener(sitioId: string | undefined): SitioDeDescarga | undefined;
   };
   historial: { registrar(tipo: string, titulo: string, motivo: string): Promise<unknown> };
   /** Capa 3: notificación nativa del SO. Best-effort, no puede propagar. */
@@ -134,7 +156,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
     programador,
     conexion,
     motor,
-    sitio,
+    sitios,
     historial,
     notificarFallo,
     calcularMetricas,
@@ -175,7 +197,11 @@ export function crearProcesadorCola(deps: DependenciasCola) {
     mensajeria.notificar({ action: "cola_completamente_vacia", suaveFrenado: true });
   }
 
-  async function pausarPorError(tipoError: string, titulo: string): Promise<void> {
+  async function pausarPorError(
+    tipoError: string,
+    titulo: string,
+    nombreSitio?: string
+  ): Promise<void> {
     await sesion.set({
       colaPausadaPorError: true,
       tipoDeErrorConexion: tipoError,
@@ -184,7 +210,9 @@ export function crearProcesadorCola(deps: DependenciasCola) {
     loopActivo = false;
 
     // El aviso va DESPUÉS de persistir la pausa: que quede el estado es lo crítico.
-    const motivos = motivosPausa(sitio.nombre);
+    // El nombre sale del portal DEL ÍTEM, no de uno fijo. El fallback genérico cubre el caso
+    // en que se pausa sin ítem resuelto: mejor "el portal" que un nombre equivocado.
+    const motivos = motivosPausa(nombreSitio ?? "el portal");
     void registrarFallo(tipoError, titulo, motivos[tipoError] || "error de conexión");
 
     // Auto-heal sólo para fallas que el daemon PUEDE detectar recuperadas. El caso "sesion"
@@ -237,6 +265,35 @@ export function crearProcesadorCola(deps: DependenciasCola) {
 
       const elementoActual = colaDescargas[0]!;
       const tituloInmutableVideo = elementoActual.titulo;
+
+      // ADR-0010: el portal sale del ÍTEM. Puede no resolver —el `sitioId` viene de storage y
+      // puede nombrar un portal que ya no está registrado—, y eso es un fallo DETERMINÍSTICO:
+      // reintentarlo no lo arregla. Se clasifica como la rama 4xx (saltear la clase y seguir)
+      // y NO como pausa, que dispararía el auto-heal en loop contra algo que no se recupera.
+      //
+      // La guarda va ANTES de escribir el estado de sesión y el progreso a propósito: así el
+      // salteo es una sola escritura y no hay que deshacer nada.
+      const sitioDelItem = sitios.obtener(elementoActual.sitioId);
+      if (!sitioDelItem) {
+        console.warn(`⛔ [SW] "${tituloInmutableVideo}" quedó huérfana: su portal (${elementoActual.sitioId ?? "sin id"}) no está registrado. Se salta y la cola sigue.`);
+        const colaFiltrada = colaDescargas.filter((c) => c.titulo !== tituloInmutableVideo);
+        const objHuerfano = listaCompleta.find((c) => c.titulo === tituloInmutableVideo);
+        if (objHuerfano) objHuerfano.estado = "pending";
+        await almacenamiento.guardarLocal({
+          listaPersistente: listaCompleta,
+          colaDescargas: colaFiltrada,
+        });
+        const motivoHuerfano = "su portal ya no está registrado en la extensión";
+        mensajeria.notificar({
+          action: "clase_con_error",
+          titulo: tituloInmutableVideo,
+          motivo: motivoHuerfano,
+        });
+        setTimeout(procesarSiguiente, 60);
+        void registrarFallo("rechazo", tituloInmutableVideo, motivoHuerfano);
+        return;
+      }
+
       const sessionId = Date.now().toString();
 
       await sesion.set({
@@ -260,7 +317,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
       try {
         // La resolución del .m3u8 es específica del portal (iframe, CDN): vive en el
         // adaptador de sitio, no en el motor, que es genérico.
-        const urlM3u8Descubierta = await sitio.resolverManifiesto(
+        const urlM3u8Descubierta = await sitioDelItem.resolverManifiesto(
           elementoActual.urlInterna,
           controlador.signal
         );
@@ -408,8 +465,8 @@ export function crearProcesadorCola(deps: DependenciasCola) {
         // crash, es accionable por el usuario. Se clasifica ANTES del daemon, que vería
         // internet=true y diría "internet".
         if (err?.tipoConexion === "sesion") {
-          console.warn(`🔑 [SW] Descarga de "${tituloInmutableVideo}" pausada: no hay sesión activa en ${sitio.nombre}.`);
-          await pausarPorError("sesion", tituloInmutableVideo);
+          console.warn(`🔑 [SW] Descarga de "${tituloInmutableVideo}" pausada: no hay sesión activa en ${sitioDelItem.nombre}.`);
+          await pausarPorError("sesion", tituloInmutableVideo, sitioDelItem.nombre);
           return;
         }
 
@@ -465,7 +522,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
               ? "servidor"
               : "internet";
         }
-        await pausarPorError(tipoError, tituloInmutableVideo);
+        await pausarPorError(tipoError, tituloInmutableVideo, sitioDelItem.nombre);
       }
     } catch (errStorage) {
       console.error("❌ [CRÍTICO-STORAGE] No se pudo leer el storage local de la cola:", errStorage);

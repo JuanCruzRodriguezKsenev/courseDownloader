@@ -146,7 +146,13 @@ beforeAll(async () => {
     programador,
     conexion: globalThis.Conexion,
     motor: globalThis.HlsEngine,
-    sitio: globalThis.SitioActivo,
+    // ADR-0010: el bucle resuelve el portal por ítem. El doble imita al envoltorio real de
+    // composicion.ts, migración incluida: sin sitioId es un dato viejo y resuelve; un id
+    // desconocido no.
+    sitios: {
+      obtener: (id) =>
+        id === undefined || id === 'ramonnet' ? globalThis.SitioActivo : undefined,
+    },
     historial: globalThis.HistorialFallos,
     notificarFallo: () => {},
     calcularMetricas: globalThis.Utils.calcularMétricasProgreso,
