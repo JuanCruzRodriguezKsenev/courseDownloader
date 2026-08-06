@@ -1,6 +1,16 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: FILTROS Y BÚSQUEDA (V2.0.0)
+ * CLON DOWNLOADHELPER - FEATURE: FILTROS Y BÚSQUEDA (V2.1.0)
  * ==========================================================================
+ * CHANGELOG v2.1.0:
+ * - [MULTISITIO CORTE 6C] La pestaña Cola gana una sección **Portal**: una casilla maestra
+ *   por portal y, anidadas debajo, SUS facetas con SU vocabulario. Es en cascada, no
+ *   cruzada — ver el bloque de abajo, que explica por qué esa diferencia es la que hace
+ *   barato este corte. La sección aparece sólo con la cola mezclada; con un solo portal la
+ *   pantalla queda idéntica a la de antes.
+ * - [MULTISITIO CORTE 6C] En la Cola, los valores de faceta van **calificados por portal**
+ *   (`sitioId|valor`) dentro de `filtrosActivos.valoresFaceta`. Sin calificar, dos portales
+ *   con una faceta de la misma etiqueta se pisan y el filtro de uno arrastra al otro.
+ *   Disponibles NO cambia: es de un solo portal por construcción.
  * CHANGELOG v2.0.0:
  * - [CAPA 2] El filtro por cátedra pasa a ser un filtro por "faceta" genérica: los
  *   strings "Cátedra"/"Cat X"/"Común", los centinelas COMUN/TODAS, el ícono 🎓 y la
@@ -26,10 +36,17 @@
  * recibe `nodos`): así los pocos call-sites externos que lo mutan/leen directo
  * (conmutarPestañaA lo limpia) no se rompen. Esta feature muta ESE mismo objeto.
  *
+ * **Por qué la cascada y no el filtro cruzado** (decidido el 2026-08-05): cruzado sería
+ * ofrecer todas las facetas de todos los portales a la vez, y poder marcar "Cátedra A" junto
+ * con "Comisión 1". En cascada se elige portal y el filtro de faceta pasa a ser exactamente el
+ * de hoy, pero dentro de ese portal. La diferencia se paga en el popover, y el popover ya está
+ * hecho de secciones — así que "Portal" es una sección más, no una estructura nueva.
+ *
  * Dependencias que recibe por ctx:
  *   - ctx.nodos               : mapa de nodos (usa search, folder, filterMenu,
  *                               btnFilterPills, masterCheck, btnSort).
- *   - ctx.filtrosActivos      : { estados:Set, materias:Set, valoresFaceta:Set } por referencia.
+ *   - ctx.filtrosActivos      : { estados:Set, materias:Set, valoresFaceta:Set, portales:Set }
+ *                               por referencia.
  *   - ctx.sitio               : adaptador de sitio activo; usa `sitio.faceta`.
  *   - ctx.renderizar()        : re-render del listado (renderizarListadoInterfaz, popup.js).
  *   - ctx.actualizarContadores(): refresco de contadores del botón de acción (popup.js).
@@ -59,6 +76,27 @@ const FilterFeature = {
      */
     const facetaDeCola = (item) => sitios.obtener(item && item.sitioId)?.faceta;
 
+    /** El descriptor del portal de un ítem de la cola, con la migración ya aplicada. */
+    const portalDe = (item) => sitios.obtener(item && item.sitioId);
+
+    /**
+     * El id del portal de un ítem, tomado del DESCRIPTOR y no del campo crudo.
+     *
+     * La diferencia importa: un ítem anterior al multi-sitio tiene `sitioId` ausente y el
+     * resolvedor lo migra al portal legado. Leer el campo crudo lo dejaría en un grupo `""`
+     * propio y la cola parecería mezclada cuando no lo está. Un huérfano (id presente pero
+     * no registrado) sí devuelve `""`: no sabemos de dónde vino y no se le puede poner nombre.
+     */
+    const idPortalDe = (item) => portalDe(item)?.id ?? "";
+
+    /**
+     * La clave con la que un ítem de la cola entra en `filtrosActivos.valoresFaceta`.
+     *
+     * Calificada por portal, porque dos portales pueden tener facetas con la misma etiqueta
+     * ("A" de cátedra y "A" de comisión) y sin el prefijo marcar una filtraría las dos.
+     */
+    const claveFaceta = (item) => `${idPortalDe(item)}|${facetaDeCola(item)?.leerDeCola(item)}`;
+
     // Predicado compartido del filtrado de la pestaña Cola. Unifica las 3 copias
     // que vivían duplicadas en popup.js (masterCheck, renderizarListadoInterfaz,
     // actualizarMasterCheckState). NO incluye el descarte del video activo (!esActivo):
@@ -66,9 +104,13 @@ const FilterFeature = {
     function coincideConFiltrosCola(clase, busqueda) {
       const coincideTexto = clase.titulo.toLowerCase().includes(busqueda);
       const coincideMateria = filtrosActivos.materias.size === 0 || filtrosActivos.materias.has(clase.carpeta.toUpperCase());
+      // [CORTE 6C] El portal filtra ANTES que la faceta, que es lo que hace la cascada: elegir
+      // un portal sin marcar ninguna faceta suya muestra todo ese portal.
+      const coincidePortal = filtrosActivos.portales.size === 0
+        || filtrosActivos.portales.has(idPortalDe(clase));
       const coincideFaceta = filtrosActivos.valoresFaceta.size === 0
-        || filtrosActivos.valoresFaceta.has(facetaDeCola(clase)?.leerDeCola(clase));
-      return coincideTexto && coincideMateria && coincideFaceta;
+        || filtrosActivos.valoresFaceta.has(claveFaceta(clase));
+      return coincideTexto && coincideMateria && coincidePortal && coincideFaceta;
     }
 
     // Recalcula la visibilidad del listado global de disponibles cruzando materia +
@@ -110,7 +152,8 @@ const FilterFeature = {
     // Actualiza el badge del botón "Filtros (N)" según cuántos filtros haya activos.
     function actualizarPillsUIState() {
       if (!nodos.btnFilterPills) return;
-      const total = filtrosActivos.estados.size + filtrosActivos.materias.size + filtrosActivos.valoresFaceta.size;
+      const total = filtrosActivos.estados.size + filtrosActivos.materias.size
+        + filtrosActivos.valoresFaceta.size + filtrosActivos.portales.size;
       nodos.btnFilterPills.classList.toggle('active', total > 0);
       const span = nodos.btnFilterPills.querySelector('span');
       if (span) {
@@ -208,11 +251,21 @@ const FilterFeature = {
       } else {
         // --- Vista Pestaña Cola ---
         const materiasUnicas = new Set();
-        const valoresUnicos = new Set();
+
+        // [CORTE 6C] La cola se agrupa por portal: cada grupo lleva su descriptor —del que sale
+        // SU vocabulario de faceta— y los valores presentes en la cola para ese portal. Los
+        // huérfanos (portal no registrado) quedan fuera a propósito: sin descriptor no hay ni
+        // nombre que mostrar ni faceta que derivar, y adivinar es el bug que ADR-0010 previene.
+        const grupos = new Map();
 
         appState.colaDescargas.forEach(c => {
           materiasUnicas.add(c.carpeta.toUpperCase());
-          valoresUnicos.add(facetaDeCola(c)?.leerDeCola(c));
+
+          const portal = portalDe(c);
+          if (!portal) return;
+          if (!grupos.has(portal.id)) grupos.set(portal.id, { portal, valores: new Set() });
+          const valor = portal.faceta?.leerDeCola(c);
+          if (valor != null) grupos.get(portal.id).valores.add(valor);
         });
 
         // --- Sección Materias ---
@@ -237,29 +290,97 @@ const FilterFeature = {
           nodos.filterMenu.appendChild(secMateria);
         }
 
-        // --- Sección de la faceta del sitio, derivada de la cola ---
-        if (valoresUnicos.size > 0) {
-          const secFaceta = document.createElement("div");
-          secFaceta.className = "popover-section";
-
-          const titFaceta = document.createElement("div");
-          titFaceta.className = "popover-section-title";
-          titFaceta.textContent = faceta.etiqueta;
-          secFaceta.appendChild(titFaceta);
-
-          Array.from(valoresUnicos).sort(faceta.ordenar).forEach(valor => {
-            const etiqueta = `${faceta.icono} ${faceta.etiquetarCorto(valor)}`;
-            const opt = crearPopoverOptionDOM(etiqueta, filtrosActivos.valoresFaceta.has(valor), (checked) => {
-              if (checked) filtrosActivos.valoresFaceta.add(valor);
-              else filtrosActivos.valoresFaceta.delete(valor);
-              actualizarPillsUIState();
-              aplicarFiltrosCruzados();
-            });
-            secFaceta.appendChild(opt);
-          });
-          nodos.filterMenu.appendChild(secFaceta);
+        // [CORTE 6C] Con la cola mezclada manda la sección Portal (cada portal con SUS facetas
+        // anidadas); con un solo portal se mantiene la sección plana de siempre, que es lo que
+        // deja la pantalla idéntica a la de antes del corte.
+        if (grupos.size > 1) {
+          nodos.filterMenu.appendChild(crearSeccionPortales(grupos));
+        } else if (grupos.size === 1) {
+          const { portal, valores } = grupos.values().next().value;
+          if (valores.size > 0) nodos.filterMenu.appendChild(crearSeccionFacetaPlana(portal, valores));
         }
       }
+    }
+
+    /** Una opción de faceta de la cola, con su valor ya calificado por portal. */
+    function crearOpcionFaceta(portal, valor, anidada) {
+      const clave = `${portal.id}|${valor}`;
+      const etiqueta = `${portal.faceta.icono} ${portal.faceta.etiquetarCorto(valor)}`;
+      const opt = crearPopoverOptionDOM(etiqueta, filtrosActivos.valoresFaceta.has(clave), (checked) => {
+        if (checked) filtrosActivos.valoresFaceta.add(clave);
+        else filtrosActivos.valoresFaceta.delete(clave);
+        actualizarPillsUIState();
+        aplicarFiltrosCruzados();
+        // Anidada, el estado de la maestra se DERIVA de estas casillas, así que hay que
+        // repintar la sección o la maestra queda mostrando un estado viejo. En la sección
+        // plana no hay maestra y repintar sería trabajo de más.
+        if (anidada) renderizarFiltrosMenuPopover();
+      });
+      if (anidada) opt.classList.add("anidada");
+      return opt;
+    }
+
+    /** La sección de faceta de siempre, para cuando la cola es de un solo portal. */
+    function crearSeccionFacetaPlana(portal, valores) {
+      const sec = document.createElement("div");
+      sec.className = "popover-section";
+
+      const tit = document.createElement("div");
+      tit.className = "popover-section-title";
+      tit.textContent = portal.faceta.etiqueta;
+      sec.appendChild(tit);
+
+      Array.from(valores).sort(portal.faceta.ordenar)
+        .forEach(valor => sec.appendChild(crearOpcionFaceta(portal, valor, false)));
+      return sec;
+    }
+
+    /**
+     * La sección Portal: una casilla maestra por portal y, anidadas, sus facetas.
+     *
+     * La maestra es un filtro por derecho propio —marcarla sin tocar ninguna faceta muestra el
+     * portal entero—, y su estado se DERIVA de las facetas marcadas: si hay algunas y no todas,
+     * queda indeterminada. Desmarcarla se lleva sus facetas: dejarlas sueltas seguiría filtrando
+     * por un portal que en pantalla figura como apagado.
+     */
+    function crearSeccionPortales(grupos) {
+      const sec = document.createElement("div");
+      sec.className = "popover-section";
+
+      const tit = document.createElement("div");
+      tit.className = "popover-section-title";
+      tit.textContent = "Portal";
+      sec.appendChild(tit);
+
+      Array.from(grupos.values())
+        .sort((a, b) => a.portal.nombre.localeCompare(b.portal.nombre))
+        .forEach(({ portal, valores }) => {
+          const claves = Array.from(valores).map(v => `${portal.id}|${v}`);
+          const marcadas = claves.filter(k => filtrosActivos.valoresFaceta.has(k));
+          const elegido = filtrosActivos.portales.has(portal.id) || marcadas.length > 0;
+
+          const maestra = crearPopoverOptionDOM(portal.nombre, elegido, (checked) => {
+            if (checked) {
+              filtrosActivos.portales.add(portal.id);
+            } else {
+              filtrosActivos.portales.delete(portal.id);
+              claves.forEach(k => filtrosActivos.valoresFaceta.delete(k));
+            }
+            actualizarPillsUIState();
+            aplicarFiltrosCruzados();
+            renderizarFiltrosMenuPopover();
+          });
+          maestra.classList.add("maestra");
+          // Parcial: algunas de sus facetas marcadas, pero no todas.
+          maestra.querySelector("input").indeterminate =
+            marcadas.length > 0 && marcadas.length < claves.length;
+          sec.appendChild(maestra);
+
+          Array.from(valores).sort(portal.faceta.ordenar)
+            .forEach(valor => sec.appendChild(crearOpcionFaceta(portal, valor, true)));
+        });
+
+      return sec;
     }
 
     return {

@@ -261,10 +261,16 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     // que acá se guarda eso: desengancharlo es llamarla.
     let desengancharOyenteWorker = null;
     let modoSeleccionFilaActivo = false;
+    // [MULTISITIO CORTE 6C] `portales` es el filtro maestro de la pestaña Cola: la cola puede
+    // mezclar portales (ADR-0010) y cada uno trae su propio vocabulario de faceta. En la Cola
+    // los valores de `valoresFaceta` van CALIFICADOS por portal (`sitioId|valor`), porque dos
+    // portales pueden tener una faceta con la misma etiqueta y sin calificar se pisarían.
+    // No se persiste: se arma acá y viaja por referencia, así que no lleva migración.
     const filtrosActivos = {
       estados: new Set(),
       materias: new Set(),
-      valoresFaceta: new Set()
+      valoresFaceta: new Set(),
+      portales: new Set()
     };
 
     // --- Isla Preact #3: Onboarding (welcome tour) — features/onboarding.preact.js ---
@@ -728,6 +734,10 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       filtrosActivos.estados.clear();
       filtrosActivos.materias.clear();
       filtrosActivos.valoresFaceta.clear();
+      // [CORTE 6C] Limpiar `portales` acá no es prolijidad: en la Cola los valores de faceta van
+      // calificados por portal y en Disponibles van crudos. Que el Set se vacíe al conmutar es
+      // lo que hace que esas dos convenciones no puedan cruzarse.
+      filtrosActivos.portales.clear();
       actualizarPillsUIState();
       if (nodos.filterMenu) nodos.filterMenu.style.display = 'none';
       if (nodos.btnFilterPills) nodos.btnFilterPills.classList.remove('open');

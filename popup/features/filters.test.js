@@ -32,7 +32,12 @@ function montarNodos() {
 
 function crearFeature(overrides = {}) {
   const nodos = montarNodos();
-  const filtrosActivos = { estados: new Set(), materias: new Set(), valoresFaceta: new Set() };
+  const filtrosActivos = {
+    estados: new Set(),
+    materias: new Set(),
+    valoresFaceta: new Set(),
+    portales: new Set(),
+  };
   const ctx = {
     nodos,
     filtrosActivos,
@@ -51,6 +56,26 @@ function crearFeature(overrides = {}) {
     appState: globalThis.AppState,
   });
   return { feature, ctx, nodos, filtrosActivos };
+}
+
+/**
+ * Doble de registro con DOS portales, que es lo único que hace visible el corte 6C: con un
+ * solo portal la sección Portal no se dibuja y la pantalla queda igual que antes.
+ * El segundo portal trae su propio vocabulario de faceta (comisiones, no cátedras).
+ */
+function sitiosDeDosPortales() {
+  const otro = {
+    id: 'otroportal',
+    nombre: 'Otro Portal',
+    faceta: {
+      ...SitioRamonNet.faceta,
+      etiqueta: 'Comisión',
+      icono: '🏫',
+      etiquetarCorto: (v) => `Com ${v}`,
+      leerDeCola: (c) => c.comision ?? '1',
+    },
+  };
+  return { obtener: (id) => (id === 'otroportal' ? otro : SitioRamonNet) };
 }
 
 beforeEach(() => {
@@ -83,13 +108,16 @@ describe('FilterFeature.coincideConFiltrosCola', () => {
     expect(feature.coincideConFiltrosCola({ titulo: 'x', carpeta: 'quimica' }, '')).toBe(false);
   });
 
+  // CORTE 6C: el valor va CALIFICADO por portal (`sitioId|valor`). Antes de este corte el Set
+  // guardaba el valor pelado; se cambió porque dos portales pueden tener una faceta con la
+  // misma etiqueta y marcar una filtraba las dos.
   it('respeta el filtro de faceta (derivada por el adaptador de sitio)', () => {
     ParserTitulos.clasificarCatedraYCarpeta = (t, c) => ({ catedra: 'A', carpeta: c });
     const { feature, filtrosActivos } = crearFeature();
-    filtrosActivos.valoresFaceta.add('A');
+    filtrosActivos.valoresFaceta.add('ramonnet|A');
     expect(feature.coincideConFiltrosCola({ titulo: 'x', carpeta: 'biologia' }, '')).toBe(true);
     filtrosActivos.valoresFaceta.clear();
-    filtrosActivos.valoresFaceta.add('B');
+    filtrosActivos.valoresFaceta.add('ramonnet|B');
     expect(feature.coincideConFiltrosCola({ titulo: 'x', carpeta: 'biologia' }, '')).toBe(false);
   });
 
@@ -102,12 +130,14 @@ describe('FilterFeature.coincideConFiltrosCola', () => {
     const { feature, filtrosActivos } = crearFeature({
       sitios: {
         obtener: (id) =>
-          id === 'otroportal' ? { faceta: facetaOtroPortal } : SitioRamonNet,
+          id === 'otroportal'
+            ? { id: 'otroportal', nombre: 'Otro Portal', faceta: facetaOtroPortal }
+            : SitioRamonNet,
       },
     });
     ParserTitulos.clasificarCatedraYCarpeta = (t, c) => ({ catedra: 'A', carpeta: c });
 
-    filtrosActivos.valoresFaceta.add('COMISION-1');
+    filtrosActivos.valoresFaceta.add('otroportal|COMISION-1');
     // El ítem del otro portal matchea por SU faceta...
     expect(
       feature.coincideConFiltrosCola({ titulo: 'x', carpeta: 'bio', sitioId: 'otroportal' }, '')
@@ -122,10 +152,56 @@ describe('FilterFeature.coincideConFiltrosCola', () => {
     const { feature, filtrosActivos } = crearFeature({
       sitios: { obtener: (id) => (id === 'ramonnet' ? SitioRamonNet : undefined) },
     });
-    filtrosActivos.valoresFaceta.add('A');
+    filtrosActivos.valoresFaceta.add('ramonnet|A');
     expect(
       feature.coincideConFiltrosCola({ titulo: 'x', carpeta: 'bio', sitioId: 'borrado' }, '')
     ).toBe(false);
+  });
+
+  // --- CORTE 6C: el filtro maestro por portal -------------------------------------------
+  it('el filtro por portal muestra el portal entero cuando no hay faceta marcada', () => {
+    const { feature, filtrosActivos } = crearFeature({ sitios: sitiosDeDosPortales() });
+
+    filtrosActivos.portales.add('otroportal');
+    expect(
+      feature.coincideConFiltrosCola({ titulo: 'x', carpeta: 'bio', sitioId: 'otroportal' }, '')
+    ).toBe(true);
+    expect(
+      feature.coincideConFiltrosCola({ titulo: 'x', carpeta: 'bio', sitioId: 'ramonnet' }, '')
+    ).toBe(false);
+  });
+
+  // El caso que justifica calificar por portal: dos portales con una faceta de la MISMA
+  // etiqueta. Sin el prefijo, marcar "A" en uno filtraba también al otro.
+  it('dos portales con una faceta de la misma etiqueta no se pisan', () => {
+    const facetaA = { ...SitioRamonNet.faceta, leerDeCola: () => 'A' };
+    const { feature, filtrosActivos } = crearFeature({
+      sitios: {
+        obtener: (id) =>
+          id === 'otroportal'
+            ? { id: 'otroportal', nombre: 'Otro Portal', faceta: facetaA }
+            : SitioRamonNet,
+      },
+    });
+    ParserTitulos.clasificarCatedraYCarpeta = (t, c) => ({ catedra: 'A', carpeta: c });
+
+    filtrosActivos.valoresFaceta.add('otroportal|A');
+    expect(
+      feature.coincideConFiltrosCola({ titulo: 'x', carpeta: 'bio', sitioId: 'otroportal' }, '')
+    ).toBe(true);
+    // Mismo valor de faceta ("A"), otro portal: NO matchea.
+    expect(
+      feature.coincideConFiltrosCola({ titulo: 'x', carpeta: 'bio', sitioId: 'ramonnet' }, '')
+    ).toBe(false);
+  });
+
+  // Un ítem anterior al multi-sitio no trae `sitioId`; el resolvedor lo migra al portal
+  // legado. La clave se arma con el id DEL DESCRIPTOR, así que cae en el grupo correcto.
+  it('un ítem sin sitioId (dato viejo) se califica con el portal legado', () => {
+    ParserTitulos.clasificarCatedraYCarpeta = (t, c) => ({ catedra: 'A', carpeta: c });
+    const { feature, filtrosActivos } = crearFeature();
+    filtrosActivos.valoresFaceta.add('ramonnet|A');
+    expect(feature.coincideConFiltrosCola({ titulo: 'x', carpeta: 'bio' }, '')).toBe(true);
   });
 });
 
@@ -245,5 +321,122 @@ describe('FilterFeature.renderizarFiltrosMenuPopover', () => {
     const opciones = [...nodos.filterMenu.querySelectorAll('.popover-option span')].map(s => s.textContent);
     expect(opciones).toContain('📁 BIOLOGIA');
     expect(opciones).toContain('🎓 Cat A');
+    // Con UN solo portal no hay sección Portal: la pantalla queda idéntica a la de antes
+    // del corte 6C, que era la condición de la forma elegida.
+    expect(titulos).not.toContain('Portal');
+  });
+});
+
+// --- CORTE 6C: la sección Portal ---------------------------------------------------------
+// Nada de esto se puede ver hoy en el navegador: exige la cola mezclada y hay un solo portal
+// registrado. Hasta el corte 7, estos tests son la única observación que tiene.
+describe('FilterFeature.renderizarFiltrosMenuPopover — sección Portal (corte 6C)', () => {
+  const colaMezclada = () => ([
+    { titulo: 'a', carpeta: 'biologia', sitioId: 'ramonnet' },
+    { titulo: 'b', carpeta: 'biologia', sitioId: 'otroportal', comision: '2' },
+  ]);
+
+  function montarMezclada(overrides = {}) {
+    ParserTitulos.clasificarCatedraYCarpeta = (t, c) => ({ catedra: 'A', carpeta: c });
+    const armado = crearFeature({ sitios: sitiosDeDosPortales(), ...overrides });
+    AppState.pestañaActiva = 'cola';
+    AppState.colaDescargas = colaMezclada();
+    armado.feature.renderizarFiltrosMenuPopover();
+    return armado;
+  }
+
+  const etiquetas = (nodos) =>
+    [...nodos.filterMenu.querySelectorAll('.popover-option span')].map(s => s.textContent);
+
+  const opcionPorTexto = (nodos, texto) =>
+    [...nodos.filterMenu.querySelectorAll('.popover-option')]
+      .find(l => l.querySelector('span').textContent === texto);
+
+  it('con la cola mezclada arma la sección Portal, con cada portal y SUS facetas anidadas', () => {
+    const { nodos } = montarMezclada();
+
+    const titulos = [...nodos.filterMenu.querySelectorAll('.popover-section-title')].map(t => t.textContent);
+    expect(titulos).toContain('Portal');
+
+    // Cada portal, con el vocabulario de faceta que le corresponde: cátedras en uno,
+    // comisiones en el otro. Es la razón de que la sección sea en cascada.
+    expect(etiquetas(nodos)).toEqual(expect.arrayContaining([
+      'Ramón Net', '🎓 Cat A', 'Otro Portal', '🏫 Com 2',
+    ]));
+
+    expect(opcionPorTexto(nodos, 'Ramón Net').classList.contains('maestra')).toBe(true);
+    expect(opcionPorTexto(nodos, '🏫 Com 2').classList.contains('anidada')).toBe(true);
+  });
+
+  it('marcar la maestra filtra el portal entero', () => {
+    const { nodos, filtrosActivos, ctx } = montarMezclada();
+
+    const check = opcionPorTexto(nodos, 'Otro Portal').querySelector('input');
+    check.checked = true;
+    check.dispatchEvent(new Event('change'));
+
+    expect(filtrosActivos.portales.has('otroportal')).toBe(true);
+    expect(ctx.renderizar).toHaveBeenCalled();
+  });
+
+  it('desmarcar la maestra se lleva las facetas de ESE portal, y no las del otro', () => {
+    const { nodos, filtrosActivos } = montarMezclada();
+    filtrosActivos.portales.add('otroportal');
+    filtrosActivos.valoresFaceta.add('otroportal|2');
+    filtrosActivos.valoresFaceta.add('ramonnet|A');
+
+    const check = opcionPorTexto(nodos, 'Otro Portal').querySelector('input');
+    check.checked = false;
+    check.dispatchEvent(new Event('change'));
+
+    expect(filtrosActivos.portales.has('otroportal')).toBe(false);
+    // Dejarla suelta seguiría filtrando por un portal que en pantalla figura apagado.
+    expect(filtrosActivos.valoresFaceta.has('otroportal|2')).toBe(false);
+    expect(filtrosActivos.valoresFaceta.has('ramonnet|A')).toBe(true);
+  });
+
+  it('la maestra queda indeterminada con algunas de sus facetas marcadas, no todas', () => {
+    // Tres comisiones en el otro portal, para poder marcar una sola.
+    ParserTitulos.clasificarCatedraYCarpeta = (t, c) => ({ catedra: 'A', carpeta: c });
+    const { feature, nodos, filtrosActivos } = crearFeature({ sitios: sitiosDeDosPortales() });
+    AppState.pestañaActiva = 'cola';
+    AppState.colaDescargas = [
+      { titulo: 'a', carpeta: 'bio', sitioId: 'ramonnet' },
+      { titulo: 'b', carpeta: 'bio', sitioId: 'otroportal', comision: '1' },
+      { titulo: 'c', carpeta: 'bio', sitioId: 'otroportal', comision: '2' },
+    ];
+
+    filtrosActivos.valoresFaceta.add('otroportal|1');
+    feature.renderizarFiltrosMenuPopover();
+
+    const maestra = opcionPorTexto(nodos, 'Otro Portal').querySelector('input');
+    expect(maestra.indeterminate).toBe(true);
+    // Marcada aunque nadie tocó la maestra: su estado se deriva de las facetas.
+    expect(maestra.checked).toBe(true);
+
+    filtrosActivos.valoresFaceta.add('otroportal|2');
+    feature.renderizarFiltrosMenuPopover();
+    expect(opcionPorTexto(nodos, 'Otro Portal').querySelector('input').indeterminate).toBe(false);
+  });
+
+  it('un huérfano no aparece como portal ni rompe la sección', () => {
+    ParserTitulos.clasificarCatedraYCarpeta = (t, c) => ({ catedra: 'A', carpeta: c });
+    const { feature, nodos } = crearFeature({ sitios: sitiosDeDosPortales() });
+    AppState.pestañaActiva = 'cola';
+    AppState.colaDescargas = [...colaMezclada(), { titulo: 'z', carpeta: 'bio', sitioId: 'borrado' }];
+
+    feature.renderizarFiltrosMenuPopover();
+
+    // Sin descriptor no hay nombre que mostrar ni faceta que derivar; se lo omite en vez de
+    // adivinar, que es lo que ADR-0010 previene.
+    expect(etiquetas(nodos)).toEqual(expect.arrayContaining(['Ramón Net', 'Otro Portal']));
+    expect(etiquetas(nodos).filter(e => e === 'undefined')).toHaveLength(0);
+  });
+
+  it('el badge de filtros cuenta también los portales', () => {
+    const { feature, filtrosActivos, nodos } = crearFeature();
+    filtrosActivos.portales.add('ramonnet');
+    feature.actualizarPillsUIState();
+    expect(nodos.btnFilterPills.querySelector('span').textContent).toBe('Filtros (1)');
   });
 });

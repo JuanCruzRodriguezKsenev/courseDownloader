@@ -139,6 +139,20 @@
     }
   }
 
+  /* [MULTISITIO CORTE 6C] La sección Portal es en cascada: la maestra manda y sus facetas
+     van sangradas debajo. Se extiende esta hoja en vez de crear una nueva —igual que hizo el
+     corte 6a con styles/list.css— porque una hoja nueva necesita su @import en
+     popup/globals.css y olvidarlo no da error en ningún lado: simplemente no se empaqueta. */
+  .popover-option.maestra {
+    font-weight: var(--font-black);
+  }
+
+  .popover-option.anidada {
+    padding-left: 1.15rem;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+  }
+
   /* El botón de orden pasó a abrir un panel (corte 6b), así que necesita el mismo
      contexto de posicionamiento que el de filtros. No lleva el `flex:1` de aquél:
      el botón se sigue midiendo por su contenido. */
