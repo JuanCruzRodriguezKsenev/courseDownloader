@@ -30,8 +30,15 @@ pesado hecho. **Medido, no supuesto**:
 | `plataforma/` | **No** |
 | `sitio/<portal>/` | Es lo que se escribe por portal — el trabajo esperado |
 
-`PuertoSitio` (`core/puertos/sitio.ts`) ya es un contrato de 12 miembros que `tsc` hace cumplir:
+`PuertoSitio` (`core/puertos/sitio.ts`) ya es un contrato de 11 miembros que `tsc` hace cumplir:
 un adaptador incompleto **no compila**. Esa es la red de este proyecto.
+
+Los 11, para no tener que abrir el archivo: `id`, `nombre`, `urlSondeoInternet`,
+`esPaginaDelSitio`, `patronPestañas`, `urlListado`, `resolverManifiesto`, `escanearListado`,
+`parsearTitulo`, `clasificarCarpeta` y `faceta` — este último un `DescriptorFaceta` completo,
+que es el que más trabajo da. **El hogar canónico del contrato es la interfaz**, no este doc: si
+el número no coincide, gana `sitio.ts` y esta línea está vieja. *(Decía "12" desde que se
+escribió, y nadie los había contado.)*
 
 ## El problema real: el sitio es un singleton, y tiene que ser un dato
 
@@ -264,7 +271,7 @@ el costo que tendría en la Web Store (ver ADR-0009 y `docs/deployment.md`).
 ## Lo que NO se toca, y es la prueba de que la re-arquitectura sirvió
 
 La UI entera, `plataforma/` completa, y de `core/` sólo los dos módulos citados. Un portal nuevo
-es: `sitio/<portal>/config.ts` (12 miembros, con el compilador de árbitro), sus tres hermanos y
+es: `sitio/<portal>/config.ts` (11 miembros, con el compilador de árbitro), sus tres hermanos y
 su `rules.json`.
 
 **La regla que más fácil se rompe al escribir un adaptador nuevo**: `escanearListado` se inyecta
