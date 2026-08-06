@@ -83,8 +83,9 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 #### Sub-ítem: el click en la notificación de fallo enfoca el portal equivocado
 
 - **Estado**: ✅ **resuelto el 2026-08-05** (hallado ese mismo día, revisando esta deuda tras el
-  corte 4), **pendiente de verificación en navegador**. Fue el **corte 8** de
-  `docs/multisitio-diseno.md`, y su §5 tiene el detalle del cómo.
+  corte 4) y **verificado en navegador el 2026-08-06**, en la pasada única que cubrió el stack
+  entero. Fue el **corte 8** de `docs/multisitio-diseno.md`, y su §5 tiene el detalle del cómo.
+  Sigue **sin mergear**: vive en el stack de siete ramas, no en `main`.
 - **Dónde**: `background.js:474-490`, el listener de `chrome.notifications.onClicked`. Resuelve
   la pestaña a enfocar con `sitio.patronPestañas` / `sitio.urlSondeoInternet`, y ese `sitio` es
   el `sitioAsumido` que le inyecta `entrypoints/background.js:48` — el andamio del corte 2.

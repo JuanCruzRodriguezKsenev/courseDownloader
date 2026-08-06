@@ -13,17 +13,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > inercia** — ver la 8b antes de "limpiarlo".
 >
 > **Y hay un segundo frente activo desde el 2026-08-04: el multi-sitio** (que la misma extensión
-> maneje N portales). Al 2026-08-06 están hechos **todos los cortes menos el 7**, en un **stack
-> de siete ramas encadenadas** (no paralelas: cada una contiene a las anteriores), y **nada está
-> mergeado ni verificado en navegador**. **Antes de escribir una línea leé
+> maneje N portales). Al 2026-08-06 están hechos **todos los cortes menos el 7** y **verificados
+> en navegador**, en un **stack de siete ramas encadenadas** (no paralelas: cada una contiene a
+> las anteriores) que **todavía no está mergeado**. **Antes de escribir una línea leé
 > `docs/multisitio-diseno.md` §Cómo retomar esto en una sesión nueva** — está al final de ese doc
-> y tiene el stack, el checklist de Chrome y las trampas vivas. Tres que conviene saber ya:
+> y tiene el stack, el registro de la verificación y las trampas vivas. Tres que conviene saber ya:
 >
-> - **Lo único que queda es probarlo en Chrome, y eso bloquea el merge.** Una sola pasada sobre
->   la punta del stack cubre los siete cortes.
+> - **Lo único que queda es mergear**, y eso lo hace el dueño. Mergear la punta se lleva los
+>   siete cortes; no se puede uno solo del medio sin rebase.
 > - **El corte 7 (segundo portal real) está bloqueado**: no existe el portal. Y eso deja al
 >   **corte 6c sin poder verificarse** — su sección "Portal" sólo aparece con la cola mezclada,
->   así que hasta que haya un segundo portal sus tests son toda su observación.
+>   así que hasta que haya un segundo portal sus tests son toda su observación. **No lo cuentes
+>   como verificado**: la pasada del 2026-08-06 cubrió los otros seis, no ése.
 > - **Ni el service worker ni el popup tienen ya UN portal**: el bucle resuelve el del ítem
 >   (corte 3), la notificación el suyo por el `notificationId` (corte 8) y el popup el de la
 >   pestaña (corte 5). A `sitioAsumido` le queda **un solo lector y es deliberado**: la sonda
@@ -54,11 +55,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > de arriba como lo que son: el caso típico, no la excepción.
 >
 > El checklist concreto de esa verificación —7 puntos, no "probá que ande"— es
-> `docs/rearquitectura-diseno.md` §Verificación en navegador. Su disparador declarado es
-> *"cada fase que toque empaquetado, entrypoints o el adaptador de sitio"*. Las fases que lo
-> disparaban ya se mergearon; **hoy quien lo dispara es el stack del multi-sitio** — el corte 5
-> toca el popup y el entrypoint, y el 6d el bucle de descarga. Corré esos 7 puntos, más los
-> específicos que lista `multisitio-diseno.md` §Cómo retomar, antes de pedir el merge.
+> `docs/rearquitectura-diseno.md` §Verificación en navegador, más los específicos que lista
+> `multisitio-diseno.md` §Cómo retomar. Su disparador declarado es *"cada fase que toque
+> empaquetado, entrypoints o el adaptador de sitio"*, y el stack del multi-sitio lo dispara de
+> lleno: el corte 5 toca el popup y el entrypoint, el 6d el bucle de descarga. **Se corrió el
+> 2026-08-06 y pasó** — pero si el stack se rebasa o se retoca antes de mergear, se vuelve a
+> correr: lo que quedó verificado es *ese* build, no la intención.
 
 ## Project Overview
 
