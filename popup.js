@@ -210,12 +210,12 @@ import BannerConexion from './popup/features/bannerConexion.preact.js';
  * @param {object} deps.mensajeria  PuertoMensajeria: el IPC hacia el service worker.
  * @param {object} deps.utils       Ensamblado `Utils` (Fase 6a).
  * @param {object} deps.backend     Cliente del backend Bun.
- * @param {object} deps.sitio       Adaptador del portal de la pestaña activa (Capa 2).
- * @param {object} deps.sitios      Resolvedor por `sitioId`, para lo que mezcla portales
- *                                  (la cola). Ver ADR-0010.
+ * @param {object} deps.sitios      Registro de portales. Resuelve por `sitioId` (lo que
+ *                                  mezcla portales: la cola) y por URL (la pestaña activa).
+ *                                  Ver ADR-0010. Desde el corte 5 **no hay un `sitio` fijo**.
  * @param {object} deps.renderers   Pintado vanilla que todavía no es isla.
  */
-export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, sitio, sitios, renderers }) {
+export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, sitios, renderers }) {
   document.addEventListener('DOMContentLoaded', async () => {
     console.log("🤖 [POPUP-CORE] Orquestador unificado V5.4.1 activo. Sincronización de escáner híbrido (Chrome/Bun) integrada.");
 
@@ -261,6 +261,35 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     // que acá se guarda eso: desengancharlo es llamarla.
     let desengancharOyenteWorker = null;
     let modoSeleccionFilaActivo = false;
+
+    // [MULTISITIO CORTE 5] El portal de la pestaña que se está mirando.
+    //
+    // Hasta este corte el popup recibía UN sitio inyectado (`sitioAsumido`, el andamio del
+    // corte 2) y lo trataba como "el" portal. Ahora lo resuelve por URL de pestaña, que es la
+    // mitad de ADR-0010 que le toca: el service worker resuelve por ítem porque su cola no
+    // tiene pestaña; el popup sí la tiene, y es el único momento en que se sabe con certeza
+    // de qué portal salió una clase.
+    //
+    // Arranca en el portal legado —el mismo que `sitios.obtener(undefined)` devuelve por la
+    // migración— sólo para que la UI tenga vocabulario antes del primer escaneo. En cuanto se
+    // escanea, manda la pestaña.
+    let sitioActivo = sitios.obtener(undefined);
+
+    /** El descriptor del portal activo. Las features lo reciben ASÍ, como función. */
+    const sitio = () => sitioActivo;
+
+    /**
+     * Resuelve el portal de una pestaña y lo adopta como activo.
+     *
+     * Devuelve `undefined` si la pestaña no es de ningún portal registrado — y ahí el llamador
+     * tiene que negarse a escanear. No se cae al portal legado a propósito: adivinar el portal
+     * de una pestaña cualquiera es exactamente el bug que ADR-0010 previene.
+     */
+    function adoptarPortalDePestaña(url) {
+      const resuelto = sitios.resolverPorUrl(url);
+      if (resuelto) sitioActivo = resuelto;
+      return resuelto;
+    }
     // [MULTISITIO CORTE 6C] `portales` es el filtro maestro de la pestaña Cola: la cola puede
     // mezclar portales (ADR-0010) y cada uno trae su propio vocabulario de faceta. En la Cola
     // los valores de `valoresFaceta` van CALIFICADOS por portal (`sitioId|valor`), porque dos
@@ -413,7 +442,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     const _filters = FilterFeature.crear({
       nodos,
       filtrosActivos,
-      sitio: sitio,
+      sitio,
       sitios,
       appState,
       renderizar: () => renderizarListadoInterfaz(),
@@ -449,7 +478,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     const _faceta = FacetaFeature.crear({
       appState,
       badge: nodos.facetaBadge,
-      sitio: sitio,
+      sitio,
       aplicarFiltros: () => aplicarFiltrosCruzados()
     });
     const actualizarBadgeFaceta = _faceta.actualizarBadge;
@@ -460,7 +489,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
     // Forzar re-escaneo automático si la pestaña de Ramón Net cambia de dirección o se recarga
     chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-      if (changeInfo.status === 'complete' && tab.active && sitio.esPaginaDelSitio(tab.url)) {
+      if (changeInfo.status === 'complete' && tab.active && adoptarPortalDePestaña(tab.url)) {
         console.log("🔄 [POPUP] Pestaña Ramón Net actualizada. Re-escaneando...");
         if (!appState.fallaConexionActiva) {
           ejecutarPaso1EscaneoRamonAutomatico();
@@ -475,7 +504,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         // entero al PuertoMensajeria (Fase 5c); lo que queda de chrome.* acá es tabs +
         // scripting, que esperan sus propios puertos.
         if (chrome.runtime.lastError || !tab) return;
-        if (tab.active && sitio.esPaginaDelSitio(tab.url)) {
+        if (tab.active && adoptarPortalDePestaña(tab.url)) {
           console.log("🔄 [POPUP] Pestaña Ramón Net enfocada. Re-escaneando...");
           if (!appState.fallaConexionActiva) {
             ejecutarPaso1EscaneoRamonAutomatico();
@@ -780,12 +809,18 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       }, 6000);
 
       chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-        if (!tab || !sitio.esPaginaDelSitio(tab.url)) {
+        // [MULTISITIO CORTE 5] Acá es donde el portal se decide de verdad: el escaneo corre
+        // sobre UNA pestaña concreta y es el único momento en que se sabe con certeza de qué
+        // portal sale cada clase. Se resuelve una vez y se usa `portal` —el local— en todo el
+        // resto del escaneo: leer `sitioActivo` más abajo dejaría la puerta abierta a que otro
+        // listener lo cambie a mitad de camino.
+        const portal = tab && adoptarPortalDePestaña(tab.url);
+        if (!portal) {
           clearTimeout(safetyTimeout);
-          nodos.txtEstado.textContent = "⚠️ No estás en Ramón Net.";
+          nodos.txtEstado.textContent = "⚠️ No estás en un portal reconocido.";
           configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
           if (appState.listadoClasesGlobal.length > 0) { desbanearFiltros(); aplicarFiltrosCruzados(); }
-          nodos.loader.style.display = 'none'; 
+          nodos.loader.style.display = 'none';
           return;
         }
 
@@ -795,7 +830,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
         chrome.scripting.executeScript({
           target: { tabId: tab.id },
-          func: sitio.escanearListado
+          func: portal.escanearListado
         }, (resultados) => {
           clearTimeout(safetyTimeout);
 
@@ -843,8 +878,8 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             } else {
               const nuevasClases = enlaces.map((item, idx) => {
                 const materiaBase = nodos.folder.value.trim();
-                const tituloFinalEstandar = sitio.parsearTitulo(item.texto, materiaBase);
-                const clasif = sitio.clasificarCarpeta(item.texto, materiaBase);
+                const tituloFinalEstandar = portal.parsearTitulo(item.texto, materiaBase);
+                const clasif = portal.clasificarCarpeta(item.texto, materiaBase);
 
                 return {
                   id: idx + Date.now(), // ID único dinámico para evitar colisiones con clases persistidas
@@ -854,7 +889,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
                   // ADR-0010: de qué portal salió. Se estampa ACÁ, que es el único momento en
                   // que se sabe con certeza — el escaneo corre sobre una pestaña concreta.
                   // Después la cola es independiente de la pestaña y ya no habría cómo deducirlo.
-                  sitioId: sitio.id,
+                  sitioId: portal.id,
                   catedra: clasif.catedra,
                   carpeta: clasif.carpeta,
                   estado: 'pending',

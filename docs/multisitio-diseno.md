@@ -1,7 +1,7 @@
 # Multi-sitio: una extensión, varios portales — diseño de ejecución
 
-**Estado (2026-08-05)**: cortes 1 a 4, 6a, 6b y 8 hechos; **ninguno mergeado y ninguno verificado
-en navegador**. Faltan el 6c, el 6d, el 5 y el 7. → **Empezá por §Cómo retomar esto en una sesión
+**Estado (2026-08-06)**: cortes 1 a 6d y 8 hechos — o sea **todos menos el 7**, que está
+bloqueado porque no existe el segundo portal. **Nada mergeado y nada verificado en navegador.** → **Empezá por §Cómo retomar esto en una sesión
 nueva, al final del doc**: ahí está el stack de ramas, qué probar en Chrome y las dos trampas
 vivas (la migración del 6b y que ADR-0011 está aceptada pero **sin construir**).
 **Decisión de base**: [ADR-0009](adr/0009-registro-de-sitios-en-runtime.md) eligió *registro en
@@ -308,11 +308,11 @@ la regla que en toda la re-arquitectura atajó los únicos 3 defectos que llegar
 | 2 | `sitio/registro.ts` con un solo portal adentro | ✅ **Hecho y verificado en navegador** (2026-08-04). Con N=1 el comportamiento es idéntico. Además **se fue el alias `SitioActivo` de `sitio/ramonnet/config.ts`**: un portal ya no se declara a sí mismo el activo — eso lo decide el registro. Queda `sitioAsumido` como andamio explícito, que borran los cortes 3 y 5. +8 tests |
 | 3 | `procesadorCola`: de `sitio` fijo a `sitios.obtener(id)` | ✅ **Hecho y verificado en navegador** (2026-08-04): descarga real de punta a punta. Los 12 tests de caracterización agarraron el cambio de contrato, que es para lo que existen. +2 tests del caso nuevo. **Ojo con la distinción que destapó**: `sitioId` ausente (dato viejo) y `sitioId` desconocido (huérfano) NO son lo mismo — ver §La trampa del corte 3 |
 | 4 | `leerDeCola` contra el sitio del ítem (bug de corrección) | ✅ **Hecho** (2026-08-04). +2 tests, uno con la cola mezclada de verdad. El resolvedor con migración pasó a ser **un export compartido** de la composición: si el bucle y el filtro resolvieran distinto, un ítem se descargaría con un portal y se mostraría clasificado con otro |
-| 5 | El popup estampa `sitioId` al escanear + resuelve por pestaña | Medio. Sin tests sobre el núcleo de `popup.js` (ADR-0005) |
+| 5 | El popup estampa `sitioId` al escanear + resuelve por pestaña | ✅ **Hecho** (2026-08-06), **pendiente de verificación en navegador**. Se fue `sitioAsumido` del popup, que era su último lector. El escaneo resuelve el portal de la pestaña **una vez** y usa ese local en todo el recorrido: leer el mutable más abajo dejaría la puerta abierta a que un listener lo cambie a mitad de escaneo. **Lo que la medición no había visto**: `filters.js` y `faceta.js` *capturaban* `ctx.sitio.faceta` al crearse, así que `ctx.sitio` tuvo que pasar a ser una FUNCIÓN — con un portal fijo daba igual, con portal por pestaña habrían clasificado con el vocabulario del anterior. Se resolvió re-leyendo el descriptor por función (una línea cada una) en vez de tocar los ~30 call-sites. +2 tests |
 | 6a | La clase que se está bajando, clavada arriba + divisor | ✅ **Hecho** (2026-08-05), **pendiente de verificación en navegador**. `popup.js` saca la fila activa ANTES de filtrar y la pone primera; la isla sólo pinta el divisor (sigue siendo vista pura). +7 tests. El CSS extendió `styles/list.css` en vez de crear hoja nueva —así no hay `@import` que olvidar— y se comprobó que salió en el bundle, que es la falla silenciosa que esa regla previene. Apareció un caso que no estaba en el diseño: con el filtro vacío **y** descarga en curso, la lista NO está vacía, así que no corresponde la tarjeta de estado — va el ancla + una nota |
 | 6b | El orden como criterio + sentido | ✅ **Hecho** (2026-08-05), **pendiente de verificación en navegador**. Nace `popup/features/orden.js` con las tres piezas que estaban sueltas en `popup.js`. +28 tests sobre código que no tenía ninguno, que era el motivo del corte. **La migración salió distinta de lo planeado**: el tri-estado `ordenAscendente` servía a las DOS pestañas con reglas distintas —Disponibles sólo mira su verdad/falsedad, así que `null` era *descendente*— y partirlo habría dado vuelta esa pestaña en toda instalación existente. La Cola estrenó un par propio (`criterioOrdenCola` + `ordenColaAscendente`) y `ordenAscendente` quedó intacto. **Y un segundo ajuste, tras probarlo en el navegador**: la primera versión dejó a Disponibles con el toggle viejo, así que el mismo botón hacía dos cosas según la pestaña — se notaba al primer uso. Ahora las dos abren el mismo panel, con los criterios que a cada una le corresponden (Disponibles: nombre, faceta, estado; sin `llegada` ni `portal`, que ahí no significan nada). De paso, el popover dejó de ser vidrio esmerilado: era `--bg-overlay` al 82% + blur y se leía la lista por detrás. **No se tocó el token**, que lo comparten cuatro fondos de modal donde la transparencia sí corresponde |
-| 6c | La sección Portal con casilla maestra y estado parcial; `valoresFaceta` calificado por portal. **Sin migración** (`filtrosActivos` es de memoria) | Bajo. `filters.test.js` ya tiene el doble de `sitios` con cola mezclada |
-| 6d | El SW deja de ordenar y confía en el array; el popup persiste la cola reordenada — **ADR-0011**. Depende del 6b (necesita el criterio persistido) | **Alto. El único que toca código de descarga.** Verificación en navegador obligatoria; los 12 tests de caracterización del bucle tienen que seguir verdes sin tocarlos |
+| 6c | La sección Portal con casilla maestra y estado parcial; `valoresFaceta` calificado por portal. **Sin migración** (`filtrosActivos` es de memoria) | ✅ **Hecho** (2026-08-06). **No verificable en navegador hasta el corte 7**: la sección sólo aparece con la cola mezclada y hay un solo portal registrado, así que sus 9 tests son toda su observación. Dos cosas que el diseño no decía: el id del grupo sale del **descriptor** y no del campo crudo (un ítem sin `sitioId` migra al legado, y leer el campo pelado lo habría puesto en un grupo propio haciendo parecer mezclada una cola que no lo está), y los **huérfanos quedan fuera** de la sección — sin descriptor no hay nombre ni faceta, y adivinar es el bug que ADR-0010 previene |
+| 6d | El SW deja de ordenar y confía en el array; el popup persiste la cola reordenada — **ADR-0011** | ✅ **Hecho** (2026-08-06), **pendiente de verificación en navegador — y es el que más la necesita**. Los 14 de caracterización del bucle quedaron verdes sin tocarlos, que era la condición. **Pero uno sí se puso rojo y la ADR no lo previó**: `background.test.js` afirmaba *"respeta el orden FIFO por `fechaEncolado`, NO el del array"* — la caracterización exacta del `sort` que este corte elimina. Se invirtió la afirmación, que es lo honesto: el contrato cambió por decisión. Un tercer punto de llamada que el diseño no tenía: **encolar re-aplica el orden**, porque agrega al final y con un criterio que no sea "llegada" el ítem nuevo contradiría la pantalla. +13 tests |
 | 7 | Manifest + el primer adaptador real del segundo portal | Verificación en navegador, no hay otra red |
 | 8 | El click de la notificación resuelve la pestaña con el sitio del ítem, no con `sitioAsumido` (bug de corrección — ver §5) | ✅ **Hecho** (2026-08-05), **pendiente de verificación en navegador**. Se hizo antes del 7, como preveía esta fila. +19 tests, con un segundo portal en los dobles: con uno solo el bug es invisible. **Y con esto `sitioAsumido` salió del service worker**: el SW ya no tiene UN portal. El dato viaja adentro del `notificationId` (§5) porque el worker se suspende y se lleva cualquier mapa en memoria |
 
@@ -332,7 +332,7 @@ que el resto del doc**: dice dónde está todo y qué está a medio camino.
 
 ### 1. Nada está mergeado, y las ramas son un stack, no ramas paralelas
 
-`main` está en el commit anterior al corte 4. Todo lo demás vive en cuatro ramas **encadenadas**:
+`main` está en el commit anterior al corte 4. Todo lo demás vive en **siete ramas encadenadas**:
 cada una contiene a las anteriores.
 
 ```
@@ -341,21 +341,24 @@ main
      └─ feat/multisitio-corte8-notificacion   + corte 8
          └─ feat/multisitio-corte6a-ancla         + corte 6a
              └─ feat/multisitio-corte6b-orden         + corte 6b y sus 2 fixes
+                 └─ feat/multisitio-corte6c-filtro-portal   + corte 6c (y un fix de docs)
+                     └─ feat/multisitio-corte6d-orden-manda     + corte 6d
+                         └─ feat/multisitio-corte5-popup-por-pestana  + corte 5  ← la punta
 ```
 
 La regla del repo es "una rama por corte" y esto la cumple de nombre pero no de espíritu: **no
 son independientes**. Consecuencias prácticas:
 
-- Mergear `corte6b` se lleva puestos el 4, el 8 y el 6a. No se puede mergear uno solo del medio
-  sin rebase.
+- Mergear la punta (`corte5`) se lleva puestos los seis de abajo. No se puede mergear uno solo
+  del medio sin rebase.
 - Del lado bueno: **compilar y probar la rama de arriba ejercita todo el stack**, así que una
-  sola pasada de verificación en navegador los cubre a los cuatro.
+  sola pasada de verificación en navegador los cubre a los siete.
 - Si algo falla, la rama no aísla cuál corte lo rompió. Para eso está el historial, que sí tiene
   un commit por corte.
 
 ### 2. Lo que falta antes que cualquier código: probarlo en Chrome
 
-**Los cuatro cortes están sin verificar en navegador.** No es formalidad: en esta misma sesión,
+**Los siete cortes están sin verificar en navegador.** No es formalidad: en esta misma sesión,
 usar la extensión encontró **tres defectos que la suite no podía ver** —el orden de Disponibles
 quedó inconsistente con el de la Cola, el popover se leía por detrás, y los dos popovers podían
 quedar abiertos a la vez—. Ninguno era un bug de lógica; los tres eran de interacción o de
@@ -386,26 +389,37 @@ Lo que se hizo: la Cola estrenó `criterioOrdenCola` + `ordenColaAscendente`, Di
 `criterioOrdenDisponibles` y **`ordenAscendente` quedó intacto** como su sentido. Detalle en
 `data-model.md`, y hay tests que afirman que Disponibles no se movió.
 
-### 4. ⚠️ ADR-0011 está aceptada y NO está construida
+### 4. ✅ ADR-0011 ya está construida (era el corte 6d, hecho el 2026-08-06)
 
-`adr/0011-el-orden-de-la-cola-lo-decide-el-popup.md` dice que el array de `colaDescargas` **es**
-el orden de descarga y que el service worker deja de ordenar. **Eso es el corte 6d, y no se
-hizo.** Hoy el SW sigue haciendo `colaDescargas.sort(por fechaEncolado)` en cada vuelta
-(`core/cola/procesadorCola.ts`), así que el orden que se elige en el popup es **sólo una vista**.
+Se deja escrito porque durante dos días esta sección decía lo contrario, y esa es la forma en
+que ADR-0009 generó trabajo duplicado. **Ahora el SW sí obedece el array**: el `sort` por
+`fechaEncolado` salió de `core/cola/procesadorCola.ts` y el bucle baja `[0]`.
 
-Es exactamente la forma en que ADR-0009 estuvo "decidida y no construida" dos días y generó
-trabajo duplicado. **No asumas que el SW ya obedece el array.** Si el 6d se posterga mucho, hay
-que decidir si la ADR se marca como pendiente de implementación o se supera con otra.
+Lo que queda de esa advertencia, y sigue valiendo: **el popup es ahora el único escritor del
+orden**, y el SW ya no tiene una red que lo corrija si escribe una secuencia inconsistente. Es
+el riesgo que la ADR acepta explícitamente.
 
 ### 5. Qué sigue, en orden
 
 | Qué | Estado | Nota |
 |---|---|---|
-| Verificar los 4 cortes en Chrome | ⏳ **Lo primero** | Una sola pasada cubre el stack entero |
-| Corte 6c — filtro por portal | Pendiente | El último barato. `filters.test.js` ya tiene el doble de `sitios` con cola mezclada |
-| Corte 6d — el orden manda de verdad | Pendiente | **Toca el bucle de descarga.** ADR-0011. Verificación en navegador no negociable |
-| Corte 5 — el popup resuelve por pestaña | Pendiente | El de más riesgo: sin tests sobre el núcleo de `popup.js` (ADR-0005) |
-| Corte 7 — segundo portal real | Bloqueado | Necesita un portal que no tenemos |
+| Verificar los **7 cortes** en Chrome | ⏳ **Lo único que queda, y bloquea el merge** | Una sola pasada sobre la punta del stack los cubre a todos |
+| Corte 7 — segundo portal real | Bloqueado | Necesita un portal que no tenemos. **Es lo que haría observable al 6c**, que hoy sólo tienen los tests |
+
+Los cortes 6c, 6d y 5 se hicieron el 2026-08-06, con las cuatro verificaciones en verde
+(28 archivos / 368 tests, lint y `tsc` limpios, build OK). Ninguno está verificado en navegador.
+
+**Qué agregarle al checklist de Chrome por lo que se hizo ese día** —además de los 7 puntos de
+`rearquitectura-diseno.md` y los de más arriba—, todo del corte 6d, que es el único de los tres
+que se puede observar hoy:
+
+- Con el backend Bun andando: encolar 3 clases, **invertir el orden** y confirmar que se baja la
+  que quedó arriba, no la de `fechaEncolado` más viejo. Es el punto entero de ADR-0011.
+- Reordenar **con una descarga en curso**: la que baja sigue anclada arriba y la ráfaga no se corta.
+- Filtrar, reordenar y limpiar el filtro: **no se perdió ningún ítem** de la cola. Es la trampa de
+  persistir el subconjunto filtrado, y su falla sería silenciosa y destructiva.
+- Y el de siempre, que acá vale doble: **que una instalación existente no cambie de orden sola**
+  al actualizar. La normalización por `fechaEncolado` cubre eso y se paga una vez.
 
 ### 6. Restos conocidos, chicos, que no son de ningún corte
 

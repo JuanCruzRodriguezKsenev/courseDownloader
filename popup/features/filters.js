@@ -1,6 +1,10 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: FILTROS Y BÚSQUEDA (V2.1.0)
+ * CLON DOWNLOADHELPER - FEATURE: FILTROS Y BÚSQUEDA (V2.2.0)
  * ==========================================================================
+ * CHANGELOG v2.2.0:
+ * - [MULTISITIO CORTE 5] `ctx.sitio` pasa de ser el descriptor a ser una FUNCIÓN que lo
+ *   devuelve: el popup resuelve el portal por pestaña y puede cambiar entre dos escaneos.
+ *   Sólo afecta a la rama de Disponibles; la Cola ya resolvía por ítem desde el corte 4.
  * CHANGELOG v2.1.0:
  * - [MULTISITIO CORTE 6C] La pestaña Cola gana una sección **Portal**: una casilla maestra
  *   por portal y, anidadas debajo, SUS facetas con SU vocabulario. Es en cascada, no
@@ -47,7 +51,8 @@
  *                               btnFilterPills, masterCheck, btnSort).
  *   - ctx.filtrosActivos      : { estados:Set, materias:Set, valoresFaceta:Set, portales:Set }
  *                               por referencia.
- *   - ctx.sitio               : adaptador de sitio activo; usa `sitio.faceta`.
+ *   - ctx.sitio()             : FUNCIÓN que devuelve el adaptador del portal de la pestaña
+ *                               activa; usa `sitio().faceta`. Ver el changelog v2.2.0.
  *   - ctx.renderizar()        : re-render del listado (renderizarListadoInterfaz, popup.js).
  *   - ctx.actualizarContadores(): refresco de contadores del botón de acción (popup.js).
  *
@@ -59,7 +64,12 @@ const FilterFeature = {
     const { nodos, filtrosActivos, renderizar, actualizarContadores, sitio, appState, sitios } = ctx;
     // Eje de clasificación propio del sitio (en Ramón Net: la cátedra). Esta feature
     // filtra POR la faceta sin saber qué representa — ver sitio/ramonnet/config.js.
-    const faceta = sitio.faceta;
+    //
+    // [MULTISITIO CORTE 5] `ctx.sitio` es una FUNCIÓN: el popup resuelve el portal por
+    // pestaña y puede cambiar entre dos escaneos, así que capturar el descriptor acá dejaría
+    // a Disponibles filtrando con el vocabulario del portal anterior. Sólo lo usa la rama de
+    // Disponibles — la Cola resuelve por ítem, que es otra cosa (corte 4).
+    const descriptorFaceta = () => sitio().faceta;
 
     /**
      * La faceta de un ítem DE LA COLA sale de su propio portal, no del sitio activo.
@@ -117,6 +127,7 @@ const FilterFeature = {
     // texto + estado + cátedra, y re-renderiza. La pestaña Cola filtra aparte, en el
     // render (con coincideConFiltrosCola).
     function aplicarFiltrosCruzados() {
+      const faceta = descriptorFaceta();
       const busqueda = nodos.search.value.toLowerCase().trim();
       const materiaActiva = nodos.folder.value.trim().toLowerCase();
 
@@ -180,6 +191,7 @@ const FilterFeature = {
     // Reconstruye el contenido del popover de filtros según la pestaña activa:
     // Disponibles => Estado + Cátedra; Cola => Materia + Cátedra (derivadas de la cola).
     function renderizarFiltrosMenuPopover() {
+      const faceta = descriptorFaceta();
       if (!nodos.filterMenu) return;
       nodos.filterMenu.innerHTML = "";
 

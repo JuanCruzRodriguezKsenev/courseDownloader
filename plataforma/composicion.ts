@@ -141,7 +141,17 @@ export const EstadosProgreso = crearEstadosProgreso(almacenamiento);
  *   - `sitioId` ausente  → dato de antes del multi-sitio: vino de `SITIO_LEGADO`.
  *   - `sitioId` presente pero desconocido → huérfano, no se resuelve.
  */
-export const sitios = { obtener: (id?: string) => Sitios.obtener(id ?? SITIO_LEGADO) };
+export const sitios = {
+  obtener: (id?: string) => Sitios.obtener(id ?? SITIO_LEGADO),
+
+  /**
+   * Por URL de pestaña, para el popup (corte 5). **Sin migración y a propósito**: una URL que
+   * no matchea ningún portal registrado no es un "dato viejo" que haya que interpretar, es una
+   * pestaña que no es de ningún portal. Caer al legado acá haría que el popup escanee
+   * cualquier página con el adaptador de Ramón Net — el bug que ADR-0010 previene.
+   */
+  resolverPorUrl: (url?: string) => Sitios.resolverPorUrl(url),
+};
 
 /**
  * De un `notificationId` al portal cuya pestaña hay que enfocar (corte 8).

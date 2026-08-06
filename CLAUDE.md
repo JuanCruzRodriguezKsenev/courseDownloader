@@ -13,20 +13,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > inercia** — ver la 8b antes de "limpiarlo".
 >
 > **Y hay un segundo frente activo desde el 2026-08-04: el multi-sitio** (que la misma extensión
-> maneje N portales), hoy **a mitad de camino y sin nada mergeado**. Al 2026-08-05 hay siete
-> cortes hechos en un **stack de cuatro ramas encadenadas** (no paralelas: cada una contiene a
-> las anteriores), **ninguno verificado en navegador**, y faltan cuatro. **Antes de escribir una
-> línea leé `docs/multisitio-diseno.md` §Cómo retomar esto en una sesión nueva** — está al final
-> de ese doc y tiene el stack, el checklist de Chrome y las trampas vivas. Dos que conviene
-> saber ya:
+> maneje N portales). Al 2026-08-06 están hechos **todos los cortes menos el 7**, en un **stack
+> de siete ramas encadenadas** (no paralelas: cada una contiene a las anteriores), y **nada está
+> mergeado ni verificado en navegador**. **Antes de escribir una línea leé
+> `docs/multisitio-diseno.md` §Cómo retomar esto en una sesión nueva** — está al final de ese doc
+> y tiene el stack, el checklist de Chrome y las trampas vivas. Tres que conviene saber ya:
 >
-> - **⚠️ ADR-0011 está aceptada y NO está construida.** Dice que el array de `colaDescargas` *es*
->   el orden de descarga; hoy el SW sigue ordenando por `fechaEncolado` y el orden del popup es
->   sólo una vista. Eso es el corte 6d, pendiente. Es la misma forma en que ADR-0009 estuvo
->   "decidida y no construida" y generó trabajo duplicado — **no asumas que ya funciona**.
-> - **El service worker ya no tiene UN portal**: el bucle resuelve el del ítem (corte 3) y la
->   notificación el suyo por el `notificationId` (corte 8). `sitioAsumido` sólo sigue vivo del
->   lado del popup, hasta el corte 5.
+> - **Lo único que queda es probarlo en Chrome, y eso bloquea el merge.** Una sola pasada sobre
+>   la punta del stack cubre los siete cortes.
+> - **El corte 7 (segundo portal real) está bloqueado**: no existe el portal. Y eso deja al
+>   **corte 6c sin poder verificarse** — su sección "Portal" sólo aparece con la cola mezclada,
+>   así que hasta que haya un segundo portal sus tests son toda su observación.
+> - **Ni el service worker ni el popup tienen ya UN portal**: el bucle resuelve el del ítem
+>   (corte 3), la notificación el suyo por el `notificationId` (corte 8) y el popup el de la
+>   pestaña (corte 5). A `sitioAsumido` le queda **un solo lector y es deliberado**: la sonda
+>   `urlSondeoInternet` del daemon de conexión, que sigue siendo una sola a propósito
+>   (`multisitio-diseno.md` §4 — hacerla por portal es un rediseño del daemon, con su corte).
 >
 > La decisión de fondo del frente sigue siendo ADR-0010. Antes de tocar código:
 >
@@ -54,9 +56,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > El checklist concreto de esa verificación —7 puntos, no "probá que ande"— es
 > `docs/rearquitectura-diseno.md` §Verificación en navegador. Su disparador declarado es
 > *"cada fase que toque empaquetado, entrypoints o el adaptador de sitio"*. Las fases que lo
-> disparaban ya se mergearon; **hoy quien lo dispara son los cortes del multi-sitio que
-> quedan** — el 5 toca el popup y el 7 toca manifest y adaptador de sitio, o sea de lleno.
-> Corré esos 7 puntos antes de pedir el merge, no una prueba improvisada.
+> disparaban ya se mergearon; **hoy quien lo dispara es el stack del multi-sitio** — el corte 5
+> toca el popup y el entrypoint, y el 6d el bucle de descarga. Corré esos 7 puntos, más los
+> específicos que lista `multisitio-diseno.md` §Cómo retomar, antes de pedir el merge.
 
 ## Project Overview
 

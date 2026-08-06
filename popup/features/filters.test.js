@@ -41,7 +41,8 @@ function crearFeature(overrides = {}) {
   const ctx = {
     nodos,
     filtrosActivos,
-    sitio: SitioRamonNet,
+    // CORTE 5: `sitio` es una FUNCIÓN (ver el harness de faceta.test.js).
+    sitio: () => SitioRamonNet,
     renderizar: vi.fn(),
     actualizarContadores: vi.fn(),
     ...overrides,
@@ -438,5 +439,29 @@ describe('FilterFeature.renderizarFiltrosMenuPopover — sección Portal (corte 
     filtrosActivos.portales.add('ramonnet');
     feature.actualizarPillsUIState();
     expect(nodos.btnFilterPills.querySelector('span').textContent).toBe('Filtros (1)');
+  });
+});
+
+// [MULTISITIO CORTE 5] Mismo motivo que en faceta.test.js: el descriptor se re-lee en cada
+// llamada, no se captura al crear la feature. Sólo afecta a Disponibles — la Cola resuelve
+// por ítem desde el corte 4, que es un mecanismo distinto.
+describe('FilterFeature — el descriptor se re-lee, no se captura (corte 5)', () => {
+  it('cambiar el portal activo cambia el título de la sección de faceta', () => {
+    const OTRO = { faceta: { ...SitioRamonNet.faceta, etiqueta: 'Comisión' } };
+    let actual = SitioRamonNet;
+    const { feature, nodos } = crearFeature({ sitio: () => actual });
+
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [{ titulo: 'a', catedra: 'A', carpeta: 'bio', estado: 'pending' }];
+
+    feature.renderizarFiltrosMenuPopover();
+    let titulos = [...nodos.filterMenu.querySelectorAll('.popover-section-title')].map(t => t.textContent);
+    expect(titulos).toContain('Cátedra');
+
+    actual = OTRO;
+    feature.renderizarFiltrosMenuPopover();
+    titulos = [...nodos.filterMenu.querySelectorAll('.popover-section-title')].map(t => t.textContent);
+    expect(titulos).toContain('Comisión');
+    expect(titulos).not.toContain('Cátedra');
   });
 });
