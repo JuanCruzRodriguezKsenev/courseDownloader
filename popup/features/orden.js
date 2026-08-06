@@ -1,6 +1,11 @@
 /**
- * FEATURE: ORDEN DE LA PESTAÑA COLA (V1.0.0)
+ * FEATURE: ORDEN DE LA PESTAÑA COLA (V1.1.0)
  * ==========================================================================
+ * CHANGELOG v1.1.0:
+ * - [MULTISITIO CORTE 6D — ADR-0011] Nace `persistirOrdenCola()`: el orden dejó de ser una
+ *   vista y pasa a mandar sobre qué se baja. El array de `colaDescargas` ES el orden y el
+ *   service worker lo obedece. Ver la función, que documenta las tres trampas.
+ *
  * Corte 6b del multi-sitio. Se lleva las tres piezas del orden que vivían sueltas en el núcleo
  * de `popup.js` —el listener del botón, el comparador y la etiqueta— que era justamente la zona
  * sin tests (ADR-0005). Extraerlas no es prolijidad: es lo que las pone bajo cobertura.
@@ -164,10 +169,41 @@ const OrdenFeature = {
     const esAscendente = () =>
       enCola() ? appState.ordenColaAscendente !== false : Boolean(appState.ordenAscendente);
 
+    /**
+     * [CORTE 6D — ADR-0011] Reescribe `colaDescargas` en el orden elegido: **el array ES el
+     * orden de descarga**, y el service worker ya no lo re-ordena.
+     *
+     * Tres cosas que no se pueden confundir acá:
+     *
+     * - **Se persiste la cola ENTERA, nunca `filtrados`.** El popup arma un subconjunto para
+     *   mostrar; persistir eso borraría de la cola todo lo filtrado. Del mismo control salen
+     *   dos caminos —ordenar y filtrar— y sólo el primero manda sobre qué se baja.
+     * - **La que se está bajando queda en el índice 0**, espejando el ancla del corte 6a. Si la
+     *   vista la muestra arriba y el array la tiene en otro lado, la promesa de esta ADR
+     *   (lo que ves es lo que se baja) deja de ser cierta en el único renglón que más se mira.
+     * - **Sólo desde la Cola.** El orden de Disponibles es una vista y nada más: esa pestaña
+     *   no decide qué se descarga.
+     */
+    function persistirOrdenCola() {
+      if (!enCola()) return;
+
+      const cola = [...(appState.colaDescargas || [])];
+      cola.sort(comparador());
+
+      const i = cola.findIndex(
+        (c) => appState.ráfagaEnCurso && c && c.titulo === appState.videoActualEnTransmisiónSW
+      );
+      if (i > 0) cola.unshift(cola.splice(i, 1)[0]);
+
+      appState.colaDescargas = cola;
+      appState.respaldar();
+    }
+
     function elegirCriterio(id) {
       if (enCola()) appState.criterioOrdenCola = id;
       else appState.criterioOrdenDisponibles = id;
       appState.respaldar();
+      persistirOrdenCola();
       actualizarBoton();
       renderizarMenu();
       renderizar();
@@ -177,6 +213,7 @@ const OrdenFeature = {
       if (enCola()) appState.ordenColaAscendente = ascendente;
       else appState.ordenAscendente = ascendente;
       appState.respaldar();
+      persistirOrdenCola();
       actualizarBoton();
       renderizarMenu();
       renderizar();
@@ -305,7 +342,15 @@ const OrdenFeature = {
       nodos.sortMenu.addEventListener("click", (e) => e.stopPropagation());
     }
 
-    return { comparador, renderizarMenu, actualizarBoton, alternarMenu, cerrarMenu, criteriosDisponibles };
+    return {
+      comparador,
+      renderizarMenu,
+      actualizarBoton,
+      alternarMenu,
+      cerrarMenu,
+      criteriosDisponibles,
+      persistirOrdenCola,
+    };
   },
 };
 

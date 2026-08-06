@@ -390,3 +390,99 @@ describe('OrdenFeature — la exclusión mutua con el popover de filtros', () =>
     expect(feature).toBeTruthy();
   });
 });
+
+// --- CORTE 6D (ADR-0011): el orden manda sobre qué se baja ---------------------------------
+// Hasta este corte el popup ordenaba para mostrar y el service worker bajaba por
+// `fechaEncolado`, ignorándolo. Ahora el array de `colaDescargas` ES el orden de descarga.
+describe('OrdenFeature — persistirOrdenCola (corte 6D)', () => {
+  it('reescribe la cola ENTERA en el orden elegido y la respalda', () => {
+    const { feature, appState } = montar({
+      criterioOrdenCola: 'nombre',
+      colaDescargas: [item({ titulo: 'C' }), item({ titulo: 'A' }), item({ titulo: 'B' })],
+    });
+
+    feature.persistirOrdenCola();
+
+    expect(appState.colaDescargas.map((c) => c.titulo)).toEqual(['A', 'B', 'C']);
+    expect(appState.respaldar).toHaveBeenCalled();
+  });
+
+  it('el sentido descendente da vuelta el array persistido', () => {
+    const { feature, appState } = montar({
+      criterioOrdenCola: 'nombre',
+      ordenColaAscendente: false,
+      colaDescargas: [item({ titulo: 'A' }), item({ titulo: 'C' }), item({ titulo: 'B' })],
+    });
+
+    feature.persistirOrdenCola();
+
+    expect(appState.colaDescargas.map((c) => c.titulo)).toEqual(['C', 'B', 'A']);
+  });
+
+  // La primera trampa que marca ADR-0011: el popup arma un subconjunto para mostrar, y
+  // persistir ESO borraría de la cola todo lo que el filtro dejó afuera.
+  it('persiste la cola completa aunque haya filtros: no pierde ítems', () => {
+    const cola = [item({ titulo: 'C' }), item({ titulo: 'A' }), item({ titulo: 'B' })];
+    const { feature, appState } = montar({ criterioOrdenCola: 'nombre', colaDescargas: cola });
+
+    feature.persistirOrdenCola();
+
+    expect(appState.colaDescargas).toHaveLength(3);
+    expect(appState.colaDescargas.map((c) => c.titulo).sort()).toEqual(['A', 'B', 'C']);
+  });
+
+  // Espeja el ancla del corte 6a: la que se está bajando se muestra arriba, así que el array
+  // tiene que tenerla arriba también o la vista y el orden de descarga discrepan.
+  it('deja la clase en descarga en el índice 0, aunque el criterio la mande a otro lado', () => {
+    const { feature, appState } = montar({
+      criterioOrdenCola: 'nombre',
+      ráfagaEnCurso: true,
+      videoActualEnTransmisiónSW: 'Z',
+      colaDescargas: [item({ titulo: 'B' }), item({ titulo: 'Z' }), item({ titulo: 'A' })],
+    });
+
+    feature.persistirOrdenCola();
+
+    expect(appState.colaDescargas.map((c) => c.titulo)).toEqual(['Z', 'A', 'B']);
+  });
+
+  it('sin ráfaga en curso no ancla nada', () => {
+    const { feature, appState } = montar({
+      criterioOrdenCola: 'nombre',
+      ráfagaEnCurso: false,
+      videoActualEnTransmisiónSW: 'Z',
+      colaDescargas: [item({ titulo: 'B' }), item({ titulo: 'Z' }), item({ titulo: 'A' })],
+    });
+
+    feature.persistirOrdenCola();
+
+    expect(appState.colaDescargas.map((c) => c.titulo)).toEqual(['A', 'B', 'Z']);
+  });
+
+  // Disponibles ordena para MOSTRAR y nada más: esa pestaña no decide qué se descarga.
+  it('desde Disponibles no toca la cola', () => {
+    const cola = [item({ titulo: 'C' }), item({ titulo: 'A' })];
+    const { feature, appState } = montar({
+      pestañaActiva: 'disponibles',
+      criterioOrdenDisponibles: 'nombre',
+      colaDescargas: cola,
+    });
+
+    feature.persistirOrdenCola();
+
+    expect(appState.colaDescargas.map((c) => c.titulo)).toEqual(['C', 'A']);
+  });
+
+  it('elegir criterio y sentido en la Cola persiste el orden nuevo', () => {
+    const { feature, appState, nodos } = montar({
+      colaDescargas: [item({ titulo: 'C' }), item({ titulo: 'A' }), item({ titulo: 'B' })],
+    });
+
+    feature.renderizarMenu();
+    const opcionNombre = [...nodos.sortMenu.querySelectorAll('.popover-option')]
+      .find((o) => o.textContent.includes('Nombre'));
+    opcionNombre.click();
+
+    expect(appState.colaDescargas.map((c) => c.titulo)).toEqual(['A', 'B', 'C']);
+  });
+});

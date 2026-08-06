@@ -112,6 +112,35 @@ describe("arrancarSiNoCorre — la guarda contra dos ráfagas simultáneas", () 
   });
 });
 
+// ADR-0011 (corte 6D): el array de `colaDescargas` ES el orden de descarga. Hasta este corte
+// el bucle ordenaba por `fechaEncolado` en cada vuelta y el orden del popup era sólo una vista.
+describe("el orden de la cola lo decide el array", () => {
+  it("baja el PRIMERO del array aunque su fechaEncolado sea el más nuevo", async () => {
+    const { cola, almacenamiento, sesion, motor } = montar();
+    await sesion.set({ rafagaCorriendo: true });
+    // Deliberadamente al revés de lo que diría `fechaEncolado`: es lo que escribe el popup
+    // cuando el usuario invierte el orden. Con el `sort` viejo, esto bajaba "Primera".
+    await almacenamiento.guardarLocal({
+      colaDescargas: [
+        { ...item("Ultima"), fechaEncolado: 9999 },
+        { ...item("Primera"), fechaEncolado: 1 },
+      ],
+      listaPersistente: [],
+    });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    // Lo que importa es cuál bajó PRIMERO: el bucle sigue con el resto igual.
+    // La firma del motor es (meta, signal, subcarpeta, contexto, callbacks): el título va
+    // en el contexto de la ráfaga.
+    const titulos = motor.compilarTranscodificacionStream.mock.calls.map(
+      (c: unknown[]) => (c[3] as { titulo: string }).titulo
+    );
+    expect(titulos[0]).toBe("Ultima");
+  });
+});
+
 // ADR-0010: el portal se resuelve POR ÍTEM. Estos dos casos son la razón de ser del corte —
 // distinguir "dato viejo" de "portal desconocido", que hasta acá eran indistinguibles.
 describe("resolución del portal por ítem", () => {

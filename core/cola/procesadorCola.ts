@@ -1,12 +1,18 @@
 /**
- * PROCESADOR DE LA COLA DE DESCARGA (V1.0.0)
+ * PROCESADOR DE LA COLA DE DESCARGA (V1.1.0)
  * ==========================================================================
  * Capa 1. Salió de `background.js` en la Fase 6b — es el bloque de lógica más grande que
  * tenía el service worker, y el más sensible del proyecto.
  *
+ * CHANGELOG v1.1.0:
+ * - [MULTISITIO CORTE 6D — ADR-0011] Se fue el `sort` por `fechaEncolado`: **el array de
+ *   `colaDescargas` ES el orden de descarga**. El popup lo escribe, este bucle baja `[0]`.
+ *   Con eso esta capa deja de tener una política de orden propia — una decisión menos en el
+ *   lugar que menos se puede observar.
+ *
  * QUÉ ES
  * ------
- * El bucle FIFO que toma la primera clase de la cola, la descarga con el motor HLS y decide
+ * El bucle que toma la primera clase de la cola, la descarga con el motor HLS y decide
  * qué pasa cuando algo falla. Esa segunda parte es el verdadero contenido: **la clasificación
  * de fallos tiene cuatro caminos y cada uno existe por un bug real**.
  *
@@ -265,9 +271,18 @@ export function crearProcesadorCola(deps: DependenciasCola) {
       const listaCompleta = data.listaPersistente || [];
       const colaDescargas = data.colaDescargas || [];
 
-      // FIFO estricto por fecha de encolado, no por el orden del array: la cola se puede
-      // haber reordenado en storage entre dos vueltas del bucle.
-      colaDescargas.sort((a, b) => (a.fechaEncolado || 0) - (b.fechaEncolado || 0));
+      // [MULTISITIO CORTE 6D — ADR-0011] Acá vivía un `sort` por `fechaEncolado`, y con él la
+      // única política de orden que tenía esta capa. Ya no: **el array ES el orden de
+      // descarga**. El popup lo escribe, este bucle lo obedece y baja `[0]`.
+      //
+      // Que la cola se pueda reordenar en storage entre dos vueltas dejó de ser el riesgo que
+      // ese `sort` cubría y pasó a ser el mecanismo: es exactamente así como el usuario decide
+      // qué se baja después. `fechaEncolado` sigue existiendo —es el dato del criterio "de
+      // llegada" y el que normaliza las colas viejas al cargarlas—, pero dejó de ser *la*
+      // fuente del orden.
+      //
+      // El riesgo aceptado (ver la ADR): si el popup escribiera un orden inconsistente, este
+      // bucle ya no tiene una red que lo corrija. La red es que el popup sea el único escritor.
 
       if (colaDescargas.length === 0) {
         await sesion.set({ rafagaCorriendo: false });

@@ -402,3 +402,57 @@ describe("migración del orden de la Cola (corte 6b)", () => {
     expect(app.criterioOrdenCola).toBe("llegada");
   });
 });
+
+// [MULTISITIO CORTE 6D — ADR-0011] Normalización de una sola vez de la cola vieja.
+//
+// Desde el 6d el array de `colaDescargas` ES el orden de descarga. Una cola guardada ANTES
+// quedó en el orden en que el array fue quedando, que nadie garantizó nunca porque el service
+// worker la re-ordenaba en cada vuelta. Sin esta normalización, actualizar la extensión le
+// cambiaría el orden de la cola al usuario sin que nadie lo hubiera pedido.
+describe("normalización de la cola vieja (corte 6d)", () => {
+  async function cargarCon(persistido: Record<string, unknown>) {
+    const almacenamiento = new AlmacenamientoEnMemoria();
+    await almacenamiento.guardarLocal(persistido);
+    const app = crearAppState(almacenamiento, new MensajeriaEnMemoria(1000));
+    await app.inicializarSincronizacionStorage();
+    return app;
+  }
+
+  const titulos = (app: { colaDescargas: unknown[] }) =>
+    app.colaDescargas.map((c) => (c as { titulo: string }).titulo);
+
+  it("una instalación vieja recibe la cola ordenada por fechaEncolado", async () => {
+    const app = await cargarCon({
+      colaDescargas: [
+        { titulo: "C", fechaEncolado: 30 },
+        { titulo: "A", fechaEncolado: 10 },
+        { titulo: "B", fechaEncolado: 20 },
+      ],
+    });
+
+    expect(titulos(app)).toEqual(["A", "B", "C"]);
+  });
+
+  it("una instalación YA migrada conserva el array tal cual, que es su orden elegido", async () => {
+    // La señal es `criterioOrdenCola`: si está, el usuario ya ordenó y ese array manda.
+    // Re-normalizar acá le daría vuelta el orden en cada arranque.
+    const app = await cargarCon({
+      criterioOrdenCola: "nombre",
+      ordenColaAscendente: true,
+      colaDescargas: [
+        { titulo: "C", fechaEncolado: 30 },
+        { titulo: "A", fechaEncolado: 10 },
+      ],
+    });
+
+    expect(titulos(app)).toEqual(["C", "A"]);
+  });
+
+  it("un ítem sin fechaEncolado no rompe el orden ni tira", async () => {
+    const app = await cargarCon({
+      colaDescargas: [{ titulo: "B", fechaEncolado: 20 }, { titulo: "SinFecha" }],
+    });
+
+    expect(titulos(app)).toEqual(["SinFecha", "B"]);
+  });
+});

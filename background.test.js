@@ -389,13 +389,20 @@ describe('bucle de descarga — camino feliz', () => {
     expect(guardadas).toEqual(['Clase 1', 'Clase 2']);
   });
 
-  it('respeta el orden FIFO por fechaEncolado, no el del array', async () => {
+  // [MULTISITIO CORTE 6D — ADR-0011] Este test decía lo contrario: "respeta el orden FIFO por
+  // fechaEncolado, NO el del array". Era la caracterización del `sort` que el bucle hacía en
+  // cada vuelta, y es justo la conducta que la ADR invierte — el array pasa a SER el orden de
+  // descarga. Se invierte la afirmación, que es lo honesto: el contrato cambió por decisión.
+  //
+  // Ojo con lo que este test protege ahora: que `fechaEncolado` haya dejado de mandar. Si un
+  // día alguien vuelve a ordenar en el service worker, esto se pone rojo.
+  it('baja en el orden del ARRAY, no por fechaEncolado (el popup es el único que ordena)', async () => {
     await arrancarCola([item('Segunda', 200), item('Primera', 100)]);
 
     await esperarA(() => accionesEnviadas().includes('cola_completamente_vacia'), 'cola vacía');
 
     const guardadas = mensajeria.notificados.filter(m => m.action === 'clase_guardada_ok').map(m => m.titulo);
-    expect(guardadas).toEqual(['Primera', 'Segunda']);
+    expect(guardadas).toEqual(['Segunda', 'Primera']);
   });
 
   it('le pasa al motor el contexto de la ráfaga (turbo, título, sessionId y cómo frenar a los hermanos)', async () => {

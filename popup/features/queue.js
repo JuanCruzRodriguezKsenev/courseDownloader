@@ -89,6 +89,10 @@ const QueueFeature = {
       renderizar,
       setVerificandoConexion,
       setReintentandoCola,
+      // [CORTE 6D — ADR-0011] Reordena la cola persistida según el criterio elegido. Encolar
+      // agrega al final, así que sin esto un ítem nuevo contradiría el orden que la pantalla
+      // muestra — y desde este corte ese orden es el de descarga, no una vista.
+      reordenarCola,
       mensajeria,
       appState,
       conexion,
@@ -143,6 +147,11 @@ const QueueFeature = {
       } else {
         nodos.txtEstado.textContent = `📥 ¡Clases agregadas! Pasá a la pestaña de Fila para iniciar.`;
       }
+
+      // [CORTE 6D] Antes de respaldar: lo recién agregado va al final del array y el criterio
+      // vigente puede querer otra cosa. El rollback de más abajo sigue funcionando porque
+      // filtra por id, no por posición.
+      if (reordenarCola) reordenarCola();
 
       appState.respaldar();
       aplicarFiltros();

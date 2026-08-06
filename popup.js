@@ -394,6 +394,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       renderizar: () => renderizarListadoInterfaz(),
       setVerificandoConexion: (v) => { verificandoConexionBoton = v; },
       setReintentandoCola: (v) => { reintentandoColaActivo = v; },
+      // [CORTE 6D — ADR-0011] Diferido a propósito: `_orden` se crea más abajo. Se invoca
+      // recién al encolar, mucho después de que este init termine.
+      reordenarCola: () => _orden.persistirOrdenCola(),
       // PuertoMensajeria (Fase 5c): lo publica plataforma/composicion.ts. La feature ya no
       // toca chrome.runtime; el IPC entra por acá.
       mensajeria: mensajeria,

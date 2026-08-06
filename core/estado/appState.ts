@@ -1,6 +1,12 @@
 /**
- * MAQUINARIA DE ESTADO CENTRAL DEL POPUP (V6.2.0)
+ * MAQUINARIA DE ESTADO CENTRAL DEL POPUP (V6.3.0)
  * ==============================================================================================
+ * CHANGELOG v6.3.0:
+ * - [MULTISITIO CORTE 6D — ADR-0011] Normalización de una sola vez de `colaDescargas` por
+ *   `fechaEncolado` para las instalaciones anteriores al corte 6b. Desde este corte el array
+ *   es el orden de descarga, y una cola guardada antes está en un orden que nadie garantizó
+ *   —el service worker la re-ordenaba en cada vuelta—. Se cuelga de la rama de migración que
+ *   ya existía, así que no agrega una clave nueva a storage.
  * CHANGELOG v6.2.0:
  * - [FASE 5C] Generalizado el último vocabulario de sitio: `catedraSeleccionada` pasa a
  *   `facetaSeleccionada` en memoria y la clave persistida `catedraElegida` a `facetaElegida`.
@@ -245,6 +251,22 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: 
       } else {
         app.criterioOrdenCola = data.ordenAscendente == null ? "llegada" : "nombre";
         app.ordenColaAscendente = data.ordenAscendente == null ? true : data.ordenAscendente;
+
+        // [MULTISITIO CORTE 6D — ADR-0011] Normalización de una sola vez de la cola vieja.
+        //
+        // Desde este corte el array ES el orden de descarga, pero una cola guardada ANTES
+        // quedó en el orden en que el array fue quedando, que nadie garantizó nunca porque el
+        // service worker lo re-ordenaba en cada vuelta. Al cargarla por primera vez hay que
+        // dejarla en el orden que el usuario venía viendo: por `fechaEncolado`.
+        //
+        // Va en esta rama y no en una propia porque este `else` YA ES la señal de "instalación
+        // anterior al corte 6b": en cuanto se respalde, `criterioOrdenCola` queda escrito y no
+        // se vuelve a entrar. Así la migración no necesita una clave nueva en storage.
+        app.colaDescargas = [...app.colaDescargas].sort(
+          (a, b) =>
+            ((a as { fechaEncolado?: number })?.fechaEncolado || 0) -
+            ((b as { fechaEncolado?: number })?.fechaEncolado || 0)
+        );
       }
 
       // Disponibles no necesita migración: sin la clave, el default reproduce lo de antes.
