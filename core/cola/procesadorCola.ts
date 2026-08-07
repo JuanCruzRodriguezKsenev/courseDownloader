@@ -74,6 +74,13 @@ export interface SitioDeDescarga {
   resolverManifiesto(urlClase: string, signal: AbortSignal): Promise<string>;
   /** Nombre del portal, para el copy que ve el usuario. Capa 1 no lo puede saber. */
   nombre: string;
+  /**
+   * [MULTIPORTAL E] Identificador del portal. Viaja hasta el backend con cada fragmento: define
+   * la carpeta `raíz/<portal>/<materia>/` donde se escribe el archivo. Se pide acá y no se lee
+   * de `ItemCola.sitioId` a propósito — el del descriptor ya pasó por la migración, así que un
+   * ítem sin `sitioId` escribe en la carpeta del portal legado y no en una vacía.
+   */
+  id: string;
 }
 
 export interface ItemCola {
@@ -152,6 +159,8 @@ export interface DependenciasCola {
     terminados: number;
     totales: number;
     velocidad: number;
+    /** [MULTIPORTAL E] El backend lo necesita para saber de qué descarga es este progreso. */
+    sitioId?: string;
   }): void;
   /** Capa 3, camino legacy no-Turbo: volcar el blob a disco. */
   guardarBlobLegacy(blob: Blob, subRuta: string): Promise<void>;
@@ -344,6 +353,8 @@ export function crearProcesadorCola(deps: DependenciasCola) {
       await sesion.set({
         videoActualTitulo: tituloInmutableVideo,
         videoActualSessionId: sessionId,
+        // [MULTIPORTAL E] Para que el aborto sepa en qué carpeta de portal limpiar el `.part`.
+        videoActualSitioId: sitioDelItem.id,
         bytesProcesadosEnVideoActual: 0,
         fragmentosTerminadosEnVideoActual: 0,
         totalFragmentosEnVideoActual: 0,
@@ -388,6 +399,9 @@ export function crearProcesadorCola(deps: DependenciasCola) {
             modoTurbo: currentState.modoTurboBunActivo,
             titulo: tituloInmutableVideo,
             sessionId,
+            // [MULTIPORTAL E] Va hasta el backend con cada fragmento: define en qué carpeta de
+            // portal se escribe el archivo. El portal es el DEL ÍTEM, resuelto arriba.
+            sitioId: sitioDelItem.id,
             // El motor sabe CUÁNDO frenar la ráfaga; el dueño del controlador es este bucle.
             abortarHermanos: () => controlador.abort(),
           },
@@ -416,6 +430,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
               if (current.modoTurboBunActivo) {
                 actualizarConsolaBackend({
                   titulo: tituloInmutableVideo,
+                  sitioId: sitioDelItem.id,
                   porcentaje: progreso.porcentaje,
                   terminados: fragmentosTerminados,
                   totales: totalUrls,

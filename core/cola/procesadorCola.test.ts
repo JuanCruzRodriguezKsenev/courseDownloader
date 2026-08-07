@@ -54,7 +54,7 @@ function montar(over: Record<string, any> = {}) {
     sitios: over.sitios ?? {
       obtener: (id: string | undefined) =>
         id === undefined || id === "prueba"
-          ? { resolverManifiesto: resolverManifiestoDoble, nombre: "Portal de Prueba" }
+          ? { resolverManifiesto: resolverManifiestoDoble, nombre: "Portal de Prueba", id: "prueba" }
           : undefined,
     },
     historial: { registrar: vi.fn().mockResolvedValue({}) },
@@ -377,5 +377,67 @@ describe("el sitioId del ítem viaja hasta el aviso de fallo", () => {
       expect.any(String),
       "portal-borrado"
     );
+  });
+});
+
+// [MULTIPORTAL E] El portal del ítem viaja hasta el backend: define la carpeta
+// `raíz/<portal>/<materia>/` donde se escribe el archivo, y con qué clave el backend acumula
+// los fragmentos. Sin él, dos clases homónimas de portales distintos escriben el mismo archivo.
+describe("el portal del ítem viaja al backend", () => {
+  it("el contexto de la ráfaga lleva el sitioId del ítem", async () => {
+    const { cola, almacenamiento, sesion, motor } = montar();
+    await sesion.set({ rafagaCorriendo: true });
+    await almacenamiento.guardarLocal({
+      colaDescargas: [{ ...item("Clase 1"), sitioId: "prueba" }],
+      listaPersistente: [],
+    });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    const contexto = motor.compilarTranscodificacionStream.mock.calls[0]![3] as {
+      sitioId?: string;
+    };
+    expect(contexto.sitioId).toBe("prueba");
+  });
+
+  it("un ítem SIN sitioId usa el portal del descriptor migrado, no una carpeta vacía", async () => {
+    // El resolvedor migra el ausente al legado, así que el archivo cae en la carpeta de ese
+    // portal. Leer `item.sitioId` crudo habría mandado `undefined` y el backend habría escrito
+    // en el layout viejo, mezclando lo nuevo con lo de antes.
+    const { cola, almacenamiento, sesion, motor } = montar();
+    await sesion.set({ rafagaCorriendo: true });
+    await almacenamiento.guardarLocal({
+      colaDescargas: [item("Vieja")],
+      listaPersistente: [],
+    });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    const contexto = motor.compilarTranscodificacionStream.mock.calls[0]![3] as {
+      sitioId?: string;
+    };
+    expect(contexto.sitioId).toBe("prueba");
+  });
+
+  it("la sesión recuerda el portal en curso, para que el aborto limpie el .part correcto", async () => {
+    const { cola, almacenamiento, sesion } = montar({
+      motor: {
+        compilarTranscodificacionStream: vi.fn(
+          () => new Promise(() => {}) // queda colgada: la ráfaga sigue "en curso"
+        ),
+      },
+    });
+    await sesion.set({ rafagaCorriendo: true });
+    await almacenamiento.guardarLocal({
+      colaDescargas: [{ ...item("Clase 1"), sitioId: "prueba" }],
+      listaPersistente: [],
+    });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    expect((await sesion.get()).videoActualSitioId).toBe("prueba");
   });
 });

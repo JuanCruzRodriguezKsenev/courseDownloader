@@ -407,12 +407,14 @@ export function iniciarServiceWorker({
       const state = await sesion.get();
       const titulo = state.videoActualTitulo;
       const sessionId = state.videoActualSessionId || "";
+      const sitioId = state.videoActualSitioId || "";
 
       await sesion.set({
         rafagaCorriendo: false,
         frenadoSuaveSolicitado: false,
         videoActualTitulo: "",
         videoActualSessionId: "",
+        videoActualSitioId: "",
         colaPausadaPorError: false,
         tipoDeErrorConexion: "",
         abortadoPorUsuario: true
@@ -421,7 +423,9 @@ export function iniciarServiceWorker({
       programador.cancelar(ALARMA_AUTOHEAL);
 
       if (titulo) {
-        await backend.cancelarDescarga(titulo, sessionId);
+        // [MULTIPORTAL E] Con el portal: sin él, el backend podría borrar el `.part` de la
+        // clase homónima del otro portal, que quizás está a medio bajar.
+        await backend.cancelarDescarga(titulo, sessionId, sitioId);
       }
 
       // También resetear las clases en la cola a pending

@@ -20,6 +20,17 @@ export interface HeadersFragmento {
   chunkIndex: number;
   totalChunks: number;
   targetFolder: string;
+  /**
+   * [MULTIPORTAL E] De qué portal es la clase. El backend lo usa como carpeta un nivel arriba
+   * de la materia (`raíz/<portal>/<materia>/`) y como parte de la clave de su acumulador.
+   *
+   * Va en su propio campo y no pegado a `targetFolder` porque el backend sanitiza cada
+   * segmento con `path.basename()`: un `"portal/materia"` se colapsaría a `"materia"` y la
+   * carpeta de portal desaparecería sin que nada avise.
+   *
+   * Opcional: sin él, el backend usa el layout viejo de un solo nivel.
+   */
+  siteFolder?: string;
   sessionId?: string;
 }
 
@@ -30,6 +41,8 @@ export interface DatosConsola {
   terminados: number;
   totales: number;
   velocidad: number;
+  /** [MULTIPORTAL E] El backend lo necesita para saber de qué descarga es este progreso. */
+  sitioId?: string;
 }
 
 /**
@@ -80,9 +93,15 @@ export const BunClient = {
     return this.baseUrl;
   },
 
-  /** Consulta los archivos ya descargados en la subcarpeta indicada. */
-  async escanearDisco(subcarpeta: string): Promise<{ archivos?: string[] }> {
-    const url = `${this.baseUrl}/api/escanear-disco?carpeta=${encodeURIComponent(subcarpeta)}`;
+  /**
+   * Consulta los archivos ya descargados en la subcarpeta indicada, dentro del portal dado.
+   *
+   * [MULTIPORTAL E] Sin `sitioId` mira el layout viejo (un solo nivel), que es lo que hace que
+   * este cliente siga hablando con un backend anterior al cambio.
+   */
+  async escanearDisco(subcarpeta: string, sitioId?: string): Promise<{ archivos?: string[] }> {
+    const sufijoSitio = sitioId ? `&sitio=${encodeURIComponent(sitioId)}` : "";
+    const url = `${this.baseUrl}/api/escanear-disco?carpeta=${encodeURIComponent(subcarpeta)}${sufijoSitio}`;
     const res = await fetch(url);
     if (!res.ok) {
       throw new Error("El servidor local Bun no respondió correctamente.");
@@ -138,6 +157,7 @@ export const BunClient = {
           "x-chunk-index":   headers.chunkIndex.toString(),
           "x-total-chunks":  headers.totalChunks.toString(),
           "x-target-folder": headers.targetFolder,
+          "x-site-folder":   headers.siteFolder || "",
           "x-session-id":    headers.sessionId || ""
         },
         body: bloqueBinario,
@@ -207,10 +227,13 @@ export const BunClient = {
   },
 
   /** Avisa al backend que se canceló una descarga, para que limpie los temporales. */
-  async cancelarDescarga(titulo: string, sessionId?: string): Promise<boolean> {
+  async cancelarDescarga(titulo: string, sessionId?: string, sitioId?: string): Promise<boolean> {
     try {
+      // [MULTIPORTAL E] Sin el portal, cancelar podía borrar el `.part` de la clase homónima
+      // del otro portal — que además estaría a medio bajar.
+      const sufijoSitio = sitioId ? `&sitio=${encodeURIComponent(sitioId)}` : "";
       const res = await fetch(
-        `${this.baseUrl}/api/cancelar-descarga?titulo=${encodeURIComponent(titulo)}&sessionId=${encodeURIComponent(sessionId || "")}`
+        `${this.baseUrl}/api/cancelar-descarga?titulo=${encodeURIComponent(titulo)}&sessionId=${encodeURIComponent(sessionId || "")}${sufijoSitio}`
       );
       return res.ok;
     } catch (e) {

@@ -186,9 +186,9 @@ cuenta, así que tienen que pasar por la lectura que migra las claves viejas. Es
 que el corte 3 encontró en la cola — el SW no pasa por la normalización de `AppState`, que es
 del popup.
 
-**Lo que esto NO cambia**: el nombre del archivo en disco sigue siendo el título. Dos portales
-con una clase homónima en la misma materia todavía escribirían el mismo archivo; eso lo resuelve
-la carpeta de portal (`raíz/<sitioId>/<materia>/`).
+**Y el disco acompaña**: desde el mismo día la ruta es `raíz/<sitioId>/<materia>/`, así que dos
+clases homónimas de portales distintos tampoco comparten archivo. El contrato con el backend
+está en `docs/deployment.md` §El layout en disco lleva el portal.
 
 ## Invariantes que hay que preservar
 

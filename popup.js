@@ -1002,21 +1002,34 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       };
 
       // ─── PIPELINE DE LECTURA DE DATOS (MULTIPLE O BUN SERVER DIRECTO) ────────
-      const carpetasUnicas = Array.from(new Set(appState.listadoClasesGlobal.map(c => c.carpeta || subcarpetaFiltro)));
-      if (carpetasUnicas.length === 0) {
-        carpetasUnicas.push(subcarpetaFiltro);
+      // [MULTIPORTAL E] Se escanea por PAR (portal, materia), no por materia sola: en disco la
+      // ruta es `raíz/<portal>/<materia>/`, así que pedir sólo la materia miraría la carpeta
+      // equivocada — y la extensión daría por no descargado todo lo que sí está.
+      //
+      // El portal sale del descriptor de cada clase (con la migración aplicada) y no del campo
+      // crudo, así que una clase anterior al multi-sitio se busca en la carpeta del legado.
+      const paresUnicos = new Map();
+      appState.listadoClasesGlobal.forEach(c => {
+        const carpeta = c.carpeta || subcarpetaFiltro;
+        const idPortal = sitios.obtener(c && c.sitioId)?.id;
+        if (!idPortal) return; // huérfano: no sabemos en qué carpeta de portal buscar
+        paresUnicos.set(`${idPortal}|${carpeta}`, { idPortal, carpeta });
+      });
+      if (paresUnicos.size === 0) {
+        const idPortal = sitioActivo.id;
+        paresUnicos.set(`${idPortal}|${subcarpetaFiltro}`, { idPortal, carpeta: subcarpetaFiltro });
       }
 
       try {
         let todosLosArchivos = [];
-        const promesas = carpetasUnicas.map(carp => 
-          backend.escanearDisco(carp)
+        const promesas = Array.from(paresUnicos.values()).map(({ idPortal, carpeta: carp }) =>
+          backend.escanearDisco(carp, idPortal)
             .then(data => data?.archivos || [])
             .catch(e => {
               if (e instanceof TypeError || e.message?.includes("fetch") || e.message?.includes("connect")) {
                 throw e;
               }
-              console.warn(`⚠️ No se pudo escanear la carpeta ${carp}:`, e.message);
+              console.warn(`⚠️ No se pudo escanear la carpeta ${idPortal}/${carp}:`, e.message);
               return [];
             })
         );

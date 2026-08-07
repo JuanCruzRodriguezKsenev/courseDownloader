@@ -144,6 +144,8 @@ beforeAll(async () => {
     resolverManifiesto: async () => 'https://cdn/video.m3u8',
     // El nombre del portal alimenta el copy de la pausa (Capa 1 no lo puede saber).
     nombre: 'Portal de Prueba',
+    // MULTIPORTAL E: el id viaja al backend y define la carpeta de portal en disco.
+    id: 'ramonnet',
     patronPestañas: 'https://portal/*',
     urlSondeoInternet: 'https://portal',
   };

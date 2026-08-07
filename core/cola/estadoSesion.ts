@@ -44,6 +44,12 @@ export interface EstadoSesion {
   abortadoPorUsuario: boolean;
   /** Vincula los fragmentos de una ráfaga; evita huérfanos en disco al cancelar. */
   videoActualSessionId: string;
+  /**
+   * [MULTIPORTAL E] De qué portal es el video en curso. Lo necesita el aborto para decirle al
+   * backend en qué carpeta de portal está el `.part` a limpiar; sin él borraría el de la clase
+   * homónima del otro portal, que podría estar bajándose.
+   */
+  videoActualSitioId: string;
 }
 
 export const DEFAULTS: EstadoSesion = {
@@ -60,6 +66,7 @@ export const DEFAULTS: EstadoSesion = {
   tipoDeErrorConexion: "",
   abortadoPorUsuario: false,
   videoActualSessionId: "",
+  videoActualSitioId: "",
 };
 
 export function crearEstadoSesion(almacenamiento: PuertoAlmacenamiento) {
