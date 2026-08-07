@@ -44,6 +44,7 @@ import type { PuertoAlmacenamiento } from "../puertos/almacenamiento";
 import type { PuertoMensajeria } from "../puertos/mensajeria";
 import type { PuertoProgramador } from "../puertos/programador";
 import type { EstadoSesionAPI } from "./estadoSesion";
+import type { IdentidadClase } from "./identidadClase";
 import type { MetadataHls, ContextoRafaga, CallbacksRafaga } from "../hls/hlsEngine";
 
 /** Nombre y período de la tarea de auto-sanación. 0.2 min = 12 s. */
@@ -73,6 +74,13 @@ export interface SitioDeDescarga {
   resolverManifiesto(urlClase: string, signal: AbortSignal): Promise<string>;
   /** Nombre del portal, para el copy que ve el usuario. Capa 1 no lo puede saber. */
   nombre: string;
+  /**
+   * [MULTIPORTAL E] Identificador del portal. Viaja hasta el backend con cada fragmento: define
+   * la carpeta `raíz/<portal>/<materia>/` donde se escribe el archivo. Se pide acá y no se lee
+   * de `ItemCola.sitioId` a propósito — el del descriptor ya pasó por la migración, así que un
+   * ítem sin `sitioId` escribe en la carpeta del portal legado y no en una vacía.
+   */
+  id: string;
 }
 
 export interface ItemCola {
@@ -151,12 +159,20 @@ export interface DependenciasCola {
     terminados: number;
     totales: number;
     velocidad: number;
+    /** [MULTIPORTAL E] El backend lo necesita para saber de qué descarga es este progreso. */
+    sitioId?: string;
   }): void;
   /** Capa 3, camino legacy no-Turbo: volcar el blob a disco. */
   guardarBlobLegacy(blob: Blob, subRuta: string): Promise<void>;
   /** Espejo liviano de progreso que lee el popup. */
   persistirEstados(estados: Record<string, string>): Promise<void>;
   recuperarEstados(): Promise<Record<string, string>>;
+  /**
+   * [MULTIPORTAL D] Cómo se decide si dos ítems son la misma clase. Entra como colaborador y
+   * no se arma acá para que el service worker, el popup y este bucle no puedan divergir — la
+   * misma razón por la que el resolvedor de portales es un export compartido (corte 4).
+   */
+  identidad: IdentidadClase;
 }
 
 export function crearProcesadorCola(deps: DependenciasCola) {
@@ -175,6 +191,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
     guardarBlobLegacy,
     persistirEstados,
     recuperarEstados,
+    identidad,
   } = deps;
 
   // Estado volátil del service worker. Privado: se toca sólo por la API de abajo.
@@ -294,6 +311,11 @@ export function crearProcesadorCola(deps: DependenciasCola) {
 
       const elementoActual = colaDescargas[0]!;
       const tituloInmutableVideo = elementoActual.titulo;
+      // [MULTIPORTAL D] La identidad es (portal, título), no el título solo: dos portales
+      // pueden tener una clase homónima y sacar "la del título X" borraría las dos. Ver
+      // `core/cola/identidadClase.ts`, que es el único lugar donde vive esa regla.
+      const esteItem = { titulo: tituloInmutableVideo, sitioId: elementoActual.sitioId };
+      const claveItem = identidad.clave(esteItem);
 
       // ADR-0010: el portal sale del ÍTEM. Puede no resolver —el `sitioId` viene de storage y
       // puede nombrar un portal que ya no está registrado—, y eso es un fallo DETERMINÍSTICO:
@@ -305,8 +327,8 @@ export function crearProcesadorCola(deps: DependenciasCola) {
       const sitioDelItem = sitios.obtener(elementoActual.sitioId);
       if (!sitioDelItem) {
         console.warn(`⛔ [SW] "${tituloInmutableVideo}" quedó huérfana: su portal (${elementoActual.sitioId ?? "sin id"}) no está registrado. Se salta y la cola sigue.`);
-        const colaFiltrada = colaDescargas.filter((c) => c.titulo !== tituloInmutableVideo);
-        const objHuerfano = listaCompleta.find((c) => c.titulo === tituloInmutableVideo);
+        const colaFiltrada = colaDescargas.filter((c) => !identidad.misma(c, esteItem));
+        const objHuerfano = listaCompleta.find((c) => identidad.misma(c, esteItem));
         if (objHuerfano) objHuerfano.estado = "pending";
         await almacenamiento.guardarLocal({
           listaPersistente: listaCompleta,
@@ -331,6 +353,8 @@ export function crearProcesadorCola(deps: DependenciasCola) {
       await sesion.set({
         videoActualTitulo: tituloInmutableVideo,
         videoActualSessionId: sessionId,
+        // [MULTIPORTAL E] Para que el aborto sepa en qué carpeta de portal limpiar el `.part`.
+        videoActualSitioId: sitioDelItem.id,
         bytesProcesadosEnVideoActual: 0,
         fragmentosTerminadosEnVideoActual: 0,
         totalFragmentosEnVideoActual: 0,
@@ -340,7 +364,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
       });
 
       const estados = await recuperarEstados();
-      estados[tituloInmutableVideo] = "process";
+      estados[claveItem] = "process";
       await persistirEstados(estados);
 
       controladorGraficoActivo = new AbortController();
@@ -375,6 +399,9 @@ export function crearProcesadorCola(deps: DependenciasCola) {
             modoTurbo: currentState.modoTurboBunActivo,
             titulo: tituloInmutableVideo,
             sessionId,
+            // [MULTIPORTAL E] Va hasta el backend con cada fragmento: define en qué carpeta de
+            // portal se escribe el archivo. El portal es el DEL ÍTEM, resuelto arriba.
+            sitioId: sitioDelItem.id,
             // El motor sabe CUÁNDO frenar la ráfaga; el dueño del controlador es este bucle.
             abortarHermanos: () => controlador.abort(),
           },
@@ -403,6 +430,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
               if (current.modoTurboBunActivo) {
                 actualizarConsolaBackend({
                   titulo: tituloInmutableVideo,
+                  sitioId: sitioDelItem.id,
                   porcentaje: progreso.porcentaje,
                   terminados: fragmentosTerminados,
                   totales: totalUrls,
@@ -454,14 +482,14 @@ export function crearProcesadorCola(deps: DependenciasCola) {
           "colaDescargas",
         ]);
         const colaActual = (dataUpdate.colaDescargas || []).filter(
-          (c) => c.titulo !== tituloInmutableVideo
+          (c) => !identidad.misma(c, esteItem)
         );
 
-        const objPersistente = listaCompleta.find((c) => c.titulo === tituloInmutableVideo);
+        const objPersistente = listaCompleta.find((c) => identidad.misma(c, esteItem));
         if (objPersistente) objPersistente.estado = "downloaded";
 
         const estadosUpdate = await recuperarEstados();
-        delete estadosUpdate[tituloInmutableVideo];
+        delete estadosUpdate[claveItem];
 
         // Escritura ATÓMICA: las tres claves describen el estado de la misma clase
         // (descargada → fuera de la cola, marcada 'downloaded', sin entrada de progreso).
@@ -513,12 +541,12 @@ export function crearProcesadorCola(deps: DependenciasCola) {
             "colaDescargas",
           ]);
           const colaFiltrada = (dataUpdate.colaDescargas || []).filter(
-            (c) => c.titulo !== tituloInmutableVideo
+            (c) => !identidad.misma(c, esteItem)
           );
-          const objPersistente = listaCompleta.find((c) => c.titulo === tituloInmutableVideo);
+          const objPersistente = listaCompleta.find((c) => identidad.misma(c, esteItem));
           if (objPersistente) objPersistente.estado = "pending";
           const estadosUpdate = await recuperarEstados();
-          delete estadosUpdate[tituloInmutableVideo];
+          delete estadosUpdate[claveItem];
           // Misma escritura atómica de 3 claves que el path de éxito.
           await almacenamiento.guardarLocal({
             listaPersistente: listaCompleta,

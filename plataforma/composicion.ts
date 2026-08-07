@@ -26,6 +26,7 @@ import { crearFetchConReintentos } from "../core/util/reintentos";
 import { crearHlsEngine } from "../core/hls/hlsEngine";
 import { crearEstadoSesion } from "../core/cola/estadoSesion";
 import { crearEstadosProgreso } from "../core/cola/estadosProgreso";
+import { crearIdentidadClase } from "../core/cola/identidadClase";
 import { crearProcesadorCola } from "../core/cola/procesadorCola";
 import { notificarFallo, sitioIdDeNotificacion } from "./chrome/notificaciones";
 import { crearVolcadoLegacy } from "./chrome/volcadoLegacy";
@@ -34,10 +35,13 @@ import { crearHistorialFallos } from "../core/historial/historialFallos";
 import { crearAppState, SITIO_LEGADO } from "../core/estado/appState";
 import { crearConexion } from "../core/conexion/conexion";
 // Capa 2, vía el REGISTRO (multi-sitio, corte 2) y ya no importando el portal directo: quién
-// está activo lo decide `sitio/registro.ts`, no `sitio/ramonnet/`. El alias local conserva el
-// nombre `SitioActivo` para no mezclar este corte con un renombre de 6 usos; los cortes 3 y 5
-// se lo llevan cuando la resolución pase a ser por ítem y por pestaña.
-import { Sitios, sitioAsumido as SitioActivo } from "../sitio/registro";
+// está activo lo decide `sitio/registro.ts`, no `sitio/ramonnet/`.
+//
+// [MULTIPORTAL C] Acá se importaba además `sitioAsumido`, el andamio del corte 2, para la sonda
+// del daemon de conexión. Era su ÚLTIMO lector: la sonda ahora sigue al portal (del ítem en el
+// SW, de la pestaña en el popup) y el piso sale de `sitios.obtener(undefined)`, que aplica la
+// misma regla de migración que todo el resto. **El andamio quedó sin lectores.**
+import { Sitios } from "../sitio/registro";
 
 /**
  * Adaptadores de plataforma activos en esta build.
@@ -76,9 +80,39 @@ export const AppState = crearAppState(almacenamiento, mensajeria);
  *
  * La URL de sondeo entra por acá y no la lee el daemon: es el único dato de sitio que
  * necesita, y es lo que le permitió mudarse a `core/` (Capa 1 no nombra portales).
+ *
+ * [MULTIPORTAL C] Y entra como **función**, porque con N portales "hay internet" pasa a ser
+ * "llego a *cuál*". La sonda sigue siendo una sola (§4 del diseño: estado de conexión por
+ * portal sería un rediseño del daemon), pero apunta al portal que corresponde:
+ *
+ *   - En el **service worker**, al del ítem que está primero en la cola — el que se está
+ *     bajando o está por bajarse. Con la cola vacía cae al legado, que es el único momento en
+ *     que no hay un portal "correcto" y tampoco importa: no hay descarga que pausar.
+ *   - En el **popup**, al de la pestaña activa. Eso la composición no lo puede saber, así que
+ *     lo fija `popup.js` al escanear vía `Conexion.fijarSondeo(...)`.
+ *
+ * Se lee de storage en cada sondeo en vez de mantener un espejo en memoria porque el service
+ * worker se suspende y se lo llevaría; storage es el único estado que sobrevive.
  */
 export const Conexion = crearConexion(almacenamiento, {
-  urlSondeoInternet: SitioActivo.urlSondeoInternet,
+  urlSondeoInternet: async () => {
+    // El legado como piso: `sitios.obtener(undefined)` aplica la misma regla de migración que
+    // el resto (ausente ⇒ portal legado), así que no hace falta nombrar ningún portal acá.
+    const piso = sitios.obtener(undefined)!.urlSondeoInternet;
+    try {
+      const { colaDescargas } = await almacenamiento.obtenerLocal<{
+        colaDescargas?: { sitioId?: string }[];
+      }>(["colaDescargas"]);
+      const primero = (colaDescargas || [])[0];
+      // Si el primero es huérfano, `obtener` devuelve undefined y se cae al piso: no sabemos a
+      // qué portal llegar, pero el daemon necesita SIEMPRE una respuesta.
+      return sitios.obtener(primero?.sitioId)?.urlSondeoInternet ?? piso;
+    } catch {
+      // Si storage falla, sondear el legado es mejor que no sondear: quedarse sin URL dejaría
+      // al daemon reportando "sin internet" para siempre.
+      return piso;
+    }
+  },
 });
 
 /**
@@ -131,6 +165,7 @@ export const Utils = {
 
 export const EstadosProgreso = crearEstadosProgreso(almacenamiento);
 
+
 /**
  * Resolvedor de sitios **con la migración aplicada**, compartido por el service worker y el
  * popup. Que sea uno solo importa: si el bucle y el filtro de la cola resolvieran distinto,
@@ -166,6 +201,16 @@ export const sitios = {
  */
 export const sitioDeNotificacionDeFallo = (notificationId: string) =>
   sitios.obtener(sitioIdDeNotificacion(notificationId));
+/**
+ * [MULTIPORTAL D] Cómo se decide si dos ítems son la misma clase: por el par (portal, título).
+ *
+ * Se arma **una vez, acá**, con el mismo resolvedor con migración que usa todo lo demás. Que
+ * sea uno solo importa por el mismo motivo que el resolvedor: si el bucle de descarga, los
+ * handlers del service worker y el popup compararan distinto, un ítem podría ser dos en un
+ * lado y uno en otro — y esa divergencia se ve como una clase que desaparece de la cola sin
+ * haberse bajado.
+ */
+export const identidadClase = crearIdentidadClase(sitios);
 
 /**
  * El procesador de la cola: el bucle FIFO + la clasificación de fallos, que fue el bloque más
@@ -207,4 +252,5 @@ export const Cola = crearProcesadorCola({
   guardarBlobLegacy: crearVolcadoLegacy(mensajeria),
   persistirEstados: (estados) => EstadosProgreso.persistir(estados),
   recuperarEstados: () => EstadosProgreso.recuperar(),
+  identidad: identidadClase,
 });

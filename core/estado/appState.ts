@@ -90,6 +90,8 @@ const CLAVES_PERSISTIDAS = [
   "listaPersistente",
   "colaDescargas",
   "faseDiscoOk",
+  "facetasElegidas",
+  // Se sigue LEYENDO para migrar (ver MIGRACION_FACETA). No se escribe nunca más.
   "facetaElegida",
   "ocultarAdvExplorar",
   "ocultarAdvAula",
@@ -130,6 +132,24 @@ export type CriterioOrdenDisponibles = (typeof CRITERIOS_ORDEN_DISPONIBLES)[numb
 const CLAVE_FACETA_LEGACY = "catedraElegida";
 
 /**
+ * MIGRACION_FACETA — la elección de faceta pasó de un valor único a un mapa por portal.
+ *
+ * Hasta el corte multiportal B la clave `facetaElegida` guardaba **un** valor, porque había un
+ * solo portal. Con dos, ese casillero compartido rompe el caso central del frente: la elección
+ * de un portal se aplica al otro, no matchea ninguno de sus valores y **el listado se ve
+ * vacío** — sin error, sin explicación y sin nada que lo afirme.
+ *
+ * La migración es la misma forma que ya se usó dos veces acá (`catedraElegida` →
+ * `facetaElegida`): se lee la clave vieja, su valor entra como el del **portal legado**
+ * —correcto por construcción, era el único portal que existía— y la clave vieja se borra. Se
+ * paga una vez y no queda basura.
+ *
+ * Perder la elección no rompe nada, pero hace reaparecer el modal de cátedra sin motivo
+ * visible para el usuario. Por eso se migra en vez de arrancar de cero.
+ */
+const CLAVE_FACETA_UNICA_LEGACY = "facetaElegida";
+
+/**
  * Portal que se le asume a un ítem persistido SIN `sitioId` (ADR-0010).
  *
  * No es un default de negocio ni "el portal principal": es una regla de **migración de datos**.
@@ -152,8 +172,11 @@ interface DatosPersistidos {
   listaPersistente?: ClaseEnLista[];
   colaDescargas?: unknown[];
   faseDiscoOk?: boolean;
+  /** La elección por portal: `{ [sitioId]: valor }`. Ver MIGRACION_FACETA. */
+  facetasElegidas?: Record<string, string | null>;
+  /** Sólo para la migración: era la elección ÚNICA, previa al multiportal. */
   facetaElegida?: string | null;
-  /** Sólo para la migración de la clave vieja; no se escribe nunca más. */
+  /** Sólo para la migración de la clave más vieja todavía; no se escribe nunca más. */
   catedraElegida?: string | null;
   ocultarAdvExplorar?: boolean;
   ocultarAdvAula?: boolean;
@@ -180,7 +203,16 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: 
     banderaFrenadoSolicitado: false,
     pestañaActiva: "disponibles",
     sincronizacionDiscoCompletada: false,
-    facetaSeleccionada: null as string | null,
+    /**
+     * La faceta elegida **por portal**: `{ [sitioId]: valor }`.
+     *
+     * Era un valor suelto hasta el corte multiportal B, y eso rompía el caso que da nombre al
+     * frente: elegís "Cátedra A" en un portal, pasás al otro, y como "A" no matchea ninguno de
+     * SUS valores el listado se ve vacío — sin error y sin explicación.
+     *
+     * No se lee directo: usá `facetaElegidaDe(sitioId)` / `fijarFacetaElegida(...)`.
+     */
+    facetasElegidas: {} as Record<string, string | null>,
     videoActualEnTransmisiónSW: "",
     modoTurboBun: true, // Forzado a true (Modo Turbo único activo)
     ocultarAdvertenciaExplorar: false,
@@ -220,14 +252,26 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: 
         c ? { ...c, sitioId: (c as ClaseEnLista).sitioId || SITIO_LEGADO } : c
       );
       app.sincronizacionDiscoCompletada = data.faseDiscoOk || false;
-      // Migración de la clave vieja (ver CLAVE_FACETA_LEGACY). La nueva gana si existe: si
-      // ambas están, la vieja es un resto de una instalación migrada y ya no manda.
-      app.facetaSeleccionada = data.facetaElegida ?? data.catedraElegida ?? null;
-      if (data.catedraElegida !== undefined) {
-        // Se paga una sola vez: adoptado el valor, la clave vieja se va. Fire-and-forget
-        // como `respaldar()` — si falla, el peor caso es volver a migrar el próximo arranque.
-        void almacenamiento.borrarLocal([CLAVE_FACETA_LEGACY]).catch((e: unknown) => {
-          console.warn("[AppState] No se pudo limpiar la clave de faceta vieja:", e);
+      // Migración de la faceta elegida, en dos escalones (ver CLAVE_FACETA_LEGACY y
+      // MIGRACION_FACETA). El mapa nuevo gana si existe: si conviven, lo viejo es un resto de
+      // una instalación ya migrada y no manda.
+      //
+      // El valor único —de cuando había un solo portal— entra como el del **portal legado**.
+      // Es correcto por construcción: no había otro portal del cual pudiera venir.
+      const clavesViejasAborrar: string[] = [];
+      if (data.facetasElegidas && typeof data.facetasElegidas === "object") {
+        app.facetasElegidas = { ...data.facetasElegidas };
+      } else {
+        const valorUnico = data.facetaElegida ?? data.catedraElegida ?? null;
+        app.facetasElegidas = valorUnico === null ? {} : { [SITIO_LEGADO]: valorUnico };
+      }
+      // Se pagan una sola vez: adoptado el valor, las claves viejas se van. Fire-and-forget
+      // como `respaldar()` — si falla, el peor caso es volver a migrar el próximo arranque.
+      if (data.catedraElegida !== undefined) clavesViejasAborrar.push(CLAVE_FACETA_LEGACY);
+      if (data.facetaElegida !== undefined) clavesViejasAborrar.push(CLAVE_FACETA_UNICA_LEGACY);
+      if (clavesViejasAborrar.length > 0) {
+        void almacenamiento.borrarLocal(clavesViejasAborrar).catch((e: unknown) => {
+          console.warn("[AppState] No se pudieron limpiar las claves de faceta viejas:", e);
         });
       }
       app.ocultarAdvertenciaExplorar = data.ocultarAdvExplorar || false;
@@ -281,6 +325,25 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: 
     },
 
     /**
+     * La faceta elegida para un portal, o `null` si todavía no eligió para ese.
+     *
+     * [MULTIPORTAL B] Existe como método y no como acceso directo al mapa para que el resto del
+     * código no pueda volver a tratar la elección como un valor único: el bug que este corte
+     * cierra es exactamente ese, y era invisible con un solo portal.
+     */
+    facetaElegidaDe(sitioId: string | undefined): string | null {
+      if (!sitioId) return null;
+      return app.facetasElegidas[sitioId] ?? null;
+    },
+
+    /** Fija (o limpia, con `null`) la faceta elegida de UN portal. No respalda: eso lo decide el caller. */
+    fijarFacetaElegida(sitioId: string | undefined, valor: string | null): void {
+      if (!sitioId) return;
+      if (valor === null) delete app.facetasElegidas[sitioId];
+      else app.facetasElegidas[sitioId] = valor;
+    },
+
+    /**
      * Persiste el estado completo. Es una sola escritura multi-clave a propósito: el puerto
      * documenta que un cambio lógico que toca varias claves va en UNA llamada (si el contexto
      * muere entre dos, quedan desincronizadas).
@@ -294,7 +357,7 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: 
           listaPersistente: app.listadoClasesGlobal,
           colaDescargas: app.colaDescargas,
           faseDiscoOk: app.sincronizacionDiscoCompletada,
-          facetaElegida: app.facetaSeleccionada,
+          facetasElegidas: app.facetasElegidas,
           ocultarAdvExplorar: app.ocultarAdvertenciaExplorar,
           ocultarAdvAula: app.ocultarAdvertenciaAula,
           ordenAscendente: app.ordenAscendente,

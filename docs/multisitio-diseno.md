@@ -38,7 +38,8 @@ Los 11, para no tener que abrir el archivo: `id`, `nombre`, `urlSondeoInternet`,
 `parsearTitulo`, `clasificarCarpeta` y `faceta` — este último un `DescriptorFaceta` completo,
 que es el que más trabajo da. **El hogar canónico del contrato es la interfaz**, no este doc: si
 el número no coincide, gana `sitio.ts` y esta línea está vieja. *(Decía "12" desde que se
-escribió, y nadie los había contado.)*
+escribió, y nadie los había contado. Ojo: ADR-0012 sacó `claveEstado`, pero ese miembro era de
+`DescriptorFaceta` —el objeto que cuelga de `faceta`—, no del puerto: el número no se movió.)*
 
 ## El problema real: el sitio es un singleton, y tiene que ser un dato
 
@@ -112,6 +113,14 @@ puerto). Con N portales, "hay internet" pasa a ser "llego a *cuál*".
 **Recomendación**: no sobre-diseñar. El daemon sigue con **una** sonda —la del portal del ítem
 en descarga, y en el popup la de la pestaña activa—; si a futuro hace falta estado por portal,
 eso es un rediseño del daemon y merece su propio corte.
+
+**✅ Construido el 2026-08-06 (multiportal C), tal cual estaba recomendado.** `urlSondeoInternet`
+pasó a aceptar una función que el daemon resuelve **en cada sondeo**: en el service worker sale
+del primer ítem de la cola (leído de storage, porque el worker se suspende y se llevaría
+cualquier espejo en memoria) y en el popup lo fija `popup.js` vía `Conexion.fijarSondeo(...)` al
+resolver la pestaña. El piso, cuando la cola está vacía o el ítem es huérfano, es
+`sitios.obtener(undefined)`: la misma regla de migración de siempre, sin nombrar ningún portal.
+**Con esto `sitioAsumido` se quedó sin lectores** — era su último consumidor.
 
 ### 5. El click en la notificación de fallo enfoca la pestaña del portal asumido
 

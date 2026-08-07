@@ -16,6 +16,7 @@ import { crearEstadoSesion } from './core/cola/estadoSesion.ts';
 import { crearEstadosProgreso } from './core/cola/estadosProgreso.ts';
 import { crearProcesadorCola } from './core/cola/procesadorCola.ts';
 import { notificarFallo, sitioIdDeNotificacion } from './plataforma/chrome/notificaciones.ts';
+import { crearIdentidadClase } from './core/cola/identidadClase.ts';
 
 /**
  * [CORTE 8] Un SEGUNDO portal, que es el punto: con uno solo el bug es invisible. Sólo se usa
@@ -143,6 +144,8 @@ beforeAll(async () => {
     resolverManifiesto: async () => 'https://cdn/video.m3u8',
     // El nombre del portal alimenta el copy de la pausa (Capa 1 no lo puede saber).
     nombre: 'Portal de Prueba',
+    // MULTIPORTAL E: el id viaja al backend y define la carpeta de portal en disco.
+    id: 'ramonnet',
     patronPestañas: 'https://portal/*',
     urlSondeoInternet: 'https://portal',
   };
@@ -183,6 +186,16 @@ beforeAll(async () => {
     guardarBlobLegacy: async () => {},
     persistirEstados: (e) => globalThis.EstadosProgreso.persistir(e),
     recuperarEstados: () => globalThis.EstadosProgreso.recuperar(),
+    // [MULTIPORTAL D] El mismo criterio que los handlers de arriba: si divergieran, el bucle
+    // y el IPC tratarían al mismo ítem como distinto.
+    identidad: crearIdentidadClase({
+      obtener: (id) => {
+        const efectivo = id ?? 'ramonnet';
+        if (efectivo === 'ramonnet') return { id: 'ramonnet' };
+        if (efectivo === 'otroportal') return { id: 'otroportal' };
+        return undefined;
+      },
+    }),
   });
 
   const noopEvent = { addListener: () => {} };
@@ -243,6 +256,17 @@ beforeAll(async () => {
       if (id === 'otroportal') return OTRO_PORTAL;
       return undefined;
     },
+    // [MULTIPORTAL D] La identidad es (portal, título). Mismo doble de registro que el resto:
+    // 'ramonnet' y el ausente resuelven al legado; 'otroportal' es el segundo; el resto es
+    // huérfano y cae al id crudo.
+    identidad: crearIdentidadClase({
+      obtener: (id) => {
+        const efectivo = id ?? 'ramonnet';
+        if (efectivo === 'ramonnet') return { id: 'ramonnet' };
+        if (efectivo === 'otroportal') return { id: 'otroportal' };
+        return undefined;
+      },
+    }),
   });
 });
 
@@ -304,7 +328,8 @@ describe('inyectar_items_en_cola_activa', () => {
 
     expect(resp).toEqual({ status: 'encolados_ok' });
     expect(store.local.colaDescargas).toEqual([{ titulo: 'Clase 1', carpeta: 'anatomia' }]);
-    expect(store.local.SW_ESTADOS_PROGRESO['Clase 1']).toBe('process');
+    // MULTIPORTAL D: la clave del espejo es (portal|título), no el título solo.
+    expect(store.local.SW_ESTADOS_PROGRESO['ramonnet|Clase 1']).toBe('process');
     expect(store.local.listaPersistente[0].estado).toBe('process');
     expect(store.local.listaPersistente[0].carpeta).toBe('anatomia');
   });
@@ -326,11 +351,12 @@ describe('remover_item_de_cola', () => {
     store.local.colaDescargas = [{ titulo: 'Clase 1' }, { titulo: 'Clase 2' }];
     store.local.SW_ESTADOS_PROGRESO = { 'Clase 1': 'process', 'Clase 2': 'process' };
 
-    const resp = await invocar({ action: 'remover_item_de_cola', titulo: 'Clase 1' });
+    // El pedido lleva el portal: sin él, quitar una clase se llevaría a su homónima ajena.
+    const resp = await invocar({ action: 'remover_item_de_cola', titulo: 'Clase 1', sitioId: 'ramonnet' });
 
     expect(resp).toEqual({ status: 'removido_ok' });
     expect(store.local.colaDescargas).toEqual([{ titulo: 'Clase 2' }]);
-    expect(store.local.SW_ESTADOS_PROGRESO['Clase 1']).toBeUndefined();
+    expect(store.local.SW_ESTADOS_PROGRESO['ramonnet|Clase 1']).toBeUndefined();
     expect(store.local.listaPersistente[0].estado).toBe('pending');
   });
 });
@@ -346,7 +372,9 @@ describe('obtener_estados_en_progreso', () => {
 
     const resp = await invocar({ action: 'obtener_estados_en_progreso' });
 
-    expect(resp.estados).toEqual({ 'Clase 1': 'process' });
+    // MULTIPORTAL D: se sembró con la clave vieja (título pelado) y vuelve migrada al par
+    // (portal|título). O sea que este test afirma además la migración de lectura del espejo.
+    expect(resp.estados).toEqual({ 'ramonnet|Clase 1': 'process' });
     expect(resp.videoActual).toBe('Clase 1');
     expect(resp.porcentaje).toBe(50);
     expect(resp.telemetry).toEqual({

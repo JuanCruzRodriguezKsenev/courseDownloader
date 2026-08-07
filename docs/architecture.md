@@ -292,9 +292,11 @@ leen ~280 call-sites lo publica `composicion.ts`, no este archivo. Llegó a la C
 **2026-08-03**, en tres pasos que valen como plantilla: primero los puertos (storage en la 5b,
 IPC en la 5c) y **después sacarle el dato de sitio** — mientras el campo se llamó
 `catedraSeleccionada`, este archivo no podía ser genérico por una sola palabra. Qué faceta se
-filtra lo decide el adaptador vía `PuertoSitio.faceta.claveEstado`, que **nombra** el campo de
-acá; `AppState` no sabe que existen las cátedras. El renombre arrastró la única migración de
-datos del proyecto (`catedraElegida` → `facetaElegida`) → `docs/data-model.md`.
+filtra lo decide el adaptador; `AppState` no sabe que existen las cátedras. Hasta el 2026-08-06
+esa indirección era `PuertoSitio.faceta.claveEstado`, que **nombraba** el campo de acá — se fue
+con ADR-0012, porque la elección pasó a ser **por portal** (`facetaElegidaDe(sitioId)`) y la
+clave es ahora el `sitioId`. El archivo acumula las tres migraciones de datos del proyecto
+(`catedraElegida` → `facetaElegida` → `facetasElegidas`) → `docs/data-model.md`.
 
 Detalle de forma en `sincronizarConBackground()`: usa `enviar()` (es una consulta) **y además**
 conserva su timeout de rescate de 3s, porque el puerto sólo promete rechazar cuando no hay

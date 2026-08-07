@@ -1,6 +1,11 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: FACETA DEL LISTADO (V2.1.0)
+ * CLON DOWNLOADHELPER - FEATURE: FACETA DEL LISTADO (V2.2.0)
  * ==========================================================================
+ * CHANGELOG v2.2.0:
+ * - [MULTIPORTAL A] `valoresPresentes()` mira sólo las clases del portal activo, vía el nuevo
+ *   `ctx.sitios`. El listado puede traer ítems encolados de otro portal y derivarles la faceta
+ *   con este descriptor ofrecía en el modal valores que no existen — sin fallar, porque el
+ *   parser siempre devuelve algo.
  * CHANGELOG v2.1.0:
  * - [MULTISITIO CORTE 5] `ctx.sitio` pasa de ser el descriptor a ser una FUNCIÓN que lo
  *   devuelve. El popup ya no tiene un portal fijo: lo resuelve por pestaña, así que puede
@@ -30,6 +35,8 @@
  * Dependencias que recibe por ctx:
  *   - ctx.sitio()          : FUNCIÓN que devuelve el adaptador del portal de la pestaña
  *                            activa; usa `sitio().faceta`. Ver el changelog v2.1.0.
+ *   - ctx.sitios           : resolvedor por `sitioId` (el compartido de la composición), para
+ *                            saber de qué portal es cada clase del listado.
  *   - ctx.badge            : nodo del badge de la cabecera (no el mapa `nodos`, para
  *                            que la feature no dependa del nombre de la clave).
  *   - ctx.aplicarFiltros() : re-aplica el filtrado cruzado del listado
@@ -40,7 +47,7 @@
  */
 const FacetaFeature = {
   crear(ctx) {
-    const { badge, aplicarFiltros, sitio, appState } = ctx;
+    const { badge, aplicarFiltros, sitio, sitios, appState } = ctx;
 
     // [MULTISITIO CORTE 5] `ctx.sitio` es una FUNCIÓN, no el descriptor. Desde este corte el
     // portal lo resuelve el popup por pestaña, así que puede cambiar entre dos escaneos y
@@ -49,10 +56,29 @@ const FacetaFeature = {
     // como estaban.
     const descriptorFaceta = () => sitio().faceta;
 
-    // Lee/escribe la elección del usuario en appState sin nombrar el concepto del
-    // sitio (la clave la declara el descriptor).
-    const leerSeleccion = () => appState[descriptorFaceta().claveEstado];
-    const fijarSeleccion = (valor) => { appState[descriptorFaceta().claveEstado] = valor; };
+    // [MULTIPORTAL B] La elección es POR PORTAL. Antes era un casillero único que el
+    // descriptor nombraba (`faceta.claveEstado`), y con dos portales la elección de uno se
+    // aplicaba al otro: como no matcheaba ninguno de sus valores, le vaciaba el listado sin
+    // error ni explicación. `claveEstado` dejó de existir en el puerto.
+    const leerSeleccion = () => appState.facetaElegidaDe(sitio().id);
+    const fijarSeleccion = (valor) => { appState.fijarFacetaElegida(sitio().id, valor); };
+
+    /**
+     * [MULTIPORTAL A] Las clases del listado que son del portal activo.
+     *
+     * `listadoClasesGlobal` no es de un solo portal aunque lo parezca: `popup.js` preserva entre
+     * escaneos lo que está en la cola (`estado === 'process'`) y lo mezcla con lo recién
+     * escaneado. Sin este filtro, `valoresPresentes()` derivaría la faceta de ítems ajenos con
+     * ESTE descriptor y metería valores falsos en el modal — y como el parser devuelve algo,
+     * no falla: te ofrece elegir una cátedra que no existe.
+     *
+     * Se resuelve con el registro y no comparando `sitioId` crudo, porque ausente significa
+     * **portal legado** y no "cualquiera" (la distinción del corte 3).
+     */
+    const clasesDelPortalActivo = () =>
+      (appState.listadoClasesGlobal || []).filter(
+        (c) => sitios.obtener(c && c.sitioId)?.id === sitio().id
+      );
 
     // Valores específicos presentes en el listado (excluye el valor común, que no es
     // una opción elegible). Unifica las 3 copias del mismo Array.from(new Set(...))
@@ -60,7 +86,7 @@ const FacetaFeature = {
     function valoresPresentes() {
       const faceta = descriptorFaceta();
       return Array.from(new Set(
-        appState.listadoClasesGlobal
+        clasesDelPortalActivo()
           .map(c => faceta.leer(c))
           .filter(valor => valor !== faceta.valorComun)
       ));

@@ -130,3 +130,71 @@ describe('enviarFragmentoStream()', () => {
     expect(err.httpStatus).toBe(503);
   });
 });
+
+// [MULTIPORTAL E] El portal viaja al backend para que el archivo caiga en
+// `raíz/<portal>/<materia>/`. Va en campos propios y no pegado a la materia porque el backend
+// sanitiza cada segmento con `path.basename()`: un "portal/materia" se colapsaría a "materia".
+describe('el portal viaja al backend (multiportal E)', () => {
+  /** Las cabeceras del primer fetch, tipadas: `mock.calls` es una tupla vacía para `tsc`. */
+  const cabecerasDe = (espia: { mock: { calls: unknown[][] } }) =>
+    (espia.mock.calls[0]?.[1] as { headers: Record<string, string> }).headers;
+  const urlDe = (espia: { mock: { calls: unknown[][] } }) => String(espia.mock.calls[0]?.[0]);
+  const respuestaOk = () =>
+    vi.fn(async () => new Response(JSON.stringify({ archivos: [] }), { status: 200 }));
+
+  it('enviarFragmentoStream manda x-site-folder', async () => {
+    const espia = vi.fn(async () => new Response('{}', { status: 200 }));
+    globalThis.fetch = espia as unknown as typeof fetch;
+
+    await BunClient.enviarFragmentoStream(new Uint8Array([1]), {
+      videoTitle: 't', chunkIndex: 0, totalChunks: 1, targetFolder: 'biologia',
+      siteFolder: 'ramonnet', sessionId: 's',
+    });
+
+    const opts = cabecerasDe(espia);
+    expect(opts['x-site-folder']).toBe('ramonnet');
+    // La materia sigue yendo sola en su header: son dos segmentos, no uno concatenado.
+    expect(opts['x-target-folder']).toBe('biologia');
+  });
+
+  it('sin siteFolder manda vacío, y el backend cae al layout viejo', async () => {
+    const espia = vi.fn(async () => new Response('{}', { status: 200 }));
+    globalThis.fetch = espia as unknown as typeof fetch;
+
+    await BunClient.enviarFragmentoStream(new Uint8Array([1]), {
+      videoTitle: 't', chunkIndex: 0, totalChunks: 1, targetFolder: 'biologia', sessionId: 's',
+    });
+
+    expect(cabecerasDe(espia)['x-site-folder']).toBe('');
+  });
+
+  it('escanearDisco pide la carpeta DENTRO del portal', async () => {
+    const espia = respuestaOk();
+    globalThis.fetch = espia as unknown as typeof fetch;
+
+    await BunClient.escanearDisco('biologia', 'ramonnet');
+
+    expect(urlDe(espia)).toContain('carpeta=biologia');
+    expect(urlDe(espia)).toContain('sitio=ramonnet');
+  });
+
+  it('escanearDisco sin portal no manda el parámetro (compatible con el backend viejo)', async () => {
+    const espia = respuestaOk();
+    globalThis.fetch = espia as unknown as typeof fetch;
+
+    await BunClient.escanearDisco('biologia');
+
+    expect(urlDe(espia)).not.toContain('sitio=');
+  });
+
+  it('cancelarDescarga lleva el portal, para no borrar el .part del otro', async () => {
+    const espia = respuestaOk();
+    globalThis.fetch = espia as unknown as typeof fetch;
+
+    await BunClient.cancelarDescarga('Semana 3', 'sess-1', 'ramonnet');
+
+    const url = urlDe(espia);
+    expect(url).toContain('titulo=Semana%203');
+    expect(url).toContain('sitio=ramonnet');
+  });
+});

@@ -31,11 +31,34 @@ Lo que la extensión **espera** del backend, derivado de `core/backend/bunClient
 | Método + ruta | Entrada | Respuesta que consume la extensión |
 |---|---|---|
 | `GET /api/health` | — | JSON con `ruta` (la carpeta raíz configurada). Doble función: liveness probe del daemon `Conexion` **y** lectura de la ruta. Timeout duro de 4000 ms. |
-| `GET /api/escanear-disco?carpeta=<sub>` | query `carpeta` (URL-encoded) | JSON `{ archivos: string[] }` — nombres ya guardados, para pintar clases como descargadas. |
-| `POST /api/bypass-stream` | headers `x-video-title` (URL-encoded), `x-chunk-index`, `x-total-chunks`, `x-target-folder`, `x-session-id`; body = fragmento binario descifrado | Sólo importa el status. Timeout 30 s. |
+| `GET /api/escanear-disco?carpeta=<sub>&sitio=<id>` | query `carpeta` y `sitio` (URL-encoded) | JSON `{ archivos: string[] }` — nombres ya guardados, para pintar clases como descargadas. **`sitio` es opcional**: sin él se mira el layout viejo de un solo nivel. |
+| `POST /api/bypass-stream` | headers `x-video-title` (URL-encoded), `x-chunk-index`, `x-total-chunks`, `x-target-folder`, **`x-site-folder`**, `x-session-id`; body = fragmento binario descifrado | Sólo importa el status. Timeout 30 s. |
 | `GET /api/seleccionar-carpeta` | — | JSON `{ success: boolean, ruta: string }` — abre el diálogo nativo de carpeta. |
-| `GET /api/cancelar-descarga?titulo=&sessionId=` | query | Sólo el status; los fallos se tragan (best-effort). |
+| `GET /api/cancelar-descarga?titulo=&sessionId=&sitio=` | query | Sólo el status; los fallos se tragan (best-effort). **`sitio` importa**: sin él el backend podría borrar el `.part` de la clase homónima de otro portal. |
 | `POST /api/actualizar-consola` | JSON `{ titulo, porcentaje, terminados, totales, velocidad }` | Sólo el status; los fallos se tragan (telemetría a la consola gráfica del server). |
+
+### El layout en disco lleva el portal
+
+**Desde el 2026-08-06 (corte multiportal E).** La ruta pasó de `raíz/<materia>/` a
+**`raíz/<portal>/<materia>/`**, con el `sitioId` como nombre de carpeta. Sin esa dimensión, dos
+clases homónimas de la misma materia en portales distintos escribían el mismo archivo.
+
+Cómo viaja el dato, y por qué así:
+
+- En su **propio** header (`x-site-folder`) y su **propio** query (`sitio`), nunca concatenado a
+  la materia. El backend sanitiza cada segmento con `path.basename()`, así que un
+  `"portal/materia"` se colapsaría a `"materia"` y la carpeta de portal desaparecería **sin que
+  nada avise**.
+- **Todo opcional**: sin esos datos el backend se comporta como antes (un solo nivel). Eso
+  permite que una extensión vieja hable con un backend nuevo, y viceversa.
+- El acumulador en memoria del backend también pasó a estar tecleado por `<portal>|<titulo>`:
+  antes, dos descargas homónimas compartían sesión, stream y archivo temporal `.part`.
+
+**Migración de lo ya descargado: es manual y a propósito.** Los videos viejos viven en
+`raíz/<materia>/` y ningún código los mueve — la extensión los daría por no descargados hasta
+que el dueño los reacomode dentro de `raíz/<portal>/`. Se decidió así porque mover archivos del
+usuario es irreversible y el backend no tenía historial (ahora sí: se versionó en el mismo
+cambio).
 
 **El status de `/api/bypass-stream` es contrato, no detalle**: un **4xx** se interpreta como rechazo aplicativo con el server vivo → se reintenta N=3 y se **salta esa clase** sin pausar la cola; un **5xx** o un timeout se interpretan como caída → **pausa + auto-heal**. Un backend que devuelva 4xx ante una condición transitoria hace que la extensión descarte clases recuperables (es exactamente el bug 400 — ver `docs/TECHNICAL_DEBT.md` y `docs/patterns.md` §Circuit breaker).
 

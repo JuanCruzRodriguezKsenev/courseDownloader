@@ -71,12 +71,16 @@ export const Sitios = {
 };
 
 /**
- * ANDAMIO TEMPORAL — los cortes 3, 8 y 5 le sacaron todos los lectores menos uno.
+ * ANDAMIO SIN LECTORES — los cortes 3, 8, 5 y el multiportal C se los llevaron a todos.
  *
- * Al 2026-08-06 el único que queda es el `urlSondeoInternet` del daemon de conexión, en
- * `plataforma/composicion.ts`, y **no es un olvido**: el daemon sondea UN origen a propósito
- * (`docs/multisitio-diseno.md` §4). Hacer el estado de conexión por portal es un rediseño del
- * daemon y merece su propio corte, así que hasta entonces esto se queda.
+ * El último era el `urlSondeoInternet` del daemon de conexión; desde el multiportal C la sonda
+ * **sigue al portal** (el del ítem de la cola en el SW, el de la pestaña en el popup) y su piso
+ * sale de `sitios.obtener(undefined)`, que aplica la misma regla de migración que el resto.
+ *
+ * Se conserva el export porque el nombre documenta una decisión —ADR-0010 dice que **no existe**
+ * un portal por defecto legítimo, y por eso se llama `sitioAsumido` y no `sitioPorDefecto`— pero
+ * **no lo consume nadie**. Si te hace falta "el portal" en un lugar nuevo, casi seguro lo que
+ * necesitás es resolverlo por ítem o por pestaña.
  *
  * El sitio que la composición **asume** mientras el service worker y el popup no resuelvan por
  * ítem / por pestaña. Se llama `sitioAsumido` y no `sitioPorDefecto` a propósito: ADR-0010 dice

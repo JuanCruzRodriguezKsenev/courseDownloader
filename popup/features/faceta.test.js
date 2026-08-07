@@ -22,7 +22,17 @@ function crearFeature(overrides = {}) {
   // lo único nuevo es que acá se lo pasamos explícito, como hace popup.js.
   // CORTE 5: `sitio` es una FUNCIÓN. El popup resuelve el portal por pestaña, así que el
   // descriptor puede cambiar entre dos escaneos y la feature no puede capturarlo.
-  const feature = FacetaFeature.crear({ badge, aplicarFiltros, sitio: () => SitioRamonNet, appState: globalThis.AppState, ...overrides });
+  // MULTIPORTAL A: `sitios` resuelve el portal de CADA clase del listado, que puede traer
+  // ítems encolados de otro portal. Por defecto todo cae en Ramón Net, que es el
+  // comportamiento de una instalación de un solo portal.
+  const feature = FacetaFeature.crear({
+    badge,
+    aplicarFiltros,
+    sitio: () => SitioRamonNet,
+    sitios: { obtener: () => SitioRamonNet },
+    appState: globalThis.AppState,
+    ...overrides,
+  });
   return { feature, badge, aplicarFiltros };
 }
 
@@ -30,7 +40,12 @@ beforeEach(() => {
   vi.spyOn(console, 'log').mockImplementation(() => {});
   globalThis.AppState = {
     listadoClasesGlobal: [],
-    facetaSeleccionada: null,
+    facetasElegidas: {},
+    facetaElegidaDe(sitioId) { return this.facetasElegidas[sitioId] ?? null; },
+    fijarFacetaElegida(sitioId, valor) {
+      if (valor === null) delete this.facetasElegidas[sitioId];
+      else this.facetasElegidas[sitioId] = valor;
+    },
     respaldar: vi.fn(),
   };
 });
@@ -44,7 +59,7 @@ afterEach(() => {
 describe('FacetaFeature.actualizarBadge', () => {
   it('varios valores con uno elegido: muestra el badge con el texto del sitio', () => {
     AppState.listadoClasesGlobal = [{ catedra: 'A' }, { catedra: 'B' }, { catedra: 'COMUN' }];
-    AppState.facetaSeleccionada = 'A';
+    AppState.fijarFacetaElegida('ramonnet', 'A');
     const { feature, badge } = crearFeature();
 
     feature.actualizarBadge();
@@ -56,19 +71,19 @@ describe('FacetaFeature.actualizarBadge', () => {
 
   it('un solo valor: oculta el badge y limpia la selección huérfana', () => {
     AppState.listadoClasesGlobal = [{ catedra: 'A' }, { catedra: 'COMUN' }];
-    AppState.facetaSeleccionada = 'A'; // huérfana: ya no hay varios valores
+    AppState.fijarFacetaElegida('ramonnet', 'A'); // huérfana: ya no hay varios valores
     const { feature, badge } = crearFeature();
 
     feature.actualizarBadge();
 
     expect(badge.style.display).toBe('none');
-    expect(AppState.facetaSeleccionada).toBeNull();
+    expect(AppState.facetaElegidaDe('ramonnet')).toBeNull();
     expect(AppState.respaldar).toHaveBeenCalled();
   });
 
   it('varios valores sin elección: oculta el badge sin tocar el estado', () => {
     AppState.listadoClasesGlobal = [{ catedra: 'A' }, { catedra: 'B' }];
-    AppState.facetaSeleccionada = null;
+    AppState.fijarFacetaElegida('ramonnet', null);
     const { feature, badge } = crearFeature();
 
     feature.actualizarBadge();
@@ -92,7 +107,7 @@ describe('FacetaFeature.aplicarSeleccionSilenciosa', () => {
     feature.aplicarSeleccionSilenciosa('A');
 
     const [a, b, comun, aDescargada] = AppState.listadoClasesGlobal;
-    expect(AppState.facetaSeleccionada).toBe('A');
+    expect(AppState.facetaElegidaDe('ramonnet')).toBe('A');
     expect(a.seleccionado).toBe(true);   // pending A
     expect(b.seleccionado).toBe(false);  // pending B (deseleccionada)
     expect(comun.seleccionado).toBe(true); // el valor común siempre entra
@@ -105,7 +120,7 @@ describe('FacetaFeature.aplicarSeleccionSilenciosa', () => {
 describe('FacetaFeature.verificarYMostrarAsistente', () => {
   it('varios valores sin selección previa: muestra el modal con las opciones ordenadas', () => {
     AppState.listadoClasesGlobal = [{ catedra: 'C' }, { catedra: 'A' }, { catedra: 'B' }];
-    AppState.facetaSeleccionada = null;
+    AppState.fijarFacetaElegida('ramonnet', null);
     const { feature } = crearFeature();
 
     feature.verificarYMostrarAsistente();
@@ -132,7 +147,7 @@ describe('FacetaFeature.verificarYMostrarAsistente', () => {
       { catedra: 'A', estado: 'pending', seleccionado: false },
       { catedra: 'B', estado: 'pending', seleccionado: false },
     ];
-    AppState.facetaSeleccionada = 'A';
+    AppState.fijarFacetaElegida('ramonnet', 'A');
     const { feature, aplicarFiltros } = crearFeature();
 
     feature.verificarYMostrarAsistente();
@@ -144,12 +159,12 @@ describe('FacetaFeature.verificarYMostrarAsistente', () => {
 
   it('un solo valor: resetea la selección a null', () => {
     AppState.listadoClasesGlobal = [{ catedra: 'A' }, { catedra: 'COMUN' }];
-    AppState.facetaSeleccionada = 'A';
+    AppState.fijarFacetaElegida('ramonnet', 'A');
     const { feature } = crearFeature();
 
     feature.verificarYMostrarAsistente();
 
-    expect(AppState.facetaSeleccionada).toBeNull();
+    expect(AppState.facetaElegidaDe('ramonnet')).toBeNull();
     expect(document.querySelector('.faceta-overlay')).toBeNull();
   });
 });
@@ -170,7 +185,7 @@ describe('FacetaFeature — click en el badge y modal', () => {
     const botones = [...overlay.querySelectorAll('.btn-faceta-opt')];
     botones.find(b => b.textContent === 'Cátedra B').click();
 
-    expect(AppState.facetaSeleccionada).toBe('B');
+    expect(AppState.facetaElegidaDe('ramonnet')).toBe('B');
     expect(AppState.listadoClasesGlobal[1].seleccionado).toBe(true);
     expect(aplicarFiltros).toHaveBeenCalled();
     expect(document.querySelector('.faceta-overlay')).toBeNull();
@@ -200,7 +215,6 @@ describe('FacetaFeature — con el descriptor de OTRO sitio', () => {
       icono: '👥',
       valorComun: 'GENERAL',
       valorTodas: 'TODAS',
-      claveEstado: 'comisionSeleccionada',
       leer: (clase) => clase.comision,
       etiquetar: (v) => (v === 'GENERAL' ? 'General' : `Comisión ${v}`),
       etiquetarCorto: (v) => (v === 'GENERAL' ? 'General' : `Com ${v}`),
@@ -210,7 +224,7 @@ describe('FacetaFeature — con el descriptor de OTRO sitio', () => {
   };
 
   beforeEach(() => {
-    AppState.comisionSeleccionada = null;
+    AppState.fijarFacetaElegida('otro-portal', null);
   });
 
   it('badge, modal y autoselección usan el vocabulario del otro sitio', () => {
@@ -219,7 +233,12 @@ describe('FacetaFeature — con el descriptor de OTRO sitio', () => {
       { comision: '1', estado: 'pending', seleccionado: false },
       { comision: 'GENERAL', estado: 'pending', seleccionado: false },
     ];
-    const { feature, badge } = crearFeature({ sitio: () => SitioFalso });
+    // El registro resuelve al mismo portal: estas clases son de él. Sin esto, el filtro por
+    // portal del corte multiportal A las dejaría fuera del listado, que es lo correcto.
+    const { feature, badge } = crearFeature({
+      sitio: () => SitioFalso,
+      sitios: { obtener: () => SitioFalso },
+    });
 
     feature.verificarYMostrarAsistente();
 
@@ -230,8 +249,9 @@ describe('FacetaFeature — con el descriptor de OTRO sitio', () => {
 
     overlay.querySelectorAll('.btn-faceta-opt')[0].click();
 
-    expect(AppState.comisionSeleccionada).toBe('1');
-    expect(AppState.facetaSeleccionada).toBeNull();                 // no tocó la clave del otro sitio
+    expect(AppState.facetaElegidaDe('otro-portal')).toBe('1');
+    // MULTIPORTAL B: cada portal tiene su casillero; elegir en uno no toca al otro.
+    expect(AppState.facetaElegidaDe('ramonnet')).toBeNull();
     expect(AppState.listadoClasesGlobal[1].seleccionado).toBe(true);  // comisión 1
     expect(AppState.listadoClasesGlobal[2].seleccionado).toBe(true);  // GENERAL entra
     expect(AppState.listadoClasesGlobal[0].seleccionado).toBe(false); // comisión 2 no
@@ -247,16 +267,23 @@ describe('FacetaFeature — el descriptor se re-lee, no se captura (corte 5)', (
     // Doble mínimo, sin spread del descriptor real: `SitioRamonNet` tiene getters
     // (`escanearListado` lee el global `Scraper`) que un spread evaluaría acá.
     const OTRO = {
+      id: 'otroportal',
       faceta: { ...SitioRamonNet.faceta, etiqueta: 'Comisión', etiquetar: (v) => `Comisión ${v}` },
     };
     let actual = SitioRamonNet;
-    const { feature, badge } = crearFeature({ sitio: () => actual });
+    // El registro sigue al portal activo: lo que se afirma acá es la re-lectura del
+    // vocabulario, no la mezcla de portales (eso lo cubre filters.test.js).
+    const { feature, badge } = crearFeature({ sitio: () => actual, sitios: { obtener: () => actual } });
 
     AppState.listadoClasesGlobal = [
       { titulo: 'a', catedra: 'A', estado: 'pending' },
       { titulo: 'b', catedra: 'B', estado: 'pending' },
     ];
-    AppState.facetaSeleccionada = 'A';
+    // MULTIPORTAL B: cada portal tiene su propia elección. Se fijan las DOS a propósito —
+    // si la elección siguiera siendo un casillero único, este test no podría distinguir
+    // "se re-leyó el vocabulario" de "se arrastró la elección del otro portal".
+    AppState.fijarFacetaElegida('ramonnet', 'A');
+    AppState.fijarFacetaElegida('otroportal', 'A');
 
     feature.actualizarBadge();
     expect(badge.textContent).toBe('Cátedra A');
@@ -267,5 +294,29 @@ describe('FacetaFeature — el descriptor se re-lee, no se captura (corte 5)', (
     expect(badge.textContent).toBe('Comisión A');
     // El tooltip también: se refresca en cada actualizarBadge, no una sola vez al crear.
     expect(badge.title).toContain('Comisión');
+  });
+});
+
+// [MULTIPORTAL A] El listado puede traer ítems encolados de otro portal (popup.js los preserva
+// entre escaneos). Derivarles la faceta con ESTE descriptor ofrecía en el modal valores que no
+// existen — y sin fallar, porque el parser siempre devuelve algo.
+describe('FacetaFeature — el modal sólo mira las clases del portal activo (multiportal A)', () => {
+  it('ignora los valores de faceta de clases de otro portal', () => {
+    AppState.listadoClasesGlobal = [
+      { catedra: 'A', estado: 'pending', seleccionado: false, sitioId: 'ramonnet' },
+      { catedra: 'COMUN', estado: 'pending', seleccionado: false, sitioId: 'ramonnet' },
+      // Encolada desde otro portal: su "cátedra" no es una cátedra.
+      { catedra: 'ZZZ', estado: 'process', seleccionado: false, sitioId: 'otroportal' },
+    ];
+    const { feature } = crearFeature({
+      sitios: { obtener: (id) => (id === 'otroportal' ? { id: 'otroportal' } : SitioRamonNet) },
+    });
+
+    feature.verificarYMostrarAsistente();
+
+    // Un solo valor propio ('A'): no corresponde modal. Con el ítem ajeno contado serían dos
+    // y se habría abierto, ofreciendo "Cátedra ZZZ".
+    expect(document.querySelector('.faceta-overlay')).toBeNull();
+    expect(AppState.facetaElegidaDe('ramonnet')).toBeNull();
   });
 });

@@ -16,6 +16,7 @@ import { ProgramadorEnMemoria } from "../puertos/programadorEnMemoria";
 import { crearEstadoSesion } from "./estadoSesion";
 import { crearEstadosProgreso } from "./estadosProgreso";
 import { crearProcesadorCola } from "./procesadorCola";
+import { crearIdentidadClase } from "./identidadClase";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -47,10 +48,13 @@ function montar(over: Record<string, any> = {}) {
     // El bucle resuelve el portal por ítem (ADR-0010): el doble es un REGISTRO, no un sitio.
     // Imita al de producción, incluida su parte de migración: `undefined` resuelve (dato
     // viejo, de antes del multi-sitio) y un id desconocido NO (huérfano). Ver composicion.ts.
-    sitios: {
+    // El `?? ` es necesario: `over` se esparce ARRIBA, así que sin esto un override de `sitios`
+    // quedaría pisado por el doble de acá y el test afirmaría sobre otra cosa. Pasó al escribir
+    // el test de identidad compuesta, que necesita un segundo portal registrado.
+    sitios: over.sitios ?? {
       obtener: (id: string | undefined) =>
         id === undefined || id === "prueba"
-          ? { resolverManifiesto: resolverManifiestoDoble, nombre: "Portal de Prueba" }
+          ? { resolverManifiesto: resolverManifiestoDoble, nombre: "Portal de Prueba", id: "prueba" }
           : undefined,
     },
     historial: { registrar: vi.fn().mockResolvedValue({}) },
@@ -60,6 +64,14 @@ function montar(over: Record<string, any> = {}) {
     guardarBlobLegacy: vi.fn(),
     persistirEstados: (e) => estados.persistir(e),
     recuperarEstados: () => estados.recuperar(),
+    // MULTIPORTAL D: la identidad es (portal, título). Se arma con el MISMO doble de registro
+    // que el bucle, así el test no puede quedar comparando distinto que producción.
+    identidad:
+      over.identidad ??
+      crearIdentidadClase({
+        obtener: (id?: string) =>
+          id === undefined || id === "prueba" ? { id: "prueba" } : undefined,
+      }),
     conexion: over.conexion ?? {
       verificarAhora: async () => {},
       get: () => ({ servidor: true, internet: true, tipoFalla: null }),
@@ -143,13 +155,51 @@ describe("el orden de la cola lo decide el array", () => {
 
 // ADR-0010: el portal se resuelve POR ÍTEM. Estos dos casos son la razón de ser del corte —
 // distinguir "dato viejo" de "portal desconocido", que hasta acá eran indistinguibles.
+// [MULTIPORTAL D] EL bug del corte: con la identidad por título, completar una clase sacaba de
+// la cola a su homónima del OTRO portal, que nunca se bajaba y desaparecía sin error.
+describe("la identidad es (portal, título)", () => {
+  it("bajar una clase no saca de la cola a su homónima de otro portal", async () => {
+    const { cola, almacenamiento, sesion, motor } = montar({
+      sitios: {
+        obtener: (id: string | undefined) =>
+          id === undefined || id === "prueba" || id === "otro"
+            ? { resolverManifiesto: resolverManifiestoDoble, nombre: "Portal", id: id ?? "prueba" }
+            : undefined,
+      },
+    });
+    await sesion.set({ rafagaCorriendo: true });
+    await almacenamiento.guardarLocal({
+      colaDescargas: [
+        { ...item("Semana 3"), sitioId: "prueba" },
+        { ...item("Semana 3"), sitioId: "otro" },
+      ],
+      listaPersistente: [],
+    });
+
+    cola.arrancarSiNoCorre();
+    await esperar(200);
+
+    // Las DOS se bajaron. Con la identidad por título, la segunda salía de la cola al
+    // completarse la primera y el motor nunca la veía.
+    const titulos = motor.compilarTranscodificacionStream.mock.calls.map(
+      (c: unknown[]) => (c[3] as { titulo: string }).titulo
+    );
+    expect(titulos).toEqual(["Semana 3", "Semana 3"]);
+    expect((almacenamiento._volcar().local as { colaDescargas: unknown[] }).colaDescargas).toEqual([]);
+  });
+});
+
 describe("resolución del portal por ítem", () => {
   it("saltea la clase y SIGUE si su portal no está registrado (huérfana)", async () => {
     const { cola, almacenamiento, sesion, motor } = montar();
     await sesion.set({ rafagaCorriendo: true });
     await almacenamiento.guardarLocal({
       colaDescargas: [{ ...item("Huerfana"), sitioId: "portal-borrado" }, item("Clase 2")],
-      listaPersistente: [{ titulo: "Huerfana", estado: "process" }],
+      // MULTIPORTAL D: la entrada de la lista lleva el MISMO `sitioId` que el ítem de la cola,
+      // como en producción — la cola hereda el portal de la clase al encolar. Antes de este
+      // corte daba igual (se comparaba sólo por título); ahora un fixture inconsistente
+      // afirmaría algo que no puede pasar y taparía el caso real.
+      listaPersistente: [{ titulo: "Huerfana", estado: "process", sitioId: "portal-borrado" }],
     });
 
     cola.arrancarSiNoCorre();
@@ -327,5 +377,67 @@ describe("el sitioId del ítem viaja hasta el aviso de fallo", () => {
       expect.any(String),
       "portal-borrado"
     );
+  });
+});
+
+// [MULTIPORTAL E] El portal del ítem viaja hasta el backend: define la carpeta
+// `raíz/<portal>/<materia>/` donde se escribe el archivo, y con qué clave el backend acumula
+// los fragmentos. Sin él, dos clases homónimas de portales distintos escriben el mismo archivo.
+describe("el portal del ítem viaja al backend", () => {
+  it("el contexto de la ráfaga lleva el sitioId del ítem", async () => {
+    const { cola, almacenamiento, sesion, motor } = montar();
+    await sesion.set({ rafagaCorriendo: true });
+    await almacenamiento.guardarLocal({
+      colaDescargas: [{ ...item("Clase 1"), sitioId: "prueba" }],
+      listaPersistente: [],
+    });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    const contexto = motor.compilarTranscodificacionStream.mock.calls[0]![3] as {
+      sitioId?: string;
+    };
+    expect(contexto.sitioId).toBe("prueba");
+  });
+
+  it("un ítem SIN sitioId usa el portal del descriptor migrado, no una carpeta vacía", async () => {
+    // El resolvedor migra el ausente al legado, así que el archivo cae en la carpeta de ese
+    // portal. Leer `item.sitioId` crudo habría mandado `undefined` y el backend habría escrito
+    // en el layout viejo, mezclando lo nuevo con lo de antes.
+    const { cola, almacenamiento, sesion, motor } = montar();
+    await sesion.set({ rafagaCorriendo: true });
+    await almacenamiento.guardarLocal({
+      colaDescargas: [item("Vieja")],
+      listaPersistente: [],
+    });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    const contexto = motor.compilarTranscodificacionStream.mock.calls[0]![3] as {
+      sitioId?: string;
+    };
+    expect(contexto.sitioId).toBe("prueba");
+  });
+
+  it("la sesión recuerda el portal en curso, para que el aborto limpie el .part correcto", async () => {
+    const { cola, almacenamiento, sesion } = montar({
+      motor: {
+        compilarTranscodificacionStream: vi.fn(
+          () => new Promise(() => {}) // queda colgada: la ráfaga sigue "en curso"
+        ),
+      },
+    });
+    await sesion.set({ rafagaCorriendo: true });
+    await almacenamiento.guardarLocal({
+      colaDescargas: [{ ...item("Clase 1"), sitioId: "prueba" }],
+      listaPersistente: [],
+    });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    expect((await sesion.get()).videoActualSitioId).toBe("prueba");
   });
 });

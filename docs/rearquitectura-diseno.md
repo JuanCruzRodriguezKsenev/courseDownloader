@@ -163,7 +163,7 @@ que por eso no nombran ni una vez a la cátedra):
 |---|---|
 | etiquetas | Los valores del eje (acá, cátedras A–D) tal como se muestran. |
 | `COMUN` / `TODAS` | Los dos centinelas: "no aplica a ninguna en particular" y "todas". |
-| `claveEstado` | La clave de `AppState` donde se guarda la elección (acá, `catedraSeleccionada`). |
+| ~~`claveEstado`~~ | Nombraba la clave de `AppState` donde se guardaba la elección. **Se eliminó el 2026-08-06 (ADR-0012)**: la elección pasó a ser por portal y la clave es el `sitioId`. |
 | `leer(item)` | Cómo sacar el valor de un ítem **escrapeado**. |
 | `leerDeCola(item)` | Cómo sacarlo de un ítem **de la cola**, que no lo trae: lo re-deriva con el parser de títulos. |
 | copy del modal | Los textos del asistente de autoselección. |

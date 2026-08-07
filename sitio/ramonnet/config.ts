@@ -140,12 +140,6 @@ const SitioRamonNet: SitioRamonNetDescriptor = {
 
     valorComun: "COMUN",
     valorTodas: "TODAS",
-    // Campo de `AppState` donde vive la selección de esta faceta. Es genérico desde el
-    // 2026-08-03: antes decía `catedraSeleccionada` y era el último vocabulario de Ramón Net
-    // dentro de la maquinaria de estado, lo que impedía mudarla a `core/`. La clave persistida
-    // se renombró en el mismo corte (`catedraElegida` → `facetaElegida`) con migración de
-    // datos — ver `docs/data-model.md`.
-    claveEstado: "facetaSeleccionada",
 
     // De dónde sale el valor en un item del listado scrapeado.
     leer: (clase) => clase.catedra,

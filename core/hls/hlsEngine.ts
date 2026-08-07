@@ -44,6 +44,7 @@ export interface BackendDeFragmentos {
       chunkIndex: number;
       totalChunks: number;
       targetFolder: string;
+      siteFolder?: string;
       sessionId: string;
     },
     signal: AbortSignal
@@ -80,6 +81,12 @@ export interface ContextoRafaga {
   titulo: string;
   /** Vincula los fragmentos de esta ráfaga; evita huérfanos ante una cancelación abrupta. */
   sessionId: string;
+  /**
+   * [MULTIPORTAL E] De qué portal es la clase. Viaja con cada fragmento porque el backend lo
+   * usa como carpeta un nivel arriba de la materia y como parte de la clave de su acumulador.
+   * El motor no lo interpreta: lo pasa. Opcional, para no romper a un caller que no lo mande.
+   */
+  sitioId?: string;
   /**
    * Frena a los workers hermanos ante un fallo REAL de fragmento. Lo provee el caller porque
    * es el dueño del `AbortController` cuyo `signal` recibe este motor.
@@ -155,7 +162,7 @@ export function crearHlsEngine({
       contexto: ContextoRafaga,
       callbacks: CallbacksRafaga = {}
     ): Promise<Blob | null> {
-      const { modoTurbo, titulo, sessionId, abortarHermanos } = contexto;
+      const { modoTurbo, titulo, sessionId, sitioId, abortarHermanos } = contexto;
 
       let claveCryptoWeb: CryptoKey | null = null;
       if (metadataHls.urlLlave) {
@@ -203,6 +210,7 @@ export function crearHlsEngine({
                       chunkIndex: tarea.idx,
                       totalChunks: metadataHls.urls.length,
                       targetFolder: subcarpeta,
+                      siteFolder: sitioId,
                       sessionId,
                     },
                     signal

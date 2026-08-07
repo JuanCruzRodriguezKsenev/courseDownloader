@@ -84,7 +84,12 @@ beforeEach(() => {
     listadoClasesGlobal: [],
     colaDescargas: [],
     pestañaActiva: 'disponibles',
-    facetaSeleccionada: null,
+    facetasElegidas: {},
+    facetaElegidaDe(sitioId) { return this.facetasElegidas[sitioId] ?? null; },
+    fijarFacetaElegida(sitioId, valor) {
+      if (valor === null) delete this.facetasElegidas[sitioId];
+      else this.facetasElegidas[sitioId] = valor;
+    },
   };
   // El valor de la faceta para los items de la COLA lo deriva el adaptador de sitio
   // re-parseando el título (SitioRamonNet.clasificarCarpeta → ParserTitulos). Acá se
@@ -447,12 +452,17 @@ describe('FilterFeature.renderizarFiltrosMenuPopover — sección Portal (corte 
 // por ítem desde el corte 4, que es un mecanismo distinto.
 describe('FilterFeature — el descriptor se re-lee, no se captura (corte 5)', () => {
   it('cambiar el portal activo cambia el título de la sección de faceta', () => {
-    const OTRO = { faceta: { ...SitioRamonNet.faceta, etiqueta: 'Comisión' } };
+    // El doble lleva `id` porque desde el corte multiportal A el listado se filtra por portal:
+    // un descriptor sin id no matchea ninguna clase y la sección no se dibujaría.
+    const OTRO = { id: 'otroportal', faceta: { ...SitioRamonNet.faceta, etiqueta: 'Comisión' } };
     let actual = SitioRamonNet;
-    const { feature, nodos } = crearFeature({ sitio: () => actual });
+    const { feature, nodos } = crearFeature({ sitio: () => actual, sitios: sitiosDeDosPortales() });
 
     AppState.pestañaActiva = 'disponibles';
-    AppState.listadoClasesGlobal = [{ titulo: 'a', catedra: 'A', carpeta: 'bio', estado: 'pending' }];
+    AppState.listadoClasesGlobal = [
+      { titulo: 'a', catedra: 'A', carpeta: 'bio', estado: 'pending', sitioId: 'ramonnet' },
+      { titulo: 'b', catedra: 'A', carpeta: 'bio', estado: 'pending', sitioId: 'otroportal' },
+    ];
 
     feature.renderizarFiltrosMenuPopover();
     let titulos = [...nodos.filterMenu.querySelectorAll('.popover-section-title')].map(t => t.textContent);
@@ -463,5 +473,71 @@ describe('FilterFeature — el descriptor se re-lee, no se captura (corte 5)', (
     titulos = [...nodos.filterMenu.querySelectorAll('.popover-section-title')].map(t => t.textContent);
     expect(titulos).toContain('Comisión');
     expect(titulos).not.toContain('Cátedra');
+  });
+});
+
+// [MULTIPORTAL A] Disponibles muestra UN portal: el de la pestaña escaneada.
+// `listadoClasesGlobal` puede tener ítems de dos portales porque `popup.js` preserva entre
+// escaneos lo que está en la cola. Sin filtrar, se los clasificaba con el descriptor activo.
+describe('FilterFeature — Disponibles es de un solo portal (multiportal A)', () => {
+  it('oculta del listado las clases de otro portal', () => {
+    const { feature, nodos } = crearFeature({ sitios: sitiosDeDosPortales() });
+    nodos.folder.value = 'biologia';
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'Propia', carpeta: 'biologia', estado: 'pending', catedra: 'COMUN', sitioId: 'ramonnet' },
+      { titulo: 'Ajena', carpeta: 'biologia', estado: 'process', catedra: 'COMUN', sitioId: 'otroportal' },
+    ];
+
+    feature.aplicarFiltrosCruzados();
+
+    expect(AppState.listadoClasesGlobal[0].visible).toBe(true);
+    expect(AppState.listadoClasesGlobal[1].visible).toBe(false);
+  });
+
+  // Ausente ≠ desconocido, la distinción del corte 3: un ítem anterior al multi-sitio es del
+  // portal legado, así que se ve cuando el legado es el activo.
+  it('una clase sin sitioId se trata como del portal legado, no como comodín', () => {
+    const { feature, nodos } = crearFeature({ sitios: sitiosDeDosPortales() });
+    nodos.folder.value = 'biologia';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'Vieja', carpeta: 'biologia', estado: 'pending', catedra: 'COMUN' },
+    ];
+
+    feature.aplicarFiltrosCruzados();
+
+    // El sitio activo del harness es Ramón Net, que es el legado: se ve.
+    expect(AppState.listadoClasesGlobal[0].visible).toBe(true);
+  });
+
+  it('un huérfano no se muestra en ningún portal', () => {
+    const { feature, nodos } = crearFeature({
+      sitios: { obtener: (id) => (id === 'ramonnet' ? SitioRamonNet : undefined) },
+    });
+    nodos.folder.value = 'biologia';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'Huerfana', carpeta: 'biologia', estado: 'pending', catedra: 'COMUN', sitioId: 'borrado' },
+    ];
+
+    feature.aplicarFiltrosCruzados();
+
+    expect(AppState.listadoClasesGlobal[0].visible).toBe(false);
+  });
+
+  it('la sección de faceta del popover no ofrece valores de otro portal', () => {
+    const { feature, nodos } = crearFeature({ sitios: sitiosDeDosPortales() });
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'Propia', carpeta: 'bio', estado: 'pending', catedra: 'A', sitioId: 'ramonnet' },
+      // Del otro portal, y con un valor que NO existe en Ramón Net. Derivarlo con el descriptor
+      // activo lo ofrecería como si fuese una cátedra.
+      { titulo: 'Ajena', carpeta: 'bio', estado: 'process', catedra: 'ZZZ', sitioId: 'otroportal' },
+    ];
+
+    feature.renderizarFiltrosMenuPopover();
+
+    const opciones = [...nodos.filterMenu.querySelectorAll('.popover-option span')].map(s => s.textContent);
+    expect(opciones).toContain('Cat A');
+    expect(opciones).not.toContain('Cat ZZZ');
   });
 });

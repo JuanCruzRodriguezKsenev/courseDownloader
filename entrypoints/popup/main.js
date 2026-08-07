@@ -28,7 +28,7 @@ import '../../plataforma/composicion.ts';
 // `DOMContentLoaded` se registra en el mismo momento que antes — los módulos ES son
 // diferidos, así que todo esto corre antes de que el evento dispare.
 import { iniciarPopup } from '../../popup.js';
-import { AppState, Conexion, HistorialFallos, mensajeria, sitios, Utils } from '../../plataforma/composicion.ts';
+import { AppState, Conexion, HistorialFallos, identidadClase, mensajeria, sitios, Utils } from '../../plataforma/composicion.ts';
 import BunClient from '../../core/backend/bunClient.ts';
 import crearRenderers from '../../renderers.js';
 
@@ -48,6 +48,8 @@ iniciarPopup({
   // Registro de portales: por id para lo que mezcla portales (la cola) y por URL para la
   // pestaña activa. El MISMO que usa el service worker, con la misma migración.
   sitios,
+  // [MULTIPORTAL D] El MISMO criterio de identidad que el service worker.
+  identidadClase,
   renderers: crearRenderers(Utils),
 });
 

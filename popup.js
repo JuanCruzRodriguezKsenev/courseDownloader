@@ -213,9 +213,13 @@ import BannerConexion from './popup/features/bannerConexion.preact.js';
  * @param {object} deps.sitios      Registro de portales. Resuelve por `sitioId` (lo que
  *                                  mezcla portales: la cola) y por URL (la pestaña activa).
  *                                  Ver ADR-0010. Desde el corte 5 **no hay un `sitio` fijo**.
+ * @param {object} deps.identidadClase [MULTIPORTAL D] Cómo se decide si dos ítems son la misma
+ *                                  clase: por (portal, título). El MISMO que usa el service
+ *                                  worker — si divergieran, el popup sacaría de la cola algo
+ *                                  distinto de lo que el SW considera esa clase.
  * @param {object} deps.renderers   Pintado vanilla que todavía no es isla.
  */
-export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, sitios, renderers }) {
+export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, sitios, identidadClase, renderers }) {
   document.addEventListener('DOMContentLoaded', async () => {
     console.log("🤖 [POPUP-CORE] Orquestador unificado V5.4.1 activo. Sincronización de escáner híbrido (Chrome/Bun) integrada.");
 
@@ -290,6 +294,14 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       if (resuelto) sitioActivo = resuelto;
       return resuelto;
     }
+
+    // [MULTIPORTAL C] La sonda de "hay internet" del daemon apunta al portal que se está
+    // mirando, no a uno fijo. Con N portales, "hay internet" es "llego a *cuál*": si el
+    // usuario está en el portal B y el A está caído, el banner no tiene por qué decirle que
+    // no hay conexión. Se registra un getter y no un valor porque `sitioActivo` cambia con
+    // cada escaneo. En el service worker el criterio es otro —el portal del ítem de la cola—
+    // y lo fija la composición. Ver `docs/multisitio-diseno.md` §4.
+    conexion.fijarSondeo(() => sitioActivo.urlSondeoInternet);
     // [MULTISITIO CORTE 6C] `portales` es el filtro maestro de la pestaña Cola: la cola puede
     // mezclar portales (ADR-0010) y cada uno trae su propio vocabulario de faceta. En la Cola
     // los valores de `valoresFaceta` van CALIFICADOS por portal (`sitioId|valor`), porque dos
@@ -426,6 +438,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // [CORTE 6D — ADR-0011] Diferido a propósito: `_orden` se crea más abajo. Se invoca
       // recién al encolar, mucho después de que este init termine.
       reordenarCola: () => _orden.persistirOrdenCola(),
+      identidad: identidadClase,
       // PuertoMensajeria (Fase 5c): lo publica plataforma/composicion.ts. La feature ya no
       // toca chrome.runtime; el IPC entra por acá.
       mensajeria: mensajeria,
@@ -479,6 +492,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       appState,
       badge: nodos.facetaBadge,
       sitio,
+      // [MULTIPORTAL A] El resolvedor compartido, para poder saber de qué portal es CADA clase
+      // del listado: `listadoClasesGlobal` puede traer ítems encolados de otro portal.
+      sitios,
       aplicarFiltros: () => aplicarFiltrosCruzados()
     });
     const actualizarBadgeFaceta = _faceta.actualizarBadge;
@@ -899,8 +915,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
               });
 
               // Combinar evitando duplicar elementos que ya están en la cola
-              const titulosEnCola = new Set(itemsEnCola.map(c => c.titulo));
-              const clasesNuevasFiltradas = nuevasClases.filter(c => !titulosEnCola.has(c.titulo));
+              // [MULTIPORTAL D] Por (portal, título), no por título: dos portales pueden tener
+              // una clase homónima y con la clave pelada la del portal recién escaneado se
+              // descartaba en silencio por culpa de una encolada del otro.
+              const yaEnCola = new Set(itemsEnCola.map(c => identidadClase.clave(c)));
+              const clasesNuevasFiltradas = nuevasClases.filter(c => !yaEnCola.has(identidadClase.clave(c)));
 
               appState.listadoClasesGlobal = [...itemsEnCola, ...clasesNuevasFiltradas];
               appState.sincronizacionDiscoCompletada = false;
@@ -983,21 +1002,34 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       };
 
       // ─── PIPELINE DE LECTURA DE DATOS (MULTIPLE O BUN SERVER DIRECTO) ────────
-      const carpetasUnicas = Array.from(new Set(appState.listadoClasesGlobal.map(c => c.carpeta || subcarpetaFiltro)));
-      if (carpetasUnicas.length === 0) {
-        carpetasUnicas.push(subcarpetaFiltro);
+      // [MULTIPORTAL E] Se escanea por PAR (portal, materia), no por materia sola: en disco la
+      // ruta es `raíz/<portal>/<materia>/`, así que pedir sólo la materia miraría la carpeta
+      // equivocada — y la extensión daría por no descargado todo lo que sí está.
+      //
+      // El portal sale del descriptor de cada clase (con la migración aplicada) y no del campo
+      // crudo, así que una clase anterior al multi-sitio se busca en la carpeta del legado.
+      const paresUnicos = new Map();
+      appState.listadoClasesGlobal.forEach(c => {
+        const carpeta = c.carpeta || subcarpetaFiltro;
+        const idPortal = sitios.obtener(c && c.sitioId)?.id;
+        if (!idPortal) return; // huérfano: no sabemos en qué carpeta de portal buscar
+        paresUnicos.set(`${idPortal}|${carpeta}`, { idPortal, carpeta });
+      });
+      if (paresUnicos.size === 0) {
+        const idPortal = sitioActivo.id;
+        paresUnicos.set(`${idPortal}|${subcarpetaFiltro}`, { idPortal, carpeta: subcarpetaFiltro });
       }
 
       try {
         let todosLosArchivos = [];
-        const promesas = carpetasUnicas.map(carp => 
-          backend.escanearDisco(carp)
+        const promesas = Array.from(paresUnicos.values()).map(({ idPortal, carpeta: carp }) =>
+          backend.escanearDisco(carp, idPortal)
             .then(data => data?.archivos || [])
             .catch(e => {
               if (e instanceof TypeError || e.message?.includes("fetch") || e.message?.includes("connect")) {
                 throw e;
               }
-              console.warn(`⚠️ No se pudo escanear la carpeta ${carp}:`, e.message);
+              console.warn(`⚠️ No se pudo escanear la carpeta ${idPortal}/${carp}:`, e.message);
               return [];
             })
         );
@@ -1101,9 +1133,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       }
     
       // Sincronizar el estado de disponibles con los elementos en la cola real
-      const titulosEnCola = new Set(appState.colaDescargas.map(c => c.titulo));
+      const titulosEnCola = new Set(appState.colaDescargas.map(c => identidadClase.clave(c)));
       appState.listadoClasesGlobal.forEach(c => {
-        if (titulosEnCola.has(c.titulo)) {
+        if (titulosEnCola.has(identidadClase.clave(c))) {
           c.estado = 'process';
         } else if (c.estado === 'process') {
           c.estado = 'pending'; // Regresar a pendiente si ya no está en la cola real
@@ -1215,7 +1247,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
               // 'process' y fuera de la cola visible sin forma de recuperarla.
               mensajeria.enviar({ action: "abortar_rafaga_inmediata" }).catch(() => undefined).finally(() => {
                 // Remover de la cola local para persistencia correcta
-                appState.colaDescargas = appState.colaDescargas.filter(i => i.titulo !== c.titulo);
+                appState.colaDescargas = appState.colaDescargas.filter(i => !identidadClase.misma(i, c));
                 c.estado = 'pending';
                 c.seleccionado = seleccionMaestraActiva;
 
@@ -1235,7 +1267,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             }
 
             // Remover de la cola local
-            appState.colaDescargas = appState.colaDescargas.filter(i => i.titulo !== c.titulo);
+            appState.colaDescargas = appState.colaDescargas.filter(i => !identidadClase.misma(i, c));
             renderizarListadoInterfaz(); // re-render desde estado en vez de div.remove() imperativo
 
             // Actualizar estado en disponibles
@@ -1250,7 +1282,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
             // Igual que arriba: el re-render diferido no depende de que el SW conteste (la UI
             // local ya se actualizó), así que va en .finally.
-            mensajeria.enviar({ action: "remover_item_de_cola", titulo: c.titulo })
+            mensajeria.enviar({ action: "remover_item_de_cola", titulo: c.titulo, sitioId: c.sitioId })
               .catch(() => undefined)
               .finally(() => {
                 setTimeout(aplicarFiltrosCruzados, 100);
@@ -1344,7 +1376,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           if (obj) { obj.estado = 'downloaded'; obj.seleccionado = false; }
         
           // También remover de la cola local
-          appState.colaDescargas = appState.colaDescargas.filter(c => c.titulo !== req.titulo);
+          appState.colaDescargas = appState.colaDescargas.filter(c => !identidadClase.misma(c, req));
           appState.respaldar();
         
           nodos.queueBadge.textContent = appState.colaDescargas.length;
@@ -1362,7 +1394,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           console.error(`⚠️ [POPUP-ALERT] El SW saltó la clase: ${req.titulo} (${req.motivo})`);
           const obj = appState.listadoClasesGlobal.find(c => c.titulo === req.titulo);
           if (obj) { obj.estado = 'pending'; obj.seleccionado = false; }
-          appState.colaDescargas = appState.colaDescargas.filter(c => c.titulo !== req.titulo);
+          appState.colaDescargas = appState.colaDescargas.filter(c => !identidadClase.misma(c, req));
           appState.respaldar();
           nodos.queueBadge.textContent = appState.colaDescargas.length;
 

@@ -183,3 +183,58 @@ describe('iniciar()/detener()', () => {
     vi.useRealTimers();
   });
 });
+
+// [MULTIPORTAL C] Con N portales, "hay internet" pasa a ser "llego a *cuál*". La sonda sigue
+// siendo UNA —estado de conexión por portal sería un rediseño del daemon (§4 del diseño)— pero
+// apunta al portal que corresponde en cada momento.
+describe("la sonda sigue al portal (multiportal C)", () => {
+  it("con una función, resuelve la URL en CADA sondeo y no al construir", async () => {
+    let actual = "https://portal-a.test/";
+    const daemon = crearConexion(almacenamiento, { urlSondeoInternet: () => actual });
+    const vistas: string[] = [];
+    globalThis.fetch = vi.fn(async (url: unknown) => {
+      vistas.push(String(url));
+      return new Response("", { status: 200 });
+    }) as unknown as typeof fetch;
+
+    await daemon._chequearInternet();
+    actual = "https://portal-b.test/";
+    await daemon._chequearInternet();
+
+    expect(vistas).toEqual(["https://portal-a.test/", "https://portal-b.test/"]);
+  });
+
+  it("acepta una función async (el SW la resuelve leyendo la cola de storage)", async () => {
+    const daemon = crearConexion(almacenamiento, {
+      urlSondeoInternet: async () => "https://portal-async.test/",
+    });
+    const vistas: string[] = [];
+    globalThis.fetch = vi.fn(async (url: unknown) => {
+      vistas.push(String(url));
+      return new Response("", { status: 200 });
+    }) as unknown as typeof fetch;
+
+    await daemon._chequearInternet();
+
+    expect(vistas).toEqual(["https://portal-async.test/"]);
+  });
+
+  it("fijarSondeo reemplaza el origen (lo usa el popup al resolver la pestaña)", async () => {
+    const daemon = crearConexion(almacenamiento, { urlSondeoInternet: "https://viejo.test/" });
+    const vistas: string[] = [];
+    globalThis.fetch = vi.fn(async (url: unknown) => {
+      vistas.push(String(url));
+      return new Response("", { status: 200 });
+    }) as unknown as typeof fetch;
+
+    daemon.fijarSondeo(() => "https://nuevo.test/");
+    await daemon._chequearInternet();
+
+    expect(vistas).toEqual(["https://nuevo.test/"]);
+  });
+
+  it("un valor fijo sigue funcionando igual que antes", async () => {
+    const daemon = crearConexion(almacenamiento, { urlSondeoInternet: "https://fijo.test/" });
+    expect(await daemon.resolverUrlSondeo()).toBe("https://fijo.test/");
+  });
+});

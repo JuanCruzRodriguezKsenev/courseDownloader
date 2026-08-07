@@ -41,7 +41,7 @@ describe("AppState.inicializarSincronizacionStorage", () => {
     expect(app.listadoClasesGlobal).toEqual([]);
     expect(app.colaDescargas).toEqual([]);
     expect(app.sincronizacionDiscoCompletada).toBe(false);
-    expect(app.facetaSeleccionada).toBeNull();
+    expect(app.facetasElegidas).toEqual({});
     expect(app.ordenAscendente).toBe(true);
     expect(app.tutorialCompletado).toBe(false);
   });
@@ -64,7 +64,8 @@ describe("AppState.inicializarSincronizacionStorage", () => {
     expect(app.listadoClasesGlobal).toEqual([{ titulo: "A", estado: "pending", sitioId: "ramonnet" }]);
     expect(app.colaDescargas).toEqual([{ id: 1, sitioId: "ramonnet" }]);
     expect(app.sincronizacionDiscoCompletada).toBe(true);
-    expect(app.facetaSeleccionada).toBe("B");
+    // MULTIPORTAL B: el valor único migra al portal legado.
+    expect(app.facetaElegidaDe("ramonnet")).toBe("B");
     expect(app.ocultarAdvertenciaExplorar).toBe(true);
     expect(app.ocultarAdvertenciaAula).toBe(true);
     expect(app.tutorialCompletado).toBe(true);
@@ -118,7 +119,7 @@ describe("AppState.inicializarSincronizacionStorage", () => {
 
       await app.inicializarSincronizacionStorage();
 
-      expect(app.facetaSeleccionada).toBe("C");
+      expect(app.facetaElegidaDe("ramonnet")).toBe("C");
     });
 
     it("borra la clave vieja apenas la adopta (la migración se paga una vez)", async () => {
@@ -135,7 +136,7 @@ describe("AppState.inicializarSincronizacionStorage", () => {
 
       await app.inicializarSincronizacionStorage();
 
-      expect(app.facetaSeleccionada).toBe("A");
+      expect(app.facetaElegidaDe("ramonnet")).toBe("A");
     });
   });
 
@@ -176,7 +177,7 @@ describe("AppState.respaldar", () => {
     app.listadoClasesGlobal = [{ titulo: "A" }];
     app.colaDescargas = [{ id: 7 }];
     app.sincronizacionDiscoCompletada = true;
-    app.facetaSeleccionada = "C";
+    app.fijarFacetaElegida("ramonnet", "C");
 
     app.respaldar();
     await dejarCorrer();
@@ -184,7 +185,7 @@ describe("AppState.respaldar", () => {
     expect(spy).toHaveBeenCalledTimes(1);
     expect(Object.keys(spy.mock.calls[0]![0]).sort()).toEqual(
       [
-        "facetaElegida",
+        "facetasElegidas",
         "colaDescargas",
         "faseDiscoOk",
         "listaPersistente",
@@ -203,7 +204,7 @@ describe("AppState.respaldar", () => {
 
     const { local } = almacenamiento._volcar();
     expect(local.listaPersistente).toEqual([{ titulo: "A" }]);
-    expect(local.facetaElegida).toBe("C");
+    expect(local.facetasElegidas).toEqual({ ramonnet: "C" });
   });
 
   it("un fallo del storage se avisa por consola y no rechaza (es fire-and-forget)", async () => {
@@ -225,7 +226,7 @@ describe("AppState.limpiarSesionLocal", () => {
       listaPersistente: [{ titulo: "A" }],
       colaDescargas: [{ id: 1 }],
       faseDiscoOk: true,
-      facetaElegida: "B",
+      facetasElegidas: { ramonnet: "B" },
       tutorialCompletado: true,
     });
     app.listadoClasesGlobal = [{ titulo: "A" }];
@@ -248,7 +249,7 @@ describe("AppState.limpiarSesionLocal", () => {
     expect(local.colaDescargas).toBeUndefined();
     expect(local.faseDiscoOk).toBeUndefined();
     // La faceta elegida sobrevive a propósito: si no, la UI la vuelve a pedir al re-escanear.
-    expect(local.facetaElegida).toBe("B");
+    expect(local.facetasElegidas).toEqual({ ramonnet: "B" });
     expect(local.tutorialCompletado).toBe(true);
   });
 });
@@ -454,5 +455,71 @@ describe("normalización de la cola vieja (corte 6d)", () => {
     });
 
     expect(titulos(app)).toEqual(["SinFecha", "B"]);
+  });
+});
+
+// [MULTIPORTAL B] La faceta elegida pasó de un valor único a un mapa por portal.
+//
+// Con un casillero compartido, elegir "Cátedra A" en un portal y pasar al otro le vaciaba el
+// listado: "A" no matchea ninguno de SUS valores, así que el filtro escondía todo — sin error,
+// sin explicación y sin nada que lo afirmara.
+describe("la faceta elegida es por portal (multiportal B)", () => {
+  async function cargarCon(persistido: Record<string, unknown>) {
+    const alm = new AlmacenamientoEnMemoria();
+    await alm.guardarLocal(persistido);
+    const a = crearAppState(alm, new MensajeriaEnMemoria(1000));
+    await a.inicializarSincronizacionStorage();
+    return { app: a, alm };
+  }
+
+  it("la elección de un portal no se ve desde el otro", async () => {
+    const { app: a } = await cargarCon({ facetasElegidas: { ramonnet: "A" } });
+
+    expect(a.facetaElegidaDe("ramonnet")).toBe("A");
+    expect(a.facetaElegidaDe("otroportal")).toBeNull();
+  });
+
+  it("fijar la de un portal no toca la del otro", async () => {
+    const { app: a } = await cargarCon({ facetasElegidas: { ramonnet: "A" } });
+
+    a.fijarFacetaElegida("otroportal", "1");
+
+    expect(a.facetaElegidaDe("ramonnet")).toBe("A");
+    expect(a.facetaElegidaDe("otroportal")).toBe("1");
+  });
+
+  it("fijar en null borra sólo esa entrada", async () => {
+    const { app: a } = await cargarCon({ facetasElegidas: { ramonnet: "A", otroportal: "1" } });
+
+    a.fijarFacetaElegida("ramonnet", null);
+
+    expect(a.facetaElegidaDe("ramonnet")).toBeNull();
+    expect(a.facetaElegidaDe("otroportal")).toBe("1");
+  });
+
+  // La migración: el valor único era de cuando había un solo portal, así que es del legado.
+  // Perderlo haría reaparecer el modal de cátedra sin motivo visible para el usuario.
+  it("el valor único de una instalación existente migra al portal legado", async () => {
+    const { app: a, alm } = await cargarCon({ facetaElegida: "B" });
+
+    expect(a.facetaElegidaDe("ramonnet")).toBe("B");
+    // Y se paga una sola vez: la clave vieja se va.
+    expect(alm._volcar().local.facetaElegida).toBeUndefined();
+  });
+
+  it("si están el mapa y el valor único, gana el mapa (lo viejo es un resto)", async () => {
+    const { app: a } = await cargarCon({
+      facetasElegidas: { ramonnet: "A" },
+      facetaElegida: "B",
+    });
+
+    expect(a.facetaElegidaDe("ramonnet")).toBe("A");
+  });
+
+  it("sin nada persistido, ningún portal tiene elección", async () => {
+    const { app: a } = await cargarCon({});
+
+    expect(a.facetasElegidas).toEqual({});
+    expect(a.facetaElegidaDe("ramonnet")).toBeNull();
   });
 });
