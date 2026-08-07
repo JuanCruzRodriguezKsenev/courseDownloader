@@ -15,6 +15,17 @@ import { MensajeriaEnMemoria } from './core/puertos/mensajeriaEnMemoria.ts';
 import { crearEstadoSesion } from './core/cola/estadoSesion.ts';
 import { crearEstadosProgreso } from './core/cola/estadosProgreso.ts';
 import { crearProcesadorCola } from './core/cola/procesadorCola.ts';
+import { notificarFallo, sitioIdDeNotificacion } from './plataforma/chrome/notificaciones.ts';
+
+/**
+ * [CORTE 8] Un SEGUNDO portal, que es el punto: con uno solo el bug es invisible. Sólo se usa
+ * en las pruebas del click de la notificación.
+ */
+const OTRO_PORTAL = {
+  nombre: 'Otro Portal',
+  patronPestañas: 'https://otro/*',
+  urlSondeoInternet: 'https://otro',
+};
 
 const store = { local: {}, session: {} };
 
@@ -38,6 +49,18 @@ const ALARMA_AUTOHEAL = 'alarma_autoheal';
 let fallosRegistrados = [];
 /** Lo empujado a la barra de progreso de la consola del backend Bun. */
 let consolaBackend = [];
+
+/**
+ * [CORTE 8] Estado del listener de la notificación nativa. El SW lo registra al cargarse, así
+ * que se captura una sola vez en el beforeAll; el resto se limpia por test.
+ */
+let onClickedNotificacion = null;
+let notificacionesLimpiadas = [];
+let tabsConsultadas = [];
+let tabsActualizadas = [];
+let tabsCreadas = [];
+/** Qué devuelve `chrome.tabs.query`: `null` = no hay pestaña abierta de ese portal. */
+let pestañaQueDevuelveQuery = null;
 
 /** Comportamiento configurable del motor HLS por test. */
 let motor = {};
@@ -164,6 +187,9 @@ beforeAll(async () => {
 
   const noopEvent = { addListener: () => {} };
   globalThis.chrome = {
+    // [CORTE 8] El listener de la notificación se CAPTURA (antes era un noop): es el sujeto
+    // de las pruebas del final de este archivo. Las llamadas a tabs/windows se graban para
+    // poder afirmar A QUÉ PORTAL llevó el click.
     runtime: {
       lastError: null,
       onInstalled: noopEvent,
@@ -179,8 +205,16 @@ beforeAll(async () => {
     // Mismo criterio que storage: el SW ya no toca chrome.alarms (va por Programador).
     get alarms() { throw new Error('el SW no debe usar chrome.alarms: va por Programador'); },
     downloads: { search: async () => [] },
-    notifications: { onClicked: noopEvent, create: () => {}, clear: () => {} },
-    tabs: { query: async () => [], update: async () => {}, create: async () => {} },
+    notifications: {
+      onClicked: { addListener: (fn) => { onClickedNotificacion = fn; } },
+      create: () => {},
+      clear: (id) => { notificacionesLimpiadas.push(id); },
+    },
+    tabs: {
+      query: async (q) => { tabsConsultadas.push(q); return pestañaQueDevuelveQuery ? [pestañaQueDevuelveQuery] : []; },
+      update: async (id, p) => { tabsActualizadas.push({ id, ...p }); },
+      create: async (p) => { tabsCreadas.push(p); },
+    },
     windows: { update: async () => {} },
   };
 
@@ -199,7 +233,16 @@ beforeAll(async () => {
     estadosProgreso: globalThis.EstadosProgreso,
     cola: globalThis.Cola,
     backend: globalThis.BunClient,
-    sitio: globalThis.SitioActivo,
+    // [CORTE 8] Antes acá iba `sitio: globalThis.SitioActivo` — UN portal fijo, que es lo que
+    // hacía que el click abriera siempre el mismo. Ahora entra el resolvedor, con el mismo
+    // criterio que el envoltorio real de composicion.ts: se conoce 'ramonnet' y el portal
+    // ausente migra al legado; cualquier otro id es huérfano y no resuelve.
+    resolverSitioDeNotificacion: (notificationId) => {
+      const id = sitioIdDeNotificacion(notificationId);
+      if (id === undefined || id === 'ramonnet') return globalThis.SitioActivo;
+      if (id === 'otroportal') return OTRO_PORTAL;
+      return undefined;
+    },
   });
 });
 
@@ -212,6 +255,11 @@ beforeEach(() => {
   programador.cancelar(ALARMA_AUTOHEAL);
   fallosRegistrados = [];
   consolaBackend = [];
+  notificacionesLimpiadas = [];
+  tabsConsultadas = [];
+  tabsActualizadas = [];
+  tabsCreadas = [];
+  pestañaQueDevuelveQuery = null;
   estadoConexion = { servidor: true, internet: true, tipoFalla: null };
   // Motor por defecto: 2 fragmentos y descarga exitosa.
   motor = {
@@ -341,13 +389,20 @@ describe('bucle de descarga — camino feliz', () => {
     expect(guardadas).toEqual(['Clase 1', 'Clase 2']);
   });
 
-  it('respeta el orden FIFO por fechaEncolado, no el del array', async () => {
+  // [MULTISITIO CORTE 6D — ADR-0011] Este test decía lo contrario: "respeta el orden FIFO por
+  // fechaEncolado, NO el del array". Era la caracterización del `sort` que el bucle hacía en
+  // cada vuelta, y es justo la conducta que la ADR invierte — el array pasa a SER el orden de
+  // descarga. Se invierte la afirmación, que es lo honesto: el contrato cambió por decisión.
+  //
+  // Ojo con lo que este test protege ahora: que `fechaEncolado` haya dejado de mandar. Si un
+  // día alguien vuelve a ordenar en el service worker, esto se pone rojo.
+  it('baja en el orden del ARRAY, no por fechaEncolado (el popup es el único que ordena)', async () => {
     await arrancarCola([item('Segunda', 200), item('Primera', 100)]);
 
     await esperarA(() => accionesEnviadas().includes('cola_completamente_vacia'), 'cola vacía');
 
     const guardadas = mensajeria.notificados.filter(m => m.action === 'clase_guardada_ok').map(m => m.titulo);
-    expect(guardadas).toEqual(['Primera', 'Segunda']);
+    expect(guardadas).toEqual(['Segunda', 'Primera']);
   });
 
   it('le pasa al motor el contexto de la ráfaga (turbo, título, sessionId y cómo frenar a los hermanos)', async () => {
@@ -555,5 +610,92 @@ describe('auto-heal por alarma', () => {
     expect(await programador.dispararYEsperar(ALARMA_AUTOHEAL)).toBe(true);
 
     expect(programador.estaProgramada(ALARMA_AUTOHEAL)).toBe(false);
+  });
+});
+
+/**
+ * [MULTISITIO CORTE 8] El click en la notificación de fallo.
+ *
+ * Lo que se prueba acá no es "abre una pestaña", que ya andaba: es **cuál**. Hasta el corte 8
+ * el SW resolvía con el portal asumido, así que con la cola mezclada el fallo del portal B
+ * enfocaba el A. Por eso todos estos tests necesitan DOS portales — con uno solo el bug es
+ * invisible, que es exactamente por qué sobrevivió a la medición original.
+ */
+describe('click en la notificación de fallo → pestaña del portal DEL ÍTEM', () => {
+  /** El id real que produce el adaptador, para no acoplar los tests a su formato. */
+  const idDeFalloPara = (sitioId) => {
+    let creado = null;
+    const chromeOriginal = globalThis.chrome.notifications.create;
+    globalThis.chrome.notifications.create = (id) => { creado = id; };
+    notificarFallo('rechazo', 'Clase 1', 'motivo', sitioId);
+    globalThis.chrome.notifications.create = chromeOriginal;
+    return creado;
+  };
+
+  it('el listener quedó registrado al cargar el SW', () => {
+    expect(typeof onClickedNotificacion).toBe('function');
+  });
+
+  it('enfoca la pestaña abierta del portal del ítem, no la del portal asumido', async () => {
+    pestañaQueDevuelveQuery = { id: 42, windowId: 7 };
+
+    await onClickedNotificacion(idDeFalloPara('otroportal'));
+
+    expect(tabsConsultadas).toEqual([{ url: OTRO_PORTAL.patronPestañas }]);
+    expect(tabsActualizadas).toEqual([{ id: 42, active: true }]);
+    expect(tabsCreadas).toEqual([]);
+  });
+
+  it('sin pestaña abierta, ABRE la del portal del ítem', async () => {
+    pestañaQueDevuelveQuery = null;
+
+    await onClickedNotificacion(idDeFalloPara('otroportal'));
+
+    expect(tabsCreadas).toEqual([{ url: OTRO_PORTAL.urlSondeoInternet }]);
+  });
+
+  it('dos fallos de portales distintos llevan cada uno al suyo (la cola mezclada)', async () => {
+    const idA = idDeFalloPara('ramonnet');
+    const idB = idDeFalloPara('otroportal');
+
+    await onClickedNotificacion(idA);
+    await onClickedNotificacion(idB);
+
+    expect(tabsCreadas).toEqual([
+      { url: globalThis.SitioActivo.urlSondeoInternet },
+      { url: OTRO_PORTAL.urlSondeoInternet },
+    ]);
+  });
+
+  it('un ítem sin sitioId (dato pre multi-sitio) resuelve al portal legado', async () => {
+    await onClickedNotificacion(idDeFalloPara(undefined));
+
+    expect(tabsCreadas).toEqual([{ url: globalThis.SitioActivo.urlSondeoInternet }]);
+  });
+
+  it('un notificationId viejo (anterior al corte 8) también resuelve al legado', async () => {
+    // Una notificación creada antes de este corte puede seguir en pantalla tras recargar la
+    // extensión: su id no tiene el formato nuevo y no debe romper el click.
+    await onClickedNotificacion('generado-por-chrome-123');
+
+    expect(tabsCreadas).toEqual([{ url: globalThis.SitioActivo.urlSondeoInternet }]);
+  });
+
+  it('portal huérfano: NO abre ninguna pestaña (adivinar es el bug)', async () => {
+    pestañaQueDevuelveQuery = { id: 42, windowId: 7 };
+
+    await onClickedNotificacion(idDeFalloPara('portal-que-ya-no-existe'));
+
+    expect(tabsConsultadas).toEqual([]);
+    expect(tabsCreadas).toEqual([]);
+    expect(tabsActualizadas).toEqual([]);
+  });
+
+  it('la notificación se limpia siempre, incluso con el portal huérfano', async () => {
+    const id = idDeFalloPara('portal-que-ya-no-existe');
+
+    await onClickedNotificacion(id);
+
+    expect(notificacionesLimpiadas).toEqual([id]);
   });
 });

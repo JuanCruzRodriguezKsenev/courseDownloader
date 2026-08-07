@@ -5,10 +5,33 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > ## ⚠️ Trabajo en curso — leer esto primero
 >
 > Hay una **re-arquitectura activa** (puertos y adaptadores + TypeScript + WXT), ya en su
-> tramo final: **fases 0 a 8a completas; queda sólo la 8b (el adaptador de sitio)** (al
-> 2026-08-04). Del `globalThis` quedan **5 nombres, todos de Capa 2** (`Utils`, `SitioActivo`,
-> `SitioRamonNet`, `ParserTitulos`, `Scraper`; en el SW también `ResolverManifiesto`), y ahí el
-> global es **una decisión, no inercia** — ver la 8b antes de "limpiarlo". Antes de tocar código:
+> tramo final: **fases 0 a 8a completas** (al 2026-08-04); la 8b queda como *decisión abierta*,
+> no como pendiente. Del `globalThis` quedan **5 nombres**: cuatro son de Capa 2
+> (`SitioRamonNet`, `ParserTitulos`, `Scraper`, `ResolverManifiesto`) y el quinto es `Utils`,
+> que **no** es de Capa 2 — es genérico y lo publica `plataforma/composicion.ts`, y sobrevive
+> justamente porque esos `.js` del adaptador lo leen. Ahí el global es **una decisión, no
+> inercia** — ver la 8b antes de "limpiarlo".
+>
+> **Y hay un segundo frente activo desde el 2026-08-04: el multi-sitio** (que la misma extensión
+> maneje N portales). Al 2026-08-06 están hechos **todos los cortes menos el 7** y **verificados
+> en navegador**, en un **stack de siete ramas encadenadas** (no paralelas: cada una contiene a
+> las anteriores) que **todavía no está mergeado**. **Antes de escribir una línea leé
+> `docs/multisitio-diseno.md` §Cómo retomar esto en una sesión nueva** — está al final de ese doc
+> y tiene el stack, el registro de la verificación y las trampas vivas. Tres que conviene saber ya:
+>
+> - **Lo único que queda es mergear**, y eso lo hace el dueño. Mergear la punta se lleva los
+>   siete cortes; no se puede uno solo del medio sin rebase.
+> - **El corte 7 (segundo portal real) está bloqueado**: no existe el portal. Y eso deja al
+>   **corte 6c sin poder verificarse** — su sección "Portal" sólo aparece con la cola mezclada,
+>   así que hasta que haya un segundo portal sus tests son toda su observación. **No lo cuentes
+>   como verificado**: la pasada del 2026-08-06 cubrió los otros seis, no ése.
+> - **Ni el service worker ni el popup tienen ya UN portal**: el bucle resuelve el del ítem
+>   (corte 3), la notificación el suyo por el `notificationId` (corte 8) y el popup el de la
+>   pestaña (corte 5). A `sitioAsumido` le queda **un solo lector y es deliberado**: la sonda
+>   `urlSondeoInternet` del daemon de conexión, que sigue siendo una sola a propósito
+>   (`multisitio-diseno.md` §4 — hacerla por portal es un rediseño del daemon, con su corte).
+>
+> La decisión de fondo del frente sigue siendo ADR-0010. Antes de tocar código:
 >
 > **Leé `docs/rearquitectura-diseno.md` §Cómo retomar esto en una sesión nueva.** Ahí está el
 > orden de lectura, el estado por fase, qué sigue y con qué riesgo, y las 4 verificaciones a
@@ -24,15 +47,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > suite no puede ver: el empaquetado, el orden de carga de los globals, el núcleo de
 > `popup.js` y cualquier efecto cuyo destino sea una ventana que no es el popup.**
 >
+> **Y hay evidencia fresca, del 2026-08-05**: abrir el popup encontró **otros tres defectos del
+> corte 6b** con la suite entera en verde — el orden de Disponibles quedó inconsistente con el
+> de la Cola, el popover se leía por detrás (era vidrio esmerilado al 82%), y los dos popovers
+> podían quedar abiertos a la vez. Ninguno era de lógica: **los tres eran de interacción o de
+> aspecto**, la clase de defecto que ningún test de este proyecto puede ver. Sumalos a la lista
+> de arriba como lo que son: el caso típico, no la excepción.
+>
 > El checklist concreto de esa verificación —7 puntos, no "probá que ande"— es
-> `docs/rearquitectura-diseno.md` §Verificación en navegador. Su disparador declarado es
-> *"cada fase que toque empaquetado, entrypoints o el adaptador de sitio"*, o sea exactamente
-> lo que hacen las dos fases que quedan: corré esos 7 puntos antes de pedir el merge de la 7
-> o de la 8, no una prueba improvisada.
+> `docs/rearquitectura-diseno.md` §Verificación en navegador, más los específicos que lista
+> `multisitio-diseno.md` §Cómo retomar. Su disparador declarado es *"cada fase que toque
+> empaquetado, entrypoints o el adaptador de sitio"*, y el stack del multi-sitio lo dispara de
+> lleno: el corte 5 toca el popup y el entrypoint, el 6d el bucle de descarga. **Se corrió el
+> 2026-08-06 y pasó** — pero si el stack se rebasa o se retoca antes de mergear, se vuelve a
+> correr: lo que quedó verificado es *ese* build, no la intención.
 
 ## Project Overview
 
-RamonNet Video Downloader (Turbo Edition) is a Manifest V3 Chrome/Brave browser extension that bulk-downloads HLS-streamed recorded classes from the "Ramón Net" learning platform (`plataforma.ramonnet.com.ar`). It scrapes the class listing DOM, resolves each class's HLS `.m3u8` manifest, downloads and decrypts (AES-128-CBC) the `.ts` fragments concurrently, and streams the decrypted fragments to a companion local Bun backend server (`ramonnet-bun-backend`, a separate repo/folder not included here) running on `http://localhost:3001`, which assembles them on disk. **The extension is compiled** (since 2026-08-02, Phase 3 of the re-architecture): WXT + Vite bundle it into `.output/chrome-mv3/`, which is the folder loaded in the browser — *not* the repo root. `manifest.json` is no longer hand-written; it is generated from `wxt.config.ts`. ADR-0001 (no bundler) is superseded by ADR-0008. **The core is now TypeScript and lives in `core/`** — ports, download queue, HLS engine, connection daemon, popup state, backend client, failure history and pure utilities; `plataforma/` holds the Chrome side of every port, and `sitio/ramonnet/` everything about the portal. `chrome.*` does still appear outside `plataforma/`, deliberately — the inventory (by API, not by file) is in `docs/architecture.md` §Las capas, and you want it before touching Phase 7 or 8. What is still vanilla JS: `popup.js` (the orchestrator), `renderers.js`, `background.js` (now mostly wiring) and the site adapter's three sibling modules.
+RamonNet Video Downloader (Turbo Edition) is a Manifest V3 Chrome/Brave browser extension that bulk-downloads HLS-streamed recorded classes from the "Ramón Net" learning platform (`plataforma.ramonnet.com.ar`). It scrapes the class listing DOM, resolves each class's HLS `.m3u8` manifest, downloads and decrypts (AES-128-CBC) the `.ts` fragments concurrently, and streams the decrypted fragments to a companion local Bun backend server (`ramonnet-bun-backend`, a separate repo/folder not included here) running on `http://localhost:3001`, which assembles them on disk. **The extension is compiled** (since 2026-08-02, Phase 3 of the re-architecture): WXT + Vite bundle it into `.output/chrome-mv3/`, which is the folder loaded in the browser — *not* the repo root. `manifest.json` is no longer hand-written; it is generated from `wxt.config.ts`. ADR-0001 (no bundler) is superseded by ADR-0008. **The core is now TypeScript and lives in `core/`** — ports, download queue, HLS engine, connection daemon, popup state, backend client, failure history and pure utilities; `plataforma/` holds the Chrome side of every port, and `sitio/ramonnet/` everything about the portal. `chrome.*` does still appear outside `plataforma/`, deliberately — the inventory (by API, not by file) is in `docs/architecture.md` §Las capas, and you want it before touching Phase 7 or 8. What is still vanilla JS — **and the list matters, because `allowJs` is `false` and it's exactly which files are `.js` that sizes every migration slice**: `popup.js` (the orchestrator), `renderers.js`, `background.js` (now mostly wiring), the site adapter's three sibling modules, the **eleven `popup/features/*.js`** (el corte 6b del multi-sitio sumó `orden.js`), and the **two entrypoints** (`entrypoints/background.js` + `entrypoints/popup/main.js` — that last pair is why `tsc` skips the whole import graph; see the `allowJs` section below).
 
 ## Documentation as Code
 
@@ -53,7 +85,7 @@ Start at **`docs/architecture.md`**. Full map:
 - `docs/ROADMAP.md` — phased plan to pay down the backlog, in dependency order.
 - `docs/preact-migration.md` — live status of the incremental Preact-islands migration of the popup (which islands are done/next, the DOM-boundary rule, and a recipe for adding one). See also ADR-0006.
 - `docs/rearquitectura-diseno.md` — execution design (the "how") for the ports-and-adapters + TypeScript re-architecture: target folder layout, port interfaces, the generic-vs-site UI/CSS split, testing strategy under the new layers, bundler choice, migration order + execution rules (coexistence with the vanilla root, per-phase verification, rollback). The *decision* lives in ADR-0008 (supersedes ADR-0001); this is its counterpart design/status doc, like `preact-migration.md`. **The live per-phase status lives there, not here** (§Estado de avance) — read its §Cómo retomar esto en una sesión nueva first, and see the banner at the top of this file for the one-line summary. Note the doc's original `src/` layout was dropped in execution: `wxt.config.ts` sets `srcDir: '.'`, so sources stayed at the repo root.
-- `docs/multisitio-diseno.md` — execution design for making **one installed extension serve N portals** (the goal ADR-0009 chose and never built). Read it before touching the site layer: it holds the measured consumer map, the four real coupling points, and the cut order. Its decision counterpart is ADR-0010 (**the site is a property of the item, not of the build**) — that one exists because "resolve by URL" works for the popup and *not* for the service worker, whose queue is deliberately detached from any tab.
+- `docs/multisitio-diseno.md` — execution design for making **one installed extension serve N portals** (the goal ADR-0009 chose and never built). Read it before touching the site layer: it holds the measured consumer map, the five real coupling points, and the cut order — including cut 6's four sub-cuts (queue-tab filters + sort), whose UX was settled on 2026-08-05 and whose order semantics got their own decision in ADR-0011. Note what the fifth one teaches: the original measurement swept the download loop and the UI but **not the service worker's loose listeners**, and missed a user-visible wrong-portal bug for a day — when you measure the site coupling, sweep the listeners too. Its decision counterpart is ADR-0010 (**the site is a property of the item, not of the build**) — that one exists because "resolve by URL" works for the popup and *not* for the service worker, whose queue is deliberately detached from any tab.
 - `docs/notificaciones-fallos-diseno.md` — execution design/record for the failure-notifications feature (native OS notification + persistent bell Preact island `campanita`, backed by the `historialFallos` storage key + the `core/historial/historialFallos.ts` module). Implemented (2026-07-20); the canonical detail lives in `data-model.md`/`security.md`/`patterns.md`/`preact-migration.md`, this is the "how"/rationale record.
 
 Security rule (operational summary — full policy and rationale in `docs/security.md`): scraped/third-party text must never be interpolated into `.innerHTML` unescaped. Since Preact island #4 the live list renders through `<TarjetaEstado>`/`<FilaClase>` (`listaClases.preact.js`), so escape at the `window.ListaClases` view-model boundary that feeds them. The original `popup.js` XSS is fixed (2026-07-16).
@@ -75,6 +107,8 @@ npm run dev                           # WXT watch mode + HMR, readable sources
 ```
 
 The first four are the gate to run before starting work (see the banner at the top of this file); the bullets below are the *why* behind each.
+
+**On a fresh clone, `npm install` comes first — and not only for `node_modules`.** `tsconfig.json` extends `./.wxt/tsconfig.json`, and `.wxt/` is a gitignored build artifact generated by the `postinstall` hook (`wxt prepare`). Skip the install and `npx tsc --noEmit` fails on the missing base config, which reads like a broken repo rather than a missing step.
 
 - **Run tests**: `npm test` (single run) or `npm run test:watch`. To run one file/test: `npx vitest run core/util/texto.test.ts` or `npx vitest run -t "<test name>"`. **There is no `vitest.config.*` in the repo** — the suite runs on Vitest's defaults, which means the `node` environment: a test that touches the DOM (a `popup/features/` feature, any Preact island) needs `// @vitest-environment jsdom` as its own docblock at the top of the file, or it dies with `document is not defined` (about half the suite carries one — copy it from any sibling test). Modules are ES modules that also publish their object as a global side-effect (`globalThis.X = X; export default X`) — the export feeds the bundler and the tests, the global keeps ~200 existing call-sites working untouched. See `docs/coding-standards.md`. Tests sit next to what they cover, so `git ls-files '*.test.*'` is the inventory — don't look for a list here. **What the suite covers and what it deliberately doesn't → `docs/testing.md`, the canonical home for both the counts and the coverage narrative.**
 - **Lint**: `npm run lint` (ESLint 9 flat config, rules `no-undef`/`no-unused-vars`/`eqeqeq`; `.ts` goes through typescript-eslint). When you add a new cross-file global (a `globalThis.X` consumed elsewhere), add it to `globalesDelProyecto` in `eslint.config.js` or `no-undef` will false-positive. **A new *warning* is a regression here, not just an error** — the baseline is clean on both, and that's the part worth knowing before you shrug one off. The numbers themselves → `docs/testing.md`.
@@ -122,6 +156,7 @@ The extension runs in isolated JS contexts (popup / service worker / offscreen �
 - **Connection state has one owner: the `Conexion` daemon.** Never add an ad-hoc `/api/health` call or internet-HEAD probe anywhere else — read `Conexion.get()` or subscribe.
 - **A new UI concern is a feature, not a free function in `popup.js`** — `Feature.crear(ctx)`, dependencies through `ctx` (`nodos`, callbacks, `ctx.mensajeria`, `ctx.sitio`). What's left in `popup.js` (init + wiring + render/scraping/IPC orchestration) is the end state ADR-0005 defines, and `scraping` is explicitly **not** to be extracted. Gotcha if you touch filters: `filtrosActivos` travels **by reference** in `ctx`, because `popup.js` still mutates it.
 - **A new Preact island's DOM boundary must be a region the vanilla code holds no `nodos.*` references to** (stale refs) — read `docs/preact-migration.md` before adding one.
+- **The site is a property of the item, not of the build** (ADR-0010). `sitio/ramonnet/config.ts` describes *its* portal and nothing more; **which portal is active is `sitio/registro.ts`'s call** — `resolverPorUrl()` for the active tab, `obtener(sitioId)` for anything that outlives the tab. **Never re-add a `SitioActivo`-style alias inside a portal's config**: that was exactly the shape in which ADR-0009 sat "decided but not built" for two days. And know the distinction that bites: a **missing** `sitioId` is pre-multi-site data and resolves to the legacy portal; a **present but unregistered** one is an orphan and must not resolve — conflating them either skips a real user's whole queue or downloads with the wrong adapter, both silently. That rule lives in **one** place, the `sitios` export of `plataforma/composicion.ts`, shared by the SW and the popup so they cannot diverge (`docs/multisitio-diseno.md` §La trampa del corte 3).
 - **Site-specific constants go in `sitio/<portal>/config.ts`**, never inline in a feature or in the engine; one enters `PuertoSitio` only if something *outside* `sitio/` reads it. The flip side: don't re-add portal vocabulary to `Utils`, `HlsEngine` or `Conexion`, which are generic now. **The one exception is the next bullet** — the injected scraper cannot reach `config.ts` at all.
 - **`Scraper.escanearAulaVirtual` (`sitio/ramonnet/scraper.js`) runs in the portal's tab, not in the extension**, so it must stay **self-contained and serializable** — no extension global, not even a module-level constant of its own file; everything travels through `args`. Hoisting a selector out of it into `config.ts` — the move the previous bullet otherwise asks for — breaks scanning at runtime and **nothing catches it**: not the bundler, not lint, not `tsc`, not the suite. Verify in the browser. Full rule → `docs/architecture.md` §Capa 2.
 - **`ErrorBackend.tipoBackend: "rechazo"` means 4xx only** (skip the class), never 5xx (pause + auto-heal). That distinction is the bug-400 fix; it's a type now, not a comment.
@@ -143,6 +178,6 @@ Most files carry a version-numbered docstring banner at the top (e.g. `V5.6.0`) 
 
 ### Key domain-specific behavior to preserve
 
-- **Title parsing** (`sitio/ramonnet/parserTitulos.js` — `formatTitleStructured` / `clasificarCatedraYCarpeta`, reached via `SitioActivo.parsearTitulo` / `.clasificarCarpeta`; was in `shared/utils.js` until v6.0.0, a file that no longer exists): derives the canonical filename + cátedra/folder from messy scraped titles. It's the most regression-sensitive logic in the project (regex order matters) — if a change silently mis-files or mis-names classes, look here. Mechanism, the `>12` date heuristic, and the classification order → `docs/patterns.md` §Sanitización de nombres de archivo y parsing de títulos.
+- **Title parsing** (`sitio/ramonnet/parserTitulos.js` — `formatTitleStructured` / `clasificarCatedraYCarpeta`, reached via the injected descriptor's gates (`sitio.parsearTitulo` / `.clasificarCarpeta`); was in `shared/utils.js` until v6.0.0, a file that no longer exists): derives the canonical filename + cátedra/folder from messy scraped titles. It's the most regression-sensitive logic in the project (regex order matters) — if a change silently mis-files or mis-names classes, look here. Mechanism, the `>12` date heuristic, and the classification order → `docs/patterns.md` §Sanitización de nombres de archivo y parsing de títulos.
 - **M3U8 resolution** (`ResolverManifiesto.resolver`, `sitio/ramonnet/resolverManifiesto.js` — was `HlsEngine.extraerEnlaceMaestroM3u8Clasico` until 2026-08-02): fragile against upstream markup changes by construction, and its regex fallbacks degrade *silently* (they can resolve another class's video instead of failing). **If downloads start bringing the wrong video, look here first, not at the engine** — the engine only ever receives the already-resolved URL. Mechanism and the four consequences → `docs/architecture.md` §Capa 2.
 - **`declarativeNetRequest`** (`public/sitio/ramonnet/rules.json`) blocks `bunnyinfra.net` image/xhr/other requests — intentional, not a bug (rationale → `docs/security.md` permisos).

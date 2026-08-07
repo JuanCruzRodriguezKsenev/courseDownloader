@@ -27,7 +27,7 @@ import { crearHlsEngine } from "../core/hls/hlsEngine";
 import { crearEstadoSesion } from "../core/cola/estadoSesion";
 import { crearEstadosProgreso } from "../core/cola/estadosProgreso";
 import { crearProcesadorCola } from "../core/cola/procesadorCola";
-import { notificarFallo } from "./chrome/notificaciones";
+import { notificarFallo, sitioIdDeNotificacion } from "./chrome/notificaciones";
 import { crearVolcadoLegacy } from "./chrome/volcadoLegacy";
 import BunClient from "../core/backend/bunClient";
 import { crearHistorialFallos } from "../core/historial/historialFallos";
@@ -132,6 +132,42 @@ export const Utils = {
 export const EstadosProgreso = crearEstadosProgreso(almacenamiento);
 
 /**
+ * Resolvedor de sitios **con la migración aplicada**, compartido por el service worker y el
+ * popup. Que sea uno solo importa: si el bucle y el filtro de la cola resolvieran distinto,
+ * un ítem se descargaría con un portal y se mostraría clasificado con otro.
+ *
+ * La regla, y por qué vive acá y no en el registro ni en el núcleo (ver
+ * `docs/multisitio-diseno.md` §La trampa del corte 3):
+ *   - `sitioId` ausente  → dato de antes del multi-sitio: vino de `SITIO_LEGADO`.
+ *   - `sitioId` presente pero desconocido → huérfano, no se resuelve.
+ */
+export const sitios = {
+  obtener: (id?: string) => Sitios.obtener(id ?? SITIO_LEGADO),
+
+  /**
+   * Por URL de pestaña, para el popup (corte 5). **Sin migración y a propósito**: una URL que
+   * no matchea ningún portal registrado no es un "dato viejo" que haya que interpretar, es una
+   * pestaña que no es de ningún portal. Caer al legado acá haría que el popup escanee
+   * cualquier página con el adaptador de Ramón Net — el bug que ADR-0010 previene.
+   */
+  resolverPorUrl: (url?: string) => Sitios.resolverPorUrl(url),
+};
+
+/**
+ * De un `notificationId` al portal cuya pestaña hay que enfocar (corte 8).
+ *
+ * Vive acá y no en `background.js` por la misma razón que `sitios`: es **la misma regla de
+ * resolución** que usa el bucle, y dos copias pueden divergir. El SW recibe esto inyectado y
+ * no sabe cómo está armado el id.
+ *
+ * Devuelve `undefined` cuando el portal es huérfano — y ahí el click no debe abrir nada. Que
+ * "no sabemos a dónde llevarlo" se note es correcto; adivinar un portal es exactamente el bug
+ * que este corte arregla.
+ */
+export const sitioDeNotificacionDeFallo = (notificationId: string) =>
+  sitios.obtener(sitioIdDeNotificacion(notificationId));
+
+/**
  * El procesador de la cola: el bucle FIFO + la clasificación de fallos, que fue el bloque más
  * grande de `background.js` hasta la Fase 6b.
  *
@@ -163,7 +199,7 @@ export const Cola = crearProcesadorCola({
    * `AppState`, que es del popup—, así que sin esto una cola encolada antes del corte 1 se
    * saltearía entera como huérfana.
    */
-  sitios: { obtener: (id) => Sitios.obtener(id ?? SITIO_LEGADO) },
+  sitios,
   historial: HistorialFallos,
   notificarFallo,
   calcularMetricas: progreso.calcularMétricasProgreso,

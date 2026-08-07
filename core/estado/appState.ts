@@ -1,6 +1,12 @@
 /**
- * MAQUINARIA DE ESTADO CENTRAL DEL POPUP (V6.2.0)
+ * MAQUINARIA DE ESTADO CENTRAL DEL POPUP (V6.3.0)
  * ==============================================================================================
+ * CHANGELOG v6.3.0:
+ * - [MULTISITIO CORTE 6D — ADR-0011] Normalización de una sola vez de `colaDescargas` por
+ *   `fechaEncolado` para las instalaciones anteriores al corte 6b. Desde este corte el array
+ *   es el orden de descarga, y una cola guardada antes está en un orden que nadie garantizó
+ *   —el service worker la re-ordenaba en cada vuelta—. Se cuelga de la rama de migración que
+ *   ya existía, así que no agrega una clave nueva a storage.
  * CHANGELOG v6.2.0:
  * - [FASE 5C] Generalizado el último vocabulario de sitio: `catedraSeleccionada` pasa a
  *   `facetaSeleccionada` en memoria y la clave persistida `catedraElegida` a `facetaElegida`.
@@ -88,8 +94,29 @@ const CLAVES_PERSISTIDAS = [
   "ocultarAdvExplorar",
   "ocultarAdvAula",
   "ordenAscendente",
+  "criterioOrdenCola",
+  "ordenColaAscendente",
+  "criterioOrdenDisponibles",
   "tutorialCompletado",
 ] as const;
+
+/**
+ * Criterios de orden de la pestaña Cola (corte 6b del multi-sitio).
+ *
+ * `faceta` y `portal` se resuelven contra el descriptor de CADA ítem, no contra uno fijo: la
+ * cola puede mezclar portales (ADR-0010). `portal` ordena por portal y, dentro de cada uno, por
+ * llegada — elegirlo es *agrupar*, no reordenar.
+ */
+export const CRITERIOS_ORDEN_COLA = ["llegada", "nombre", "faceta", "portal"] as const;
+export type CriterioOrdenCola = (typeof CRITERIOS_ORDEN_COLA)[number];
+
+/**
+ * Criterios de la pestaña Disponibles. Son otros porque ahí los ejes existentes son otros:
+ * no hay `llegada` (el listado no se encoló, se escaneó) ni `portal` (sale del scrapeo de una
+ * pestaña, o sea un portal por construcción). El sentido lo sigue dando `ordenAscendente`.
+ */
+export const CRITERIOS_ORDEN_DISPONIBLES = ["nombre", "faceta", "estado"] as const;
+export type CriterioOrdenDisponibles = (typeof CRITERIOS_ORDEN_DISPONIBLES)[number];
 
 /**
  * Clave anterior de la faceta, leída sólo para migrar. Hasta el 2026-08-03 la elección se
@@ -130,7 +157,18 @@ interface DatosPersistidos {
   catedraElegida?: string | null;
   ocultarAdvExplorar?: boolean;
   ocultarAdvAula?: boolean;
+  /**
+   * Tri-estado histórico. **Servía a las dos pestañas con semánticas distintas**, que es la
+   * razón por la que el corte 6b NO lo partió en dos y le agregó un par propio a la cola:
+   *   - Disponibles: sólo mira su verdad/falsedad → `null` ordenaba DESCENDENTE.
+   *   - Cola: `null` = FIFO, `true`/`false` = nombre ascendente/descendente.
+   * Un split ingenuo (`null` → ascendente) habría dado vuelta el orden de Disponibles en toda
+   * instalación existente, sin que nada lo dijera. Sigue siendo el sentido de Disponibles.
+   */
   ordenAscendente?: boolean;
+  criterioOrdenCola?: string;
+  ordenColaAscendente?: boolean;
+  criterioOrdenDisponibles?: string;
   tutorialCompletado?: boolean;
 }
 
@@ -148,6 +186,15 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: 
     ocultarAdvertenciaExplorar: false,
     ocultarAdvertenciaAula: false,
     ordenAscendente: true,
+    /** Pestaña Cola: qué criterio y en qué sentido (corte 6b). Independiente de Disponibles. */
+    criterioOrdenCola: "llegada" as CriterioOrdenCola,
+    ordenColaAscendente: true,
+    /**
+     * Disponibles: qué criterio. El sentido sigue siendo `ordenAscendente`, así que no hace
+     * falta migración — el default `"nombre"` reproduce exactamente lo que hacía antes, que
+     * era ordenar siempre por título.
+     */
+    criterioOrdenDisponibles: "nombre" as CriterioOrdenDisponibles,
     tutorialCompletado: false,
 
     async inicializarSincronizacionStorage(): Promise<void> {
@@ -186,6 +233,49 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: 
       app.ocultarAdvertenciaExplorar = data.ocultarAdvExplorar || false;
       app.ocultarAdvertenciaAula = data.ocultarAdvAula || false;
       app.ordenAscendente = data.ordenAscendente !== undefined ? data.ordenAscendente : true;
+
+      // [MULTISITIO CORTE 6B] Migración del orden de la Cola.
+      //
+      // Antes, el tri-estado `ordenAscendente` decía las dos cosas a la vez para esta pestaña:
+      // `null` = FIFO, `true`/`false` = nombre ascendente/descendente. Ahora el criterio y el
+      // sentido son campos propios, y se derivan del valor viejo 1 a 1 y sin pérdida.
+      //
+      // `ordenAscendente` NO se toca: sigue siendo el sentido de Disponibles, donde `null`
+      // significa descendente. Derivarlo hacia `true` acá habría dado vuelta esa pestaña en toda
+      // instalación existente — el tri-estado servía a dos consumidores con reglas distintas.
+      if (data.criterioOrdenCola !== undefined) {
+        app.criterioOrdenCola = (CRITERIOS_ORDEN_COLA as readonly string[]).includes(data.criterioOrdenCola)
+          ? (data.criterioOrdenCola as CriterioOrdenCola)
+          : "llegada";
+        app.ordenColaAscendente = data.ordenColaAscendente !== undefined ? data.ordenColaAscendente : true;
+      } else {
+        app.criterioOrdenCola = data.ordenAscendente == null ? "llegada" : "nombre";
+        app.ordenColaAscendente = data.ordenAscendente == null ? true : data.ordenAscendente;
+
+        // [MULTISITIO CORTE 6D — ADR-0011] Normalización de una sola vez de la cola vieja.
+        //
+        // Desde este corte el array ES el orden de descarga, pero una cola guardada ANTES
+        // quedó en el orden en que el array fue quedando, que nadie garantizó nunca porque el
+        // service worker lo re-ordenaba en cada vuelta. Al cargarla por primera vez hay que
+        // dejarla en el orden que el usuario venía viendo: por `fechaEncolado`.
+        //
+        // Va en esta rama y no en una propia porque este `else` YA ES la señal de "instalación
+        // anterior al corte 6b": en cuanto se respalde, `criterioOrdenCola` queda escrito y no
+        // se vuelve a entrar. Así la migración no necesita una clave nueva en storage.
+        app.colaDescargas = [...app.colaDescargas].sort(
+          (a, b) =>
+            ((a as { fechaEncolado?: number })?.fechaEncolado || 0) -
+            ((b as { fechaEncolado?: number })?.fechaEncolado || 0)
+        );
+      }
+
+      // Disponibles no necesita migración: sin la clave, el default reproduce lo de antes.
+      app.criterioOrdenDisponibles = (CRITERIOS_ORDEN_DISPONIBLES as readonly string[]).includes(
+        data.criterioOrdenDisponibles as string
+      )
+        ? (data.criterioOrdenDisponibles as CriterioOrdenDisponibles)
+        : "nombre";
+
       app.tutorialCompletado = data.tutorialCompletado || false;
       app.modoTurboBun = true;
     },
@@ -208,6 +298,9 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: 
           ocultarAdvExplorar: app.ocultarAdvertenciaExplorar,
           ocultarAdvAula: app.ocultarAdvertenciaAula,
           ordenAscendente: app.ordenAscendente,
+          criterioOrdenCola: app.criterioOrdenCola,
+          ordenColaAscendente: app.ordenColaAscendente,
+          criterioOrdenDisponibles: app.criterioOrdenDisponibles,
           tutorialCompletado: app.tutorialCompletado,
         })
         .catch((e: unknown) => {

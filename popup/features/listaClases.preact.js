@@ -19,7 +19,14 @@
  * View-model (vm) discriminado:
  *   - { modo:'card', card:{ tipo, titulo, descripcion, icono } } → una tarjeta de estado.
  *   - { modo:'lista', items:[...clases], ctx:{ pestaña, sincronizado, enCurso,
- *       videoActivo, selectionMode, onCheckChange(clase,checked), onRemoverClick(clase) } }
+ *       videoActivo, anclaActiva, sinResultados, selectionMode,
+ *       onCheckChange(clase,checked), onRemoverClick(clase) } }
+ *
+ * `anclaActiva` (corte 6a del multi-sitio): el primer ítem es la clase que se está bajando y
+ * detrás va una línea divisoria. **Quién es esa clase y que vaya primera lo decide popup.js**
+ * al armar el vm — la isla no reordena nada, sólo pinta el divisor. `sinResultados` dice que
+ * el filtro dejó el resto vacío, que NO es lo mismo que la lista vacía: hay descarga en curso,
+ * así que no corresponde la tarjeta de estado.
  *
  * Atributos del host (fuera del vm, con sus propios setters porque los empujan
  * call-sites distintos): window.ListaClases
@@ -124,9 +131,10 @@ export function FilaClase({ clase, ctx }) {
       </div>`;
   }
 
-  // Vista Cola
+  // Vista Cola. `bajando` (corte 6a) es la fila anclada arriba de la divisoria: la marca con el
+  // mismo acento naranja que la fila seleccionada, para no sumar vocabulario visual.
   return html`
-    <div class="video-item ${sel ? 'selected' : ''}" title=${clase.titulo} onClick=${onRowClick}>
+    <div class="video-item ${sel ? 'selected' : ''} ${esActivo ? 'bajando' : ''}" title=${clase.titulo} onClick=${onRowClick}>
       ${checkbox}
       <span class="video-label" style=${`cursor:${tieneCheckbox ? 'pointer' : 'default'}`}>${clase.titulo}</span>
       ${esActivo
@@ -157,7 +165,21 @@ export function ListaClases() {
     return vm && vm.card ? html`<${TarjetaEstado} ...${vm.card} />` : null;
   }
   const { items, ctx } = vm;
-  return items.map((clase) => html`<${FilaClase} key=${clase.id} clase=${clase} ctx=${ctx} />`);
+  const filas = items.map((clase) => html`<${FilaClase} key=${clase.id} clase=${clase} ctx=${ctx} />`);
+
+  // [MULTISITIO CORTE 6A] La fila anclada (la que se está bajando) llega SIEMPRE primera —
+  // eso lo decide popup.js al armar el vm, no la isla. Acá sólo se pinta la línea divisoria
+  // detrás de ella, que es puro asunto de vista.
+  if (!ctx.anclaActiva || filas.length === 0) return filas;
+
+  const divisor = html`<div class="cola-divisor" key="divisor"><span>En cola</span></div>`;
+  const resto = ctx.sinResultados
+    // Si el filtro dejó el resto vacío, la lista NO está vacía: hay una descarga en curso. Sin
+    // esta nota la fila anclada quedaría sola y sin explicación de por qué no hay nada más.
+    ? [html`<p class="cola-sin-resultados" key="vacio">Ninguna otra clase coincide con el filtro.</p>`]
+    : filas.slice(1);
+
+  return [filas[0], divisor, ...resto];
 }
 
 export function montar(root) {

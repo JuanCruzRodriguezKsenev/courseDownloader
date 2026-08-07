@@ -2,7 +2,7 @@
 
 Inventario vivo de problemas conocidos en el código actual, ordenados por severidad. Cada ítem indica ubicación exacta, impacto y la solución propuesta. Este documento se actualiza a medida que se resuelven o aparecen nuevos hallazgos — no es un snapshot histórico (para eso está el changelog de cada archivo y el historial de git).
 
-Última auditoría: 2026-08-03.
+Última auditoría: 2026-08-05.
 
 **Lo que está abierto vive en la sección de abajo, y nada más.** Todo lo que sigue después
 (Seguridad, Mantenibilidad, Testing, Robustez, Menores) está ✅ resuelto y se conserva como
@@ -17,14 +17,29 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 ### Soporte para un segundo portal: la selección de sitio no existe, y hay vocabulario filtrado
 
 - **Estado**: 🔴 abierto (hallado el 2026-08-04, auditando la arquitectura tras la Fase 8a).
-- **Qué pasa**: ADR-0009 decidió **registro de sitios en runtime** (una sola build que resuelve
-  el adaptador por URL). Esa decisión **nunca se construyó**: hoy
-  `sitio/ramonnet/config.ts:177` es `const SitioActivo: PuertoSitio = SitioRamonNet;`, un alias
-  fijo. No hay registro ni resolución por pestaña.
+- **Estado (2026-08-04, tarde)**: **en construcción, no ya sólo registrado.** El dueño confirmó
+  que el objetivo es multi-sitio; hay diseño (`docs/multisitio-diseno.md`), ADR-0010 y **los
+  cortes 1 a 4 hechos**: el registro existe (`sitio/registro.ts`), los ítems llevan `sitioId`
+  con su migración, el bucle de descarga resuelve el portal por ítem y el filtro de la cola
+  deriva la faceta con el descriptor correcto. **Cuáles están hechos y cuáles faltan se lee en
+  `docs/multisitio-diseno.md` §Orden de cortes, que es la fuente viva** — duplicar acá esa
+  cuenta ya produjo deriva dos veces. Lo único que vale repetir es dónde está el riesgo: el
+  corte 5 (el popup resolviendo por pestaña) es el peligroso, porque no hay tests sobre el
+  núcleo de `popup.js`.
+- **Estado (2026-08-05)**: la revisión de esta deuda encontró **un quinto punto de acoplamiento
+  que la medición original no había visto** — el click en la notificación de fallo. Ver el
+  sub-ítem al final de esta entrada; es el corte 8 del diseño.
+- **Qué pasaba (el hallazgo original)**: ADR-0009 decidió **registro de sitios en runtime** y esa
+  decisión **nunca se había construido**: `sitio/ramonnet/config.ts` tenía
+  `const SitioActivo: PuertoSitio = SitioRamonNet`, un alias fijo — un portal declarándose a sí
+  mismo el activo. Sin registro ni resolución por pestaña.
 - **Qué habría que tocar fuera de `sitio/` para sumar un portal** (medido, no estimado):
   - 6 imports con la ruta del portal hardcodeada en los dos entrypoints
-    (`entrypoints/background.js:24-29`, `entrypoints/popup/main.js:14-33`).
-  - `plataforma/composicion.ts:39`, que importa `SitioActivo` desde `../sitio/ramonnet/config`.
+    (`entrypoints/background.js:24-26`, `entrypoints/popup/main.js:14-16` — 3 y 3; los rangos
+    que decía esta línea hasta el 2026-08-05 eran más anchos que el hallazgo e incluían
+    imports que no son del portal).
+  - `plataforma/composicion.ts`, que importaba el portal directo (✅ resuelto en el corte 2:
+    ahora importa el registro).
   - `wxt.config.ts`: 4 `host_permissions` del portal + su CDN, y la ruta única del ruleset dNR
     (`rule_resources` acepta varios; hoy hay uno).
 - **Vocabulario del portal filtrado a capas genéricas** (código, no comentarios):
@@ -37,28 +52,72 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
     `tsc` cazó los dos dobles de test que faltaban actualizar, que es exactamente para lo que
     el colaborador está tipado.
   - 🔴 **Sigue abierto en la UI**: `popup.js` tiene 7 strings que nombran al portal (líneas
-    444, 459, 584, 744, 758, 811, 1016) y `catedra:` como nombre de campo en la 827. Más
-    `background.js:490`. **No se tocaron a propósito**: son copy de usuario, no una violación
+    447, 462, 587, 747, 761, 814, 1023) y `catedra:` como nombre de campo en la 834. Más
+    `background.js:490`. *(Re-medido el 2026-08-05: el conteo de la medición original sigue
+    exacto; los números de `popup.js` corrieron +3 y +7 porque los cortes 1 y 4 lo tocaron.
+    Ojo al re-medir: un `grep -E "Ram[oó]n"` no matchea los acentuados en algunas builds —
+    usar ripgrep, o se cuenta de menos.)* **No se tocaron a propósito**: son copy de usuario, no una violación
     de capa —`popup.js` no es Capa 1—, y parametrizarlos sin un segundo portal real que
     valide el resultado es trabajo contra código imaginado.
 - **Impacto**: la regla de dependencia de la arquitectura **sí se cumple** (`core/` no importa
   nada de `sitio/` ni de `plataforma/`, y `PuertoSitio` es un contrato que `tsc` hace cumplir).
   Lo que no se cumple es la promesa práctica de ADR-0008: *"sumar un portal = escribir un
-  adaptador de Capa 2"*. Hoy son ~5 lugares fuera de `sitio/` más el registro que falta.
+  adaptador de Capa 2"*. Eran ~5 lugares fuera de `sitio/` más el registro; **el registro ya no
+  falta** (existe desde el corte 2, `sitio/registro.ts`), así que lo que queda son esos lugares.
 - **Qué NO haría falta tocar**, y vale registrarlo porque es la evidencia de que la
   re-arquitectura sirvió: toda la UI (features + las 6 islas son genéricas), `core/` entero
   salvo las 3 líneas de arriba, y `plataforma/` completa.
 - **Diseño (2026-08-04)**: ya no es sólo un hallazgo — el cómo está en
-  `docs/multisitio-diseno.md` y la decisión de fondo en ADR-0010. **Los cortes 1 y 2 de ese doc
-  (`sitioId` en los ítems + el registro con un solo portal) son seguros y se pueden hacer sin
-  tener el segundo adaptador**: no cambian ninguna conducta.
-- **Fix propuesto (revisado)**: el dueño confirmó que el objetivo ES multi-sitio, así que se
-  construye. Lo que sigue vigente del criterio original: Las 3 fugas de `core/` sí conviene
-  cerrarlas (son violaciones de la regla declarada de Capa 1 y salen baratas: parametrizar el
-  copy por `PuertoSitio.nombre`, como ya se hizo con el onboarding). El registro y los strings
-  de `popup.js` recién cuando exista un segundo portal real — planificar contra código
-  imaginado es el error que esta re-arquitectura cometió cuatro veces (ver los §Registro de las
-  Fases 6, 6b, 6c y 7c).
+  `docs/multisitio-diseno.md` y la decisión de fondo en ADR-0010. Los cortes 1 y 2 de ese doc
+  (`sitioId` en los ítems + el registro con un solo portal) eran los seguros y ya se hicieron:
+  no cambiaron ninguna conducta.
+- **Fix propuesto (revisado el 2026-08-05)**: el dueño confirmó que el objetivo ES multi-sitio,
+  así que se construye, y el andamiaje ya está — el registro existe y los ítems llevan su
+  portal. Lo que sigue vigente del criterio original es **el freno**: los strings de `popup.js`
+  recién cuando exista un segundo portal real, porque planificar copy contra código imaginado es
+  el error que esta re-arquitectura cometió cuatro veces (ver los §Registro de las Fases 6, 6b,
+  6c y 7c). Las 3 fugas de `core/` ya se cerraron (arriba). *(Hasta el 2026-08-05 esta línea
+  también frenaba "el registro", que para entonces llevaba un día construido — contradecía al
+  Estado de esta misma entrada.)*
+
+#### Sub-ítem: el click en la notificación de fallo enfoca el portal equivocado
+
+- **Estado**: ✅ **resuelto el 2026-08-05** (hallado ese mismo día, revisando esta deuda tras el
+  corte 4) y **verificado en navegador el 2026-08-06**, en la pasada única que cubrió el stack
+  entero. Fue el **corte 8** de `docs/multisitio-diseno.md`, y su §5 tiene el detalle del cómo.
+  Sigue **sin mergear**: vive en el stack de siete ramas, no en `main`.
+- **Dónde**: `background.js:474-490`, el listener de `chrome.notifications.onClicked`. Resuelve
+  la pestaña a enfocar con `sitio.patronPestañas` / `sitio.urlSondeoInternet`, y ese `sitio` es
+  el `sitioAsumido` que le inyecta `entrypoints/background.js:48` — el andamio del corte 2.
+- **Impacto**: es el mismo defecto que arregló el corte 4 (resolver con el portal equivocado),
+  pero en el SW y **llegando al usuario**: con la cola mezclada, la notificación de una clase
+  del portal B enfoca —o abre— la pestaña del portal A. El follow-up accionable que la
+  notificación promete lleva al lugar equivocado.
+- **Por qué no lo vio la medición original**: barrió el bucle de descarga y la UI, no los
+  listeners sueltos del service worker. Vale como corrección del alcance de aquella medición,
+  no sólo como ítem suelto.
+- **Fix aplicado**: el `sitioId` del ítem viaja **adentro del `notificationId`** y el SW lo
+  resuelve con `sitioDeNotificacionDeFallo`, un export nuevo de `plataforma/composicion.ts`
+  construido sobre el MISMO `sitios.obtener` que usa el bucle — si resolvieran distinto se
+  reintroduce la divergencia del punto 3. Va en el id y no en un `Map` porque el SW se suspende
+  y se lo lleva, mientras la notificación sobrevive en pantalla. +19 tests. **De paso,
+  `sitioAsumido` salió del service worker**: era su último lector.
+
+### El mecanismo de popovers de `popup.js` no tiene tests
+
+- **Estado**: 🔴 abierto (hallado el 2026-08-05, al sumar el segundo popover en el corte 6b).
+- **Dónde**: `popup.js` — el listener global de `document` que cierra los popovers, y el handler
+  de `btnFilterPills`. `OrdenFeature` sí quedó cubierta; esta mitad no.
+- **Qué pasa**: el mecanismo es "un listener global cierra todo, y cada botón hace
+  `stopPropagation()` para no cerrarse a sí mismo". Con **un** popover funcionaba y nadie lo
+  miraba. Al sumar el segundo aparecieron dos defectos que ningún test podía ver: los dos
+  quedaban abiertos a la vez (el botón que frena la propagación tampoco dispara el cierre del
+  otro) y el nuevo no cerraba con el click afuera.
+- **Por qué sigue abierto**: está en el núcleo de `popup.js`, que ADR-0005 declara no-extraíble.
+  Cubrirlo implica o bien extraer el manejo de popovers a una feature —que es un corte propio— o
+  bien un test de integración del popup, que hoy no existe como categoría.
+- **Mientras tanto**: si se agrega un tercer popover, **probarlo a mano contra los otros dos**.
+  Es la única red.
 
 ---
 

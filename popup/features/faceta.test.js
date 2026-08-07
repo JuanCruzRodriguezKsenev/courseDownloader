@@ -20,7 +20,9 @@ function crearFeature(overrides = {}) {
   // FASE 7C: `appState` entra por ctx, no por globalThis. El test lo sigue sembrando en
   // `globalThis.AppState` a propósito —así el harness no cambia y ninguna aserción se toca—;
   // lo único nuevo es que acá se lo pasamos explícito, como hace popup.js.
-  const feature = FacetaFeature.crear({ badge, aplicarFiltros, sitio: SitioRamonNet, appState: globalThis.AppState, ...overrides });
+  // CORTE 5: `sitio` es una FUNCIÓN. El popup resuelve el portal por pestaña, así que el
+  // descriptor puede cambiar entre dos escaneos y la feature no puede capturarlo.
+  const feature = FacetaFeature.crear({ badge, aplicarFiltros, sitio: () => SitioRamonNet, appState: globalThis.AppState, ...overrides });
   return { feature, badge, aplicarFiltros };
 }
 
@@ -217,7 +219,7 @@ describe('FacetaFeature — con el descriptor de OTRO sitio', () => {
       { comision: '1', estado: 'pending', seleccionado: false },
       { comision: 'GENERAL', estado: 'pending', seleccionado: false },
     ];
-    const { feature, badge } = crearFeature({ sitio: SitioFalso });
+    const { feature, badge } = crearFeature({ sitio: () => SitioFalso });
 
     feature.verificarYMostrarAsistente();
 
@@ -234,5 +236,36 @@ describe('FacetaFeature — con el descriptor de OTRO sitio', () => {
     expect(AppState.listadoClasesGlobal[2].seleccionado).toBe(true);  // GENERAL entra
     expect(AppState.listadoClasesGlobal[0].seleccionado).toBe(false); // comisión 2 no
     expect(badge.textContent).toBe('Comisión 1');
+  });
+});
+
+// [MULTISITIO CORTE 5] El popup resuelve el portal por pestaña, así que el descriptor puede
+// cambiar entre dos escaneos. Esta feature NO puede capturarlo al crearse: si lo hiciera,
+// seguiría clasificando con el vocabulario del portal anterior y nada lo avisaría.
+describe('FacetaFeature — el descriptor se re-lee, no se captura (corte 5)', () => {
+  it('cambiar el portal activo cambia el vocabulario que usa el badge', () => {
+    // Doble mínimo, sin spread del descriptor real: `SitioRamonNet` tiene getters
+    // (`escanearListado` lee el global `Scraper`) que un spread evaluaría acá.
+    const OTRO = {
+      faceta: { ...SitioRamonNet.faceta, etiqueta: 'Comisión', etiquetar: (v) => `Comisión ${v}` },
+    };
+    let actual = SitioRamonNet;
+    const { feature, badge } = crearFeature({ sitio: () => actual });
+
+    AppState.listadoClasesGlobal = [
+      { titulo: 'a', catedra: 'A', estado: 'pending' },
+      { titulo: 'b', catedra: 'B', estado: 'pending' },
+    ];
+    AppState.facetaSeleccionada = 'A';
+
+    feature.actualizarBadge();
+    expect(badge.textContent).toBe('Cátedra A');
+
+    // Se cambia el portal activo, como haría un escaneo sobre otra pestaña.
+    actual = OTRO;
+    feature.actualizarBadge();
+    expect(badge.textContent).toBe('Comisión A');
+    // El tooltip también: se refresca en cada actualizarBadge, no una sola vez al crear.
+    expect(badge.title).toContain('Comisión');
   });
 });

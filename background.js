@@ -1,6 +1,15 @@
 /**
- * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V7.0.0)
+ * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V7.1.0)
  * ==========================================================================
+ * CHANGELOG v7.1.0:
+ * - [MULTISITIO CORTE 8] El click en la notificación de fallo enfocaba la pestaña del portal
+ *   ASUMIDO. Con la cola mezclada eso abre el portal equivocado — el mismo defecto que el
+ *   corte 4 arregló en el filtro, pero acá le llega al usuario. Ahora el portal sale del
+ *   `notificationId`, que lo lleva adentro desde que se creó el aviso.
+ * - [MULTISITIO CORTE 8] `deps.sitio` se reemplaza por `deps.resolverSitioDeNotificacion`:
+ *   **el SW dejó de tener UN portal**. Era el último lector de `sitioAsumido`, el andamio que
+ *   dejó el corte 2. Si el resolvedor devuelve `undefined` (portal huérfano) el click NO abre
+ *   ninguna pestaña: no sabemos a dónde llevar al usuario y adivinar es el bug.
  * CHANGELOG v7.0.0:
  * - [FASE 7A] El SW deja de leer globals: exporta `iniciarServiceWorker(deps)` y recibe sus
  *   8 colaboradores por parámetro. Los llamaba por `globalThis` en 33 lugares; ahora entran
@@ -191,7 +200,9 @@ const ALARMA_AUTOHEAL = "alarma_autoheal";
  * @param {object} deps.estadosProgreso Espejo de SW_ESTADOS_PROGRESO.
  * @param {object} deps.cola            Procesador de la cola (`core/cola/procesadorCola.ts`).
  * @param {object} deps.backend         Cliente del backend Bun (para cancelar la descarga).
- * @param {object} deps.sitio           Adaptador de sitio: patrón de pestañas + URL del portal.
+ * @param {function} deps.resolverSitioDeNotificacion  De un `notificationId` al portal cuya
+ *   pestaña enfocar. Devuelve `undefined` si el portal es huérfano. Reemplazó a `deps.sitio`
+ *   en el corte 8: el SW ya no tiene UN sitio, tiene el del ítem que falló.
  */
 export function iniciarServiceWorker({
   almacenamiento,
@@ -201,7 +212,7 @@ export function iniciarServiceWorker({
   estadosProgreso,
   cola,
   backend,
-  sitio,
+  resolverSitioDeNotificacion,
 }) {
   // Los helpers de progreso (SW_ESTADOS_PROGRESO) y el volcado legacy a disco (offscreen +
   // chrome.downloads) se fueron en la Fase 6b a `core/cola/estadosProgreso.ts` y
@@ -471,23 +482,35 @@ export function iniciarServiceWorker({
     }
   });
 
-  // Click en la notificación nativa de fallo → enfocar la pestaña de Ramón Net (o abrirla
-  // si no hay ninguna). Da un follow-up accionable: el usuario revisa/reintenta la clase.
-  // La guarda evita que un chrome.notifications ausente tire durante la evaluación del SW
-  // (rompería la carga entera del service worker).
+  // Click en la notificación nativa de fallo → enfocar la pestaña DEL PORTAL QUE FALLÓ (o
+  // abrirla si no hay ninguna). Da un follow-up accionable: el usuario revisa/reintenta la
+  // clase. La guarda evita que un chrome.notifications ausente tire durante la evaluación del
+  // SW (rompería la carga entera del service worker).
+  //
+  // [MULTISITIO CORTE 8] Cuál es ese portal sale del `notificationId`, que lo lleva adentro
+  // desde que se creó la notificación. Antes salía del sitio asumido, y con la cola mezclada
+  // eso abría el portal equivocado — el mismo defecto que el corte 4 arregló en el filtro.
+  // El SW no tiene pestaña de la cual deducirlo: por eso el dato viaja con el aviso.
   if (typeof chrome !== "undefined" && chrome.notifications && chrome.notifications.onClicked) {
     chrome.notifications.onClicked.addListener(async (notificationId) => {
       chrome.notifications.clear(notificationId);
       try {
-        const [tab] = await chrome.tabs.query({ url: sitio.patronPestañas });
+        const sitioDelFallo = resolverSitioDeNotificacion(notificationId);
+        if (!sitioDelFallo) {
+          // Huérfano: el portal del ítem ya no está registrado. No hay a dónde llevar al
+          // usuario, y abrir cualquier otro sería justamente el bug. Se limpia y se avisa.
+          console.warn(`[SW] Notificación de un portal no registrado (${notificationId}): no hay pestaña que enfocar.`);
+          return;
+        }
+        const [tab] = await chrome.tabs.query({ url: sitioDelFallo.patronPestañas });
         if (tab) {
           await chrome.tabs.update(tab.id, { active: true });
           await chrome.windows.update(tab.windowId, { focused: true });
         } else {
-          await chrome.tabs.create({ url: sitio.urlSondeoInternet });
+          await chrome.tabs.create({ url: sitioDelFallo.urlSondeoInternet });
         }
       } catch (e) {
-        console.warn("[SW] No se pudo enfocar/abrir la pestaña de Ramón Net:", e);
+        console.warn(`[SW] No se pudo enfocar/abrir la pestaña del portal:`, e);
       }
     });
   }}

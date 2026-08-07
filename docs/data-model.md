@@ -9,12 +9,15 @@ Escrito principalmente por `AppState.respaldar()` (`core/estado/appState.ts`) de
 | Clave | Forma | Escrita por | Descripción |
 |---|---|---|---|
 | `listaPersistente` | `Clase[]` (ver abajo) | popup (`AppState.respaldar`), SW (varios handlers IPC) | Lista completa de clases scrapeadas de la última sesión, con su estado actual. |
-| `colaDescargas` | `ColaItem[]` (ver abajo) | popup, SW | Cola FIFO desacoplada de descarga — separada de `listaPersistente` para poder sobrevivir a cambios de materia/pestaña sin perder el progreso. |
+| `colaDescargas` | `ColaItem[]` (ver abajo) | popup, SW | Cola de descarga desacoplada — separada de `listaPersistente` para poder sobrevivir a cambios de materia/pestaña sin perder el progreso. **El array ES el orden de descarga** desde el corte 6d (ADR-0011): lo escribe el popup y el SW lo obedece. |
 | `faseDiscoOk` | `boolean` | popup | Si ya se corrió una sincronización con el disco (vía `escanear_carpeta_local`) en esta sesión. |
 | `facetaElegida` | `string \| null` | popup | Valor de faceta seleccionado por el usuario cuando se detecta más de uno (en Ramón Net: la cátedra A–D). La UI no nombra esta clave: la declara el adaptador de sitio (`sitio/ramonnet/config.ts`, `faceta.claveEstado` → `AppState.facetaSeleccionada`). **Se llamó `catedraElegida` hasta el 2026-08-03** — ver la nota de migración abajo. |
 | `ocultarAdvExplorar` | `boolean` | popup | Preferencia: no volver a mostrar el aviso al explorar carpeta. |
 | `ocultarAdvAula` | `boolean` | popup | Preferencia: no volver a mostrar el aviso al cambiar de aula. |
-| `ordenAscendente` | `boolean \| null` | popup | Orden de la lista: `true`=ascendente, `false`=descendente, `null`=FIFO natural (solo aplica en la pestaña Cola). |
+| `ordenAscendente` | `boolean \| null` | popup | **Sentido del orden de la pestaña Disponibles**: `true`=ascendente, cualquier otra cosa=descendente — sí, `null` cae en descendente, porque ahí sólo se mira su verdad/falsedad. Hasta el corte 6b servía **también** a la Cola con otra semántica (`null`=FIFO, `true`/`false`=nombre ↑/↓); esa mitad se mudó a `criterioOrdenCola`/`ordenColaAscendente` y ésta quedó como estaba. Que un solo campo significara dos cosas distintas según quién lo leyera es la razón por la que la migración **no** lo tocó: derivarlo hacia `true` habría dado vuelta Disponibles en toda instalación existente, sin que nada lo dijera. |
+| `criterioOrdenCola` | `"llegada" \| "nombre" \| "faceta" \| "portal"` | popup | **Sólo pestaña Cola** (corte 6b). Por qué eje se ordena. `faceta` y `portal` se resuelven contra el descriptor de **cada ítem** vía su `sitioId`, no contra un sitio fijo — la cola puede mezclar portales (ADR-0010). `portal` ordena por portal y, dentro de cada uno, por llegada. Un valor desconocido en storage cae a `"llegada"`. **Migración**: si la clave no existe, se deriva del `ordenAscendente` viejo (`null`→`"llegada"`, si no `"nombre"`). |
+| `ordenColaAscendente` | `boolean` | popup | **Sólo pestaña Cola** (corte 6b). Sentido del criterio de arriba; invertirlo es lo que convierte "llegada" en LIFO, que por eso dejó de ser un criterio propio. **Migración**: si no existe, sale del `ordenAscendente` viejo (`null`→`true`, si no su valor). |
+| `criterioOrdenDisponibles` | `"nombre" \| "faceta" \| "estado"` | popup | **Sólo pestaña Disponibles** (corte 6b). Sus ejes son otros que los de la Cola: no hay `llegada` —ese listado no se encoló, se escaneó— ni `portal`, porque sale del scrapeo de **una** pestaña. La faceta se lee con `faceta.leer` (campo ya parseado), no con `leerDeCola` (que re-deriva del título). **Sin migración**: el default `"nombre"` reproduce exactamente el orden por título que había antes, y el sentido lo sigue dando `ordenAscendente`. |
 | `tutorialCompletado` | `boolean` | popup | Si el onboarding ya se completó/saltó. |
 | `SW_ESTADOS_PROGRESO` | `Record<string, EstadoClase>` | SW (`persistirEstadoFondo`) | Mapa `titulo → estado` de progreso, espejo liviano para que el popup pueda reconciliar sin pedir el detalle completo. |
 | `historialFallos` | `HistorialFallo[]` (ver abajo) | SW (`registrarFallo` → `HistorialFallos.registrar`), popup (marcar leídas / limpiar) | Historial acotado (últimos 50, más-reciente-primero) de fallos terminales de descarga (rechazo 4xx / sesión / servidor / internet). Fuente de la campanita del popup; la escribe el SW aun con el popup cerrado. |
@@ -88,7 +91,9 @@ adopta la vieja, la borra al adoptarla, y con las dos presentes gana la nueva.
   urlInterna: string,
   carpeta: string,
   sitioId: string,                // hereda el de la clase (ADR-0010), NO el del sitio activo
-  fechaEncolado: number,          // Date.now() al momento de encolar — define el orden FIFO
+  fechaEncolado: number,          // Date.now() al encolar. Desde ADR-0011 NO es la fuente del
+                                  // orden: es el dato del criterio "de llegada" y el que
+                                  // normaliza las colas anteriores al corte 6d.
   seleccionado?: boolean          // usado solo en modo selección múltiple de la pestaña Cola
 }
 ```
@@ -141,5 +146,5 @@ Encapsulado por `SessionState` (`core/cola/estadoSesion.ts`, tipado y con sus de
 ## Invariantes que hay que preservar
 
 - **`AppState` (popup) y `SessionState` (SW) no comparten memoria** — solo se reconcilian vía el mensaje `obtener_estados_en_progreso`. Ningún código del popup debe asumir que `AppState.listadoClasesGlobal[i].estado` refleja el estado real sin haber pasado por esa reconciliación primero.
-- **`colaDescargas` es la fuente de verdad del orden de descarga**, ordenada por `fechaEncolado`. `listaPersistente[i].estado` se deriva de si el título está presente en `colaDescargas`, no al revés.
+- **`colaDescargas` es la fuente de verdad del orden de descarga, y lo es como *secuencia*** (ADR-0011, corte 6d): el service worker baja `[0]` y ya no ordena por `fechaEncolado`. El popup es el **único escritor** de ese orden — si escribiera una secuencia inconsistente, el SW ya no tiene una red que lo corrija. Una cola guardada antes del corte 6d se normaliza una vez por `fechaEncolado` al cargarla (`core/estado/appState.ts`). `listaPersistente[i].estado` se deriva de si el título está presente en `colaDescargas`, no al revés.
 - Las escrituras que tocan más de una de estas claves relacionadas dentro de una misma operación lógica (ej. mover un ítem de `pending` a `process`, que toca `listaPersistente` + `colaDescargas` + `SW_ESTADOS_PROGRESO`) deben hacerse en **una sola llamada** a `guardarLocal({...})`. Desde la Fase 5b eso dejó de ser una convención escrita en comentarios: es la firma del `PuertoAlmacenamiento` (`core/puertos/almacenamiento.ts`), que documenta el invariante en el contrato. Los 3 puntos que lo violaban se consolidaron en 2026-07-17 (ver "Escrituras no-atómicas" en `docs/TECHNICAL_DEBT.md`, ya resuelto).

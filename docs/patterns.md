@@ -146,7 +146,7 @@ Cada intento tiene además un **timeout propio de 10 s** (`AbortController` comp
 
 ## Sanitización de nombres de archivo y parsing de títulos
 
-**Dónde**: `sanitizarTexto` en `core/util/texto.ts` (genérico); `ParserTitulos.formatTitleStructured` y `.clasificarCatedraYCarpeta` en `sitio/ramonnet/parserTitulos.js` (Capa 2 — son específicos del portal), consumidos vía `SitioActivo.parsearTitulo`/`.clasificarCarpeta`.
+**Dónde**: `sanitizarTexto` en `core/util/texto.ts` (genérico); `ParserTitulos.formatTitleStructured` y `.clasificarCatedraYCarpeta` en `sitio/ramonnet/parserTitulos.js` (Capa 2 — son específicos del portal), consumidos vía las puertas del descriptor de sitio (`sitio.parsearTitulo`/`.clasificarCarpeta`), que llega inyectado.
 
 **Qué hace**: normaliza títulos de clases scrapeados (texto libre, con acentos, fechas en formatos variables, mención de cátedra en distintas posiciones) a un nombre de archivo canónico `SEM mm-dd - MATERIA CATEDRA - CLASE n - PARTE m - DETALLE`, y separa esa clasificación en pasos (fecha → cátedra → materia → clase/parte → resto) que se van "consumiendo" del texto original para no volver a matchear lo mismo dos veces.
 

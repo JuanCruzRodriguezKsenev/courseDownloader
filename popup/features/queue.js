@@ -89,6 +89,10 @@ const QueueFeature = {
       renderizar,
       setVerificandoConexion,
       setReintentandoCola,
+      // [CORTE 6D — ADR-0011] Reordena la cola persistida según el criterio elegido. Encolar
+      // agrega al final, así que sin esto un ítem nuevo contradiría el orden que la pantalla
+      // muestra — y desde este corte ese orden es el de descarga, no una vista.
+      reordenarCola,
       mensajeria,
       appState,
       conexion,
@@ -143,6 +147,11 @@ const QueueFeature = {
       } else {
         nodos.txtEstado.textContent = `📥 ¡Clases agregadas! Pasá a la pestaña de Fila para iniciar.`;
       }
+
+      // [CORTE 6D] Antes de respaldar: lo recién agregado va al final del array y el criterio
+      // vigente puede querer otra cosa. El rollback de más abajo sigue funcionando porque
+      // filtra por id, no por posición.
+      if (reordenarCola) reordenarCola();
 
       appState.respaldar();
       aplicarFiltros();
@@ -318,7 +327,8 @@ const QueueFeature = {
   }
 };
 
-// Exportación (ver docs/coding-standards.md). Sigue publicando el global porque el
-// resto del código vanilla lo consume sin importar; el `export` es lo que permite que
-// el bundler arme el grafo de dependencias y que Vitest importe el módulo.
+// Exportación (ver docs/coding-standards.md). Desde la Fase 8a NO publica global: los
+// módulos hermanos viajan por `import` y no son adaptadores intercambiables. (Hasta el
+// 2026-08-05 este comentario decía que "sigue publicando el global", que era falso: la
+// 8a lo sacó y el texto quedó.)
 export default QueueFeature;

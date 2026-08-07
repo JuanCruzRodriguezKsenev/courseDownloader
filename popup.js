@@ -184,6 +184,7 @@
 // load-bearing para todo esto, porque ahora lo resuelve el grafo del bundler.
 import FacetaFeature from './popup/features/faceta.js';
 import FilterFeature from './popup/features/filters.js';
+import OrdenFeature from './popup/features/orden.js';
 import QueueFeature from './popup/features/queue.js';
 import ServerConnectionFeature from './popup/features/serverConnection.js';
 import OnboardingFeature from './popup/features/onboarding.preact.js';
@@ -209,10 +210,12 @@ import BannerConexion from './popup/features/bannerConexion.preact.js';
  * @param {object} deps.mensajeria  PuertoMensajeria: el IPC hacia el service worker.
  * @param {object} deps.utils       Ensamblado `Utils` (Fase 6a).
  * @param {object} deps.backend     Cliente del backend Bun.
- * @param {object} deps.sitio       Adaptador de sitio (Capa 2).
+ * @param {object} deps.sitios      Registro de portales. Resuelve por `sitioId` (lo que
+ *                                  mezcla portales: la cola) y por URL (la pestaña activa).
+ *                                  Ver ADR-0010. Desde el corte 5 **no hay un `sitio` fijo**.
  * @param {object} deps.renderers   Pintado vanilla que todavía no es isla.
  */
-export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, sitio, renderers }) {
+export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, sitios, renderers }) {
   document.addEventListener('DOMContentLoaded', async () => {
     console.log("🤖 [POPUP-CORE] Orquestador unificado V5.4.1 activo. Sincronización de escáner híbrido (Chrome/Bun) integrada.");
 
@@ -224,6 +227,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       search:          document.getElementById('ui-search'),
       btnFilterPills:  document.getElementById('ui-btn-filter-pills'),
       filterMenu:      document.getElementById('ui-filter-menu'),
+      sortMenu:        document.getElementById('ui-sort-menu'),
       masterCheck:     document.getElementById('ui-master-check'),
       folder:          document.getElementById('ui-path-folder'),
       progressCont:    document.getElementById('ui-progress-container'),
@@ -257,10 +261,45 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     // que acá se guarda eso: desengancharlo es llamarla.
     let desengancharOyenteWorker = null;
     let modoSeleccionFilaActivo = false;
+
+    // [MULTISITIO CORTE 5] El portal de la pestaña que se está mirando.
+    //
+    // Hasta este corte el popup recibía UN sitio inyectado (`sitioAsumido`, el andamio del
+    // corte 2) y lo trataba como "el" portal. Ahora lo resuelve por URL de pestaña, que es la
+    // mitad de ADR-0010 que le toca: el service worker resuelve por ítem porque su cola no
+    // tiene pestaña; el popup sí la tiene, y es el único momento en que se sabe con certeza
+    // de qué portal salió una clase.
+    //
+    // Arranca en el portal legado —el mismo que `sitios.obtener(undefined)` devuelve por la
+    // migración— sólo para que la UI tenga vocabulario antes del primer escaneo. En cuanto se
+    // escanea, manda la pestaña.
+    let sitioActivo = sitios.obtener(undefined);
+
+    /** El descriptor del portal activo. Las features lo reciben ASÍ, como función. */
+    const sitio = () => sitioActivo;
+
+    /**
+     * Resuelve el portal de una pestaña y lo adopta como activo.
+     *
+     * Devuelve `undefined` si la pestaña no es de ningún portal registrado — y ahí el llamador
+     * tiene que negarse a escanear. No se cae al portal legado a propósito: adivinar el portal
+     * de una pestaña cualquiera es exactamente el bug que ADR-0010 previene.
+     */
+    function adoptarPortalDePestaña(url) {
+      const resuelto = sitios.resolverPorUrl(url);
+      if (resuelto) sitioActivo = resuelto;
+      return resuelto;
+    }
+    // [MULTISITIO CORTE 6C] `portales` es el filtro maestro de la pestaña Cola: la cola puede
+    // mezclar portales (ADR-0010) y cada uno trae su propio vocabulario de faceta. En la Cola
+    // los valores de `valoresFaceta` van CALIFICADOS por portal (`sitioId|valor`), porque dos
+    // portales pueden tener una faceta con la misma etiqueta y sin calificar se pisarían.
+    // No se persiste: se arma acá y viaja por referencia, así que no lleva migración.
     const filtrosActivos = {
       estados: new Set(),
       materias: new Set(),
-      valoresFaceta: new Set()
+      valoresFaceta: new Set(),
+      portales: new Set()
     };
 
     // --- Isla Preact #3: Onboarding (welcome tour) — features/onboarding.preact.js ---
@@ -284,24 +323,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     // El listener del click en el badge de la faceta vive ahora en FacetaFeature
     // (popup/features/faceta.js), cableado en su crear() más abajo.
 
-    if (nodos.btnSort) {
-      nodos.btnSort.addEventListener("click", () => {
-        if (appState.pestañaActiva === "cola") {
-          if (appState.ordenAscendente === true) {
-            appState.ordenAscendente = false;
-          } else if (appState.ordenAscendente === false) {
-            appState.ordenAscendente = null; // FIFO natural
-          } else {
-            appState.ordenAscendente = true;
-          }
-        } else {
-          appState.ordenAscendente = (appState.ordenAscendente === null) ? true : !appState.ordenAscendente;
-        }
-        appState.respaldar();
-        actualizarIconoSorteo();
-        renderizarListadoInterfaz();
-      });
-    }
+    // [MULTISITIO CORTE 6B] El listener del orden vive ahora en OrdenFeature
+    // (popup/features/orden.js), junto con el comparador y la etiqueta del botón, que
+    // también estaban sueltos acá. Se cablea en su crear() más abajo.
 
     if (nodos.btnToggleSelect) {
       nodos.btnToggleSelect.addEventListener("click", () => {
@@ -331,6 +355,10 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     if (nodos.btnFilterPills) {
       nodos.btnFilterPills.addEventListener('click', (e) => {
         e.stopPropagation();
+        // [CORTE 6B] El `stopPropagation` de arriba impide que el listener global cierre este
+        // popover en el mismo click que lo abre — pero también impide que cierre el de orden.
+        // Por eso se lo cierra a mano: si no, quedan los dos abiertos, superpuestos.
+        _orden.cerrarMenu();
         const open = nodos.filterMenu.style.display === 'flex';
         if (!open) {
           renderizarFiltrosMenuPopover();
@@ -340,7 +368,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       });
     }
 
-    // Close when clicking outside
+    // Close when clicking outside — cierra LOS DOS popovers (filtros y orden).
     document.addEventListener('click', () => {
       if (nodos.filterMenu) {
         nodos.filterMenu.style.display = 'none';
@@ -348,6 +376,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       if (nodos.btnFilterPills) {
         nodos.btnFilterPills.classList.remove('open');
       }
+      _orden.cerrarMenu();
     });
 
     // Prevent close when clicking inside the popover
@@ -394,6 +423,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       renderizar: () => renderizarListadoInterfaz(),
       setVerificandoConexion: (v) => { verificandoConexionBoton = v; },
       setReintentandoCola: (v) => { reintentandoColaActivo = v; },
+      // [CORTE 6D — ADR-0011] Diferido a propósito: `_orden` se crea más abajo. Se invoca
+      // recién al encolar, mucho después de que este init termine.
+      reordenarCola: () => _orden.persistirOrdenCola(),
       // PuertoMensajeria (Fase 5c): lo publica plataforma/composicion.ts. La feature ya no
       // toca chrome.runtime; el IPC entra por acá.
       mensajeria: mensajeria,
@@ -410,7 +442,8 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     const _filters = FilterFeature.crear({
       nodos,
       filtrosActivos,
-      sitio: sitio,
+      sitio,
+      sitios,
       appState,
       renderizar: () => renderizarListadoInterfaz(),
       actualizarContadores: () => actualizarContadoresBoton()
@@ -421,6 +454,22 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     const actualizarPillsUIState = _filters.actualizarPillsUIState;
     const renderizarFiltrosMenuPopover = _filters.renderizarFiltrosMenuPopover;
 
+    // Feature: orden de la pestaña Cola (corte 6b). Se lleva el listener del botón, el
+    // comparador y la etiqueta, que estaban sueltos en este archivo. Recibe `sitios` —no un
+    // sitio fijo— porque los criterios `faceta` y `portal` se resuelven contra el descriptor
+    // de CADA ítem: la cola puede mezclar portales (ADR-0010).
+    const _orden = OrdenFeature.crear({
+      nodos,
+      appState,
+      sitios,
+      renderizar: () => renderizarListadoInterfaz(),
+      // La feature no toca el DOM del popover ajeno: pide que lo cierren.
+      cerrarOtrosPaneles: () => {
+        if (nodos.filterMenu) nodos.filterMenu.style.display = 'none';
+        if (nodos.btnFilterPills) nodos.btnFilterPills.classList.remove('open');
+      }
+    });
+
     // Feature: faceta del listado (badge + asistente de autoselección + su modal, y el
     // listener del click en el badge). Genérica: qué ES la faceta —en Ramón Net, la
     // cátedra— lo aporta el descriptor del sitio activo. Depende de aplicarFiltrosCruzados
@@ -429,7 +478,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     const _faceta = FacetaFeature.crear({
       appState,
       badge: nodos.facetaBadge,
-      sitio: sitio,
+      sitio,
       aplicarFiltros: () => aplicarFiltrosCruzados()
     });
     const actualizarBadgeFaceta = _faceta.actualizarBadge;
@@ -440,7 +489,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
     // Forzar re-escaneo automático si la pestaña de Ramón Net cambia de dirección o se recarga
     chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-      if (changeInfo.status === 'complete' && tab.active && sitio.esPaginaDelSitio(tab.url)) {
+      if (changeInfo.status === 'complete' && tab.active && adoptarPortalDePestaña(tab.url)) {
         console.log("🔄 [POPUP] Pestaña Ramón Net actualizada. Re-escaneando...");
         if (!appState.fallaConexionActiva) {
           ejecutarPaso1EscaneoRamonAutomatico();
@@ -455,7 +504,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         // entero al PuertoMensajeria (Fase 5c); lo que queda de chrome.* acá es tabs +
         // scripting, que esperan sus propios puertos.
         if (chrome.runtime.lastError || !tab) return;
-        if (tab.active && sitio.esPaginaDelSitio(tab.url)) {
+        if (tab.active && adoptarPortalDePestaña(tab.url)) {
           console.log("🔄 [POPUP] Pestaña Ramón Net enfocada. Re-escaneando...");
           if (!appState.fallaConexionActiva) {
             ejecutarPaso1EscaneoRamonAutomatico();
@@ -717,9 +766,16 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       filtrosActivos.estados.clear();
       filtrosActivos.materias.clear();
       filtrosActivos.valoresFaceta.clear();
+      // [CORTE 6C] Limpiar `portales` acá no es prolijidad: en la Cola los valores de faceta van
+      // calificados por portal y en Disponibles van crudos. Que el Set se vacíe al conmutar es
+      // lo que hace que esas dos convenciones no puedan cruzarse.
+      filtrosActivos.portales.clear();
       actualizarPillsUIState();
       if (nodos.filterMenu) nodos.filterMenu.style.display = 'none';
       if (nodos.btnFilterPills) nodos.btnFilterPills.classList.remove('open');
+      // El panel de orden también: los criterios son distintos por pestaña, así que dejarlo
+      // abierto al cambiar mostraría los de la pestaña que se está dejando.
+      _orden.cerrarMenu();
 
       const selectWrapper = document.getElementById('ui-master-select-wrapper');
       if (id === "disponibles") {
@@ -753,12 +809,18 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       }, 6000);
 
       chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-        if (!tab || !sitio.esPaginaDelSitio(tab.url)) {
+        // [MULTISITIO CORTE 5] Acá es donde el portal se decide de verdad: el escaneo corre
+        // sobre UNA pestaña concreta y es el único momento en que se sabe con certeza de qué
+        // portal sale cada clase. Se resuelve una vez y se usa `portal` —el local— en todo el
+        // resto del escaneo: leer `sitioActivo` más abajo dejaría la puerta abierta a que otro
+        // listener lo cambie a mitad de camino.
+        const portal = tab && adoptarPortalDePestaña(tab.url);
+        if (!portal) {
           clearTimeout(safetyTimeout);
-          nodos.txtEstado.textContent = "⚠️ No estás en Ramón Net.";
+          nodos.txtEstado.textContent = "⚠️ No estás en un portal reconocido.";
           configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
           if (appState.listadoClasesGlobal.length > 0) { desbanearFiltros(); aplicarFiltrosCruzados(); }
-          nodos.loader.style.display = 'none'; 
+          nodos.loader.style.display = 'none';
           return;
         }
 
@@ -768,7 +830,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
         chrome.scripting.executeScript({
           target: { tabId: tab.id },
-          func: sitio.escanearListado
+          func: portal.escanearListado
         }, (resultados) => {
           clearTimeout(safetyTimeout);
 
@@ -816,8 +878,8 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             } else {
               const nuevasClases = enlaces.map((item, idx) => {
                 const materiaBase = nodos.folder.value.trim();
-                const tituloFinalEstandar = sitio.parsearTitulo(item.texto, materiaBase);
-                const clasif = sitio.clasificarCarpeta(item.texto, materiaBase);
+                const tituloFinalEstandar = portal.parsearTitulo(item.texto, materiaBase);
+                const clasif = portal.clasificarCarpeta(item.texto, materiaBase);
 
                 return {
                   id: idx + Date.now(), // ID único dinámico para evitar colisiones con clases persistidas
@@ -827,7 +889,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
                   // ADR-0010: de qué portal salió. Se estampa ACÁ, que es el único momento en
                   // que se sabe con certeza — el escaneo corre sobre una pestaña concreta.
                   // Después la cola es independiente de la pestaña y ya no habría cómo deducirlo.
-                  sitioId: sitio.id,
+                  sitioId: portal.id,
                   catedra: clasif.catedra,
                   carpeta: clasif.carpeta,
                   estado: 'pending',
@@ -1049,27 +1111,42 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       });
 
       let filtrados = [];
+      // [MULTISITIO CORTE 6A] La clase que se está bajando va SIEMPRE primera y no la tocan ni
+      // el filtro ni el orden. Estos dos flags viajan en el vm para que la isla sepa dónde va la
+      // línea divisoria y si lo de abajo quedó vacío por el filtro.
+      let anclaActiva = false;
+      let sinResultados = false;
       if (appState.pestañaActiva === "cola") {
         const busqueda = nodos.search.value.toLowerCase().trim();
-      
-        filtrados = appState.colaDescargas.filter(clase => coincideConFiltrosCola(clase, busqueda));
 
-        if (appState.ordenAscendente !== null) {
-          filtrados.sort((a, b) => {
-            const comp = a.titulo.localeCompare(b.titulo, undefined, { numeric: true, sensitivity: 'base' });
-            return appState.ordenAscendente ? comp : -comp;
-          });
-        } else {
-          filtrados.sort((a, b) => (a.fechaEncolado || 0) - (b.fechaEncolado || 0));
+        // Se saca ANTES de filtrar: es la fila que más se mira y la única que no se puede
+        // permitir que desaparezca por haber filtrado otra cátedra.
+        const esLaQueBaja = (clase) =>
+          appState.ráfagaEnCurso && clase.titulo === appState.videoActualEnTransmisiónSW;
+        const laQueBaja = appState.colaDescargas.find(esLaQueBaja);
+
+        filtrados = appState.colaDescargas.filter(
+          clase => !esLaQueBaja(clase) && coincideConFiltrosCola(clase, busqueda)
+        );
+
+        // [CORTE 6B] El comparador es de OrdenFeature: sabe de criterio, sentido y de resolver
+        // la faceta/portal contra el descriptor de CADA ítem (la cola puede mezclar portales).
+        filtrados.sort(_orden.comparador());
+
+        if (laQueBaja) {
+          anclaActiva = true;
+          // Que el resto quede vacío ya NO es "la lista está vacía": hay una descarga en curso.
+          // Sin esto se caería en la tarjeta de "no hay clases" y se perdería la fila anclada.
+          sinResultados = filtrados.length === 0;
+          filtrados.unshift(laQueBaja);
         }
       } else {
         filtrados = appState.listadoClasesGlobal.filter(c => c.visible);
-      
-        // Ordenar por título (semana) de forma ascendente o descendente (orden natural tipo Windows)
-        filtrados.sort((a, b) => {
-          const comp = a.titulo.localeCompare(b.titulo, undefined, { numeric: true, sensitivity: 'base' });
-          return appState.ordenAscendente ? comp : -comp;
-        });
+
+        // [CORTE 6B] Mismo comparador que la Cola: la feature sabe en qué pestaña está y usa
+        // los criterios de cada una. Con el default ('nombre' + ordenAscendente) el resultado
+        // es idéntico al orden por título que había acá.
+        filtrados.sort(_orden.comparador());
       }
 
       if (filtrados.length === 0) {
@@ -1103,6 +1180,8 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           sincronizado: appState.sincronizacionDiscoCompletada,
           enCurso: appState.ráfagaEnCurso,
           videoActivo: appState.videoActualEnTransmisiónSW,
+          anclaActiva,
+          sinResultados,
           selectionMode,
           onCheckChange: (c, check) => {
             c.seleccionado = check;
@@ -1489,15 +1568,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       iniciarMonitoreoServidor();
     }
 
+    // [MULTISITIO CORTE 6B] `actualizarIconoSorteo` pasó a ser `_orden.actualizarBoton()`.
+    // Este alias se conserva porque lo llaman dos call-sites (el cambio de pestaña y la
+    // reconexión) y renombrarlos no aporta nada.
     function actualizarIconoSorteo() {
-      if (!nodos.btnSort) return;
-      if (appState.pestañaActiva === "cola" && appState.ordenAscendente === null) {
-        nodos.btnSort.innerHTML = "Fila";
-        nodos.btnSort.title = "Orden: De llegada original (FIFO)";
-      } else {
-        nodos.btnSort.innerHTML = appState.ordenAscendente ? "Sem. ↑" : "Sem. ↓";
-        nodos.btnSort.title = appState.ordenAscendente ? "Orden: Semanas más viejas primero (Ascendente)" : "Orden: Semanas más nuevas primero (Descendente)";
-      }
+      _orden.actualizarBoton();
     }
 
     // La lógica de la faceta (badge, autoselección silenciosa, asistente, modal y el

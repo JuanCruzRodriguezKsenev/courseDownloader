@@ -317,3 +317,34 @@ describe('QueueFeature.ejecutarReintentoDeCola', () => {
     expect(mensajeria.enviados).toHaveLength(0);
   });
 });
+
+// [MULTISITIO CORTE 6D — ADR-0011] Encolar agrega al FINAL del array, y desde este corte el
+// array es el orden de descarga. Sin re-aplicar el orden, un ítem nuevo se mostraría en el
+// lugar que el criterio dice y se bajaría último — que es exactamente la mentira que la ADR
+// existe para cerrar.
+describe('QueueFeature.encolarItemsEnCaliente — el orden persistido (corte 6d)', () => {
+  it('re-aplica el orden de la cola antes de respaldar', () => {
+    const reordenarCola = vi.fn();
+    const { feature } = crearFeature({ reordenarCola });
+    const respaldar = vi.spyOn(globalThis.AppState, 'respaldar');
+
+    feature.encolarItemsEnCaliente([
+      { id: 1, titulo: 'A', urlInterna: 'u', estado: 'pending', seleccionado: true },
+    ]);
+
+    expect(reordenarCola).toHaveBeenCalled();
+    // Antes de respaldar: si fuera después, se persistiría el orden viejo y recién lo
+    // corregiría el siguiente respaldo, que puede no llegar nunca.
+    expect(reordenarCola.mock.invocationCallOrder[0])
+      .toBeLessThan(respaldar.mock.invocationCallOrder[0]);
+  });
+
+  it('sin reordenarCola en el ctx no rompe (la dependencia es opcional)', () => {
+    const { feature } = crearFeature();
+    expect(() =>
+      feature.encolarItemsEnCaliente([
+        { id: 2, titulo: 'B', urlInterna: 'u', estado: 'pending', seleccionado: false },
+      ])
+    ).not.toThrow();
+  });
+});

@@ -28,18 +28,26 @@ import '../../plataforma/composicion.ts';
 // `DOMContentLoaded` se registra en el mismo momento que antes — los módulos ES son
 // diferidos, así que todo esto corre antes de que el evento dispare.
 import { iniciarPopup } from '../../popup.js';
-import { AppState, Conexion, HistorialFallos, mensajeria, Utils } from '../../plataforma/composicion.ts';
+import { AppState, Conexion, HistorialFallos, mensajeria, sitios, Utils } from '../../plataforma/composicion.ts';
 import BunClient from '../../core/backend/bunClient.ts';
-import { sitioAsumido as SitioActivo } from '../../sitio/registro.ts';
 import crearRenderers from '../../renderers.js';
 
+// [MULTISITIO CORTE 5] Acá se importaba `sitioAsumido`. Ya no hay un portal inyectado en el
+// popup: lo resuelve por URL de la pestaña activa, que es la mitad de ADR-0010 que le toca.
+//
+// Ojo con lo que NO cambió: al andamio le queda un lector, en `plataforma/composicion.ts`,
+// para el `urlSondeoInternet` del daemon de conexión. Es deliberado — la sonda sigue siendo
+// una sola (ver `docs/multisitio-diseno.md` §4), y hacerla por portal es un rediseño del
+// daemon con su propio corte. O sea: el andamio no murió acá, sólo se quedó sin la UI.
 iniciarPopup({
   appState: AppState,
   conexion: Conexion,
   mensajeria,
   utils: Utils,
   backend: BunClient,
-  sitio: SitioActivo,
+  // Registro de portales: por id para lo que mezcla portales (la cola) y por URL para la
+  // pestaña activa. El MISMO que usa el service worker, con la misma migración.
+  sitios,
   renderers: crearRenderers(Utils),
 });
 
@@ -61,6 +69,10 @@ montarStatusDot(document.getElementById('preact-status-dot'), { conexion: Conexi
 montarOnboarding(document.getElementById('preact-onboarding'), {
   conexion: Conexion,
   appState: AppState,
-  sitio: SitioActivo,
+  // [CORTE 5] El onboarding corre ANTES de que haya una pestaña escaneada, así que no hay
+  // portal "de la pestaña" que pasarle: se le da el legado, que es a donde el tour manda al
+  // usuario y lo que mostraba hasta ahora. Ofrecer elegir entre N portales es del corte 7,
+  // cuando exista un segundo.
+  sitio: sitios.obtener(undefined),
 });
 montarCampanita(document.getElementById('preact-campanita'), { historial: HistorialFallos });

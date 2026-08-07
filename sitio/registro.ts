@@ -71,7 +71,12 @@ export const Sitios = {
 };
 
 /**
- * ANDAMIO TEMPORAL — lo borran los cortes 3 y 5 de `docs/multisitio-diseno.md`.
+ * ANDAMIO TEMPORAL — los cortes 3, 8 y 5 le sacaron todos los lectores menos uno.
+ *
+ * Al 2026-08-06 el único que queda es el `urlSondeoInternet` del daemon de conexión, en
+ * `plataforma/composicion.ts`, y **no es un olvido**: el daemon sondea UN origen a propósito
+ * (`docs/multisitio-diseno.md` §4). Hacer el estado de conexión por portal es un rediseño del
+ * daemon y merece su propio corte, así que hasta entonces esto se queda.
  *
  * El sitio que la composición **asume** mientras el service worker y el popup no resuelvan por
  * ítem / por pestaña. Se llama `sitioAsumido` y no `sitioPorDefecto` a propósito: ADR-0010 dice

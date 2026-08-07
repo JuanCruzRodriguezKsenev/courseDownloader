@@ -1,12 +1,18 @@
 /**
- * PROCESADOR DE LA COLA DE DESCARGA (V1.0.0)
+ * PROCESADOR DE LA COLA DE DESCARGA (V1.1.0)
  * ==========================================================================
  * Capa 1. Salió de `background.js` en la Fase 6b — es el bloque de lógica más grande que
  * tenía el service worker, y el más sensible del proyecto.
  *
+ * CHANGELOG v1.1.0:
+ * - [MULTISITIO CORTE 6D — ADR-0011] Se fue el `sort` por `fechaEncolado`: **el array de
+ *   `colaDescargas` ES el orden de descarga**. El popup lo escribe, este bucle baja `[0]`.
+ *   Con eso esta capa deja de tener una política de orden propia — una decisión menos en el
+ *   lugar que menos se puede observar.
+ *
  * QUÉ ES
  * ------
- * El bucle FIFO que toma la primera clase de la cola, la descarga con el motor HLS y decide
+ * El bucle que toma la primera clase de la cola, la descarga con el motor HLS y decide
  * qué pasa cuando algo falla. Esa segunda parte es el verdadero contenido: **la clasificación
  * de fallos tiene cuatro caminos y cada uno existe por un bug real**.
  *
@@ -121,7 +127,12 @@ export interface DependenciasCola {
   };
   historial: { registrar(tipo: string, titulo: string, motivo: string): Promise<unknown> };
   /** Capa 3: notificación nativa del SO. Best-effort, no puede propagar. */
-  notificarFallo(tipo: string, titulo: string, motivo: string): void;
+  /**
+   * Aviso nativo del fallo. El `sitioId` viaja hasta acá (corte 8) porque el click en la
+   * notificación tiene que enfocar la pestaña del portal DEL ÍTEM: el SW no tiene pestaña de
+   * la cual deducirlo, y el portal asumido es justo el que da la respuesta equivocada.
+   */
+  notificarFallo(tipo: string, titulo: string, motivo: string, sitioId?: string): void;
   /** Métricas de progreso ya formateadas. */
   calcularMetricas(
     bytes: number,
@@ -177,14 +188,22 @@ export function crearProcesadorCola(deps: DependenciasCola) {
    * aviso es un efecto secundario best-effort y la salud de la cola nunca debe depender de que
    * funcione — fue una regresión real (un `chrome.notifications` ausente frenaba la cola).
    */
-  async function registrarFallo(tipo: string, titulo: string, motivo: string): Promise<void> {
+  async function registrarFallo(
+    tipo: string,
+    titulo: string,
+    motivo: string,
+    sitioId?: string
+  ): Promise<void> {
     try {
       await historial.registrar(tipo, titulo, motivo);
     } catch (e) {
       console.warn("[SW] No se pudo registrar el fallo en el historial:", e);
     }
     try {
-      notificarFallo(tipo, titulo, motivo);
+      // El `sitioId` va SÓLO a la notificación, no al historial: la campanita se lee con el
+      // popup abierto, que ya resuelve el portal por pestaña. Meterlo también en el historial
+      // sería cambiar la forma del storage (`docs/data-model.md`) sin un lector que lo pida.
+      notificarFallo(tipo, titulo, motivo, sitioId);
     } catch (e) {
       console.warn("[SW] No se pudo disparar la notificación de fallo:", e);
     }
@@ -200,7 +219,8 @@ export function crearProcesadorCola(deps: DependenciasCola) {
   async function pausarPorError(
     tipoError: string,
     titulo: string,
-    nombreSitio?: string
+    nombreSitio?: string,
+    sitioId?: string
   ): Promise<void> {
     await sesion.set({
       colaPausadaPorError: true,
@@ -213,7 +233,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
     // El nombre sale del portal DEL ÍTEM, no de uno fijo. El fallback genérico cubre el caso
     // en que se pausa sin ítem resuelto: mejor "el portal" que un nombre equivocado.
     const motivos = motivosPausa(nombreSitio ?? "el portal");
-    void registrarFallo(tipoError, titulo, motivos[tipoError] || "error de conexión");
+    void registrarFallo(tipoError, titulo, motivos[tipoError] || "error de conexión", sitioId);
 
     // Auto-heal sólo para fallas que el daemon PUEDE detectar recuperadas. El caso "sesion"
     // no: el daemon ve la red OK, así que la alarma reintentaría en loop contra el login.
@@ -251,9 +271,18 @@ export function crearProcesadorCola(deps: DependenciasCola) {
       const listaCompleta = data.listaPersistente || [];
       const colaDescargas = data.colaDescargas || [];
 
-      // FIFO estricto por fecha de encolado, no por el orden del array: la cola se puede
-      // haber reordenado en storage entre dos vueltas del bucle.
-      colaDescargas.sort((a, b) => (a.fechaEncolado || 0) - (b.fechaEncolado || 0));
+      // [MULTISITIO CORTE 6D — ADR-0011] Acá vivía un `sort` por `fechaEncolado`, y con él la
+      // única política de orden que tenía esta capa. Ya no: **el array ES el orden de
+      // descarga**. El popup lo escribe, este bucle lo obedece y baja `[0]`.
+      //
+      // Que la cola se pueda reordenar en storage entre dos vueltas dejó de ser el riesgo que
+      // ese `sort` cubría y pasó a ser el mecanismo: es exactamente así como el usuario decide
+      // qué se baja después. `fechaEncolado` sigue existiendo —es el dato del criterio "de
+      // llegada" y el que normaliza las colas viejas al cargarlas—, pero dejó de ser *la*
+      // fuente del orden.
+      //
+      // El riesgo aceptado (ver la ADR): si el popup escribiera un orden inconsistente, este
+      // bucle ya no tiene una red que lo corrija. La red es que el popup sea el único escritor.
 
       if (colaDescargas.length === 0) {
         await sesion.set({ rafagaCorriendo: false });
@@ -290,7 +319,10 @@ export function crearProcesadorCola(deps: DependenciasCola) {
           motivo: motivoHuerfano,
         });
         setTimeout(procesarSiguiente, 60);
-        void registrarFallo("rechazo", tituloInmutableVideo, motivoHuerfano);
+        // El id huérfano viaja igual, y a propósito: el resolvedor compartido lo va a rechazar
+        // y el click no va a abrir ninguna pestaña. Es la conducta correcta —no sabemos a qué
+        // portal llevar al usuario— y la única alternativa sería adivinar, que es el bug.
+        void registrarFallo("rechazo", tituloInmutableVideo, motivoHuerfano, elementoActual.sitioId);
         return;
       }
 
@@ -466,7 +498,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
         // internet=true y diría "internet".
         if (err?.tipoConexion === "sesion") {
           console.warn(`🔑 [SW] Descarga de "${tituloInmutableVideo}" pausada: no hay sesión activa en ${sitioDelItem.nombre}.`);
-          await pausarPorError("sesion", tituloInmutableVideo, sitioDelItem.nombre);
+          await pausarPorError("sesion", tituloInmutableVideo, sitioDelItem.nombre, elementoActual.sitioId);
           return;
         }
 
@@ -501,7 +533,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
           });
           setTimeout(procesarSiguiente, 60); // seguir con la próxima
           // Aviso DESPUÉS de garantizar la continuación de la cola.
-          void registrarFallo("rechazo", tituloInmutableVideo, motivoRechazo);
+          void registrarFallo("rechazo", tituloInmutableVideo, motivoRechazo, elementoActual.sitioId);
           return;
         }
 
@@ -522,7 +554,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
               ? "servidor"
               : "internet";
         }
-        await pausarPorError(tipoError, tituloInmutableVideo, sitioDelItem.nombre);
+        await pausarPorError(tipoError, tituloInmutableVideo, sitioDelItem.nombre, elementoActual.sitioId);
       }
     } catch (errStorage) {
       console.error("❌ [CRÍTICO-STORAGE] No se pudo leer el storage local de la cola:", errStorage);

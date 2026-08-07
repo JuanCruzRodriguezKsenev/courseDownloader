@@ -195,7 +195,9 @@ historia de qué se migró en qué fase no está acá: vive en `docs/rearquitect
   cola cuando el SW despierta con una descarga pendiente.
 - **No lee un solo global desde la Fase 7a**: exporta `iniciarServiceWorker(deps)` y recibe sus
   8 colaboradores (los 3 puertos, `SessionState`, `EstadosProgreso`, la cola, el cliente del
-  backend y el adaptador de sitio) desde `entrypoints/background.js`. **Regla al tocarlo**: la
+  backend y —desde el corte 8 del multi-sitio— `resolverSitioDeNotificacion`, que reemplazó al
+  adaptador de sitio fijo: **el SW ya no tiene UN portal**, resuelve el del ítem que falló a
+  partir del `notificationId`) desde `entrypoints/background.js`. **Regla al tocarlo**: la
   llamada va en el **top-level** del entrypoint, nunca dentro del callback de
   `defineBackground` ni detrás de un `await` — MV3 exige que los listeners queden registrados
   en el arranque sincrónico del worker, y perderlos no lo detecta ninguna de las cuatro
@@ -307,7 +309,7 @@ demás módulos del núcleo: factory `crearConexion(puerto, opciones)`, instanci
 `composicion.ts`, espejado cross-contexto por el ámbito de sesión del puerto.
 
 Llegó a la Capa 1 el **2026-08-03**, y vale como ejemplo de qué frena una mudanza: `chrome.*`
-no le quedaba desde la Fase 5b, pero seguía leyendo el global `SitioActivo` para saber a qué
+no le quedaba desde la Fase 5b, pero seguía leyendo el global del sitio activo para saber a qué
 host mandarle el HEAD de "hay internet". Esa URL ahora **se inyecta** —desde `composicion.ts`,
 que la toma de `PuertoSitio.urlSondeoInternet`— y con ella se fue el fallback hardcodeado al
 host de Ramón Net: en esta capa no puede existir, así que el parámetro es obligatorio y los
@@ -352,9 +354,27 @@ fuera de `entrypoints/` porque WXT trata cada archivo suelto de ahí como un ent
 
 ### Capa 2 — `sitio/<portal>/`
 
-`sitio/ramonnet/config.ts` exporta `SitioRamonNet` + `SitioActivo` (el sitio al que apunta
-este build) y **se declara implementación de `PuertoSitio`**, así que a un adaptador de portal
-al que le falte una pieza lo caza el compilador y no la lectura. Dos reglas al agregarle algo:
+`sitio/ramonnet/config.ts` exporta **`SitioRamonNet` y nada más**: se declara implementación de
+`PuertoSitio`, así que a un adaptador de portal al que le falte una pieza lo caza el compilador
+y no la lectura.
+
+**Qué portal está activo NO lo decide este archivo**, y es un cambio del 2026-08-04 (corte 2 de
+`docs/multisitio-diseno.md`): acá vivía `const SitioActivo = SitioRamonNet`, o sea un portal
+declarándose a sí mismo el activo. Ahora la lista y la resolución son de **`sitio/registro.ts`**,
+que es Capa 2 pero genérico:
+
+| Cómo se llega a un portal | Cuándo |
+|---|---|
+| `Sitios.resolverPorUrl(url)` | Al escanear: el portal sale de la **pestaña activa** |
+| `Sitios.obtener(sitioId)` | Después: el portal sale del **ítem** (ADR-0010), porque la cola está desacoplada de la pestaña |
+| `sitios.obtener(...)` (el export de `composicion.ts`) | Lo que consume el código: es el registro **con la migración aplicada**, y hay uno solo para que el SW y el popup no puedan divergir |
+
+**Ojo con la diferencia entre "sin sitio" y "sitio desconocido"**, que se parecen y significan lo
+contrario: un `sitioId` ausente es un dato de antes del multi-sitio y **resuelve** al portal
+legado; uno presente pero no registrado es un **huérfano** y no resuelve. El detalle y por qué
+esa regla vive en la composición → `docs/multisitio-diseno.md` §La trampa del corte 3.
+
+Dos reglas al agregarle algo:
 
 - **Una constante entra a `PuertoSitio` sólo si la lee alguien de afuera de `sitio/`.** `host`,
   `marcaRutaClase` y el bloque `cdn` (hosts de iframe + la `plantillaM3u8` de Bunny) los
@@ -368,7 +388,7 @@ Los módulos hermanos siguen en `.js` y entran como globals (`declare const`) **
 es lo que mantiene perezosas las puertas en vez de atarlas al orden de carga del entrypoint.
 Son `resolverManifiesto.js` (HTML de la clase → `.m3u8`), `parserTitulos.js` (parser de
 títulos/cátedra) y `scraper.js` (scraper del DOM), alcanzados vía
-`SitioActivo.resolverManifiesto` / `.parsearTitulo` / `.clasificarCarpeta` / `.escanearListado`.
+`sitio.resolverManifiesto` / `.parsearTitulo` / `.clasificarCarpeta` / `.escanearListado`, donde `sitio` es el descriptor que el consumidor recibió inyectado.
 
 **Cómo resuelve `ResolverManifiesto.resolver`, y por qué es el primer sospechoso cuando una
 descarga trae el video equivocado.** El camino principal **no** parsea el manifiesto: extrae el
@@ -395,7 +415,7 @@ sobre el HTML crudo. Las consecuencias de ese diseño:
 `escanearAulaVirtual` no se ejecuta acá: `popup.js` la inyecta con
 `chrome.scripting.executeScript` y corre **dentro de la pestaña del portal**, en el mundo
 aislado de la página. Tiene que ser **autocontenida y serializable**: no puede referenciar
-ninguna global de la extensión (`Utils`, `SitioActivo`, `SitioRamonNet`) **ni siquiera una
+ninguna global de la extensión (`Utils`, `SitioRamonNet`) **ni siquiera una
 constante a nivel de módulo de su propio archivo** — lo que necesite viaja por `args` de
 `executeScript`. O sea que la regla de arriba ("las constantes nuevas del sitio van acá, no
 inline") **no aplica a lo que vive adentro de esa función**: subir un selector suyo a
@@ -434,11 +454,11 @@ que el bundler no verifica: no llames a `Utils.*` en el top-level de un módulo.
 
 ## Flujo de una descarga, de punta a punta
 
-1. **Scraping**: el usuario abre el popup con la pestaña de Ramón Net activa. `popup.js` inyecta `Scraper.escanearAulaVirtual` (definida en `sitio/ramonnet/scraper.js`, Capa 2, y consumida vía `SitioActivo.escanearListado`) en esa pestaña, que lee el DOM y devuelve la lista de clases visibles + la materia detectada.
-2. **Clasificación**: cada título crudo pasa por `SitioActivo.parsearTitulo`/`.clasificarCarpeta` (`sitio/ramonnet/parserTitulos.js`, Capa 2) para derivar nombre de archivo canónico, cátedra (A–D) y carpeta de destino.
+1. **Scraping**: el usuario abre el popup con la pestaña de Ramón Net activa. `popup.js` inyecta `Scraper.escanearAulaVirtual` (definida en `sitio/ramonnet/scraper.js`, Capa 2, y consumida vía `sitio.escanearListado`) en esa pestaña, que lee el DOM y devuelve la lista de clases visibles + la materia detectada.
+2. **Clasificación**: cada título crudo pasa por `sitio.parsearTitulo`/`.clasificarCarpeta` (`sitio/ramonnet/parserTitulos.js`, Capa 2) para derivar nombre de archivo canónico, cátedra (A–D) y carpeta de destino.
 3. **Encolado**: el usuario selecciona clases y las agrega a la cola. `popup.js` actualiza `AppState.colaDescargas` de inmediato (optimistic update) y notifica al service worker vía `inyectar_items_en_cola_activa`.
 4. **Procesamiento** (`background.js`, `procesarSiguienteElementoDeLaCola`): toma el primer ítem FIFO de la cola persistida en `chrome.storage.local`, y:
-   - `SitioActivo.resolverManifiesto` (`sitio/ramonnet/resolverManifiesto.js`, Capa 2) resuelve la URL del manifiesto `.m3u8` a partir del HTML de la página de la clase; el motor HLS ya sólo recibe la URL resuelta.
+   - `sitios.obtener(item.sitioId).resolverManifiesto` (`sitio/ramonnet/resolverManifiesto.js`, Capa 2) resuelve la URL del manifiesto `.m3u8` a partir del HTML de la página de la clase; el motor HLS ya sólo recibe la URL resuelta.
    - `HlsEngine.descargarYAnalizarIndexM3u8` parsea el manifiesto (fragmentos + clave de cifrado `#EXT-X-KEY`).
    - `HlsEngine.compilarTranscodificacionStream` descarga los fragmentos `.ts` con un pool de 6 workers concurrentes, los descifra con AES-128-CBC (WebCrypto nativo), y los envía en streaming al backend Bun (`BunClient.enviarFragmentoStream`).
 5. **Persistencia en disco**: el backend Bun recibe cada fragmento vía `POST /api/bypass-stream` y los ensambla directamente en el filesystem del usuario — la extensión nunca mantiene el video completo en memoria.
