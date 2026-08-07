@@ -12,19 +12,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > justamente porque esos `.js` del adaptador lo leen. Ahí el global es **una decisión, no
 > inercia** — ver la 8b antes de "limpiarlo".
 >
-> **Y hay un segundo frente activo desde el 2026-08-04: el multi-sitio** (que la misma extensión
-> maneje N portales). Al 2026-08-06 están hechos **todos los cortes menos el 7** y **verificados
-> en navegador**, en un **stack de siete ramas encadenadas** (no paralelas: cada una contiene a
-> las anteriores) que **todavía no está mergeado**. **Antes de escribir una línea leé
-> `docs/multisitio-diseno.md` §Cómo retomar esto en una sesión nueva** — está al final de ese doc
-> y tiene el stack, el registro de la verificación y las trampas vivas. Tres que conviene saber ya:
+> **El segundo frente, el multi-sitio** (que la misma extensión maneje N portales), se
+> **mergeó a `main` el 2026-08-06** (`148feda`): diez cortes hechos, verificados en navegador y
+> pusheados. **Ya no hay ramas ni stack** — si leés algo que hable de "siete ramas encadenadas",
+> está viejo. Queda **sólo el corte 7** y está bloqueado. **Antes de tocar la capa de sitio leé
+> `docs/multisitio-diseno.md`** — §El registro, §El manifest y §Lo que NO se toca son la receta
+> para sumar un portal; §Cómo retomar tiene el estado y las trampas vivas. Dos que conviene
+> saber ya:
 >
-> - **Lo único que queda es mergear**, y eso lo hace el dueño. Mergear la punta se lleva los
->   siete cortes; no se puede uno solo del medio sin rebase.
-> - **El corte 7 (segundo portal real) está bloqueado**: no existe el portal. Y eso deja al
->   **corte 6c sin poder verificarse** — su sección "Portal" sólo aparece con la cola mezclada,
->   así que hasta que haya un segundo portal sus tests son toda su observación. **No lo cuentes
->   como verificado**: la pasada del 2026-08-06 cubrió los otros seis, no ése.
+> - **El corte 7 (segundo portal real) es lo único pendiente, y está bloqueado**: no existe el
+>   portal. Eso deja al **corte 6c sin poder verificarse** — su sección "Portal" sólo aparece
+>   con la cola mezclada, así que sus tests son toda su observación. **No lo cuentes como
+>   verificado**: la pasada del 2026-08-06 cubrió a los otros, no a ése. Ídem el criterio
+>   `portal` del 6b y la resolución por pestaña del 5 contra un portal que no sea el legado.
 > - **Ni el service worker ni el popup tienen ya UN portal**: el bucle resuelve el del ítem
 >   (corte 3), la notificación el suyo por el `notificationId` (corte 8) y el popup el de la
 >   pestaña (corte 5). A `sitioAsumido` le queda **un solo lector y es deliberado**: la sonda
@@ -57,10 +57,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > El checklist concreto de esa verificación —7 puntos, no "probá que ande"— es
 > `docs/rearquitectura-diseno.md` §Verificación en navegador, más los específicos que lista
 > `multisitio-diseno.md` §Cómo retomar. Su disparador declarado es *"cada fase que toque
-> empaquetado, entrypoints o el adaptador de sitio"*, y el stack del multi-sitio lo dispara de
-> lleno: el corte 5 toca el popup y el entrypoint, el 6d el bucle de descarga. **Se corrió el
-> 2026-08-06 y pasó** — pero si el stack se rebasa o se retoca antes de mergear, se vuelve a
-> correr: lo que quedó verificado es *ese* build, no la intención.
+> empaquetado, entrypoints o el adaptador de sitio"*. La última corrida fue el **2026-08-06**,
+> sobre el stack del multi-sitio, y pasó. **Hoy quien lo va a disparar es el corte 7**: sumar un
+> portal toca manifest y adaptador de sitio, o sea de lleno — y encima su regla más frágil
+> (`escanearListado` inyectado serializado) **no la ve ni el bundler, ni el lint, ni `tsc`, ni la
+> suite**. Ahí el navegador no es una confirmación: es la única detección que hay.
 
 ## Project Overview
 

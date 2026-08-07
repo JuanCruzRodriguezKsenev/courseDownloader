@@ -1,9 +1,9 @@
 # Multi-sitio: una extensión, varios portales — diseño de ejecución
 
-**Estado (2026-08-06)**: cortes 1 a 6d y 8 hechos — o sea **todos menos el 7**, que está
-bloqueado porque no existe el segundo portal. **Verificados en navegador el 2026-08-06**, en una
-sola pasada sobre la punta del stack; la excepción es el **6c, que no se puede verificar** hasta
-que haya un segundo portal. **Falta mergear**: el stack sigue entero fuera de `main`. → **Empezá por §Cómo retomar esto en una sesión
+**Estado (2026-08-06)**: ✅ **mergeado a `main`** (`148feda`) — los diez cortes hechos,
+verificados en navegador y pusheados. Queda **sólo el corte 7** (el segundo portal real), que
+está bloqueado porque ese portal no existe. La excepción de la verificación es el **6c, que no
+se puede probar** hasta que haya un segundo portal: sus tests son toda su observación. → **Empezá por §Cómo retomar esto en una sesión
 nueva, al final del doc**: ahí está el stack de ramas, qué probar en Chrome y las dos trampas
 vivas (la migración del 6b y que ADR-0011 está aceptada pero **sin construir**).
 **Decisión de base**: [ADR-0009](adr/0009-registro-de-sitios-en-runtime.md) eligió *registro en
@@ -336,41 +336,34 @@ cuatro veces que se saltó ese paso — y una de esas veces el error fue medir `
 
 ## Cómo retomar esto en una sesión nueva
 
-Escrito el 2026-08-05, al final de la sesión que hizo los cortes 8, 6a y 6b. **Leé esto antes
-que el resto del doc**: dice dónde está todo y qué está a medio camino.
+Actualizado el 2026-08-06, al mergear. **Leé esto antes que el resto del doc**: dice qué entró,
+qué falta y qué NO hay que dar por bueno.
 
-### 1. Nada está mergeado, y las ramas son un stack, no ramas paralelas
+### 1. ✅ Mergeado a `main` el 2026-08-06 — las ramas ya no existen
 
-`main` está en el commit anterior al corte 4. Todo lo demás vive en **siete ramas encadenadas**:
-cada una contiene a las anteriores.
+Los diez cortes (1, 2, 3, 4, 5, 6a, 6b, 6c, 6d y 8) están en `main`, en el merge commit
+`148feda`, y pusheados. Las siete ramas del stack se borraron con `-d` una vez contenidas.
+**Si venís de una versión vieja de este doc que hablaba de un stack de ramas encadenadas: ya no
+aplica, buscarlas es perder el tiempo.**
 
-```
-main
- └─ feat/multisitio-corte4-faceta        corte 4 + 3 commits de docs
-     └─ feat/multisitio-corte8-notificacion   + corte 8
-         └─ feat/multisitio-corte6a-ancla         + corte 6a
-             └─ feat/multisitio-corte6b-orden         + corte 6b y sus 2 fixes
-                 └─ feat/multisitio-corte6c-filtro-portal   + corte 6c (y un fix de docs)
-                     └─ feat/multisitio-corte6d-orden-manda     + corte 6d
-                         └─ feat/multisitio-corte5-popup-por-pestana  + corte 5  ← la punta
-```
+Lo que sobrevive de aquella forma de trabajo, y conviene saber:
 
-La regla del repo es "una rama por corte" y esto la cumple de nombre pero no de espíritu: **no
-son independientes**. Consecuencias prácticas:
-
-- Mergear la punta (`corte5`) se lleva puestos los seis de abajo. No se puede mergear uno solo
-  del medio sin rebase.
-- Del lado bueno: **compilar y probar la rama de arriba ejercita todo el stack**, así que una
-  sola pasada de verificación en navegador los cubre a los siete.
-- Si algo falla, la rama no aísla cuál corte lo rompió. Para eso está el historial, que sí tiene
-  un commit por corte.
+- El historial tiene **un commit por corte**, que es lo que permite aislar cuál rompió qué. El
+  merge fue `--no-ff` a propósito: el repo usa merge commits (`merge: … (verificado en
+  navegador)`) y un fast-forward habría roto esa convención.
+- Los cortes se probaron **todos juntos**, en una sola pasada sobre la punta del stack. Así que
+  si aparece una regresión de esta tanda, el commit que la trajo hay que buscarlo con `bisect`,
+  no con la rama.
 
 ### 2. ✅ Verificado en Chrome el 2026-08-06 — el stack entero, de una pasada
 
-**El dueño probó la punta del stack y quedó conforme**: la extensión anda. Como las ramas son
-encadenadas, esa única pasada ejercitó **los siete cortes**, incluidos los cuatro (4, 8, 6a, 6b)
-que venían sin verificar desde el 2026-08-05. Con eso el stack deja de estar bloqueado para
-mergear.
+**El dueño probó la punta del stack y quedó conforme**: la extensión anda. Como las ramas eran
+encadenadas, esa única pasada ejercitó **los siete cortes que faltaban verificar**, incluidos los
+cuatro (4, 8, 6a, 6b) que venían sin verificar desde el 2026-08-05. Es lo que destrabó el merge.
+
+Los tres commits que entraron después de esa prueba (el corte 5 ya estaba) tocaron **sólo docs**
+—`CLAUDE.md`, `TECHNICAL_DEBT.md` y este archivo—, así que lo verificado es exactamente el código
+que se mergeó.
 
 **Lo que esa pasada NO pudo cubrir, y no es un descuido: el corte 6c.** Su sección "Portal" sólo
 se dibuja con la cola mezclada, y con un solo portal registrado eso no ocurre nunca. Sus 9 tests
@@ -425,16 +418,24 @@ el riesgo que la ADR acepta explícitamente.
 | Qué | Estado | Nota |
 |---|---|---|
 | Verificar los 7 cortes en Chrome | ✅ **Hecho** (2026-08-06) | Una sola pasada sobre la punta del stack los cubrió a todos. Ver §2 |
-| Mergear el stack a `main` | ⏳ **Lo que queda** | Lo hace el dueño. Mergear la punta se lleva los siete; no se puede uno solo del medio sin rebase |
-| Corte 7 — segundo portal real | Bloqueado | Necesita un portal que no tenemos. **Es lo que haría observable al 6c**, que hoy sólo tienen los tests |
+| Mergear a `main` | ✅ **Hecho** (2026-08-06) | Merge commit `148feda`, `--no-ff`, pusheado. Las siete ramas se borraron |
+| **Corte 7 — segundo portal real** | ⏳ **Lo único que queda, y está bloqueado** | Necesita un portal que no tenemos. **Es lo que haría observable al 6c**, que hoy sólo tiene los tests |
 
-Los cortes 6c, 6d y 5 se hicieron el 2026-08-06, con las cuatro verificaciones en verde
-(28 archivos / 368 tests, lint y `tsc` limpios, build OK) y verificados en navegador ese mismo
-día —salvo el 6c, que no se puede ver hasta el corte 7—.
+Con el merge, este frente queda **cerrado salvo el corte 7**. Los cortes 6c, 6d y 5 se hicieron
+el 2026-08-06 con las cuatro verificaciones en verde (28 archivos / 368 tests, lint y `tsc`
+limpios, build OK) y verificados en navegador ese mismo día —salvo el 6c, que no se puede ver
+hasta que exista un segundo portal—.
 
-**Lo que se sumó al checklist de Chrome por lo que se hizo ese día** —además de los 7 puntos de
+**Qué hace falta para el corte 7** (o sea: cómo se suma un portal nuevo) está arriba en este
+mismo doc: §El registro, §El manifest y §Lo que NO se toca. En una línea: `sitio/<portal>/`
+con su `config.ts` (11 miembros, el compilador de árbitro) y sus tres hermanos, sumarlo al
+array de `sitio/registro.ts`, y en `wxt.config.ts` los `host_permissions` + su ruleset dNR.
+**La regla que más fácil se rompe** —`escanearListado` se inyecta serializada y no puede tocar
+ninguna global ni constante propia— no la detecta nada salvo el navegador.
+
+**El checklist de Chrome que quedó fijado por esta tanda** —además de los 7 puntos de
 `rearquitectura-diseno.md` y los de más arriba—, todo del corte 6d, que es el único de los tres
-que se puede observar hoy:
+últimos que se puede observar sin un segundo portal:
 
 - Con el backend Bun andando: encolar 3 clases, **invertir el orden** y confirmar que se baja la
   que quedó arriba, no la de `fechaEncolado` más viejo. Es el punto entero de ADR-0011.

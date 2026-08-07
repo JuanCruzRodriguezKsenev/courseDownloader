@@ -51,12 +51,17 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
     y puede estar seteada en el repo del backend, que es aparte y no se versiona con éste.
     `tsc` cazó los dos dobles de test que faltaban actualizar, que es exactamente para lo que
     el colaborador está tipado.
-  - 🔴 **Sigue abierto en la UI**: `popup.js` tiene 7 strings que nombran al portal (líneas
-    447, 462, 587, 747, 761, 814, 1023) y `catedra:` como nombre de campo en la 834. Más
-    `background.js:490`. *(Re-medido el 2026-08-05: el conteo de la medición original sigue
-    exacto; los números de `popup.js` corrieron +3 y +7 porque los cortes 1 y 4 lo tocaron.
-    Ojo al re-medir: un `grep -E "Ram[oó]n"` no matchea los acentuados en algunas builds —
-    usar ripgrep, o se cuenta de menos.)* **No se tocaron a propósito**: son copy de usuario, no una violación
+  - 🔴 **Sigue abierto en la UI**: `popup.js` tiene **6** strings que nombran al portal (líneas
+    493, 508, 633, 800, 873, 1082 — las dos primeras son `console.log`, las otras cuatro son
+    copy que el usuario ve) y `catedra:` como nombre de campo en la 893. *(Re-medido el
+    2026-08-06, tras mergear el multi-sitio. **Eran 7 y ahora son 6**: el corte 5 se llevó uno
+    al generalizar "⚠️ No estás en Ramón Net" a "⚠️ No estás en un portal reconocido", que dejó
+    de ser copy de un portal porque el popup ahora resuelve por pestaña. Y **`background.js`
+    salió de la lista**: lo que lo ponía ahí era resolver la pestaña con el portal asumido, y
+    eso lo cerró el corte 8 — lo que queda ahí son comentarios, no código. Ojo al re-medir: un
+    `grep -E "Ram[oó]n"` no matchea los acentuados en algunas builds — usar ripgrep, o se
+    cuenta de menos; y hay que filtrar comentarios, o se cuenta de más.)* **No se tocaron a
+    propósito**: son copy de usuario, no una violación
     de capa —`popup.js` no es Capa 1—, y parametrizarlos sin un segundo portal real que
     valide el resultado es trabajo contra código imaginado.
 - **Impacto**: la regla de dependencia de la arquitectura **sí se cumple** (`core/` no importa
@@ -85,7 +90,7 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 - **Estado**: ✅ **resuelto el 2026-08-05** (hallado ese mismo día, revisando esta deuda tras el
   corte 4) y **verificado en navegador el 2026-08-06**, en la pasada única que cubrió el stack
   entero. Fue el **corte 8** de `docs/multisitio-diseno.md`, y su §5 tiene el detalle del cómo.
-  Sigue **sin mergear**: vive en el stack de siete ramas, no en `main`.
+  **Mergeado a `main` el 2026-08-06** (`148feda`).
 - **Dónde**: `background.js:474-490`, el listener de `chrome.notifications.onClicked`. Resuelve
   la pestaña a enfocar con `sitio.patronPestañas` / `sitio.urlSondeoInternet`, y ese `sitio` es
   el `sitioAsumido` que le inyecta `entrypoints/background.js:48` — el andamio del corte 2.
