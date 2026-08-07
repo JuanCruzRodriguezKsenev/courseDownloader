@@ -479,6 +479,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       appState,
       badge: nodos.facetaBadge,
       sitio,
+      // [MULTIPORTAL A] El resolvedor compartido, para poder saber de qué portal es CADA clase
+      // del listado: `listadoClasesGlobal` puede traer ítems encolados de otro portal.
+      sitios,
       aplicarFiltros: () => aplicarFiltrosCruzados()
     });
     const actualizarBadgeFaceta = _faceta.actualizarBadge;

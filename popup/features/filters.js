@@ -1,6 +1,12 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: FILTROS Y BÚSQUEDA (V2.2.0)
+ * CLON DOWNLOADHELPER - FEATURE: FILTROS Y BÚSQUEDA (V2.3.0)
  * ==========================================================================
+ * CHANGELOG v2.3.0:
+ * - [MULTIPORTAL A] Disponibles filtra por el portal de la pestaña activa. `listadoClasesGlobal`
+ *   PUEDE tener ítems de dos portales —`popup.js` preserva entre escaneos lo que está en la
+ *   cola— y sin este filtro se los clasificaba con el descriptor activo: el mismo bug que el
+ *   corte 4 arregló en la Cola. Afecta a `aplicarFiltrosCruzados` y a la sección de faceta del
+ *   popover.
  * CHANGELOG v2.2.0:
  * - [MULTISITIO CORTE 5] `ctx.sitio` pasa de ser el descriptor a ser una FUNCIÓN que lo
  *   devuelve: el popup resuelve el portal por pestaña y puede cambiar entre dos escaneos.
@@ -14,7 +20,7 @@
  * - [MULTISITIO CORTE 6C] En la Cola, los valores de faceta van **calificados por portal**
  *   (`sitioId|valor`) dentro de `filtrosActivos.valoresFaceta`. Sin calificar, dos portales
  *   con una faceta de la misma etiqueta se pisan y el filtro de uno arrastra al otro.
- *   Disponibles NO cambia: es de un solo portal por construcción.
+ *   Disponibles sigue con el valor pelado, que ahí alcanza porque muestra un solo portal.
  * CHANGELOG v2.0.0:
  * - [CAPA 2] El filtro por cátedra pasa a ser un filtro por "faceta" genérica: los
  *   strings "Cátedra"/"Cat X"/"Común", los centinelas COMUN/TODAS, el ícono 🎓 y la
@@ -107,6 +113,17 @@ const FilterFeature = {
      */
     const claveFaceta = (item) => `${idPortalDe(item)}|${facetaDeCola(item)?.leerDeCola(item)}`;
 
+    /**
+     * Las clases del listado que son del portal de la pestaña activa.
+     *
+     * [MULTIPORTAL A] `listadoClasesGlobal` NO es de un solo portal aunque lo parezca: `popup.js`
+     * preserva entre escaneos lo que está en la cola y lo mezcla con lo recién escaneado. Todo lo
+     * que derive faceta sobre esa lista tiene que filtrar primero, o clasifica ítems ajenos con
+     * este vocabulario y devuelve valores falsos sin fallar.
+     */
+    const clasesDelPortalActivo = () =>
+      (appState.listadoClasesGlobal || []).filter((c) => idPortalDe(c) === sitio().id);
+
     // Predicado compartido del filtrado de la pestaña Cola. Unifica las 3 copias
     // que vivían duplicadas en popup.js (masterCheck, renderizarListadoInterfaz,
     // actualizarMasterCheckState). NO incluye el descarte del video activo (!esActivo):
@@ -128,10 +145,27 @@ const FilterFeature = {
     // render (con coincideConFiltrosCola).
     function aplicarFiltrosCruzados() {
       const faceta = descriptorFaceta();
+      const idActivo = sitio().id;
       const busqueda = nodos.search.value.toLowerCase().trim();
       const materiaActiva = nodos.folder.value.trim().toLowerCase();
 
       appState.listadoClasesGlobal.forEach(clase => {
+        // [MULTIPORTAL A] Disponibles muestra UN portal: el de la pestaña que se escaneó.
+        //
+        // No es defensa teórica. `popup.js` preserva entre escaneos las clases que están en la
+        // cola (`estado === 'process'`) y las mezcla con las nuevas, así que `listadoClasesGlobal`
+        // PUEDE tener ítems de dos portales — y todo lo de abajo los clasificaría con el
+        // descriptor del portal activo, devolviendo un valor plausible y falso. Es el bug que el
+        // corte 4 arregló en la Cola, en la otra pestaña.
+        //
+        // Va primero a propósito: si el portal no coincide, la derivación con el vocabulario
+        // ajeno ni siquiera llega a poder ensuciar el resultado.
+        //
+        // Se resuelve con `idPortalDe` y no comparando `clase.sitioId` crudo, porque un ítem
+        // anterior al multi-sitio no lo trae y significa **portal legado**, no "cualquiera":
+        // compararlo pelado lo mostraría en el portal que fuese. Y un huérfano no matchea
+        // ninguno, que es lo correcto — no sabemos de dónde vino.
+        const coincidePortal = idPortalDe(clase) === idActivo;
         const coincideMateria = !clase.carpeta || (clase.carpeta.toLowerCase() === materiaActiva);
         const coincideTexto = clase.titulo.toLowerCase().includes(busqueda);
         const coincideEstado = filtrosActivos.estados.size === 0 || filtrosActivos.estados.has(clase.estado);
@@ -145,7 +179,7 @@ const FilterFeature = {
           coincideFaceta = (valor === elegido || valor === faceta.valorComun);
         }
 
-        clase.visible = coincideMateria && coincideTexto && coincideEstado && coincideFaceta;
+        clase.visible = coincidePortal && coincideMateria && coincideTexto && coincideEstado && coincideFaceta;
       });
 
       renderizar();
@@ -226,8 +260,11 @@ const FilterFeature = {
         nodos.filterMenu.appendChild(secEstado);
 
         // --- Sección de la faceta del sitio (en Ramón Net: Cátedra) ---
+        // [MULTIPORTAL A] Sólo las clases del portal activo: `listadoClasesGlobal` puede traer
+        // ítems encolados de otro portal, y derivar su faceta con este descriptor metería
+        // valores ajenos —y plausibles— en las opciones del filtro.
         let valoresDetectados = Array.from(new Set(
-          appState.listadoClasesGlobal.map(c => faceta.leer(c)).filter(v => v !== faceta.valorComun)
+          clasesDelPortalActivo().map(c => faceta.leer(c)).filter(v => v !== faceta.valorComun)
         )).sort(faceta.ordenar);
 
         const elegido = appState[faceta.claveEstado];

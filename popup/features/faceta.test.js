@@ -22,7 +22,17 @@ function crearFeature(overrides = {}) {
   // lo único nuevo es que acá se lo pasamos explícito, como hace popup.js.
   // CORTE 5: `sitio` es una FUNCIÓN. El popup resuelve el portal por pestaña, así que el
   // descriptor puede cambiar entre dos escaneos y la feature no puede capturarlo.
-  const feature = FacetaFeature.crear({ badge, aplicarFiltros, sitio: () => SitioRamonNet, appState: globalThis.AppState, ...overrides });
+  // MULTIPORTAL A: `sitios` resuelve el portal de CADA clase del listado, que puede traer
+  // ítems encolados de otro portal. Por defecto todo cae en Ramón Net, que es el
+  // comportamiento de una instalación de un solo portal.
+  const feature = FacetaFeature.crear({
+    badge,
+    aplicarFiltros,
+    sitio: () => SitioRamonNet,
+    sitios: { obtener: () => SitioRamonNet },
+    appState: globalThis.AppState,
+    ...overrides,
+  });
   return { feature, badge, aplicarFiltros };
 }
 
@@ -219,7 +229,12 @@ describe('FacetaFeature — con el descriptor de OTRO sitio', () => {
       { comision: '1', estado: 'pending', seleccionado: false },
       { comision: 'GENERAL', estado: 'pending', seleccionado: false },
     ];
-    const { feature, badge } = crearFeature({ sitio: () => SitioFalso });
+    // El registro resuelve al mismo portal: estas clases son de él. Sin esto, el filtro por
+    // portal del corte multiportal A las dejaría fuera del listado, que es lo correcto.
+    const { feature, badge } = crearFeature({
+      sitio: () => SitioFalso,
+      sitios: { obtener: () => SitioFalso },
+    });
 
     feature.verificarYMostrarAsistente();
 
@@ -247,10 +262,13 @@ describe('FacetaFeature — el descriptor se re-lee, no se captura (corte 5)', (
     // Doble mínimo, sin spread del descriptor real: `SitioRamonNet` tiene getters
     // (`escanearListado` lee el global `Scraper`) que un spread evaluaría acá.
     const OTRO = {
+      id: 'otroportal',
       faceta: { ...SitioRamonNet.faceta, etiqueta: 'Comisión', etiquetar: (v) => `Comisión ${v}` },
     };
     let actual = SitioRamonNet;
-    const { feature, badge } = crearFeature({ sitio: () => actual });
+    // El registro sigue al portal activo: lo que se afirma acá es la re-lectura del
+    // vocabulario, no la mezcla de portales (eso lo cubre filters.test.js).
+    const { feature, badge } = crearFeature({ sitio: () => actual, sitios: { obtener: () => actual } });
 
     AppState.listadoClasesGlobal = [
       { titulo: 'a', catedra: 'A', estado: 'pending' },
@@ -267,5 +285,29 @@ describe('FacetaFeature — el descriptor se re-lee, no se captura (corte 5)', (
     expect(badge.textContent).toBe('Comisión A');
     // El tooltip también: se refresca en cada actualizarBadge, no una sola vez al crear.
     expect(badge.title).toContain('Comisión');
+  });
+});
+
+// [MULTIPORTAL A] El listado puede traer ítems encolados de otro portal (popup.js los preserva
+// entre escaneos). Derivarles la faceta con ESTE descriptor ofrecía en el modal valores que no
+// existen — y sin fallar, porque el parser siempre devuelve algo.
+describe('FacetaFeature — el modal sólo mira las clases del portal activo (multiportal A)', () => {
+  it('ignora los valores de faceta de clases de otro portal', () => {
+    AppState.listadoClasesGlobal = [
+      { catedra: 'A', estado: 'pending', seleccionado: false, sitioId: 'ramonnet' },
+      { catedra: 'COMUN', estado: 'pending', seleccionado: false, sitioId: 'ramonnet' },
+      // Encolada desde otro portal: su "cátedra" no es una cátedra.
+      { catedra: 'ZZZ', estado: 'process', seleccionado: false, sitioId: 'otroportal' },
+    ];
+    const { feature } = crearFeature({
+      sitios: { obtener: (id) => (id === 'otroportal' ? { id: 'otroportal' } : SitioRamonNet) },
+    });
+
+    feature.verificarYMostrarAsistente();
+
+    // Un solo valor propio ('A'): no corresponde modal. Con el ítem ajeno contado serían dos
+    // y se habría abierto, ofreciendo "Cátedra ZZZ".
+    expect(document.querySelector('.faceta-overlay')).toBeNull();
+    expect(AppState.facetaSeleccionada).toBeNull();
   });
 });
