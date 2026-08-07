@@ -89,6 +89,25 @@ de unos KB en vez del video sería el master colándose.
 > navegador**; si el 403 sigue, la causa es otra y el mensaje de error nuevo ya no manda al lugar
 > equivocado.
 >
+> **Segunda corrida, con la regla puesta: el master pasa y ahora fallan los FRAGMENTOS**, también
+> con 403 — pero por otra causa, y ésta tampoco es del portal. Las URLs que armaba el motor salían
+> con **dos `?`**:
+>
+> ```
+> …-video=297419.m3u8?hdntl=exp=1786229269~acl=/  +  …-1.ts?hdntl=exp=1786229269~acl=/*~hmac=…
+> ```
+>
+> `core/hls/hlsEngine.ts` resolvía las referencias relativas cortando la base por el **último `/`
+> de la cadena entera**, y Akamai firma con `~acl=/*` **en el query**: ese `/` es el último, así
+> que el corte caía adentro del query. Ramón Net nunca lo destapó porque su playlist no lleva
+> query. Se pasó a `new URL(ref, base)`, que es la resolución del estándar — y de paso arregla las
+> rutas absolutas y las protocol-relative, que la concatenación armaba mal en silencio. **Es un bug
+> del motor, no de este portal**: cualquier CDN que firme así lo dispara, así que vive en Capa 1 y
+> tiene sus tests con la URL real.
+>
+> Ojo con el costo que tenía: el motor reintenta **4 veces por fragmento con backoff**, así que
+> cada clase tardaba ~15 s en fallar por esto, con 6 workers gritando en la consola.
+>
 > **Y destapó un bug que no era de este portal**: el 403 se le mostró al usuario como *"se perdió
 > la conexión a internet"*, con el daemon midiendo `internet=true` una línea antes, y con el
 > auto-heal reintentando cada 12 s para siempre. Era el `else` de la heurística de

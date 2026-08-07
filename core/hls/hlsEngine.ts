@@ -1,7 +1,14 @@
 /**
- * MOTOR HLS CRYPTO-TRANSCODER (V2.0.0)
+ * MOTOR HLS CRYPTO-TRANSCODER (V2.1.0)
  * DESCARGA CONCURRENTE Y DESCIFRADO AES-128 A PARTIR DE UN .m3u8 YA RESUELTO
  * ==========================================================================
+ * CHANGELOG v2.1.0:
+ * - [FIX] Los fragmentos y la llave relativos se resuelven con `new URL(ref, base)` en vez de
+ *   cortar la base por el último `/`. Ese corte caía **adentro del query** cuando la URL de la
+ *   playlist lleva una barra ahí, que es lo que hace Akamai al firmar (`~acl=/*`): las URLs
+ *   salían con dos `?` y el CDN las rechazaba con 403. Es un bug del MOTOR, no del portal que
+ *   lo destapó — cualquier CDN que firme así lo dispara.
+ *
  * CHANGELOG v2.0.0:
  * - [FASE 6 / CAPA 1] Mudado de `background/hlsEngine.js` a `core/hls/hlsEngine.ts`. De objeto
  *   suelto a factory `crearHlsEngine(deps)`: `fetchConReintentos`, `descifrarFragmento`,
@@ -127,18 +134,33 @@ export function crearHlsEngine({
       let lineaLlaveCripto = "";
       let urlLlaveAbsoluta = "";
 
-      const urlBase = urlM3u8.substring(0, urlM3u8.lastIndexOf("/")) + "/";
+      /**
+       * Referencia relativa del manifiesto → URL absoluta.
+       *
+       * ⚠️ Esto era `urlM3u8.substring(0, urlM3u8.lastIndexOf("/")) + "/"` y **rompía con
+       * cualquier playlist cuya URL lleve una barra en el QUERY**. El caso real (2026-08-07,
+       * Anatomy by Chris): Akamai firma la variante con `?hdntl=exp=…~acl=/*~data=…`, y ese
+       * `/` de `acl=/*` es el último de la cadena — así que el corte caía adentro del query y
+       * los fragmentos salían como `…m3u8?hdntl=exp=…~acl=/` + `…-1.ts?hdntl=…`, con dos `?`.
+       * El CDN contestaba 403 a todos, y como el motor reintenta 4 veces por fragmento con
+       * backoff, una clase tardaba ~15 s en fallar por algo que no era del portal.
+       *
+       * `new URL(ref, base)` es la resolución del estándar: descarta el query de la base, corta
+       * el path donde corresponde y encima resuelve lo que el `startsWith("http")` de antes no
+       * miraba — rutas absolutas (`/x/y.ts`), `../` y URLs protocol-relative (`//host/x.ts`),
+       * que con la concatenación quedaban mal armadas en silencio.
+       */
+      const absoluta = (ref: string) => new URL(ref, urlM3u8).href;
 
       for (const linea of lineas.map((l) => l.trim())) {
         if (linea.startsWith("#EXT-X-KEY")) {
           lineaLlaveCripto = linea;
           const matchUri = linea.match(/URI=["']([^"']+)["']/);
           if (matchUri?.[1]) {
-            const uriLlave = matchUri[1];
-            urlLlaveAbsoluta = uriLlave.startsWith("http") ? uriLlave : `${urlBase}${uriLlave}`;
+            urlLlaveAbsoluta = absoluta(matchUri[1]);
           }
         } else if (linea.length > 0 && !linea.startsWith("#")) {
-          urlsFragmentos.push(linea.startsWith("http") ? linea : `${urlBase}${linea}`);
+          urlsFragmentos.push(absoluta(linea));
         }
       }
 

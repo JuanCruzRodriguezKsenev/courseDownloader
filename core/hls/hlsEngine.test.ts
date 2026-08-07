@@ -114,6 +114,60 @@ describe('descargarYAnalizarIndexM3u8()', () => {
     expect(meta.urls).toEqual([`${BASE}/seg0.ts`]);
   });
 
+  /**
+   * El bug del 2026-08-07, con la URL REAL que lo produjo. La firma de Akamai mete un `/` en el
+   * query (`~acl=/*`), y la resolución vieja cortaba la base por el último `/` de la cadena
+   * entera — o sea adentro del query. Las URLs salían con DOS `?` y el CDN las rechazaba con
+   * 403; como el motor reintenta 4 veces por fragmento con backoff, la clase tardaba ~15 s en
+   * fallar por algo que no tenía nada que ver con el portal.
+   */
+  describe('una base con barra en el QUERY (CDN firmado, Akamai)', () => {
+    const BASE_FIRMADA =
+      'https://vod-akm.play.hotmart.com/video/2qY7O4JzZB/hls/2qY7O4JzZB-1755460336000-audio=82530-video=297419.m3u8' +
+      '?hdntl=exp=1786229269~acl=/*~data=hdntl~hmac=91bb9b';
+
+    it('no arrastra el query de la base ni corta adentro de él', async () => {
+      const deps = crearDeps({
+        fetchConReintentos: vi.fn().mockResolvedValue(
+          resTexto('#EXTM3U\n#EXTINF:4,\nseg-1.ts?hdntl=exp=1786229269~acl=/*~hmac=aa\n')
+        ),
+      });
+
+      const meta = await crearHlsEngine(deps).descargarYAnalizarIndexM3u8(BASE_FIRMADA);
+
+      expect(meta.urls).toEqual([
+        'https://vod-akm.play.hotmart.com/video/2qY7O4JzZB/hls/seg-1.ts?hdntl=exp=1786229269~acl=/*~hmac=aa',
+      ]);
+      // La firma del bug: dos signos de pregunta en la misma URL.
+      expect(meta.urls[0]!.match(/\?/g)).toHaveLength(1);
+    });
+
+    it('la llave AES sale por el mismo camino y tampoco se rompe', async () => {
+      const deps = crearDeps({
+        fetchConReintentos: vi.fn().mockResolvedValue(
+          resTexto('#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="k.key?hdntl=exp=1~acl=/*"\nseg0.ts\n')
+        ),
+      });
+
+      const meta = await crearHlsEngine(deps).descargarYAnalizarIndexM3u8(BASE_FIRMADA);
+
+      expect(meta.urlLlave).toBe(
+        'https://vod-akm.play.hotmart.com/video/2qY7O4JzZB/hls/k.key?hdntl=exp=1~acl=/*'
+      );
+    });
+  });
+
+  it('resuelve una ruta absoluta del manifiesto contra el HOST, no contra la carpeta', async () => {
+    // `new URL` trajo esto gratis; la concatenación vieja lo armaba mal en silencio.
+    const deps = crearDeps({
+      fetchConReintentos: vi.fn().mockResolvedValue(resTexto('#EXTM3U\n/otra/carpeta/seg0.ts\n')),
+    });
+
+    const meta = await crearHlsEngine(deps).descargarYAnalizarIndexM3u8(URL_M3U8);
+
+    expect(meta.urls).toEqual(['https://vz-c3e7bda8-f29.b-cdn.net/otra/carpeta/seg0.ts']);
+  });
+
   it('lanza si el manifiesto no tiene fragmentos', async () => {
     const deps = crearDeps({
       fetchConReintentos: vi.fn().mockResolvedValue(resTexto('#EXTM3U\n#EXT-X-ENDLIST')),
