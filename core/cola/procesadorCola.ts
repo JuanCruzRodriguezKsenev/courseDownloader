@@ -44,6 +44,7 @@ import type { PuertoAlmacenamiento } from "../puertos/almacenamiento";
 import type { PuertoMensajeria } from "../puertos/mensajeria";
 import type { PuertoProgramador } from "../puertos/programador";
 import type { EstadoSesionAPI } from "./estadoSesion";
+import type { IdentidadClase } from "./identidadClase";
 import type { MetadataHls, ContextoRafaga, CallbacksRafaga } from "../hls/hlsEngine";
 
 /** Nombre y período de la tarea de auto-sanación. 0.2 min = 12 s. */
@@ -157,6 +158,12 @@ export interface DependenciasCola {
   /** Espejo liviano de progreso que lee el popup. */
   persistirEstados(estados: Record<string, string>): Promise<void>;
   recuperarEstados(): Promise<Record<string, string>>;
+  /**
+   * [MULTIPORTAL D] Cómo se decide si dos ítems son la misma clase. Entra como colaborador y
+   * no se arma acá para que el service worker, el popup y este bucle no puedan divergir — la
+   * misma razón por la que el resolvedor de portales es un export compartido (corte 4).
+   */
+  identidad: IdentidadClase;
 }
 
 export function crearProcesadorCola(deps: DependenciasCola) {
@@ -175,6 +182,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
     guardarBlobLegacy,
     persistirEstados,
     recuperarEstados,
+    identidad,
   } = deps;
 
   // Estado volátil del service worker. Privado: se toca sólo por la API de abajo.
@@ -294,6 +302,11 @@ export function crearProcesadorCola(deps: DependenciasCola) {
 
       const elementoActual = colaDescargas[0]!;
       const tituloInmutableVideo = elementoActual.titulo;
+      // [MULTIPORTAL D] La identidad es (portal, título), no el título solo: dos portales
+      // pueden tener una clase homónima y sacar "la del título X" borraría las dos. Ver
+      // `core/cola/identidadClase.ts`, que es el único lugar donde vive esa regla.
+      const esteItem = { titulo: tituloInmutableVideo, sitioId: elementoActual.sitioId };
+      const claveItem = identidad.clave(esteItem);
 
       // ADR-0010: el portal sale del ÍTEM. Puede no resolver —el `sitioId` viene de storage y
       // puede nombrar un portal que ya no está registrado—, y eso es un fallo DETERMINÍSTICO:
@@ -305,8 +318,8 @@ export function crearProcesadorCola(deps: DependenciasCola) {
       const sitioDelItem = sitios.obtener(elementoActual.sitioId);
       if (!sitioDelItem) {
         console.warn(`⛔ [SW] "${tituloInmutableVideo}" quedó huérfana: su portal (${elementoActual.sitioId ?? "sin id"}) no está registrado. Se salta y la cola sigue.`);
-        const colaFiltrada = colaDescargas.filter((c) => c.titulo !== tituloInmutableVideo);
-        const objHuerfano = listaCompleta.find((c) => c.titulo === tituloInmutableVideo);
+        const colaFiltrada = colaDescargas.filter((c) => !identidad.misma(c, esteItem));
+        const objHuerfano = listaCompleta.find((c) => identidad.misma(c, esteItem));
         if (objHuerfano) objHuerfano.estado = "pending";
         await almacenamiento.guardarLocal({
           listaPersistente: listaCompleta,
@@ -340,7 +353,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
       });
 
       const estados = await recuperarEstados();
-      estados[tituloInmutableVideo] = "process";
+      estados[claveItem] = "process";
       await persistirEstados(estados);
 
       controladorGraficoActivo = new AbortController();
@@ -454,14 +467,14 @@ export function crearProcesadorCola(deps: DependenciasCola) {
           "colaDescargas",
         ]);
         const colaActual = (dataUpdate.colaDescargas || []).filter(
-          (c) => c.titulo !== tituloInmutableVideo
+          (c) => !identidad.misma(c, esteItem)
         );
 
-        const objPersistente = listaCompleta.find((c) => c.titulo === tituloInmutableVideo);
+        const objPersistente = listaCompleta.find((c) => identidad.misma(c, esteItem));
         if (objPersistente) objPersistente.estado = "downloaded";
 
         const estadosUpdate = await recuperarEstados();
-        delete estadosUpdate[tituloInmutableVideo];
+        delete estadosUpdate[claveItem];
 
         // Escritura ATÓMICA: las tres claves describen el estado de la misma clase
         // (descargada → fuera de la cola, marcada 'downloaded', sin entrada de progreso).
@@ -513,12 +526,12 @@ export function crearProcesadorCola(deps: DependenciasCola) {
             "colaDescargas",
           ]);
           const colaFiltrada = (dataUpdate.colaDescargas || []).filter(
-            (c) => c.titulo !== tituloInmutableVideo
+            (c) => !identidad.misma(c, esteItem)
           );
-          const objPersistente = listaCompleta.find((c) => c.titulo === tituloInmutableVideo);
+          const objPersistente = listaCompleta.find((c) => identidad.misma(c, esteItem));
           if (objPersistente) objPersistente.estado = "pending";
           const estadosUpdate = await recuperarEstados();
-          delete estadosUpdate[tituloInmutableVideo];
+          delete estadosUpdate[claveItem];
           // Misma escritura atómica de 3 claves que el path de éxito.
           await almacenamiento.guardarLocal({
             listaPersistente: listaCompleta,

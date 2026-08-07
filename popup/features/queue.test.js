@@ -7,6 +7,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import QueueFeature from './queue.js';
+import { crearIdentidadClase } from '../../core/cola/identidadClase.ts';
 import { MensajeriaEnMemoria } from '../../core/puertos/mensajeriaEnMemoria.ts';
 
 let mensajeria;
@@ -50,6 +51,9 @@ function crearFeature(overrides = {}) {
     renderizar: vi.fn(),
     setVerificandoConexion: vi.fn(),
     setReintentandoCola: vi.fn(),
+    // MULTIPORTAL D: la identidad es (portal, título). Doble simple: todo cae en el legado,
+    // que es el comportamiento de una instalación de un solo portal.
+    identidad: crearIdentidadClase({ obtener: (id) => ({ id: id ?? 'ramonnet' }) }),
     mensajeria,
     ...overrides,
   };

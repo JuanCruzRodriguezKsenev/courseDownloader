@@ -37,6 +37,7 @@ import {
   EstadosProgreso,
   Cola,
   sitioDeNotificacionDeFallo,
+  identidadClase,
 } from '../plataforma/composicion.ts';
 import { iniciarServiceWorker } from '../background.js';
 
@@ -49,6 +50,8 @@ iniciarServiceWorker({
   cola: Cola,
   backend: BunClient,
   resolverSitioDeNotificacion: sitioDeNotificacionDeFallo,
+  // [MULTIPORTAL D] El MISMO que recibe el bucle: la regla de identidad vive en un solo lugar.
+  identidad: identidadClase,
 });
 
 // WXT requiere esta forma como entrypoint. Los listeners ya quedaron registrados por la

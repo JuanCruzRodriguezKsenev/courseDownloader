@@ -19,7 +19,7 @@ Escrito principalmente por `AppState.respaldar()` (`core/estado/appState.ts`) de
 | `ordenColaAscendente` | `boolean` | popup | **Sólo pestaña Cola** (corte 6b). Sentido del criterio de arriba; invertirlo es lo que convierte "llegada" en LIFO, que por eso dejó de ser un criterio propio. **Migración**: si no existe, sale del `ordenAscendente` viejo (`null`→`true`, si no su valor). |
 | `criterioOrdenDisponibles` | `"nombre" \| "faceta" \| "estado"` | popup | **Sólo pestaña Disponibles** (corte 6b). Sus ejes son otros que los de la Cola: no hay `llegada` —ese listado no se encoló, se escaneó— ni `portal`, porque sale del scrapeo de **una** pestaña. La faceta se lee con `faceta.leer` (campo ya parseado), no con `leerDeCola` (que re-deriva del título). **Sin migración**: el default `"nombre"` reproduce exactamente el orden por título que había antes, y el sentido lo sigue dando `ordenAscendente`. |
 | `tutorialCompletado` | `boolean` | popup | Si el onboarding ya se completó/saltó. |
-| `SW_ESTADOS_PROGRESO` | `Record<string, EstadoClase>` | SW (`persistirEstadoFondo`) | Mapa `titulo → estado` de progreso, espejo liviano para que el popup pueda reconciliar sin pedir el detalle completo. |
+| `SW_ESTADOS_PROGRESO` | `Record<string, EstadoClase>` | SW (`persistirEstadoFondo`) | Mapa **`<sitioId>\|<titulo>` → estado** de progreso, espejo liviano para que el popup pueda reconciliar sin pedir el detalle completo. La clave era el título solo hasta el 2026-08-06 — ver §La identidad de una clase. Las claves viejas se migran **al leer**, prefijándolas con el portal legado. |
 | `historialFallos` | `HistorialFallo[]` (ver abajo) | SW (`registrarFallo` → `HistorialFallos.registrar`), popup (marcar leídas / limpiar) | Historial acotado (últimos 50, más-reciente-primero) de fallos terminales de descarga (rechazo 4xx / sesión / servidor / internet). Fuente de la campanita del popup; la escribe el SW aun con el popup cerrado. |
 
 ### Migración: `sitioId` en `Clase` y `ColaItem` (2026-08-04)
@@ -156,6 +156,39 @@ Encapsulado por `SessionState` (`core/cola/estadoSesion.ts`, tipado y con sus de
 | `tipoDeErrorConexion` | `"internet" \| "servidor" \| "sesion" \| ""` | `""` | Qué recurso falló, usado por `chrome.alarms.onAlarm` para saber qué sondear. `"sesion"` (no hay sesión iniciada en Ramón Net) es un caso especial: NO lo detecta el daemon `Conexion` (la red está OK) sino `HlsEngine` por el redirect al login, y NO entra al autoheal (no se crea la alarma) — el usuario reintenta a mano tras iniciar sesión. |
 | `abortadoPorUsuario` | `boolean` | `false` | Distingue un abort explícito del usuario de un fallo real, para no reintentar tras un abort. |
 | `videoActualSessionId` | `string` | `""` | Token único (`Date.now().toString()`) por descarga, usado para vincular fragmentos al backend Bun y evitar colisiones ante cancelaciones. |
+
+## La identidad de una clase es (portal, título)
+
+**Desde el 2026-08-06 (corte multiportal D).** Antes la identidad era **el título**: la cola se
+filtraba por título, `listaPersistente` se buscaba por título y el espejo de progreso era un
+mapa `titulo → estado`. Con un solo portal alcanzaba, porque dos clases distintas no compartían
+nombre.
+
+Con dos portales sí pueden, y el modo de fallar es silencioso y destructivo: **completar la
+descarga de una clase sacaba de la cola a su homónima del otro portal**, que nunca se bajaba y
+desaparecía sin ningún error.
+
+La regla vive en **un solo lugar**, `core/cola/identidadClase.ts`, y entra por inyección al
+bucle de descarga, a los handlers IPC del service worker y al popup — si cada uno la
+implementara podrían divergir, que es la misma forma de bug que cerró el corte 4.
+
+El portal sale del **descriptor**, no del campo crudo, porque los tres casos de `sitioId`
+significan cosas distintas (la distinción del corte 3):
+
+| `sitioId` | Significa | Cómo se compara |
+|---|---|---|
+| **ausente** | dato anterior al multi-sitio | resuelve al portal legado: un ítem sin `sitioId` y uno con `"ramonnet"` **son la misma clase** |
+| **presente y registrado** | su portal | por el `id` del descriptor |
+| **presente y desconocido** | huérfano | por el id **crudo**, así dos huérfanos del mismo portal muerto siguen siendo comparables entre sí |
+
+**Ojo con los handlers del service worker**: leen `SW_ESTADOS_PROGRESO` de storage por su
+cuenta, así que tienen que pasar por la lectura que migra las claves viejas. Es la misma trampa
+que el corte 3 encontró en la cola — el SW no pasa por la normalización de `AppState`, que es
+del popup.
+
+**Lo que esto NO cambia**: el nombre del archivo en disco sigue siendo el título. Dos portales
+con una clase homónima en la misma materia todavía escribirían el mismo archivo; eso lo resuelve
+la carpeta de portal (`raíz/<sitioId>/<materia>/`).
 
 ## Invariantes que hay que preservar
 

@@ -213,9 +213,13 @@ import BannerConexion from './popup/features/bannerConexion.preact.js';
  * @param {object} deps.sitios      Registro de portales. Resuelve por `sitioId` (lo que
  *                                  mezcla portales: la cola) y por URL (la pestaña activa).
  *                                  Ver ADR-0010. Desde el corte 5 **no hay un `sitio` fijo**.
+ * @param {object} deps.identidadClase [MULTIPORTAL D] Cómo se decide si dos ítems son la misma
+ *                                  clase: por (portal, título). El MISMO que usa el service
+ *                                  worker — si divergieran, el popup sacaría de la cola algo
+ *                                  distinto de lo que el SW considera esa clase.
  * @param {object} deps.renderers   Pintado vanilla que todavía no es isla.
  */
-export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, sitios, renderers }) {
+export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, sitios, identidadClase, renderers }) {
   document.addEventListener('DOMContentLoaded', async () => {
     console.log("🤖 [POPUP-CORE] Orquestador unificado V5.4.1 activo. Sincronización de escáner híbrido (Chrome/Bun) integrada.");
 
@@ -434,6 +438,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // [CORTE 6D — ADR-0011] Diferido a propósito: `_orden` se crea más abajo. Se invoca
       // recién al encolar, mucho después de que este init termine.
       reordenarCola: () => _orden.persistirOrdenCola(),
+      identidad: identidadClase,
       // PuertoMensajeria (Fase 5c): lo publica plataforma/composicion.ts. La feature ya no
       // toca chrome.runtime; el IPC entra por acá.
       mensajeria: mensajeria,
@@ -910,8 +915,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
               });
 
               // Combinar evitando duplicar elementos que ya están en la cola
-              const titulosEnCola = new Set(itemsEnCola.map(c => c.titulo));
-              const clasesNuevasFiltradas = nuevasClases.filter(c => !titulosEnCola.has(c.titulo));
+              // [MULTIPORTAL D] Por (portal, título), no por título: dos portales pueden tener
+              // una clase homónima y con la clave pelada la del portal recién escaneado se
+              // descartaba en silencio por culpa de una encolada del otro.
+              const yaEnCola = new Set(itemsEnCola.map(c => identidadClase.clave(c)));
+              const clasesNuevasFiltradas = nuevasClases.filter(c => !yaEnCola.has(identidadClase.clave(c)));
 
               appState.listadoClasesGlobal = [...itemsEnCola, ...clasesNuevasFiltradas];
               appState.sincronizacionDiscoCompletada = false;
@@ -1112,9 +1120,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       }
     
       // Sincronizar el estado de disponibles con los elementos en la cola real
-      const titulosEnCola = new Set(appState.colaDescargas.map(c => c.titulo));
+      const titulosEnCola = new Set(appState.colaDescargas.map(c => identidadClase.clave(c)));
       appState.listadoClasesGlobal.forEach(c => {
-        if (titulosEnCola.has(c.titulo)) {
+        if (titulosEnCola.has(identidadClase.clave(c))) {
           c.estado = 'process';
         } else if (c.estado === 'process') {
           c.estado = 'pending'; // Regresar a pendiente si ya no está en la cola real
@@ -1226,7 +1234,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
               // 'process' y fuera de la cola visible sin forma de recuperarla.
               mensajeria.enviar({ action: "abortar_rafaga_inmediata" }).catch(() => undefined).finally(() => {
                 // Remover de la cola local para persistencia correcta
-                appState.colaDescargas = appState.colaDescargas.filter(i => i.titulo !== c.titulo);
+                appState.colaDescargas = appState.colaDescargas.filter(i => !identidadClase.misma(i, c));
                 c.estado = 'pending';
                 c.seleccionado = seleccionMaestraActiva;
 
@@ -1246,7 +1254,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             }
 
             // Remover de la cola local
-            appState.colaDescargas = appState.colaDescargas.filter(i => i.titulo !== c.titulo);
+            appState.colaDescargas = appState.colaDescargas.filter(i => !identidadClase.misma(i, c));
             renderizarListadoInterfaz(); // re-render desde estado en vez de div.remove() imperativo
 
             // Actualizar estado en disponibles
@@ -1261,7 +1269,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
             // Igual que arriba: el re-render diferido no depende de que el SW conteste (la UI
             // local ya se actualizó), así que va en .finally.
-            mensajeria.enviar({ action: "remover_item_de_cola", titulo: c.titulo })
+            mensajeria.enviar({ action: "remover_item_de_cola", titulo: c.titulo, sitioId: c.sitioId })
               .catch(() => undefined)
               .finally(() => {
                 setTimeout(aplicarFiltrosCruzados, 100);
@@ -1355,7 +1363,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           if (obj) { obj.estado = 'downloaded'; obj.seleccionado = false; }
         
           // También remover de la cola local
-          appState.colaDescargas = appState.colaDescargas.filter(c => c.titulo !== req.titulo);
+          appState.colaDescargas = appState.colaDescargas.filter(c => !identidadClase.misma(c, req));
           appState.respaldar();
         
           nodos.queueBadge.textContent = appState.colaDescargas.length;
@@ -1373,7 +1381,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           console.error(`⚠️ [POPUP-ALERT] El SW saltó la clase: ${req.titulo} (${req.motivo})`);
           const obj = appState.listadoClasesGlobal.find(c => c.titulo === req.titulo);
           if (obj) { obj.estado = 'pending'; obj.seleccionado = false; }
-          appState.colaDescargas = appState.colaDescargas.filter(c => c.titulo !== req.titulo);
+          appState.colaDescargas = appState.colaDescargas.filter(c => !identidadClase.misma(c, req));
           appState.respaldar();
           nodos.queueBadge.textContent = appState.colaDescargas.length;
 

@@ -93,6 +93,7 @@ const QueueFeature = {
       // agrega al final, así que sin esto un ítem nuevo contradiría el orden que la pantalla
       // muestra — y desde este corte ese orden es el de descarga, no una vista.
       reordenarCola,
+      identidad,
       mensajeria,
       appState,
       conexion,
@@ -186,18 +187,20 @@ const QueueFeature = {
     }
 
     function quitarItemsDeColaEnLote(items) {
-      const titulosAQuitar = new Set(items.map(c => c.titulo));
+      // [MULTIPORTAL D] Por (portal, título): con la clave pelada, quitar una clase se
+      // llevaba también a su homónima del otro portal.
+      const titulosAQuitar = new Set(items.map(c => identidad.clave(c)));
 
       // Determinar si la selección maestro "Todos" estaba activa para heredarla
       const visiblesPendientes = appState.listadoClasesGlobal.filter(i => i.visible && i.estado === 'pending');
       const seleccionMaestraActiva = visiblesPendientes.length > 0 && visiblesPendientes.every(i => i.seleccionado);
 
       // Filtrar de la fila local
-      appState.colaDescargas = appState.colaDescargas.filter(c => !titulosAQuitar.has(c.titulo));
+      appState.colaDescargas = appState.colaDescargas.filter(c => !titulosAQuitar.has(identidad.clave(c)));
 
       // Restablecer estados a pending en el listado global
       appState.listadoClasesGlobal.forEach(c => {
-        if (titulosAQuitar.has(c.titulo)) {
+        if (titulosAQuitar.has(identidad.clave(c))) {
           c.estado = 'pending';
           c.seleccionado = seleccionMaestraActiva;
         }
@@ -221,7 +224,7 @@ const QueueFeature = {
       // cada envío absorbe su error — igual que antes, cuando el callback de Chrome resolvía
       // la promesa con undefined incluso habiendo lastError.
       const promesas = items.map(c =>
-        mensajeria.enviar({ action: "remover_item_de_cola", titulo: c.titulo }).catch(() => undefined)
+        mensajeria.enviar({ action: "remover_item_de_cola", titulo: c.titulo, sitioId: c.sitioId }).catch(() => undefined)
       );
 
       Promise.all(promesas).then(() => {

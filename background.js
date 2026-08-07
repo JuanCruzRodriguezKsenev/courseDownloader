@@ -198,6 +198,10 @@ const ALARMA_AUTOHEAL = "alarma_autoheal";
  * @param {object} deps.programador     PuertoProgramador: la alarma de auto-sanación.
  * @param {object} deps.sesion          `SessionState` — estado de la ráfaga activa.
  * @param {object} deps.estadosProgreso Espejo de SW_ESTADOS_PROGRESO.
+ * @param {object} deps.identidad       [MULTIPORTAL D] Cómo se decide si dos ítems son la
+ *                                      misma clase: por (portal, título). Es el MISMO que
+ *                                      usa el bucle — si divergieran, un ítem sería dos en
+ *                                      un lado y uno en el otro.
  * @param {object} deps.cola            Procesador de la cola (`core/cola/procesadorCola.ts`).
  * @param {object} deps.backend         Cliente del backend Bun (para cancelar la descarga).
  * @param {function} deps.resolverSitioDeNotificacion  De un `notificationId` al portal cuya
@@ -210,6 +214,7 @@ export function iniciarServiceWorker({
   programador,
   sesion,
   estadosProgreso,
+  identidad,
   cola,
   backend,
   resolverSitioDeNotificacion,
@@ -310,18 +315,24 @@ export function iniciarServiceWorker({
       const data = await almacenamiento.obtenerLocal(['listaPersistente', 'colaDescargas', 'SW_ESTADOS_PROGRESO']);
       const listaCompleta = data.listaPersistente || [];
       const colaDescargas = data.colaDescargas || [];
-      const estados = data.SW_ESTADOS_PROGRESO || {};
+      // [MULTIPORTAL D] Por el espejo migrado y NO por `data.SW_ESTADOS_PROGRESO` crudo: las
+      // claves anteriores a este corte son el título pelado, y compararlas contra una clave
+      // (portal|título) no matchearía nunca. Es la misma trampa que el corte 3 encontró en la
+      // cola — el service worker lee storage por su cuenta y se saltea la normalización.
+      const estados = await recuperarEstadoFondo();
 
       request.items.forEach(item => {
-        estados[item.titulo] = 'process';
+        // [MULTIPORTAL D] La identidad es (portal, título): dos portales pueden tener una clase
+        // homónima, y con el título solo encolar una habría marcado a las dos.
+        estados[identidad.clave(item)] = 'process';
 
         // Asegurar inserción en el array desacoplado
-        if (!colaDescargas.some(c => c.titulo === item.titulo)) {
+        if (!colaDescargas.some(c => identidad.misma(c, item))) {
           colaDescargas.push(item);
         }
 
         // También actualizar estado en la lista persistente local
-        const claseMatch = listaCompleta.find(c => c.titulo === item.titulo);
+        const claseMatch = listaCompleta.find(c => identidad.misma(c, item));
         if (claseMatch) {
           claseMatch.estado = 'process';
           claseMatch.carpeta = item.carpeta;
@@ -341,12 +352,19 @@ export function iniciarServiceWorker({
       const data = await almacenamiento.obtenerLocal(['listaPersistente', 'colaDescargas', 'SW_ESTADOS_PROGRESO']);
       const listaCompleta = data.listaPersistente || [];
       let colaDescargas = data.colaDescargas || [];
-      const estados = data.SW_ESTADOS_PROGRESO || {};
+      // [MULTIPORTAL D] Por el espejo migrado y NO por `data.SW_ESTADOS_PROGRESO` crudo: las
+      // claves anteriores a este corte son el título pelado, y compararlas contra una clave
+      // (portal|título) no matchearía nunca. Es la misma trampa que el corte 3 encontró en la
+      // cola — el service worker lee storage por su cuenta y se saltea la normalización.
+      const estados = await recuperarEstadoFondo();
 
-      colaDescargas = colaDescargas.filter(c => c.titulo !== request.titulo);
-      delete estados[request.titulo];
+      // [MULTIPORTAL D] El pedido trae el portal además del título; sin él, quitar una clase
+      // de la cola se llevaría también a su homónima del otro portal.
+      const aQuitar = { titulo: request.titulo, sitioId: request.sitioId };
+      colaDescargas = colaDescargas.filter(c => !identidad.misma(c, aQuitar));
+      delete estados[identidad.clave(aQuitar)];
 
-      const match = listaCompleta.find(c => c.titulo === request.titulo);
+      const match = listaCompleta.find(c => identidad.misma(c, aQuitar));
       if (match) {
         match.estado = 'pending';
       }

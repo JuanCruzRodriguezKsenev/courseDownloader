@@ -26,6 +26,7 @@ import { crearFetchConReintentos } from "../core/util/reintentos";
 import { crearHlsEngine } from "../core/hls/hlsEngine";
 import { crearEstadoSesion } from "../core/cola/estadoSesion";
 import { crearEstadosProgreso } from "../core/cola/estadosProgreso";
+import { crearIdentidadClase } from "../core/cola/identidadClase";
 import { crearProcesadorCola } from "../core/cola/procesadorCola";
 import { notificarFallo, sitioIdDeNotificacion } from "./chrome/notificaciones";
 import { crearVolcadoLegacy } from "./chrome/volcadoLegacy";
@@ -164,6 +165,7 @@ export const Utils = {
 
 export const EstadosProgreso = crearEstadosProgreso(almacenamiento);
 
+
 /**
  * Resolvedor de sitios **con la migración aplicada**, compartido por el service worker y el
  * popup. Que sea uno solo importa: si el bucle y el filtro de la cola resolvieran distinto,
@@ -199,6 +201,16 @@ export const sitios = {
  */
 export const sitioDeNotificacionDeFallo = (notificationId: string) =>
   sitios.obtener(sitioIdDeNotificacion(notificationId));
+/**
+ * [MULTIPORTAL D] Cómo se decide si dos ítems son la misma clase: por el par (portal, título).
+ *
+ * Se arma **una vez, acá**, con el mismo resolvedor con migración que usa todo lo demás. Que
+ * sea uno solo importa por el mismo motivo que el resolvedor: si el bucle de descarga, los
+ * handlers del service worker y el popup compararan distinto, un ítem podría ser dos en un
+ * lado y uno en otro — y esa divergencia se ve como una clase que desaparece de la cola sin
+ * haberse bajado.
+ */
+export const identidadClase = crearIdentidadClase(sitios);
 
 /**
  * El procesador de la cola: el bucle FIFO + la clasificación de fallos, que fue el bloque más
@@ -240,4 +252,5 @@ export const Cola = crearProcesadorCola({
   guardarBlobLegacy: crearVolcadoLegacy(mensajeria),
   persistirEstados: (estados) => EstadosProgreso.persistir(estados),
   recuperarEstados: () => EstadosProgreso.recuperar(),
+  identidad: identidadClase,
 });
