@@ -12,6 +12,17 @@ node_modules/
 .output/
 .wxt/
 
+# Evidencia de medición, NO fuente. Las dos viven donde todo lo demás sí es fuente, así que
+# se ignoran para que un `git add -A` no las commitee (~4 MB de HTML + los .json):
+#  sitio/nuevo sitio/ : las páginas guardadas de Hotmart Club con las que se midió el portal 2
+#                       (docs/portal-anatomy-by-chris-diseno.md). No es un adaptador.
+#  descargas/         : las mediciones de /v1/navigation, los materiales y la corrida completa
+#                       (docs/escaneo-api-anatomy-diseno.md).
+# El fixture que los tests SÍ leen no está acá: es sitio/anatomy-by-chris/__fixtures__/, y va
+# versionado.
+sitio/nuevo sitio/
+descargas/
+
 # OS temporary files
 .DS_Store
 Thumbs.db
