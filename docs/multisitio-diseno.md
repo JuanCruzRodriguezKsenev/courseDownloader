@@ -1,11 +1,16 @@
 # Multi-sitio: una extensión, varios portales — diseño de ejecución
 
-**Estado (2026-08-06)**: ✅ **mergeado a `main`** (`148feda`) — los diez cortes hechos,
-verificados en navegador y pusheados. Queda **sólo el corte 7** (el segundo portal real), que
-está bloqueado porque ese portal no existe. La excepción de la verificación es el **6c, que no
-se puede probar** hasta que haya un segundo portal: sus tests son toda su observación. → **Empezá por §Cómo retomar esto en una sesión
-nueva, al final del doc**: ahí está el stack de ramas, qué probar en Chrome y las dos trampas
-vivas (la migración del 6b y que ADR-0011 está aceptada pero **sin construir**).
+**Estado (2026-08-06)**: ✅ **terminado y mergeado a `main`**, en dos tandas: los diez cortes del
+multi-sitio (`148feda`) y los cinco del **multiportal** (`d52c292`), que cerraron los supuestos
+de "un solo portal" que habían quedado. Todo verificado en navegador.
+
+**Queda sólo el corte 7: escribir el segundo portal**, y está bloqueado porque ese portal no
+existe. → **Si venís a eso, andá derecho a §Cómo escribir un portal nuevo — el paso a paso.**
+
+Lo que **no** se pudo verificar y no hay que dar por bueno: todo lo que exige dos portales a la
+vez (la sección Portal del 6c, el criterio `portal` del 6b, y la mitad "el otro portal no se ve
+afectado" de los cinco cortes multiportal). Va cubierto por tests con dobles, que es toda la
+observación que tiene hasta que exista el segundo.
 **Decisión de base**: [ADR-0009](adr/0009-registro-de-sitios-en-runtime.md) eligió *registro en
 runtime* sobre *una build por portal*, [ADR-0010](adr/0010-el-sitio-es-del-item.md) resuelve
 el punto que la 0009 no vio, y [ADR-0011](adr/0011-el-orden-de-la-cola-lo-decide-el-popup.md)
@@ -276,6 +281,86 @@ Quién lo consume:
 
 La extensión es personal y se carga descomprimida, así que pedir permisos de N portales no tiene
 el costo que tendría en la Web Store (ver ADR-0009 y `docs/deployment.md`).
+
+## Cómo escribir un portal nuevo — el paso a paso
+
+Escrito el 2026-08-06, cuando el andamiaje quedó terminado y esto pasó a ser **lo único que
+falta**. Es el corte 7. Los pasos son cinco y ninguno toca `core/`, `plataforma/` ni la UI.
+
+### 1. El adaptador: `sitio/<portal>/`, cuatro archivos
+
+| Archivo | Qué es |
+|---|---|
+| `config.ts` | El descriptor. Implementa `PuertoSitio` (**11 miembros**) y su `faceta` implementa `DescriptorFaceta` (**11 más**). |
+| `scraper.js` | Lee el listado de clases del DOM. **Se inyecta serializado** — ver la trampa de abajo. |
+| `parserTitulos.js` | Título crudo → nombre de archivo canónico + a qué carpeta/faceta va. |
+| `resolverManifiesto.js` | HTML de la clase → URL del `.m3u8`. |
+
+**El compilador es el árbitro**: un adaptador al que le falte una pieza **no compila**. No hay
+que revisarlo leyendo. Los números salen de `core/puertos/sitio.ts`, que es su hogar canónico:
+si no coinciden con esta tabla, gana la interfaz.
+
+Dos miembros que conviene mirar antes de escribir el resto:
+
+- **`id`** no es sólo para logs: **es el nombre de la carpeta en disco** (`raíz/<id>/<materia>/`)
+  y la mitad de la identidad de cada clase (`<id>|<titulo>`). Elegirlo es una decisión de datos,
+  no de estilo, y cambiarlo después obliga a migrar storage y a mover archivos.
+- **`faceta`** es el eje por el que se le pregunta al usuario una vez ("¿cuál cursás?"). Si el
+  portal nuevo no tiene un eje así, igual hay que implementarlo: podés declarar un `valorComun`
+  que devuelva siempre lo mismo y la UI queda inerte sola.
+
+### 2. Registrarlo: `sitio/registro.ts`
+
+Sumarlo al array `SITIOS`. Eso es todo — `resolverPorUrl` se apoya en el `esPaginaDelSitio` que
+cada adaptador ya trae, así que no hay que inventar detección.
+
+### 3. El manifest: `wxt.config.ts` (nunca `manifest.json`, que es generado)
+
+- `host_permissions`: el origen del portal **y el de su CDN de video**. Olvidar el CDN se ve como
+  descargas que fallan al primer fragmento.
+- `declarative_net_request.rule_resources`: una entrada más, con su `id` propio, apuntando a
+  `sitio/<portal>/rules.json`. El `.json` va en `public/sitio/<portal>/` para que WXT lo copie
+  tal cual conservando esa ruta.
+
+### 4. Los entrypoints: importar el adaptador, y **primero**
+
+Los dos entrypoints importan los `.js` del adaptador por efecto secundario, porque publican los
+globals que el resto consume perezosamente:
+
+- `entrypoints/popup/main.js`: `config.ts`, `parserTitulos.js`, `scraper.js`.
+- `entrypoints/background.js`: `config.ts`, `parserTitulos.js`, `resolverManifiesto.js`.
+
+**Van antes que todo lo que los consume.** Equivocarse rompe en runtime y el bundler no avisa.
+
+### 5. Verificar
+
+Las cuatro de siempre (`npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`) **y el
+navegador**, que acá no es confirmación sino la única detección que existe para el punto de
+abajo. El checklist son los 7 puntos de `rearquitectura-diseno.md` §Verificación en navegador:
+sumar un portal toca manifest y adaptador de sitio, que es su disparador declarado.
+
+### La trampa que más fácil se rompe
+
+**`escanearListado` se inyecta serializada en la pestaña del portal** (`chrome.scripting`), así
+que no puede referenciar **ninguna global de la extensión ni una constante de su propio
+archivo**: todo viaja por `args`. Hoistear un selector a `config.ts` —el movimiento que la regla
+"las constantes del sitio van en el config" pediría— rompe el escaneo, y **no lo detecta el
+bundler, ni el lint, ni `tsc`, ni la suite**. Sólo el navegador.
+
+### Lo que recién con este portal se vuelve verificable
+
+Todo lo que exige dos portales a la vez y hoy sólo tiene tests con dobles. Cuando el segundo
+exista, hay que mirarlo de verdad:
+
+- La **sección Portal** del filtro de la Cola (corte 6c), que sólo se dibuja con la cola mezclada.
+- El criterio de orden **`portal`** (corte 6b), que sólo se ofrece con la cola mezclada.
+- Que **la faceta elegida de un portal no afecte al otro** (ADR-0012).
+- Que **completar una clase no saque de la cola a su homónima** del otro portal (corte D).
+- Que cada archivo caiga en **su** carpeta (`raíz/<portal>/<materia>/`) y que la sincronización
+  de disco marque bien lo descargado de cada uno (corte E).
+- Que la **notificación de fallo** abra la pestaña del portal del ítem (corte 8).
+
+---
 
 ## Lo que NO se toca, y es la prueba de que la re-arquitectura sirvió
 

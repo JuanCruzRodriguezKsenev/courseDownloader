@@ -12,24 +12,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > justamente porque esos `.js` del adaptador lo leen. Ahí el global es **una decisión, no
 > inercia** — ver la 8b antes de "limpiarlo".
 >
-> **El segundo frente, el multi-sitio** (que la misma extensión maneje N portales), se
-> **mergeó a `main` el 2026-08-06** (`148feda`): diez cortes hechos, verificados en navegador y
-> pusheados. **Ya no hay ramas ni stack** — si leés algo que hable de "siete ramas encadenadas",
-> está viejo. Queda **sólo el corte 7** y está bloqueado. **Antes de tocar la capa de sitio leé
-> `docs/multisitio-diseno.md`** — §El registro, §El manifest y §Lo que NO se toca son la receta
-> para sumar un portal; §Cómo retomar tiene el estado y las trampas vivas. Dos que conviene
-> saber ya:
+> **El segundo frente, el multiportal** (que la misma extensión maneje N portales), está
+> **terminado y mergeado** al 2026-08-06, en dos tandas: los diez cortes del multi-sitio
+> (`148feda`) y los cinco que cerraron los supuestos de "un solo portal" que habían quedado
+> (`d52c292`). Todo verificado en navegador; ya no hay ramas ni stack.
 >
-> - **El corte 7 (segundo portal real) es lo único pendiente, y está bloqueado**: no existe el
->   portal. Eso deja al **corte 6c sin poder verificarse** — su sección "Portal" sólo aparece
->   con la cola mezclada, así que sus tests son toda su observación. **No lo cuentes como
->   verificado**: la pasada del 2026-08-06 cubrió a los otros, no a ése. Ídem el criterio
->   `portal` del 6b y la resolución por pestaña del 5 contra un portal que no sea el legado.
-> - **Ni el service worker ni el popup tienen ya UN portal**: el bucle resuelve el del ítem
->   (corte 3), la notificación el suyo por el `notificationId` (corte 8) y el popup el de la
->   pestaña (corte 5). A `sitioAsumido` le queda **un solo lector y es deliberado**: la sonda
->   `urlSondeoInternet` del daemon de conexión, que sigue siendo una sola a propósito
->   (`multisitio-diseno.md` §4 — hacerla por portal es un rediseño del daemon, con su corte).
+> **Lo único que falta es escribir el segundo portal** (el corte 7), y está bloqueado porque ese
+> portal no existe. **Si venís a eso, el paso a paso está en `docs/multisitio-diseno.md` §Cómo
+> escribir un portal nuevo** — cinco pasos, ninguno toca `core/`, `plataforma/` ni la UI. Tres
+> cosas que conviene saber antes:
+>
+> - **La trampa que más fácil se rompe**: `escanearListado` se inyecta **serializada** en la
+>   pestaña del portal, así que no puede tocar ninguna global de la extensión ni una constante de
+>   su propio archivo. **No lo detecta el bundler, ni el lint, ni `tsc`, ni la suite** — sólo el
+>   navegador. Ahí la verificación no es confirmación: es la única detección que hay.
+> - **El `id` del descriptor es un dato, no una etiqueta**: es el nombre de la carpeta en disco
+>   (`raíz/<id>/<materia>/`) y la mitad de la identidad de cada clase (`<id>|<titulo>`).
+>   Cambiarlo después obliga a migrar storage y a mover archivos.
+> - **Hay cosas que hoy sólo tienen tests con dobles y recién con el segundo portal se pueden
+>   mirar de verdad**: la sección Portal del 6c, el criterio `portal` del 6b, y la mitad "el otro
+>   portal no se ve afectado" de los cinco cortes multiportal. **No las cuentes como verificadas.**
+>   La lista completa está al final de esa misma sección del diseño.
 >
 > La decisión de fondo del frente sigue siendo ADR-0010. Antes de tocar código:
 >
@@ -55,8 +58,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > de arriba como lo que son: el caso típico, no la excepción.
 >
 > El checklist concreto de esa verificación —7 puntos, no "probá que ande"— es
-> `docs/rearquitectura-diseno.md` §Verificación en navegador, más los específicos que lista
-> `multisitio-diseno.md` §Cómo retomar. Su disparador declarado es *"cada fase que toque
+> `docs/rearquitectura-diseno.md` §Verificación en navegador, más los específicos que listan
+> `multisitio-diseno.md` §Cómo retomar y §Cómo escribir un portal nuevo. Su disparador declarado es *"cada fase que toque
 > empaquetado, entrypoints o el adaptador de sitio"*. La última corrida fue el **2026-08-06**,
 > sobre el stack del multi-sitio, y pasó. **Hoy quien lo va a disparar es el corte 7**: sumar un
 > portal toca manifest y adaptador de sitio, o sea de lleno — y encima su regla más frágil
@@ -86,7 +89,7 @@ Start at **`docs/architecture.md`**. Full map:
 - `docs/ROADMAP.md` — phased plan to pay down the backlog, in dependency order.
 - `docs/preact-migration.md` — live status of the incremental Preact-islands migration of the popup (which islands are done/next, the DOM-boundary rule, and a recipe for adding one). See also ADR-0006.
 - `docs/rearquitectura-diseno.md` — execution design (the "how") for the ports-and-adapters + TypeScript re-architecture: target folder layout, port interfaces, the generic-vs-site UI/CSS split, testing strategy under the new layers, bundler choice, migration order + execution rules (coexistence with the vanilla root, per-phase verification, rollback). The *decision* lives in ADR-0008 (supersedes ADR-0001); this is its counterpart design/status doc, like `preact-migration.md`. **The live per-phase status lives there, not here** (§Estado de avance) — read its §Cómo retomar esto en una sesión nueva first, and see the banner at the top of this file for the one-line summary. Note the doc's original `src/` layout was dropped in execution: `wxt.config.ts` sets `srcDir: '.'`, so sources stayed at the repo root.
-- `docs/multisitio-diseno.md` — execution design for making **one installed extension serve N portals** (the goal ADR-0009 chose and never built). Read it before touching the site layer: it holds the measured consumer map, the five real coupling points, and the cut order — including cut 6's four sub-cuts (queue-tab filters + sort), whose UX was settled on 2026-08-05 and whose order semantics got their own decision in ADR-0011. Note what the fifth one teaches: the original measurement swept the download loop and the UI but **not the service worker's loose listeners**, and missed a user-visible wrong-portal bug for a day — when you measure the site coupling, sweep the listeners too. Its decision counterpart is ADR-0010 (**the site is a property of the item, not of the build**) — that one exists because "resolve by URL" works for the popup and *not* for the service worker, whose queue is deliberately detached from any tab.
+- `docs/multisitio-diseno.md` — execution design for making **one installed extension serve N portals**, now built and merged. **If you came to write a new portal, go straight to its §Cómo escribir un portal nuevo — el paso a paso**: five steps, none of which touch `core/`, `plataforma/` or the UI, plus the list of what only becomes verifiable once a second portal exists. The rest of the doc is the history and the reasoning. Read it before touching the site layer: it holds the measured consumer map, the five real coupling points, and the cut order — including cut 6's four sub-cuts (queue-tab filters + sort), whose UX was settled on 2026-08-05 and whose order semantics got their own decision in ADR-0011. Note what the fifth one teaches: the original measurement swept the download loop and the UI but **not the service worker's loose listeners**, and missed a user-visible wrong-portal bug for a day — when you measure the site coupling, sweep the listeners too. Its decision counterpart is ADR-0010 (**the site is a property of the item, not of the build**) — that one exists because "resolve by URL" works for the popup and *not* for the service worker, whose queue is deliberately detached from any tab.
 - `docs/notificaciones-fallos-diseno.md` — execution design/record for the failure-notifications feature (native OS notification + persistent bell Preact island `campanita`, backed by the `historialFallos` storage key + the `core/historial/historialFallos.ts` module). Implemented (2026-07-20); the canonical detail lives in `data-model.md`/`security.md`/`patterns.md`/`preact-migration.md`, this is the "how"/rationale record.
 
 Security rule (operational summary — full policy and rationale in `docs/security.md`): scraped/third-party text must never be interpolated into `.innerHTML` unescaped. Since Preact island #4 the live list renders through `<TarjetaEstado>`/`<FilaClase>` (`listaClases.preact.js`), so escape at the `window.ListaClases` view-model boundary that feeds them. The original `popup.js` XSS is fixed (2026-07-16).

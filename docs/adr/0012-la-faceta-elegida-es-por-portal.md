@@ -38,7 +38,9 @@ trataba como propiedad global resultó ser propiedad de un portal**.
   tratar la elección como un valor único, que es el bug que esta ADR cierra.
 - **`PuertoSitio.faceta.claveEstado` se elimina.** Es un miembro de `DescriptorFaceta` —el
   objeto que cuelga de `faceta`—, así que el puerto sigue teniendo sus 11 miembros de primer
-  nivel; lo que adelgaza es el descriptor de faceta, de 11 a 10. Nombraba *una* propiedad de `AppState`, y con un mapa por portal ya no hay una propiedad que
+  nivel; lo que adelgaza es el descriptor de faceta, **de 12 a 11**. *(Corregido: al escribir
+  esta ADR decía "de 11 a 10", contado mal. El número real sale de la interfaz, que es su hogar
+  canónico.)* Nombraba *una* propiedad de `AppState`, y con un mapa por portal ya no hay una propiedad que
   nombrar: la clave es el `sitioId`. Mantenerlo sería sostener una indirección que apunta a un
   modelo que dejó de existir.
 - **Migración de una vez**: el valor único entra como el del **portal legado**. Es correcto por
