@@ -290,6 +290,14 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       if (resuelto) sitioActivo = resuelto;
       return resuelto;
     }
+
+    // [MULTIPORTAL C] La sonda de "hay internet" del daemon apunta al portal que se está
+    // mirando, no a uno fijo. Con N portales, "hay internet" es "llego a *cuál*": si el
+    // usuario está en el portal B y el A está caído, el banner no tiene por qué decirle que
+    // no hay conexión. Se registra un getter y no un valor porque `sitioActivo` cambia con
+    // cada escaneo. En el service worker el criterio es otro —el portal del ítem de la cola—
+    // y lo fija la composición. Ver `docs/multisitio-diseno.md` §4.
+    conexion.fijarSondeo(() => sitioActivo.urlSondeoInternet);
     // [MULTISITIO CORTE 6C] `portales` es el filtro maestro de la pestaña Cola: la cola puede
     // mezclar portales (ADR-0010) y cada uno trae su propio vocabulario de faceta. En la Cola
     // los valores de `valoresFaceta` van CALIFICADOS por portal (`sitioId|valor`), porque dos

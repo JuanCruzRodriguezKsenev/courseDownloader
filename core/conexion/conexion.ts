@@ -91,8 +91,14 @@ export interface OpcionesConexion {
    * deliberadamente el **portal objetivo** y no un host genérico: lo que importa no es
    * tener red sino poder llegar al sitio. El valor lo declara el adaptador de sitio
    * (`PuertoSitio.urlSondeoInternet`, Capa 2) y lo inyecta la composición.
+   *
+   * [MULTIPORTAL C] Puede ser una **función**, y ahí está lo importante: con N portales
+   * "hay internet" pasa a ser "llego a *cuál*". La sonda sigue siendo UNA sola —no hay estado
+   * de conexión por portal, eso sería un rediseño del daemon— pero apunta al portal que
+   * corresponde en cada momento: el del ítem que se está bajando en el service worker, el de
+   * la pestaña activa en el popup. Ver `docs/multisitio-diseno.md` §4.
    */
-  urlSondeoInternet: string;
+  urlSondeoInternet: string | (() => string | Promise<string>);
 }
 
 export function crearConexion(
@@ -112,9 +118,22 @@ export function crearConexion(
     INTERVALO_SONDEO_MS,
     TIMEOUT_HEAD_MS,
 
-    // Se expone como propiedad (y no sólo como variable de la clausura) porque los
-    // tests y el diagnóstico la leen; el valor lo fija la composición al construir.
-    URL_SONDEO_INTERNET: urlSondeoInternet,
+    // Se expone (y no sólo como variable de la clausura) porque los tests y el diagnóstico la
+    // leen. Con un valor fijo devuelve ese valor; con una función, la resuelve al momento del
+    // sondeo — que es lo que hace que la sonda siga al portal (ver `OpcionesConexion`).
+    async resolverUrlSondeo(): Promise<string> {
+      return typeof urlSondeoInternet === "function"
+        ? await urlSondeoInternet()
+        : urlSondeoInternet;
+    },
+
+    /**
+     * Reemplaza el origen de la sonda. Lo usa el popup para apuntarla al portal de la pestaña
+     * activa, que la composición no puede saber: la resuelve `popup.js` al escanear.
+     */
+    fijarSondeo(nuevo: string | (() => string | Promise<string>)): void {
+      urlSondeoInternet = nuevo;
+    },
 
     // -------- Lectura pura (sin I/O) --------
     get(): SnapshotConexion {
@@ -169,7 +188,7 @@ export function crearConexion(
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), daemon.TIMEOUT_HEAD_MS);
       try {
-        await fetch(daemon.URL_SONDEO_INTERNET, {
+        await fetch(await daemon.resolverUrlSondeo(), {
           method: "HEAD",
           mode: "no-cors",
           cache: "no-store",
