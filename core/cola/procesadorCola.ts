@@ -334,15 +334,28 @@ export function crearProcesadorCola(deps: DependenciasCola) {
     arrancarSiNoCorre();
   }
 
+  /**
+   * Traza del bucle. Prefijo único para poder filtrar la consola del SW con `TRAZA`.
+   *
+   * Existe porque este bucle tiene VARIAS salidas mudas: cinco `return` que no loguean nada, y
+   * que dejan al usuario mirando una descarga que "no hizo nada". Sin esto, distinguir "salió
+   * por acá" de "nunca entró" es imposible desde afuera.
+   */
+  const traza = (mensaje: string, extra?: Record<string, unknown>) => {
+    console.log(`🔎 [TRAZA] ${mensaje}`, extra ?? "");
+  };
+
   /** Entrada del bucle. Se re-encola a sí misma con un respiro de 60ms entre clases. */
   async function procesarSiguiente(): Promise<void> {
     const state = await sesion.get();
 
     if (state.frenadoSuaveSolicitado) {
+      traza("procesarSiguiente → SALE: hay frenado suave pedido");
       await notificarFrenoSuaveExitoso();
       return;
     }
     if (!state.rafagaCorriendo) {
+      traza("procesarSiguiente → SALE: rafagaCorriendo es false (nadie la encendió, o se apagó)");
       loopActivo = false;
       return;
     }
@@ -368,7 +381,12 @@ export function crearProcesadorCola(deps: DependenciasCola) {
       // El riesgo aceptado (ver la ADR): si el popup escribiera un orden inconsistente, este
       // bucle ya no tiene una red que lo corrija. La red es que el popup sea el único escritor.
 
+      traza(`procesarSiguiente → la cola tiene ${colaDescargas.length}`, {
+        titulos: colaDescargas.map((c) => c.titulo),
+      });
+
       if (colaDescargas.length === 0) {
+        traza("procesarSiguiente → SALE: cola vacía, ráfaga terminada");
         await sesion.set({ rafagaCorriendo: false });
         loopActivo = false;
         await persistirEstados({});
@@ -409,7 +427,14 @@ export function crearProcesadorCola(deps: DependenciasCola) {
           colaDescargas: colaFiltrada,
           SW_ESTADOS_PROGRESO: estadosUpdate,
         });
-        mensajeria.notificar({ action: "clase_con_error", titulo: tituloInmutableVideo, motivo });
+        // El `sitioId` va por el mismo motivo que en `clase_guardada_ok`: el popup saca la clase
+        // de su cola comparando por identidad, y sin el portal el mensaje no matchea nada.
+        mensajeria.notificar({
+          action: "clase_con_error",
+          titulo: tituloInmutableVideo,
+          sitioId: elementoActual.sitioId,
+          motivo,
+        });
         setTimeout(procesarSiguiente, 60); // seguir con la próxima
         // Aviso DESPUÉS de garantizar la continuación de la cola.
         void registrarFallo("rechazo", tituloInmutableVideo, motivo, elementoActual.sitioId);
@@ -436,6 +461,10 @@ export function crearProcesadorCola(deps: DependenciasCola) {
         mensajeria.notificar({
           action: "clase_con_error",
           titulo: tituloInmutableVideo,
+          // Va el id CRUDO, que es lo que tiene el ítem del popup. Para un huérfano no resuelve
+          // a ningún descriptor, pero `identidadClase` cae al valor crudo justamente para que dos
+          // huérfanos del mismo portal muerto sigan comparándose entre sí.
+          sitioId: elementoActual.sitioId,
           motivo: motivoHuerfano,
         });
         setTimeout(procesarSiguiente, 60);
@@ -489,7 +518,10 @@ export function crearProcesadorCola(deps: DependenciasCola) {
         );
 
         const currentState = await sesion.get();
-        if (!currentState.rafagaCorriendo) return;
+        if (!currentState.rafagaCorriendo) {
+          traza(`ABORTA (1/3) "${tituloInmutableVideo}": rafagaCorriendo se apagó DESPUÉS de resolver el manifiesto y antes de bajar`);
+          return;
+        }
 
         const listaFragmentos = await motor.descargarYAnalizarIndexM3u8(
           urlM3u8Descubierta,
@@ -565,7 +597,10 @@ export function crearProcesadorCola(deps: DependenciasCola) {
         );
 
         const postDownloadState = await sesion.get();
-        if (!postDownloadState.rafagaCorriendo) return;
+        if (!postDownloadState.rafagaCorriendo) {
+          traza(`ABORTA (2/3) "${tituloInmutableVideo}": los fragmentos SE BAJARON ENTEROS pero rafagaCorriendo se apagó. La clase NO se guarda ni sale de la cola.`);
+          return;
+        }
 
         if (!postDownloadState.modoTurboBunActivo) {
           // Camino legacy no-Turbo: el blob se arma en memoria y se vuelca a disco. Hoy
@@ -585,7 +620,10 @@ export function crearProcesadorCola(deps: DependenciasCola) {
         }
 
         const postWriteState = await sesion.get();
-        if (!postWriteState.rafagaCorriendo) return;
+        if (!postWriteState.rafagaCorriendo) {
+          traza(`ABORTA (3/3) "${tituloInmutableVideo}": el archivo YA ESTÁ pero rafagaCorriendo se apagó justo antes de sacarla de la cola. Se va a volver a bajar.`);
+          return;
+        }
 
         // Cola fresca: pudo cambiar mientras se descargaba.
         const dataUpdate = await almacenamiento.obtenerLocal<{ colaDescargas: ItemCola[] }>([
@@ -593,6 +631,16 @@ export function crearProcesadorCola(deps: DependenciasCola) {
         ]);
         const colaActual = (dataUpdate.colaDescargas || []).filter(
           (c) => !identidad.misma(c, esteItem)
+        );
+
+        // La traza clave del "vuelve a empezar": si la cola NO se achicó, el filtro no
+        // reconoció la clase que se acaba de bajar y la próxima vuelta va a tomar la misma.
+        const antes = (dataUpdate.colaDescargas || []).length;
+        traza(
+          antes === colaActual.length
+            ? `⛔ LA COLA NO SE ACHICÓ: sigue en ${antes}. El filtro por identidad NO reconoció "${tituloInmutableVideo}" → se va a rebajar la misma clase.`
+            : `cola ${antes} → ${colaActual.length} tras sacar "${tituloInmutableVideo}"`,
+          { claveDeEsteItem: claveItem, clavesEnCola: (dataUpdate.colaDescargas || []).map((c) => identidad.clave(c)) }
         );
 
         const objPersistente = listaCompleta.find((c) => identidad.misma(c, esteItem));
@@ -613,6 +661,15 @@ export function crearProcesadorCola(deps: DependenciasCola) {
         mensajeria.notificar({
           action: "clase_guardada_ok",
           titulo: tituloInmutableVideo,
+          // ⚠️ EL `sitioId` NO ES OPCIONAL ACÁ. El popup usa este mensaje para sacar la clase de
+          // SU copia de la cola, y compara por identidad (portal, título). Sin este campo el
+          // `sitioId` viaja `undefined`, la migración lo interpreta como dato viejo y lo resuelve
+          // al portal LEGADO — así que el mensaje de una clase de otro portal no matchea nada, el
+          // popup no la saca, y su `respaldar()` reescribe la cola que el SW acaba de vaciar.
+          // Resultado: el bucle vuelve a tomar la misma clase y la baja para siempre.
+          // (Medido el 2026-08-07 con Anatomy. En Ramón Net no se veía porque su id ES el legado,
+          // así que la clave coincidía de casualidad.)
+          sitioId: elementoActual.sitioId,
           suaveFrenado: postWriteState.frenadoSuaveSolicitado,
         });
 
@@ -710,7 +767,16 @@ export function crearProcesadorCola(deps: DependenciasCola) {
    * simultáneas**, que duplicaría descargas y pisaría el progreso.
    */
   function arrancarSiNoCorre(): void {
-    if (loopActivo) return;
+    if (loopActivo) {
+      traza("arrancarSiNoCorre → IGNORADO: el bucle ya está corriendo");
+      return;
+    }
+    // `new Error().stack` es a propósito: dice QUIÉN pidió arrancar (el IPC del popup, el
+    // despertar del SW, el auto-heal o `reanudar`). Es el dato que falta cuando una descarga
+    // "vuelve a empezar" y no se sabe quién la relanzó. Se recorta a tres marcos: la primera
+    // línea es el `Error` vacío y el resto es ruido del bundler.
+    const quien = (new Error().stack || "").split("\n").slice(1, 4).join(" ← ").trim();
+    traza("arrancarSiNoCorre → ARRANCA el bucle", { quien });
     loopActivo = true;
     void procesarSiguiente();
   }

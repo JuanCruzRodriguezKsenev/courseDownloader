@@ -413,6 +413,58 @@ describe("clasificación de fallos del PORTAL", () => {
   });
 });
 
+/**
+ * El aviso al popup lleva el PORTAL, no sólo el título. Sin eso el popup no puede sacar la
+ * clase de su copia de la cola, y su `respaldar()` reescribe encima de la cola que este bucle
+ * acaba de vaciar → el bucle vuelve a tomar la misma clase y la baja para siempre.
+ *
+ * Medido en el navegador el 2026-08-07 con Anatomy. **En Ramón Net no se veía**: su id es el
+ * legado, que es a donde la migración manda un `sitioId` ausente, así que las claves coincidían
+ * de casualidad. Ése es el motivo por el que un doble tiene que usar un portal que NO sea el
+ * legado — con `"ramonnet"` este test pasaría con el bug puesto.
+ */
+describe("los avisos al popup llevan el sitioId", () => {
+  const mensajes = (m: { notificados: { action?: string }[] }, action: string) =>
+    m.notificados.filter((x) => x.action === action);
+
+  it("clase_guardada_ok lo lleva, para que el popup pueda sacarla de su cola", async () => {
+    const { cola, almacenamiento, sesion, mensajeria } = montar();
+    await sesion.set({ rafagaCorriendo: true });
+    await almacenamiento.guardarLocal({
+      colaDescargas: [{ ...item("Osteologia"), sitioId: "prueba" }],
+      listaPersistente: [{ titulo: "Osteologia", estado: "process", sitioId: "prueba" }],
+    });
+
+    cola.arrancarSiNoCorre();
+    await esperar(150);
+
+    const [aviso] = mensajes(mensajeria as never, "clase_guardada_ok") as { sitioId?: string }[];
+    expect(aviso).toBeDefined();
+    expect(aviso!.sitioId).toBe("prueba");
+  });
+
+  it("clase_con_error también, cuando el portal saltea la clase", async () => {
+    const motor = {
+      descargarYAnalizarIndexM3u8: vi.fn().mockRejectedValue(
+        Object.assign(new Error("[portal] 404"), { tipoPortal: "rechazo", httpStatus: 404 })
+      ),
+    };
+    const { cola, almacenamiento, sesion, mensajeria } = montar({ motor });
+    await sesion.set({ rafagaCorriendo: true });
+    await almacenamiento.guardarLocal({
+      colaDescargas: [{ ...item("Osteologia"), sitioId: "prueba" }],
+      listaPersistente: [{ titulo: "Osteologia", estado: "process", sitioId: "prueba" }],
+    });
+
+    cola.arrancarSiNoCorre();
+    await esperar(150);
+
+    const [aviso] = mensajes(mensajeria as never, "clase_con_error") as { sitioId?: string }[];
+    expect(aviso).toBeDefined();
+    expect(aviso!.sitioId).toBe("prueba");
+  });
+});
+
 describe("abortarRafaga", () => {
   it("aborta la descarga en vuelo y suelta el bucle", async () => {
     let signalVisto: AbortSignal | undefined;

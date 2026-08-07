@@ -1416,7 +1416,10 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           }
         }
         if (req.action === "clase_guardada_ok") {
-          const obj = appState.listadoClasesGlobal.find(c => c.titulo === req.titulo);
+          // Por IDENTIDAD, no por título crudo: con dos portales, `c.titulo === req.titulo`
+          // marcaba como 'downloaded' a la homónima del OTRO portal —la que nunca se bajó—.
+          // Es la comparación que `identidadClase` vino a reemplazar en todo el proyecto.
+          const obj = appState.listadoClasesGlobal.find(c => identidadClase.misma(c, req));
           if (obj) { obj.estado = 'downloaded'; obj.seleccionado = false; }
         
           // También remover de la cola local
@@ -1436,7 +1439,8 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           // a 'pending' (no 'error'): se ve como una pendiente normal y es re-encolable — el
           // fallo se comunica por la campanita + la notificación, no por un estado de fila.
           console.error(`⚠️ [POPUP-ALERT] El SW saltó la clase: ${req.titulo} (${req.motivo})`);
-          const obj = appState.listadoClasesGlobal.find(c => c.titulo === req.titulo);
+          // Por identidad, mismo motivo que en "clase_guardada_ok".
+          const obj = appState.listadoClasesGlobal.find(c => identidadClase.misma(c, req));
           if (obj) { obj.estado = 'pending'; obj.seleccionado = false; }
           appState.colaDescargas = appState.colaDescargas.filter(c => !identidadClase.misma(c, req));
           appState.respaldar();
