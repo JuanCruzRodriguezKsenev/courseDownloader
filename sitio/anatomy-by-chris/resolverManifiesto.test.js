@@ -220,11 +220,83 @@ describe('resolver — falla fuerte, nunca en silencio', () => {
     ).rejects.toThrow(/DRM/);
   });
 
-  it('un 403 del master menciona los 500 s de su token', async () => {
+  it('un 403 del master apunta al CDN, no al token vencido', async () => {
+    // Este test decía lo contrario —que el mensaje mencionara los 500 s del `hdnts`— y así se
+    // quedó fijada una explicación falsa: el master se pide en el `await` siguiente al que lo
+    // devuelve, milisegundos después, así que su token NO puede haber vencido. El 403 real del
+    // 2026-08-07 era el CDN pidiendo `Referer`. Un test puede blindar una hipótesis equivocada
+    // igual de bien que una correcta.
     stubFeliz({ master: falla(403) });
     await expect(
       ResolverManifiestoAnatomy.resolver(URL_CLASE, undefined, CREDENCIALES)
-    ).rejects.toThrow(/500 s/);
+    ).rejects.toThrow(/CDN|Referer/i);
+  });
+});
+
+/**
+ * El TIPO del error, que es lo que decide qué hace el bucle: saltear la clase, pausar la cola
+ * o pausarla con auto-heal. Existen desde el fix del cartel mentiroso (2026-08-07): hasta
+ * entonces todos salían pelados y `procesadorCola` los clasificaba a todos como "internet".
+ *
+ * La regla que afirman: **por clase se saltea, sistémico se pausa**. No es "4xx = saltear".
+ */
+describe('resolver — el TIPO del fallo', () => {
+  const tipoDe = async (over) => {
+    stubFeliz(over);
+    return ResolverManifiestoAnatomy.resolver(URL_CLASE, undefined, CREDENCIALES).then(
+      () => ({}),
+      (e) => e
+    );
+  };
+
+  it('sin credenciales es "sesion": pausa y le dice al usuario que re-escanee', async () => {
+    stubFeliz();
+    const e = await ResolverManifiestoAnatomy.resolver(URL_CLASE, undefined, undefined).catch((x) => x);
+    expect(e.tipoConexion).toBe('sesion');
+  });
+
+  it('un 401 de la API de lecciones es el token vencido → "sesion", no un bloqueo', async () => {
+    const e = await tipoDe({ leccion: falla(401) });
+    expect(e.tipoConexion).toBe('sesion');
+    expect(e.tipoPortal).toBeUndefined();
+  });
+
+  it('un 404 de la lección es de ESA clase → "rechazo" (se saltea y la cola sigue)', async () => {
+    const e = await tipoDe({ leccion: falla(404) });
+    expect(e.tipoPortal).toBe('rechazo');
+    expect(e.httpStatus).toBe(404);
+  });
+
+  it('una lección sin media es "rechazo": cambió de tipo, las demás siguen bien', async () => {
+    const e = await tipoDe({ leccion: ok('', { hash: 'x', hasMedia: false, medias: [] }) });
+    expect(e.tipoPortal).toBe('rechazo');
+  });
+
+  it('el DRM es "rechazo": es de ese video, no del portal', async () => {
+    const e = await tipoDe({ embed: ok(htmlEmbed({ drm: true })) });
+    expect(e.tipoPortal).toBe('rechazo');
+  });
+
+  it('un 401 del embed es "bloqueo": la regla de Referer le falta a TODAS las clases', async () => {
+    const e = await tipoDe({ embed: falla(401) });
+    expect(e.tipoPortal).toBe('bloqueo');
+  });
+
+  it('un 403 del master es "bloqueo": el CDN rechaza igual las 114 clases', async () => {
+    const e = await tipoDe({ master: falla(403) });
+    expect(e.tipoPortal).toBe('bloqueo');
+    expect(e.httpStatus).toBe(403);
+  });
+
+  it('que el embed cambie de forma es "bloqueo", no un problema de esa clase', async () => {
+    const e = await tipoDe({ embed: ok('<html><body>nada</body></html>') });
+    expect(e.tipoPortal).toBe('bloqueo');
+  });
+
+  it('un 5xx queda SIN tipar: es transitorio y el auto-heal tiene que actuar', async () => {
+    const e = await tipoDe({ master: falla(503) });
+    expect(e.tipoPortal).toBeUndefined();
+    expect(e.tipoConexion).toBeUndefined();
   });
 });
 

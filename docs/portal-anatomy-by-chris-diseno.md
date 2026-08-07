@@ -61,12 +61,41 @@ así que el número no se pudo cruzar contra el portal. Los tres chequeos de 30 
   colaron dos clases de Texto — que no es grave ni silencioso: al bajarlas, `resolverManifiesto`
   corta con "no trae ningún media" y el bucle las saltea.
 
-### ⬜ 2. Bajar una clase entera
+### 🟨 2. Bajar una clase entera — *a medias: se probó, falló, y dejó dos arreglos*
 
 Que el archivo caiga en `raíz/anatomy-by-chris/<módulo>/`. Acá se contesta **si la regla dNR del
 `Referer` funciona de verdad** (*pendiente 1f*): si no, el paso 2 de `resolverManifiesto` corta
 con un 401 y el mensaje lo dice. También se ve si la variante elegida es la correcta — un archivo
 de unos KB en vez del video sería el master colándose.
+
+> **Corrido el 2026-08-07. Resultado: los pasos 1 y 2 pasan, el 3 da `HTTP 403`.**
+>
+> Lo que quedó **confirmado** de paso, y no es poco: las credenciales por portal funcionan (la API
+> de lecciones contestó 200 con el `id_token` cosechado por el scraper) y **la regla dNR del
+> `Referer` funciona desde el service worker** — el embed no dio 401, que era el *pendiente 1f*. De
+> yapa quedó probado que `resourceTypes: ["xmlhttprequest"]` matchea un `fetch` del SW, dato que
+> vale para cualquier regla futura.
+>
+> **El 403 del master.** El mensaje de error que lo reportaba decía que el `hdnts` se había
+> resuelto tarde (vive 500 s), y **eso era imposible**: el master sale del `__NEXT_DATA__` del
+> embed y se pide en el `await` siguiente, milisegundos después. La hipótesis en pie es hotlink
+> protection del CDN — la regla dNR ponía el `Referer` sólo para `cf-embed.play.hotmart.com`, y el
+> master vive en **otro host** (`vod-akm.play.hotmart.com`), donde el fetch del SW sale sin
+> `Referer` ni `Origin`. Es la misma trampa del paso 2, un host más adelante, y la medición
+> original no la vio porque se hizo **desde una pestaña**, donde el navegador manda el `Referer`
+> solo. Arreglo aplicado: una segunda regla en `rules.json` para `vod-akm.play.hotmart.com` y
+> `contentplayer.hotmart.com` —los dos, porque por ahí viajan también la clave AES y los
+> fragmentos, y arreglar sólo el master haría que cortara en la clave—. **Falta confirmarlo en el
+> navegador**; si el 403 sigue, la causa es otra y el mensaje de error nuevo ya no manda al lugar
+> equivocado.
+>
+> **Y destapó un bug que no era de este portal**: el 403 se le mostró al usuario como *"se perdió
+> la conexión a internet"*, con el daemon midiendo `internet=true` una línea antes, y con el
+> auto-heal reintentando cada 12 s para siempre. Era el `else` de la heurística de
+> `procesadorCola.ts`, que afirmaba "internet" cuando no reconocía el mensaje. Estaba bien mientras
+> hubo dos orígenes de fallo (backend local y red); el portal es un tercero. El fix agregó dos
+> ramas (`tipoPortal: "rechazo"` / `"bloqueo"`) y cambió ese `else` por `"desconocido"`. Detalle en
+> el header de `core/cola/procesadorCola.ts` y en `docs/data-model.md`.
 
 ### ⬜ 3. Que `patronPestañas` matchee
 
@@ -1183,9 +1212,10 @@ backend probablemente **no cambia**.
 > `.mp4` al `videoTitle`. Si lo hace, ése es el único cambio real del lado del servidor — y es la
 > clase de cosa que no falla: entrega un `.mp4` que en realidad es un PDF.
 
-Y ojo con dónde cae la rama: **el bucle tiene cuatro ramas de clasificación de fallo y su orden es
-load-bearing** (cada una existe por un bug real; ver el header del módulo). Un quinto camino se
-agrega leyendo eso primero.
+Y ojo con dónde cae la rama: **el bucle tiene seis ramas de clasificación de fallo y su orden es
+load-bearing** (cada una existe por un bug real; ver el header del módulo). Un séptimo camino se
+agrega leyendo eso primero. *(Eran cuatro hasta el 2026-08-07: las dos del portal —`rechazo` y
+`bloqueo`— entraron con el fix del cartel mentiroso, ver §El 403 del master más abajo.)*
 
 ### 5. Las carpetas en disco
 

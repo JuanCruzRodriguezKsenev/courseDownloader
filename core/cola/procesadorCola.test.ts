@@ -330,6 +330,89 @@ describe("resolución del portal por ítem", () => {
   });
 });
 
+/**
+ * El fix del cartel mentiroso (2026-08-07). Estos cuatro tests existen por un fallo REAL: un
+ * 403 del CDN de Hotmart le mostraba al usuario "se perdió la conexión a internet" —con el
+ * daemon midiendo `internet=true` una línea antes— y encima programaba el auto-heal, que
+ * reanudaba, comía el mismo 403 y volvía a pausar cada 12 s.
+ *
+ * Ojo con lo que afirma el tercero: que un bloqueo **no** saltea. Es lo contrario de lo que uno
+ * haría por analogía con la rama 4xx del backend, y el motivo es que un bloqueo es sistémico:
+ * saltear iría vaciando la cola de a una clase, en silencio.
+ */
+describe("clasificación de fallos del PORTAL", () => {
+  /** Un motor que rechaza con el error ya tipado, como lo hace `resolverManifiesto`. */
+  const motorQueFalla = (extra: Record<string, unknown>) => ({
+    descargarYAnalizarIndexM3u8: vi.fn().mockImplementation(() => {
+      const e = Object.assign(new Error("[portal] master: HTTP 403"), extra);
+      return Promise.reject(e);
+    }),
+  });
+
+  async function correrCon(extra: Record<string, unknown>) {
+    const arnes = montar({ motor: motorQueFalla(extra) });
+    await arnes.sesion.set({ rafagaCorriendo: true });
+    await arnes.almacenamiento.guardarLocal({
+      colaDescargas: [item("Osteologia"), item("Clase 2")],
+      listaPersistente: [{ titulo: "Osteologia", estado: "process" }],
+    });
+    arnes.cola.arrancarSiNoCorre();
+    await esperar(120);
+    return arnes;
+  }
+
+  it('un rechazo del portal saltea SÓLO esa clase y la cola sigue', async () => {
+    const { almacenamiento, sesion } = await correrCon({ tipoPortal: "rechazo", httpStatus: 404 });
+
+    const local = almacenamiento._volcar().local as {
+      colaDescargas: { titulo: string }[];
+      listaPersistente: { titulo: string; estado?: string }[];
+    };
+    expect(local.colaDescargas.map((c) => c.titulo)).not.toContain("Osteologia");
+    expect(local.listaPersistente.find((c) => c.titulo === "Osteologia")?.estado).toBe("pending");
+    expect((await sesion.get()).colaPausadaPorError).toBeFalsy();
+  });
+
+  it('un bloqueo del portal PAUSA y no dice "internet"', async () => {
+    const { sesion } = await correrCon({ tipoPortal: "bloqueo", httpStatus: 403 });
+
+    const estado = await sesion.get();
+    expect(estado.colaPausadaPorError).toBe(true);
+    expect(estado.tipoDeErrorConexion).toBe("bloqueo");
+    // Lo que se rompió y no queremos de vuelta: afirmar una caída de red que el daemon
+    // acaba de desmentir.
+    expect(estado.tipoDeErrorConexion).not.toBe("internet");
+  });
+
+  it("un bloqueo NO saltea la clase: vaciaría la cola entera, de a una", async () => {
+    const { almacenamiento } = await correrCon({ tipoPortal: "bloqueo", httpStatus: 403 });
+
+    const local = almacenamiento._volcar().local as { colaDescargas: { titulo: string }[] };
+    expect(local.colaDescargas.map((c) => c.titulo)).toContain("Osteologia");
+  });
+
+  it("un bloqueo no programa el auto-heal (reintentaría contra el mismo 403 cada 12 s)", async () => {
+    const { programador } = await correrCon({ tipoPortal: "bloqueo", httpStatus: 403 });
+
+    expect(programador.estaProgramada("alarma_autoheal")).toBe(false);
+  });
+
+  it('un error SIN tipar ya no se llama "internet": se llama "desconocido"', async () => {
+    // El daemon dice que todo está bien (es el default del harness), así que se cae a la
+    // heurística por mensaje. El mensaje no nombra al backend → antes salía "internet".
+    const { sesion } = await correrCon({});
+
+    const estado = await sesion.get();
+    expect(estado.tipoDeErrorConexion).toBe("desconocido");
+  });
+
+  it('lo desconocido SÍ conserva el auto-heal: puede ser transitorio', async () => {
+    const { programador } = await correrCon({});
+
+    expect(programador.estaProgramada("alarma_autoheal")).toBe(true);
+  });
+});
+
 describe("abortarRafaga", () => {
   it("aborta la descarga en vuelo y suelta el bucle", async () => {
     let signalVisto: AbortSignal | undefined;

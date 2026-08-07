@@ -1,7 +1,17 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.17.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.18.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.18.0:
+ * - [FIX — el cartel mentiroso] Dos tarjetas nuevas para los tipos de pausa que agregó
+ *   `core/cola/procesadorCola.ts` ("bloqueo" y "desconocido") y su texto de botón. Sin esto
+ *   los dos caían en el `else` y se pintaban como "Conexión a Internet Caída", que es
+ *   justamente la mentira que el fix del bucle salió a corregir.
+ * - [FIX] La tarjeta de "Sesión no iniciada" dejó de decir **Ramón Net** hardcodeado. Con dos
+ *   portales eso es falso la mitad de las veces, y el portal que pausó sale del ÍTEM (ADR-0010),
+ *   no de la pestaña abierta — así que la copy genérica es la única que nunca miente. El nombre
+ *   correcto sí viaja en la notificación del SO y en la campanita, que lo reciben del bucle.
+ *
  * CHANGELOG v5.17.0:
  * - [FASE 5C] Todo el IPC de este archivo pasa al PuertoMensajeria (global Mensajeria,
  *   publicado por plataforma/composicion.ts): los dos sendMessage y el par
@@ -1127,8 +1137,26 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           ListaClases.render({ modo: 'card', card: {
             tipo: 'error',
             titulo: 'Sesión no iniciada',
-            descripcion: `No hay una sesión activa en Ramón Net.<br>Iniciá sesión en la plataforma y tocá <strong>Reintentar</strong>.<br><br><strong>Pausado en:</strong> ${titulo}`,
+            // La copy NO nombra el portal a propósito. Decía "Ramón Net" hardcodeado, y desde
+            // que hay dos portales eso es una afirmación falsa la mitad de las veces — el que
+            // pausó sale del ÍTEM (ADR-0010), no de la pestaña abierta. El nombre correcto sí
+            // viaja en la notificación del SO y en la campanita, que lo reciben del bucle.
+            descripcion: `No hay una sesión activa en el portal.<br>Iniciá sesión (o re-escaneá para renovar el acceso) y tocá <strong>Reintentar</strong>.<br><br><strong>Pausado en:</strong> ${titulo}`,
             icono: '🔑'
+          }});
+        } else if (appState.fallaConexionActiva === "bloqueo") {
+          ListaClases.render({ modo: 'card', card: {
+            tipo: 'error',
+            titulo: 'El portal rechazó la descarga',
+            descripcion: `El portal rechazó el pedido — <strong>no es tu conexión</strong>.<br>Suele ser el acceso vencido: re-escaneá el portal y tocá <strong>Reintentar</strong>.<br><br><strong>Pausado en:</strong> ${titulo}`,
+            icono: '🚧'
+          }});
+        } else if (appState.fallaConexionActiva === "desconocido") {
+          ListaClases.render({ modo: 'card', card: {
+            tipo: 'error',
+            titulo: 'La descarga falló',
+            descripcion: `No fue la red ni el servidor local; el motivo no se pudo identificar.<br>Mirá la consola del service worker si se repite.<br><br><strong>Pausado en:</strong> ${titulo}`,
+            icono: '⚠️'
           }});
         } else if (appState.fallaConexionActiva === "servidor") {
           ListaClases.render({ modo: 'card', card: {
@@ -1524,6 +1552,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           txt = "Iniciar sesión y reintentar 🔄";
         } else if (appState.fallaConexionActiva === "internet") {
           txt = "Reintentar conexión a internet 🔄";
+        } else if (appState.fallaConexionActiva === "bloqueo" || appState.fallaConexionActiva === "desconocido") {
+          // Los dos tipos que NO son de conexión: el botón no puede prometer reconectar nada.
+          txt = "Reintentar 🔄";
         } else {
           txt = "Reintentar conexión con servidor 🔄";
         }

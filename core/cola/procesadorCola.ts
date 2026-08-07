@@ -1,8 +1,19 @@
 /**
- * PROCESADOR DE LA COLA DE DESCARGA (V1.1.0)
+ * PROCESADOR DE LA COLA DE DESCARGA (V1.2.0)
  * ==========================================================================
  * Capa 1. Salió de `background.js` en la Fase 6b — es el bloque de lógica más grande que
  * tenía el service worker, y el más sensible del proyecto.
+ *
+ * CHANGELOG v1.2.0:
+ * - [FIX — el cartel mentiroso] Dos ramas nuevas para los fallos del PORTAL (`tipoPortal`:
+ *   `"rechazo"` saltea la clase, `"bloqueo"` pausa sin auto-heal) y el `else` de la heurística
+ *   pasa de `"internet"` a `"desconocido"`. Un 403 del CDN de Hotmart se mostraba como "se
+ *   perdió la conexión a internet" —con el daemon midiendo `internet=true`— y el auto-heal lo
+ *   reintentaba cada 12 s para siempre. Ver el bloque POR QUÉ EXISTEN 4 Y 5.
+ * - [FIX] El auto-heal pasa a decidirse por lista POSITIVA (`TIPOS_CON_AUTOHEAL`). Con la
+ *   negativa ("todo menos sesion"), cada tipo nuevo entraba al auto-heal por omisión.
+ * - [REFACTOR] El "saltear la clase y seguir" que tenían duplicado las ramas de rechazo es
+ *   ahora `saltearClaseYSeguir`.
  *
  * CHANGELOG v1.1.0:
  * - [MULTISITIO CORTE 6D — ADR-0011] Se fue el `sort` por `fechaEncolado`: **el array de
@@ -14,7 +25,7 @@
  * ------
  * El bucle que toma la primera clase de la cola, la descarga con el motor HLS y decide
  * qué pasa cuando algo falla. Esa segunda parte es el verdadero contenido: **la clasificación
- * de fallos tiene cuatro caminos y cada uno existe por un bug real**.
+ * de fallos tiene seis caminos y cada uno existe por un bug real**.
  *
  *   1. **Cancelación del usuario** (`abortadoPorUsuario`) → no es un fallo. Sale limpio.
  *   2. **`tipoConexion: "sesion"`** → pausa SIN alarma. El daemon ve la red OK y
@@ -22,9 +33,30 @@
  *   3. **`tipoBackend: "rechazo"` (4xx)** → **saltea sólo esa clase** y sigue. Es el fix del
  *      bug 400: el server está vivo, así que `/api/health` daría 200 y el daemon diría
  *      "servidor", generando el loop pausa→autoheal→mismo 400.
- *   4. **Cualquier otro** → fallo real: pausa CON alarma de auto-heal.
+ *   4. **`tipoPortal: "rechazo"`** → saltea sólo esa clase, igual que 3, pero el que rechaza es
+ *      el PORTAL y no el backend local (la lección no existe, no tiene media, tiene DRM).
+ *   5. **`tipoPortal: "bloqueo"`** → pausa SIN alarma. El portal rechaza de forma sistémica
+ *      (token, `Referer`, hotlink del CDN): le va a pasar a TODAS las clases, así que saltear
+ *      vaciaría la cola en silencio.
+ *   6. **Cualquier otro** → fallo real: pausa CON alarma de auto-heal.
  *
- * El orden importa: 1, 2 y 3 se clasifican **antes** de consultar al daemon.
+ * El orden importa: 1 a 5 se clasifican **antes** de consultar al daemon.
+ *
+ * POR QUÉ EXISTEN 4 Y 5 (el bug del cartel mentiroso, 2026-08-07)
+ * ---------------------------------------------------------------
+ * Hasta el corte 7 había DOS orígenes de fallo: el backend local y la red. Por eso el `else`
+ * de la heurística de abajo podía decir `"internet"` sin mentir casi nunca. El segundo portal
+ * agregó un TERCER origen —el portal mismo, que ahora resuelve el manifiesto con tres fetch
+ * contra su API y su CDN— y ahí ese `else` pasó a ser una afirmación falsa: el daemon medía
+ * `internet=true` y una línea después la UI decía *"se perdió la conexión a internet"* por un
+ * 403 del CDN. Peor: como no era `"sesion"`, se programaba el auto-heal, que veía internet OK,
+ * reanudaba, comía el mismo 403 y volvía a pausar **cada 12 s, para siempre**.
+ *
+ * Es el mismo patrón que este proyecto ya vio dos veces en otra forma (la clave de identidad
+ * que desbordó con cada eje nuevo): **un eje nuevo desborda una clasificación que asumía los
+ * ejes viejos, y el síntoma es silencioso o mentiroso**. Por eso el `else` ya no afirma nada
+ * (`"desconocido"`), y por eso el default de un error SIN tipar sigue siendo pausar con alarma:
+ * "no sé qué pasó" tiene que comportarse como lo transitorio, no como lo determinístico.
  *
  * ESTADO PROPIO (y por qué vive acá)
  * ----------------------------------
@@ -63,7 +95,19 @@ const motivosPausa = (nombreSitio: string): Record<string, string> => ({
   sesion: `no hay sesión activa en ${nombreSitio}`,
   servidor: "se perdió la conexión con el servidor local",
   internet: "se perdió la conexión a internet",
+  // Los dos que entraron con el fix del cartel mentiroso. Ninguno nombra la red: el daemon
+  // acaba de medir que está bien, y afirmar lo contrario fue exactamente el bug.
+  bloqueo: `${nombreSitio} rechazó la descarga`,
+  desconocido: "falló por un motivo que no es la red ni el servidor local",
 });
+
+/**
+ * Los únicos tipos que el daemon PUEDE ver recuperarse, y por lo tanto los únicos que se
+ * auto-sanan. Se declara la lista positiva a propósito: con la lista negativa ("todo menos
+ * sesion"), cada tipo nuevo entraba al auto-heal por omisión — que es cómo un 403
+ * determinístico terminó reintentándose cada 12 s.
+ */
+const TIPOS_CON_AUTOHEAL = ["servidor", "internet", "desconocido"];
 
 /**
  * Lo único que el bucle necesita de un adaptador de sitio. Es un subconjunto estructural de
@@ -274,9 +318,10 @@ export function crearProcesadorCola(deps: DependenciasCola) {
     const motivos = motivosPausa(nombreSitio ?? "el portal");
     void registrarFallo(tipoError, titulo, motivos[tipoError] || "error de conexión", sitioId);
 
-    // Auto-heal sólo para fallas que el daemon PUEDE detectar recuperadas. El caso "sesion"
-    // no: el daemon ve la red OK, así que la alarma reintentaría en loop contra el login.
-    if (tipoError !== "sesion") {
+    // Auto-heal sólo para fallas que el daemon PUEDE detectar recuperadas (TIPOS_CON_AUTOHEAL).
+    // "sesion" y "bloqueo" quedan afuera: el daemon ve la red OK, así que la alarma reintentaría
+    // en loop contra el login o contra el mismo rechazo del portal.
+    if (TIPOS_CON_AUTOHEAL.includes(tipoError)) {
       programador.programar(ALARMA_AUTOHEAL, { periodoMin: PERIODO_AUTOHEAL_MIN });
     }
 
@@ -338,6 +383,37 @@ export function crearProcesadorCola(deps: DependenciasCola) {
       // `core/cola/identidadClase.ts`, que es el único lugar donde vive esa regla.
       const esteItem = { titulo: tituloInmutableVideo, sitioId: elementoActual.sitioId };
       const claveItem = identidad.clave(esteItem);
+
+      /**
+       * Saca ESTA clase de la cola y sigue con la próxima. Es la resolución compartida de las
+       * dos ramas de rechazo determinístico —la del backend (3) y la del portal (4)—, que
+       * hacían lo mismo con el mismo comentario duplicado.
+       *
+       * La clase vuelve a `pending` y NO a un `error`: el resto del popup no conoce ese estado,
+       * así que quedaría invisible en vez de re-encolable.
+       */
+      async function saltearClaseYSeguir(motivo: string): Promise<void> {
+        const dataUpdate = await almacenamiento.obtenerLocal<{ colaDescargas: ItemCola[] }>([
+          "colaDescargas",
+        ]);
+        const colaFiltrada = (dataUpdate.colaDescargas || []).filter(
+          (c) => !identidad.misma(c, esteItem)
+        );
+        const objPersistente = listaCompleta.find((c) => identidad.misma(c, esteItem));
+        if (objPersistente) objPersistente.estado = "pending";
+        const estadosUpdate = await recuperarEstados();
+        delete estadosUpdate[claveItem];
+        // Misma escritura atómica de 3 claves que el path de éxito.
+        await almacenamiento.guardarLocal({
+          listaPersistente: listaCompleta,
+          colaDescargas: colaFiltrada,
+          SW_ESTADOS_PROGRESO: estadosUpdate,
+        });
+        mensajeria.notificar({ action: "clase_con_error", titulo: tituloInmutableVideo, motivo });
+        setTimeout(procesarSiguiente, 60); // seguir con la próxima
+        // Aviso DESPUÉS de garantizar la continuación de la cola.
+        void registrarFallo("rechazo", tituloInmutableVideo, motivo, elementoActual.sitioId);
+      }
 
       // ADR-0010: el portal sale del ÍTEM. Puede no resolver —el `sitioId` viene de storage y
       // puede nombrar un portal que ya no está registrado—, y eso es un fallo DETERMINÍSTICO:
@@ -542,7 +618,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
 
         setTimeout(procesarSiguiente, 60);
       } catch (errDescarga) {
-        const err = errDescarga as { name?: string; message?: string; tipoConexion?: string; tipoBackend?: string; httpStatus?: number };
+        const err = errDescarga as { name?: string; message?: string; tipoConexion?: string; tipoBackend?: string; tipoPortal?: string; httpStatus?: number };
         const estadoTrasFallo = await sesion.get();
 
         // (1) SÓLO el flag explícito marca cancelación del usuario. NO usar `signal.aborted`
@@ -571,35 +647,32 @@ export function crearProcesadorCola(deps: DependenciasCola) {
         // pendiente normal y es re-encolable.
         if (err?.tipoBackend === "rechazo") {
           console.warn(`⛔ [SW] El backend rechazó fragmentos de "${tituloInmutableVideo}" (HTTP ${err.httpStatus}). Se salta la clase y la cola continúa.`);
-          const dataUpdate = await almacenamiento.obtenerLocal<{ colaDescargas: ItemCola[] }>([
-            "colaDescargas",
-          ]);
-          const colaFiltrada = (dataUpdate.colaDescargas || []).filter(
-            (c) => !identidad.misma(c, esteItem)
-          );
-          const objPersistente = listaCompleta.find((c) => identidad.misma(c, esteItem));
-          if (objPersistente) objPersistente.estado = "pending";
-          const estadosUpdate = await recuperarEstados();
-          delete estadosUpdate[claveItem];
-          // Misma escritura atómica de 3 claves que el path de éxito.
-          await almacenamiento.guardarLocal({
-            listaPersistente: listaCompleta,
-            colaDescargas: colaFiltrada,
-            SW_ESTADOS_PROGRESO: estadosUpdate,
-          });
-          const motivoRechazo = `el backend rechazó sus fragmentos (HTTP ${err.httpStatus})`;
-          mensajeria.notificar({
-            action: "clase_con_error",
-            titulo: tituloInmutableVideo,
-            motivo: motivoRechazo,
-          });
-          setTimeout(procesarSiguiente, 60); // seguir con la próxima
-          // Aviso DESPUÉS de garantizar la continuación de la cola.
-          void registrarFallo("rechazo", tituloInmutableVideo, motivoRechazo, elementoActual.sitioId);
+          await saltearClaseYSeguir(`el backend rechazó sus fragmentos (HTTP ${err.httpStatus})`);
           return;
         }
 
-        // (4) Fallo REAL. Recién acá se loguea como error.
+        // (4) Rechazo del PORTAL sobre esta lección y sólo esta: no existe, no tiene media,
+        // tiene DRM. Misma resolución que (3) —saltear y seguir— por el mismo motivo: es
+        // determinístico, así que pausar y auto-sanar sería reintentarlo para siempre. Lo que
+        // cambia es quién rechaza, y por eso el motivo que ve el usuario nombra al portal.
+        if (err?.tipoPortal === "rechazo") {
+          const detalle = err.httpStatus ? ` (HTTP ${err.httpStatus})` : "";
+          console.warn(`⛔ [SW] ${sitioDelItem.nombre} rechazó "${tituloInmutableVideo}"${detalle}. Se salta la clase y la cola continúa.`);
+          await saltearClaseYSeguir(`${sitioDelItem.nombre} rechazó esta clase${detalle}`);
+          return;
+        }
+
+        // (5) Bloqueo SISTÉMICO del portal (token, `Referer`, hotlink del CDN). Se pausa y NO
+        // se saltea: le va a pasar a todas las clases, así que saltear iría vaciando la cola de
+        // a una, en silencio, hasta dejarla en cero sin que el usuario sepa por qué. Sin alarma
+        // porque el daemon no puede ver que esto se recuperó: la red nunca estuvo caída.
+        if (err?.tipoPortal === "bloqueo") {
+          console.warn(`🚧 [SW] ${sitioDelItem.nombre} bloqueó la descarga de "${tituloInmutableVideo}" (HTTP ${err.httpStatus ?? "s/d"}): ${err.message}`);
+          await pausarPorError("bloqueo", tituloInmutableVideo, sitioDelItem.nombre, elementoActual.sitioId);
+          return;
+        }
+
+        // (6) Fallo REAL. Recién acá se loguea como error.
         console.error(`⚠️ [BUCLE-ERROR] Falló la descarga de "${tituloInmutableVideo}":`, errDescarga);
 
         // Clasificar con el daemon (fuente única). Si la conectividad está OK —el fallo no
@@ -608,13 +681,20 @@ export function crearProcesadorCola(deps: DependenciasCola) {
         let tipoError = conexion.get().tipoFalla;
         if (!tipoError) {
           const msg = err?.message || "";
+          // ⚠️ El `else` de esta heurística decía `"internet"`, y era una AFIRMACIÓN, no un
+          // default: se llega acá justamente cuando el daemon acaba de medir que la red está
+          // bien. Con dos orígenes de fallo (backend local y red) casi nunca mentía; con el
+          // portal como tercero pasó a mentirle al usuario en cada 4xx de Hotmart. Ahora lo que
+          // no se reconoce se llama por su nombre. **No agregues más `msg.includes()` acá**:
+          // esa es la forma que degrada en silencio. Un fallo que se sabe clasificar se tipa en
+          // el origen, como hacen los adaptadores de sitio y `bunClient`.
           tipoError =
             msg.includes("Bun") ||
             msg.includes("localhost") ||
             msg.includes("127.0.0.1") ||
             msg.includes("backend")
               ? "servidor"
-              : "internet";
+              : "desconocido";
         }
         await pausarPorError(tipoError, tituloInmutableVideo, sitioDelItem.nombre, elementoActual.sitioId);
       }
@@ -666,9 +746,11 @@ export function crearProcesadorCola(deps: DependenciasCola) {
         programador.cancelar(ALARMA_AUTOHEAL);
         return false;
       }
-      // Guarda defensiva: "sesion" no se auto-reanuda (el daemon no detecta el login). No se
-      // le crea alarma, pero si quedó una de un estado previo, se limpia acá.
-      if (state.tipoDeErrorConexion === "sesion") {
+      // Guarda defensiva: los tipos que el daemon no puede ver recuperarse ("sesion",
+      // "bloqueo") no se auto-reanudan. No se les crea alarma, pero si quedó una de un estado
+      // previo —o de una versión anterior de la extensión— se limpia acá. Es la misma lista
+      // positiva de `pausarPorError`: si las dos no coinciden, la alarma vuelve a loopear.
+      if (!TIPOS_CON_AUTOHEAL.includes(state.tipoDeErrorConexion)) {
         programador.cancelar(ALARMA_AUTOHEAL);
         return false;
       }
