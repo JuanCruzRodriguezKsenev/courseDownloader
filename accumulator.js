@@ -2,7 +2,12 @@ import { createWriteStream } from "node:fs";
 import { unlink, rename, stat } from "node:fs/promises";
 import { log } from "./logger.js";
 
-// Map<tituloVideo, { nextExpectedIndex: number, pendingChunks: Map<number, Uint8Array>, writeStream: WriteStream, lastActivity: number, targetFile: string, yaEscribiendo: boolean, totalEsperado: number | null, sessionId: string }>
+// Map<claveVideo, { nextExpectedIndex, pendingChunks, writeStream, lastActivity, targetFile,
+//                    yaEscribiendo, totalEsperado, sessionId, tituloMostrado }>
+//
+// [MULTIPORTAL] La clave es `<portal>|<titulo>` y no el título solo: dos clases homónimas de
+// portales distintos compartían sesión, stream y archivo `.part`. `tituloMostrado` existe para
+// que los logs sigan diciendo el título limpio y no la clave.
 export const acumuladorChunks = new Map();
 
 // Registro rotativo de sesiones canceladas para evitar resurrección por chunks huérfanos
@@ -21,13 +26,13 @@ export function registrarSesionCancelada(sessionId) {
  * Recibe fragmentos, los almacena si están fuera de orden, y escribe progresivamente
  * al disco los fragmentos contiguos en cuanto se completan.
  */
-export async function alimentarSlidingWindow(tituloVideo, index, totalChunks, chunkBuffer, rutaArchivo, sessionId) {
-  if (!acumuladorChunks.has(tituloVideo)) {
+export async function alimentarSlidingWindow(claveVideo, index, totalChunks, chunkBuffer, rutaArchivo, sessionId, tituloMostrado) {
+  if (!acumuladorChunks.has(claveVideo)) {
     // Borrar el archivo mp4 final si existía uno previo completo
     await unlink(rutaArchivo).catch(() => {});
 
     const stream = createWriteStream(rutaArchivo + ".part");
-    acumuladorChunks.set(tituloVideo, {
+    acumuladorChunks.set(claveVideo, {
       nextExpectedIndex: 0,
       pendingChunks: new Map(),
       writeStream: stream,
@@ -35,11 +40,12 @@ export async function alimentarSlidingWindow(tituloVideo, index, totalChunks, ch
       targetFile: rutaArchivo,
       yaEscribiendo: false,
       totalEsperado: totalChunks,
-      sessionId: sessionId
+      sessionId: sessionId,
+      tituloMostrado: tituloMostrado || claveVideo
     });
   }
 
-  const sesion = acumuladorChunks.get(tituloVideo);
+  const sesion = acumuladorChunks.get(claveVideo);
   sesion.lastActivity = Date.now();
   sesion.totalEsperado = totalChunks;
 
@@ -70,7 +76,7 @@ export async function alimentarSlidingWindow(tituloVideo, index, totalChunks, ch
   if (sesion.totalEsperado && sesion.nextExpectedIndex >= sesion.totalEsperado) {
     if (!sesion.yaEscribiendo) {
       sesion.yaEscribiendo = true;
-      await flushVideoADisco(tituloVideo, sesion);
+      await flushVideoADisco(claveVideo, sesion);
     }
   }
 
@@ -80,8 +86,10 @@ export async function alimentarSlidingWindow(tituloVideo, index, totalChunks, ch
 /**
  * Cierra el stream de escritura y renombra el archivo temporal .part al definitivo
  */
-export async function flushVideoADisco(tituloVideo, sesion) {
+export async function flushVideoADisco(claveVideo, sesion) {
   const { writeStream, targetFile } = sesion;
+  // Los mensajes muestran el título, no la clave: la clave es un detalle interno.
+  const tituloVideo = sesion.tituloMostrado || claveVideo;
 
   log("FLUSH", "DISCO", `Finalizando descarga y cerrando stream para: "${tituloVideo}"`, {
     ruta: targetFile
@@ -102,7 +110,7 @@ export async function flushVideoADisco(tituloVideo, sesion) {
     finalSize = s.size;
   } catch (e) {}
 
-  acumuladorChunks.delete(tituloVideo);
+  acumuladorChunks.delete(claveVideo);
 
   const tamañoMB = (finalSize / 1024 / 1024).toFixed(1);
   const tituloCorto = tituloVideo.length > 25 ? tituloVideo.slice(0, 22) + "..." : tituloVideo;
@@ -112,22 +120,22 @@ export async function flushVideoADisco(tituloVideo, sesion) {
 /**
  * Aborta la descarga activa, cierra el stream y elimina el archivo parcial .part del disco
  */
-export async function abortarDescargaYLimpiar(tituloVideo, sessionId) {
+export async function abortarDescargaYLimpiar(claveVideo, sessionId) {
   if (sessionId) {
     registrarSesionCancelada(sessionId);
   }
 
-  if (!acumuladorChunks.has(tituloVideo)) return;
+  if (!acumuladorChunks.has(claveVideo)) return;
 
-  const sesion = acumuladorChunks.get(tituloVideo);
+  const sesion = acumuladorChunks.get(claveVideo);
   if (sessionId && sesion.sessionId && sesion.sessionId !== sessionId) {
     // Si el sessionId a cancelar es diferente del activo, no borrar (ya es una sesión más nueva)
     return;
   }
 
-  acumuladorChunks.delete(tituloVideo);
+  acumuladorChunks.delete(claveVideo);
 
-  log("ABORT", "DISCO", `Cancelando y limpiando recursos de: "${tituloVideo}"`);
+  log("ABORT", "DISCO", `Cancelando y limpiando recursos de: "${sesion.tituloMostrado || claveVideo}"`);
 
   // Cerrar y destruir el stream de escritura
   if (sesion.writeStream) {

@@ -9,6 +9,42 @@ import { acumuladorChunks, alimentarSlidingWindow, abortarDescargaYLimpiar, sess
 let extensionConectada = false;
 
 /**
+ * [MULTIPORTAL] La carpeta del portal, un nivel por encima de la materia.
+ *
+ * El layout pasó de `raíz/<materia>/` a `raíz/<portal>/<materia>/` porque con N portales dos
+ * clases homónimas de la misma materia escribían el mismo archivo y se pisaban.
+ *
+ * **Se sanitiza por separado y no junto con la subcarpeta**: `sanitizarNombreArchivo` hace
+ * `path.basename()`, así que sanitizar `"ramonnet/biologia"` de una sola vez devolvería
+ * `"biologia"` y la carpeta de portal desaparecería en silencio.
+ *
+ * Devuelve `""` cuando el pedido no lo trae, y ahí el layout es el de antes (un solo nivel).
+ * Eso es deliberado: una extensión anterior a este cambio sigue funcionando contra este backend.
+ */
+function carpetaDeSitio(crudo) {
+  if (!crudo) return "";
+  return sanitizarNombreArchivo(crudo).toLowerCase();
+}
+
+/** La ruta de destino, con la carpeta de portal adelante si vino. */
+function rutaDeDestino(carpetaSitio, subCarpeta) {
+  return carpetaSitio
+    ? path.join(CARPETA_RAIZ_VIDEOS, carpetaSitio, subCarpeta)
+    : path.join(CARPETA_RAIZ_VIDEOS, subCarpeta);
+}
+
+/**
+ * La clave del acumulador en memoria.
+ *
+ * También lleva el portal: sin él, dos descargas de clases homónimas de portales distintos
+ * compartirían sesión, stream y archivo temporal `.part`. Es el mismo motivo por el que la
+ * extensión pasó a identificar por (portal, título).
+ */
+function claveSesion(carpetaSitio, tituloVideo) {
+  return carpetaSitio ? `${carpetaSitio}|${tituloVideo}` : tituloVideo;
+}
+
+/**
  * Health check handler
  */
 export async function handleHealth(request, corsHeaders) {
@@ -28,13 +64,15 @@ export async function handleHealth(request, corsHeaders) {
 export async function handleEscanearDisco(url, corsHeaders) {
   try {
     const subCarpeta = sanitizarNombreArchivo(url.searchParams.get("carpeta") || "descargas");
+    // [MULTIPORTAL] Sin `sitio` se mira el layout viejo, de un solo nivel.
+    const carpetaSitio = carpetaDeSitio(url.searchParams.get("sitio"));
     
     if (!extensionConectada) {
       extensionConectada = true;
       process.stdout.write(`\r📡 [CONEXIÓN]  Extensión conectada con éxito.\n`);
     }
 
-    const carpetaDestino = path.join(CARPETA_RAIZ_VIDEOS, subCarpeta.toLowerCase());
+    const carpetaDestino = rutaDeDestino(carpetaSitio, subCarpeta.toLowerCase());
 
     if (!esRutaSegura(carpetaDestino)) {
       return new Response(JSON.stringify({ error: "Ruta inválida." }), { status: 400, headers: corsHeaders });
@@ -69,12 +107,15 @@ export async function handleEscanearDisco(url, corsHeaders) {
  */
 export async function handleActualizarConsola(request, corsHeaders) {
   try {
-    const { titulo, porcentaje, terminados, totales, velocidad } = await request.json();
-    
+    const { titulo, porcentaje, terminados, totales, velocidad, sitioId } = await request.json();
+
     // GUARDIA: Si el video ya no está en el acumulador, significa que ya se guardó a disco,
     // por lo tanto ignoramos cualquier mensaje de consola rezagado de la extensión.
+    // [MULTIPORTAL] La guarda consulta por la MISMA clave compuesta con la que se acumula; con
+    // el título pelado, el progreso de una clase silenciaba el de su homónima de otro portal.
     const tituloSani = sanitizarNombreArchivo(titulo);
-    if (!acumuladorChunks.has(tituloSani)) {
+    const claveVideo = claveSesion(carpetaDeSitio(sitioId), tituloSani);
+    if (!acumuladorChunks.has(claveVideo)) {
       return new Response(JSON.stringify({ success: true }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
@@ -120,7 +161,13 @@ export async function handleBypassStream(request, corsHeaders) {
     const indiceChunk = parseInt(request.headers.get("x-chunk-index") || "0", 10);
     const totalChunks = parseInt(request.headers.get("x-total-chunks") || "0", 10);
     const subCarpeta  = sanitizarNombreArchivo(request.headers.get("x-target-folder") || "descargas");
+    // [MULTIPORTAL] De qué portal es la clase. Va en su propio header y no pegado a
+    // `x-target-folder` justamente por el `path.basename()` de la sanitización.
+    const carpetaSitio = carpetaDeSitio(request.headers.get("x-site-folder"));
     const sessionId   = request.headers.get("x-session-id") || "";
+    // La clave del acumulador lleva el portal; el título pelado se conserva para los logs y
+    // para el nombre del archivo, que no cambian.
+    const claveVideo  = claveSesion(carpetaSitio, tituloVideo);
 
     log("CHUNK", "IPC", `Chunk recibido`, { titulo: tituloVideo, indice: indiceChunk, sessionId });
 
@@ -135,7 +182,7 @@ export async function handleBypassStream(request, corsHeaders) {
     if (indiceChunk === 0) {
       // Chequeo de protección contra incompatibilidad de cátedras
       try {
-        const carpetaDestinoBase = path.join(CARPETA_RAIZ_VIDEOS, subCarpetaFinal);
+        const carpetaDestinoBase = rutaDeDestino(carpetaSitio, subCarpetaFinal);
         if (existsSync(carpetaDestinoBase)) {
           const { readdir } = await import("node:fs/promises");
           const items = await readdir(carpetaDestinoBase, { withFileTypes: true });
@@ -176,12 +223,12 @@ export async function handleBypassStream(request, corsHeaders) {
 
     // Si la sesión ya existe en el acumulador deslizable, respetamos la ruta resuelta previamente y validamos ID
     let rutaArchivoFinal;
-    if (acumuladorChunks.has(tituloVideo)) {
-      const sesionExistente = acumuladorChunks.get(tituloVideo);
+    if (acumuladorChunks.has(claveVideo)) {
+      const sesionExistente = acumuladorChunks.get(claveVideo);
       if (sessionId && sesionExistente.sessionId && sesionExistente.sessionId !== sessionId) {
         if (indiceChunk === 0) {
           log("WARN", "ACUMULADOR", `⚠️ Nueva sesión detectada para "${tituloVideo}". Abortando sesión anterior "${sesionExistente.sessionId}"`);
-          await abortarDescargaYLimpiar(tituloVideo, sesionExistente.sessionId);
+          await abortarDescargaYLimpiar(claveVideo, sesionExistente.sessionId);
         } else {
           log("WARN", "ACUMULADOR", `⚠️ Chunk [${indiceChunk}] con Session ID "${sessionId}" no coincide con la sesión activa "${sesionExistente.sessionId}" — ignorando.`);
           return new Response(JSON.stringify({ error: "Session ID no coincide." }), { status: 400, headers: corsHeaders });
@@ -189,8 +236,8 @@ export async function handleBypassStream(request, corsHeaders) {
       }
     }
 
-    if (acumuladorChunks.has(tituloVideo)) {
-      rutaArchivoFinal = acumuladorChunks.get(tituloVideo).targetFile;
+    if (acumuladorChunks.has(claveVideo)) {
+      rutaArchivoFinal = acumuladorChunks.get(claveVideo).targetFile;
     } else {
       // Control defensivo contra fragmentos huérfanos/tardíos de descargas ya canceladas
       if (!sessionId && indiceChunk > 0) {
@@ -198,7 +245,7 @@ export async function handleBypassStream(request, corsHeaders) {
         return new Response(JSON.stringify({ error: "Descarga cancelada o inexistente." }), { status: 400, headers: corsHeaders });
       }
 
-      const carpetaDestino = path.join(CARPETA_RAIZ_VIDEOS, subCarpetaFinal);
+      const carpetaDestino = rutaDeDestino(carpetaSitio, subCarpetaFinal);
       rutaArchivoFinal = path.join(carpetaDestino, `${tituloVideo}.mp4`);
 
       if (!esRutaSegura(carpetaDestino) || !esRutaSegura(rutaArchivoFinal)) {
@@ -210,11 +257,11 @@ export async function handleBypassStream(request, corsHeaders) {
     }
 
     if (indiceChunk === 0) {
-      if (acumuladorChunks.has(tituloVideo)) {
-        const sesionExistente = acumuladorChunks.get(tituloVideo);
+      if (acumuladorChunks.has(claveVideo)) {
+        const sesionExistente = acumuladorChunks.get(claveVideo);
         if (sesionExistente.sessionId !== sessionId) {
           log("WARN", "ACUMULADOR", `⚠️ CHUNK 0 recibido con nueva sesión — reiniciando acumulador`, { titulo: tituloVideo });
-          await abortarDescargaYLimpiar(tituloVideo, sesionExistente.sessionId);
+          await abortarDescargaYLimpiar(claveVideo, sesionExistente.sessionId);
         }
       }
     }
@@ -227,7 +274,7 @@ export async function handleBypassStream(request, corsHeaders) {
     }
 
     // Alimentar la Ventana Deslizable progresiva
-    const sesion = await alimentarSlidingWindow(tituloVideo, indiceChunk, totalChunks, bufferChunk, rutaArchivoFinal, sessionId);
+    const sesion = await alimentarSlidingWindow(claveVideo, indiceChunk, totalChunks, bufferChunk, rutaArchivoFinal, sessionId, tituloVideo);
 
     return new Response(
       JSON.stringify({ success: true, chunk: indiceChunk, recibidos: sesion.nextExpectedIndex, total: totalChunks }),
@@ -284,7 +331,17 @@ export async function handleCancelarDescarga(url, corsHeaders) {
       return new Response(JSON.stringify({ error: "Falta el parámetro título." }), { status: 400, headers: corsHeaders });
     }
 
-    await abortarDescargaYLimpiar(titulo, sessionId);
+    // [MULTIPORTAL] Con el título pelado, cancelar una descarga podía borrar el `.part` de la
+    // clase homónima del otro portal — que además estaría a medio bajar.
+    // El título va SANITIZADO, como se guardó: el acumulador se llena con
+    // `sanitizarNombreArchivo(tituloRaw)`. Comparar contra el crudo no matcheaba nunca cuando
+    // el título traía caracteres que la sanitización reemplaza — bug previo, arreglado acá
+    // porque esta línea igual cambiaba.
+    const claveVideo = claveSesion(
+      carpetaDeSitio(url.searchParams.get("sitio")),
+      sanitizarNombreArchivo(titulo)
+    );
+    await abortarDescargaYLimpiar(claveVideo, sessionId);
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
