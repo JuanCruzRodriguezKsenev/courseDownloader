@@ -38,7 +38,8 @@ Los 11, para no tener que abrir el archivo: `id`, `nombre`, `urlSondeoInternet`,
 `parsearTitulo`, `clasificarCarpeta` y `faceta` — este último un `DescriptorFaceta` completo,
 que es el que más trabajo da. **El hogar canónico del contrato es la interfaz**, no este doc: si
 el número no coincide, gana `sitio.ts` y esta línea está vieja. *(Decía "12" desde que se
-escribió, y nadie los había contado.)*
+escribió, y nadie los había contado. Ojo: ADR-0012 sacó `claveEstado`, pero ese miembro era de
+`DescriptorFaceta` —el objeto que cuelga de `faceta`—, no del puerto: el número no se movió.)*
 
 ## El problema real: el sitio es un singleton, y tiene que ser un dato
 

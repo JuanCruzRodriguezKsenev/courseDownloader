@@ -84,11 +84,10 @@ export interface DescriptorFaceta {
   valorComun: string;
   /** Centinela de "no filtrar por esta faceta". */
   valorTodas: string;
-  /**
-   * Propiedad de `AppState` donde vive la elección. Existe como dato —y no
-   * hardcodeada— para que la UI genérica no nombre el concepto del sitio.
-   */
-  claveEstado: string;
+  // [MULTIPORTAL B] Acá vivía `claveEstado`: el nombre de la propiedad de `AppState` donde se
+  // guardaba la elección. Se fue porque nombraba UN casillero, y la elección pasó a ser **por
+  // portal** (`AppState.facetaElegidaDe(sitioId)`). Mientras fue única, la elección de un
+  // portal se aplicaba al otro y le vaciaba el listado sin decir nada.
 
   /** De dónde sale el valor de la faceta en un item del listado scrapeado. */
   leer(clase: ItemFacetable): string | undefined;

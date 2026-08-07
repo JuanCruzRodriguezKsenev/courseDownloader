@@ -84,7 +84,12 @@ beforeEach(() => {
     listadoClasesGlobal: [],
     colaDescargas: [],
     pestañaActiva: 'disponibles',
-    facetaSeleccionada: null,
+    facetasElegidas: {},
+    facetaElegidaDe(sitioId) { return this.facetasElegidas[sitioId] ?? null; },
+    fijarFacetaElegida(sitioId, valor) {
+      if (valor === null) delete this.facetasElegidas[sitioId];
+      else this.facetasElegidas[sitioId] = valor;
+    },
   };
   // El valor de la faceta para los items de la COLA lo deriva el adaptador de sitio
   // re-parseando el título (SitioRamonNet.clasificarCarpeta → ParserTitulos). Acá se

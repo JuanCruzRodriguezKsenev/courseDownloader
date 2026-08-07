@@ -24,5 +24,6 @@ Registro formal de las decisiones de arquitectura significativas del proyecto.
 | [0009](0009-registro-de-sitios-en-runtime.md) | Selección del sitio en runtime (registro por URL), no una build por portal | Aceptada |
 | [0010](0010-el-sitio-es-del-item.md) | El sitio es una propiedad del ítem, no de la build | Aceptada |
 | [0011](0011-el-orden-de-la-cola-lo-decide-el-popup.md) | El orden de la cola lo decide el popup: el array **es** el orden | Aceptada |
+| [0012](0012-la-faceta-elegida-es-por-portal.md) | La faceta elegida es por portal, y `claveEstado` sale del puerto | Aceptada |
 
 Estados posibles: `Propuesta` → `Aceptada` | `Rechazada` | `Diferida` → (eventualmente) `Superseded by NNNN`.

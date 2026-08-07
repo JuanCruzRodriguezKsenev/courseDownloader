@@ -171,7 +171,7 @@ const FilterFeature = {
         const coincideEstado = filtrosActivos.estados.size === 0 || filtrosActivos.estados.has(clase.estado);
 
         const valor = faceta.leer(clase);
-        const elegido = appState[faceta.claveEstado];
+        const elegido = appState.facetaElegidaDe(sitio().id); // [MULTIPORTAL B] por portal
         let coincideFaceta = true;
         if (filtrosActivos.valoresFaceta.size > 0) {
           coincideFaceta = filtrosActivos.valoresFaceta.has(valor);
@@ -267,7 +267,7 @@ const FilterFeature = {
           clasesDelPortalActivo().map(c => faceta.leer(c)).filter(v => v !== faceta.valorComun)
         )).sort(faceta.ordenar);
 
-        const elegido = appState[faceta.claveEstado];
+        const elegido = appState.facetaElegidaDe(sitio().id); // [MULTIPORTAL B] por portal
         if (elegido && elegido !== faceta.valorTodas) {
           valoresDetectados = valoresDetectados.filter(v => v === elegido);
         }

@@ -56,10 +56,12 @@ const FacetaFeature = {
     // como estaban.
     const descriptorFaceta = () => sitio().faceta;
 
-    // Lee/escribe la elección del usuario en appState sin nombrar el concepto del
-    // sitio (la clave la declara el descriptor).
-    const leerSeleccion = () => appState[descriptorFaceta().claveEstado];
-    const fijarSeleccion = (valor) => { appState[descriptorFaceta().claveEstado] = valor; };
+    // [MULTIPORTAL B] La elección es POR PORTAL. Antes era un casillero único que el
+    // descriptor nombraba (`faceta.claveEstado`), y con dos portales la elección de uno se
+    // aplicaba al otro: como no matcheaba ninguno de sus valores, le vaciaba el listado sin
+    // error ni explicación. `claveEstado` dejó de existir en el puerto.
+    const leerSeleccion = () => appState.facetaElegidaDe(sitio().id);
+    const fijarSeleccion = (valor) => { appState.fijarFacetaElegida(sitio().id, valor); };
 
     /**
      * [MULTIPORTAL A] Las clases del listado que son del portal activo.

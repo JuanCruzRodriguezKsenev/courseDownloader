@@ -11,7 +11,7 @@ Escrito principalmente por `AppState.respaldar()` (`core/estado/appState.ts`) de
 | `listaPersistente` | `Clase[]` (ver abajo) | popup (`AppState.respaldar`), SW (varios handlers IPC) | Lista completa de clases scrapeadas de la última sesión, con su estado actual. |
 | `colaDescargas` | `ColaItem[]` (ver abajo) | popup, SW | Cola de descarga desacoplada — separada de `listaPersistente` para poder sobrevivir a cambios de materia/pestaña sin perder el progreso. **El array ES el orden de descarga** desde el corte 6d (ADR-0011): lo escribe el popup y el SW lo obedece. |
 | `faseDiscoOk` | `boolean` | popup | Si ya se corrió una sincronización con el disco (vía `escanear_carpeta_local`) en esta sesión. |
-| `facetaElegida` | `string \| null` | popup | Valor de faceta seleccionado por el usuario cuando se detecta más de uno (en Ramón Net: la cátedra A–D). La UI no nombra esta clave: la declara el adaptador de sitio (`sitio/ramonnet/config.ts`, `faceta.claveEstado` → `AppState.facetaSeleccionada`). **Se llamó `catedraElegida` hasta el 2026-08-03** — ver la nota de migración abajo. |
+| `facetasElegidas` | `Record<sitioId, string \| null>` | popup | El valor de faceta que el usuario eligió **en cada portal** (en Ramón Net: la cátedra A–D). No se lee directo: `AppState.facetaElegidaDe(sitioId)` / `.fijarFacetaElegida(...)`. **Era un valor único (`facetaElegida`) hasta el 2026-08-06** y eso vaciaba el listado al cambiar de portal — ver ADR-0012 y la nota de migración abajo. Antes todavía se llamó `catedraElegida` (hasta el 2026-08-03). |
 | `ocultarAdvExplorar` | `boolean` | popup | Preferencia: no volver a mostrar el aviso al explorar carpeta. |
 | `ocultarAdvAula` | `boolean` | popup | Preferencia: no volver a mostrar el aviso al cambiar de aula. |
 | `ordenAscendente` | `boolean \| null` | popup | **Sentido del orden de la pestaña Disponibles**: `true`=ascendente, cualquier otra cosa=descendente — sí, `null` cae en descendente, porque ahí sólo se mira su verdad/falsedad. Hasta el corte 6b servía **también** a la Cola con otra semántica (`null`=FIFO, `true`/`false`=nombre ↑/↓); esa mitad se mudó a `criterioOrdenCola`/`ordenColaAscendente` y ésta quedó como estaba. Que un solo campo significara dos cosas distintas según quién lo leyera es la razón por la que la migración **no** lo tocó: derivarlo hacia `true` habría dado vuelta Disponibles en toda instalación existente, sin que nada lo dijera. |
@@ -40,6 +40,20 @@ cambia — lo guardado antes del multi-sitio sigue habiendo venido de Ramón Net
 
 Cubierto por 3 tests en `core/estado/appState.test.ts` (ítem legado, ítem que ya trae su sitio,
 y lista vacía / entradas nulas).
+
+### Migración: `facetaElegida` → `facetasElegidas`, un mapa por portal (2026-08-06)
+
+**ADR-0012.** La elección de faceta era **un solo casillero**, y con dos portales eso rompe en
+la peor forma: elegís "Cátedra A" en uno, pasás al otro, `"A"` no matchea ninguno de *sus*
+valores y el filtro esconde todo — **el listado se ve vacío**, sin error ni explicación.
+
+La clave pasa a ser un mapa `{ [sitioId]: valor }`. El valor único de una instalación existente
+entra como el del **portal legado**: correcto por construcción, porque no había otro portal del
+cual pudiera venir. Misma mecánica que la migración de abajo, incluido el borrado de la clave
+vieja; si conviven mapa y valor único, gana el mapa.
+
+En el mismo cambio **`PuertoSitio.faceta.claveEstado` dejó de existir**: nombraba *una*
+propiedad de `AppState`, y con un mapa la clave es el `sitioId`.
 
 ### Migración: `catedraElegida` → `facetaElegida` (2026-08-03)
 
