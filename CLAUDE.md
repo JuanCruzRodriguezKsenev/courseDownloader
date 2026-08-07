@@ -27,12 +27,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > - **Frente abierto, nada construido**: el escaneo de ese portal pasa de leer el DOM a pedirle el
 >   árbol a la API del club, en cinco cortes → `docs/escaneo-api-anatomy-diseno.md`.
 >
-> **LA PRÓXIMA ACCIÓN, y proponela apenas leas esto: bajar una clase entera de Anatomy.** La
-> verificación en navegador del corte 7 está a medias — el escaneo ya pasó (con eso quedó probado
-> que `escanearListado` sobrevive a ser serializada, que era el mayor riesgo); falta todo lo que
-> se ve bajando, y el popup con las dos colas mezcladas, que es lo que saca de "sólo dobles" a
-> media docena de afirmaciones. Las casillas están al principio de
-> `docs/portal-anatomy-by-chris-diseno.md`.
+> **El corte 7 baja clases de punta a punta desde el 2026-08-07** — escaneo, resolución del
+> manifiesto, fragmentos, archivo en `raíz/anatomy-by-chris/<módulo>/`. Costó **cuatro arreglos
+> que ningún test podía ver**, y los cuatro salieron de usar la extensión: la regla dNR le faltaba
+> el host del CDN, el motor resolvía las URLs relativas cortando por el último `/` (y Akamai firma
+> con una barra en el query), los fallos del portal se mostraban como "se perdió internet", y el
+> aviso al popup no llevaba `sitioId` — eso último rebajaba la misma clase para siempre. Las tres
+> corridas, con lo que enseñó cada una, en `docs/portal-anatomy-by-chris-diseno.md` §2.
+>
+> **LA PRÓXIMA ACCIÓN: terminar la verificación en navegador** — faltan el `patronPestañas` y **el
+> popup con las dos colas mezcladas**, que es lo que saca de "sólo dobles" a media docena de
+> afirmaciones. Casillas 3 y 4 del mismo doc. Después de eso el corte se puede mergear a `main`.
 >
 > **Y no la saltees**: los tres únicos defectos que llegaron a `main` en toda la re-arquitectura
 > los encontró usar la extensión, no la suite — y abrir el popup el 2026-08-05 encontró otros tres
