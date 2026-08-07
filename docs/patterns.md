@@ -55,6 +55,33 @@ navegador es `plataforma/chrome/mensajeria.ts`; el de tests, `core/puertos/mensa
 mecanismo de error de toda la API de callbacks de `chrome.*`, así que los que quedan en
 `popup.js` son de `tabs`/`scripting` y no se tocan hasta que existan esos puertos.
 
+### ⚠️ Un mensaje que habla de una clase lleva `sitioId`, siempre
+
+Un payload con `{ titulo }` y sin `sitioId` **no identifica una clase**: identifica a lo sumo una
+por portal. Y no falla de forma visible, porque `identidadClase` migra el `sitioId` ausente al
+portal legado (`composicion.ts`) — así que el mensaje no queda "sin portal", queda **atribuido al
+portal equivocado**, en silencio.
+
+El caso real (2026-08-07, encontrado usando la extensión): `clase_guardada_ok` viajaba sin
+`sitioId`. El SW terminaba de bajar una clase de Anatomy, la sacaba bien de la cola y avisaba; el
+popup comparaba `"anatomy-by-chris|Osteologia"` contra `"ramonnet|Osteologia"`, no la reconocía,
+**no la sacaba de su copia**, y su `respaldar()` reescribía esa copia encima de la cola recién
+vaciada. El bucle volvía a tomar la misma clase y **la bajaba para siempre**, pisando el `.part`
+en cada vuelta. En Ramón Net no se veía: su id *es* el legado, así que la clave coincidía de
+casualidad.
+
+Dos reglas que salen de ahí:
+
+1. **El emisor manda el `sitioId` crudo del ítem**, no el resuelto. Es lo que tiene el ítem del
+   otro lado, así que las claves coinciden incluso para un huérfano.
+2. **El receptor compara con `identidadClase.misma`, nunca por `titulo`.** El mismo handler tenía
+   además un `c.titulo === req.titulo` sobreviviente que marcaba como descargada a la homónima
+   del *otro* portal.
+
+Es la tercera vez que este proyecto paga el mismo patrón (ver `docs/multisitio-diseno.md`): un eje
+nuevo desborda una identidad que asumía los ejes viejos, y el síntoma es siempre el mismo — un
+ítem que desaparece, se duplica o se atribuye mal, sin un error en ningún lado.
+
 ## State ownership split (AppState / SessionState)
 
 **Dónde**: `core/estado/appState.ts` (`AppState`, vive en el popup) vs. `SessionState` (`core/cola/estadoSesion.ts`, que vive en el service worker).

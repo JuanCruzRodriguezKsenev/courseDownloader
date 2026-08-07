@@ -61,7 +61,7 @@ así que el número no se pudo cruzar contra el portal. Los tres chequeos de 30 
   colaron dos clases de Texto — que no es grave ni silencioso: al bajarlas, `resolverManifiesto`
   corta con "no trae ningún media" y el bucle las saltea.
 
-### 🟨 2. Bajar una clase entera — *a medias: se probó, falló, y dejó dos arreglos*
+### ✅ 2. Bajar una clase entera — *funciona (2026-08-07), después de CUATRO arreglos*
 
 Que el archivo caiga en `raíz/anatomy-by-chris/<módulo>/`. Acá se contesta **si la regla dNR del
 `Referer` funciona de verdad** (*pendiente 1f*): si no, el paso 2 de `resolverManifiesto` corta
@@ -107,6 +107,22 @@ de unos KB en vez del video sería el master colándose.
 >
 > Ojo con el costo que tenía: el motor reintenta **4 veces por fragmento con backoff**, así que
 > cada clase tardaba ~15 s en fallar por esto, con 6 workers gritando en la consola.
+>
+> **Tercera corrida: baja entera pero la MISMA clase se vuelve a bajar, en loop infinito.** Y acá
+> el service worker no tenía nada que ver — hacía todo bien. El aviso `clase_guardada_ok` viajaba
+> con `titulo` y **sin `sitioId`**, así que el popup comparaba `"anatomy-by-chris|Osteologia"`
+> contra `"ramonnet|Osteologia"` (la migración manda el id ausente al portal legado), no
+> reconocía la clase, no la sacaba de su copia de la cola, y su `respaldar()` reescribía esa copia
+> **encima de la cola que el SW acababa de vaciar**. En Ramón Net no se veía porque su id *es* el
+> legado. La regla que salió de acá vive en `docs/patterns.md` §IPC. De paso apareció un
+> `c.titulo === req.titulo` sobreviviente en el mismo handler, que marcaba como descargada a la
+> homónima del **otro** portal.
+>
+> **Cómo se encontró, que es lo que conviene copiar**: instrumentando el bucle. Tiene cinco
+> `return` que no loguean nada, así que "no hizo nada" y "salió por acá" se ven igual desde
+> afuera. Con una traza en cada salida y en el arranque, dos líneas de consola alcanzaron —
+> `cola 1 → 0` seguido de `la cola tiene 1`— para saber que el problema estaba **después** de la
+> escritura y no en ella. Las trazas se sacaron una vez encontrado el bug.
 >
 > **Y destapó un bug que no era de este portal**: el 403 se le mostró al usuario como *"se perdió
 > la conexión a internet"*, con el daemon midiendo `internet=true` una línea antes, y con el
