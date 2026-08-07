@@ -33,20 +33,41 @@ export default defineConfig({
       'unlimitedStorage',
     ],
     host_permissions: [
+      // --- Portal 1: Ramón Net + su CDN de video (Bunny) ---
       'https://plataforma.ramonnet.com.ar/*',
       'http://plataforma.ramonnet.com.ar/*',
       'https://*.bunnyinfra.net/*',
       'https://*.b-cdn.net/*',
+      // --- Portal 2: Anatomy by Chris (Hotmart Club) ---
+      // Los cinco orígenes salen de medir la cadena entera (ver
+      // docs/portal-anatomy-by-chris-diseno.md §La cadena de video). Olvidar el del CDN se ve
+      // como descargas que fallan en el primer fragmento, no como un error de permisos.
+      'https://hotmart.com/*',                                             // el club
+      'https://api-club-course-consumption-gateway-ga.cb.hotmart.com/*',   // API de lecciones
+      'https://cf-embed.play.hotmart.com/*',                               // el embed del player
+      'https://vod-akm.play.hotmart.com/*',                                // master/variante/fragmentos (Akamai)
+      'https://contentplayer.hotmart.com/*',                               // la clave AES
+      // --- Backend local ---
       'http://localhost:3001/*',
     ],
-    // El ruleset es específico del sitio (ADR-0009). El .json se sirve desde public/
-    // para que WXT lo copie tal cual al output conservando esta ruta.
+    // Los rulesets son específicos de cada sitio (ADR-0009), uno por portal y con `id`
+    // propio. Los .json se sirven desde public/ para que WXT los copie tal cual conservando
+    // esta ruta.
     declarative_net_request: {
       rule_resources: [
         {
           id: 'ruleset_1',
           enabled: true,
           path: 'sitio/ramonnet/rules.json',
+        },
+        {
+          // El embed de Hotmart contesta 401 sin `Referer`, y `Referer` es un header
+          // prohibido para `fetch`: la única forma de ponerlo desde el service worker es
+          // esta regla. Si no está cargada, el síntoma es ese 401 en el paso 2 de
+          // `resolverManifiesto`.
+          id: 'ruleset_anatomy',
+          enabled: true,
+          path: 'sitio/anatomy-by-chris/rules.json',
         },
       ],
     },

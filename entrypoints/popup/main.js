@@ -10,10 +10,21 @@
  * verifica que los archivos existan.
  */
 
-// Adaptador de sitio (Capa 2): antes que todo lo que lo consume.
+// Adaptadores de sitio (Capa 2): antes que todo lo que los consume.
+//
+// Desde el corte 7 son DOS portales, y cada uno publica sus globals con nombre propio
+// (`Scraper` vs `ScraperAnatomy`, etc.). Compartir un nombre haría que el último evaluado le
+// pise el suyo al otro, y el síntoma sería un portal escaneando con el adaptador ajeno.
+//
+// El popup importa el `scraper.js` de cada uno (lo inyecta en la pestaña) y NO los
+// `resolverManifiesto.js`, que son del service worker. De ahí que las dos listas difieran.
 import '../../sitio/ramonnet/config.ts';
 import '../../sitio/ramonnet/parserTitulos.js';
 import '../../sitio/ramonnet/scraper.js';
+
+import '../../sitio/anatomy-by-chris/config.ts';
+import '../../sitio/anatomy-by-chris/parserTitulos.js';
+import '../../sitio/anatomy-by-chris/scraper.js';
 
 // Núcleo compartido.
 import '../../core/backend/bunClient.ts';
@@ -28,7 +39,7 @@ import '../../plataforma/composicion.ts';
 // `DOMContentLoaded` se registra en el mismo momento que antes — los módulos ES son
 // diferidos, así que todo esto corre antes de que el evento dispare.
 import { iniciarPopup } from '../../popup.js';
-import { AppState, Conexion, HistorialFallos, identidadClase, mensajeria, sitios, Utils } from '../../plataforma/composicion.ts';
+import { AppState, Conexion, credencialesPortal, HistorialFallos, identidadClase, mensajeria, sitios, Utils } from '../../plataforma/composicion.ts';
 import BunClient from '../../core/backend/bunClient.ts';
 import crearRenderers from '../../renderers.js';
 
@@ -50,6 +61,8 @@ iniciarPopup({
   sitios,
   // [MULTIPORTAL D] El MISMO criterio de identidad que el service worker.
   identidadClase,
+  // [CORTE 7] Donde el escaneo deja las credenciales del portal para que las lea el SW.
+  credencialesPortal,
   renderers: crearRenderers(Utils),
 });
 

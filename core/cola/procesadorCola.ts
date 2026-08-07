@@ -71,7 +71,16 @@ const motivosPausa = (nombreSitio: string): Record<string, string> => ({
  * procesador no conoce el resto del contrato del portal.
  */
 export interface SitioDeDescarga {
-  resolverManifiesto(urlClase: string, signal: AbortSignal): Promise<string>;
+  /**
+   * El tercer parámetro son las credenciales que ESE portal cosechó al escanear
+   * (`core/estado/credencialesPortal.ts`). El bucle no las mira ni sabe qué contienen: las
+   * pasa. Un portal que no las use ignora el parámetro.
+   */
+  resolverManifiesto(
+    urlClase: string,
+    signal: AbortSignal,
+    credenciales?: Record<string, string>
+  ): Promise<string>;
   /** Nombre del portal, para el copy que ve el usuario. Capa 1 no lo puede saber. */
   nombre: string;
   /**
@@ -133,6 +142,18 @@ export interface DependenciasCola {
   sitios: {
     obtener(sitioId: string | undefined): SitioDeDescarga | undefined;
   };
+  /**
+   * [CORTE 7] Credenciales del portal del ítem, cosechadas por el popup al escanear. Entra
+   * como colaborador —y no como una lectura de storage acá— por la misma razón que `sitios` e
+   * `identidad`: es un dato que el popup y el SW comparten, y armárselo cada uno por su lado
+   * es cómo divergen en silencio.
+   *
+   * Devuelve `undefined` para un portal que no usa credenciales (Ramón Net), y eso **no es un
+   * fallo**: el bucle lo pasa tal cual y el adaptador decide.
+   */
+  credenciales: {
+    para(sitioId: string | undefined): Promise<Record<string, string> | undefined>;
+  };
   historial: { registrar(tipo: string, titulo: string, motivo: string): Promise<unknown> };
   /** Capa 3: notificación nativa del SO. Best-effort, no puede propagar. */
   /**
@@ -184,6 +205,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
     conexion,
     motor,
     sitios,
+    credenciales,
     historial,
     notificarFallo,
     calcularMetricas,
@@ -371,11 +393,23 @@ export function crearProcesadorCola(deps: DependenciasCola) {
       const controlador = controladorGraficoActivo;
 
       try {
-        // La resolución del .m3u8 es específica del portal (iframe, CDN): vive en el
+        // La resolución del .m3u8 es específica del portal (iframe, CDN, API): vive en el
         // adaptador de sitio, no en el motor, que es genérico.
+        //
+        // [CORTE 7] Las credenciales se leen ACÁ, por ítem y en el momento de bajar, no una
+        // vez al arrancar la ráfaga: el usuario puede re-escanear el portal a mitad de una
+        // cola larga para renovar un token vencido, y esa lectura tiene que verlo. Es la
+        // misma razón por la que el portal se resuelve por ítem y no por composición.
+        //
+        // Se pide por `sitioDelItem.id` y no por `elementoActual.sitioId` crudo, por el mismo
+        // motivo que la carpeta del multiportal E: el del descriptor ya pasó por la migración,
+        // así que un ítem viejo sin `sitioId` busca las credenciales del portal legado y no
+        // las de `undefined`.
+        const credencialesDelPortal = await credenciales.para(sitioDelItem.id);
         const urlM3u8Descubierta = await sitioDelItem.resolverManifiesto(
           elementoActual.urlInterna,
-          controlador.signal
+          controlador.signal,
+          credencialesDelPortal
         );
 
         const currentState = await sesion.get();

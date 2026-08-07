@@ -16,14 +16,27 @@
  * perdería en el primer arranque en frío. Este es exactamente el momento en que se
  * registraban antes, cuando el `import '../background.js'` los ejecutaba al evaluarse.
  *
- * Los tres imports por efecto secundario que quedan son de Capa 2: publican los globals que
- * consumen los módulos hermanos del adaptador de sitio, que siguen en `.js` (Fase 8).
+ * Los imports por efecto secundario que quedan son de Capa 2: publican los globals que
+ * consumen los módulos hermanos de cada adaptador de sitio, que siguen en `.js` (Fase 8).
+ *
+ * **Van primero, antes de la composición**, porque el descriptor de cada portal los lee
+ * perezosamente al usarse y el bundler no avisa si faltan. Son tres por portal — y desde el
+ * corte 7 hay dos portales, con globals de nombre PROPIO cada uno: compartirlos haría que el
+ * último evaluado le pise los suyos al otro, y el síntoma sería un portal resolviendo con el
+ * adaptador ajeno.
+ *
+ * El SW no importa los `scraper.js`: el scraper se inyecta en la pestaña y eso es cosa del
+ * popup. (De ahí que las dos listas de imports no sean iguales.)
  */
 import { defineBackground } from 'wxt/utils/define-background';
 
 import '../sitio/ramonnet/config.ts';
 import '../sitio/ramonnet/parserTitulos.js';
 import '../sitio/ramonnet/resolverManifiesto.js';
+
+import '../sitio/anatomy-by-chris/config.ts';
+import '../sitio/anatomy-by-chris/parserTitulos.js';
+import '../sitio/anatomy-by-chris/resolverManifiesto.js';
 
 import BunClient from '../core/backend/bunClient.ts';
 // [MULTISITIO CORTE 8] Acá se importaba `sitioAsumido`: el SW era el último lector del andamio

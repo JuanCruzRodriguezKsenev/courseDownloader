@@ -29,20 +29,25 @@
  */
 import type { PuertoSitio } from "../core/puertos/sitio";
 import { SitioRamonNet } from "./ramonnet/config";
+import { SitioAnatomyByChris } from "./anatomy-by-chris/config";
 
 /**
  * Los adaptadores que conoce esta build. **Sumar un portal es agregarlo acá** (más su carpeta
  * en `sitio/<portal>/`, y su origen + ruleset dNR en `wxt.config.ts`, que es estático).
  *
- * El orden importa sólo para `resolverPorUrl`: gana el primero que reconoce la URL. Hoy es
- * irrelevante con un solo portal; si dos llegaran a reclamar el mismo origen, es un bug del
- * descriptor y no algo que este registro deba desempatar.
+ * El orden importa sólo para `resolverPorUrl`: gana el primero que reconoce la URL. **Desde el
+ * corte 7 hay dos portales y eso dejó de ser teórico**: los dos `esPaginaDelSitio` tienen que
+ * ser disjuntos. El de Anatomy by Chris matchea el SLUG del curso y no el host, justamente
+ * porque `hotmart.com` hospeda miles de cursos ajenos y un match por host convertiría este
+ * "gana el primero" en descargas con el adaptador equivocado. Que sean disjuntos lo afirma
+ * `registro.test.ts`; si dos reclamaran la misma URL, es un bug del descriptor y no algo que
+ * este registro deba desempatar.
  */
 //
 // El tipo es una **tupla no vacía** a propósito: obliga a que siempre haya al menos un portal
 // registrado, que es lo que hace seguro el `SITIOS[0]` del andamio de abajo. Lo pidió `tsc`,
 // no un criterio estético.
-const SITIOS: readonly [PuertoSitio, ...PuertoSitio[]] = [SitioRamonNet];
+const SITIOS: readonly [PuertoSitio, ...PuertoSitio[]] = [SitioRamonNet, SitioAnatomyByChris];
 
 export const Sitios = {
   /**

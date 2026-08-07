@@ -2,13 +2,15 @@
 
 **Estado actual: suite real y en crecimiento** (los números exactos, en la tabla de baseline de abajo). Existe `package.json` con Vitest + jsdom como devDependencies. Cubierto hoy: la lógica pura (`core/util/texto.ts` y `core/util/reintentos.ts`, repartidos desde `shared/utils.js` en la Fase 6a — los tests de texto sobrevivieron sin tocar una aserción, que es para lo que estaban, y los de reintentos dejaron de stubear el global `Conexion` para inyectarle una sonda), el daemon de conexión (`core/conexion/conexion.ts` — desde la Fase 5b sin mocks de `chrome.*`: dos instancias reales sobre `AlmacenamientoEnMemoria` ejercitan el espejado popup↔SW de verdad; desde su mudanza a `core/` el 2026-08-03 tampoco nombra el portal real, porque la URL de sondeo se le inyecta), el cliente del backend (`core/backend/bunClient.ts`, primer test en TypeScript), el historial de fallos (`core/historial/historialFallos.ts`, ya sin mocks de `chrome.*`: usa el adaptador en memoria del puerto), la maquinaria de estado del popup (`core/estado/appState.ts` — **estrenó cobertura en la Fase 5b**: antes tenía cero, porque los tests del popup mockean `globalThis.AppState` entero y nunca la ejercitaban; hoy corre contra `AlmacenamientoEnMemoria` y, desde el 2026-08-03, también su IPC contra `MensajeriaEnMemoria` — sin un solo mock de `chrome.*`. Ojo con un detalle que este archivo dejó documentado: el adaptador en memoria vence a los 0ms por defecto, así que el test del **timeout de rescate** construye uno con plazo largo; si no, el puerto rechazaría primero y el test verificaría el otro camino sin que se note), las features/islas del popup ya extraídas (`popup/features/serverConnection.js`, `queue.js`, `filters.js`, `faceta.js`, y las islas Preact `conexionHeader`/`onboarding`/`rutaDisco`/`bannerConexion`/`listaClases`/`campanita`), y de `core/hls/hlsEngine.ts` tanto las funciones puras (parseo/resolución M3U8) como el **pool de 6 workers** `compilarTranscodificacionStream` (concurrencia, AES, streaming turbo/blob, aborts en cascada, y el path de reintento 4xx del bug 400), más los handlers IPC de `background.js` y **la cola entera** (`core/cola/`: el bucle, el estado de sesión y el espejo de progreso). **El bucle de descarga y el auto-heal ya NO están sin cubrir** (2026-08-03): `background.test.js` los caracteriza —y desde la Fase 6b construye el procesador real en vez de stubearlo— — camino feliz, orden FIFO por `fechaEncolado`, progreso con telemetría, el salto de clase por rechazo 4xx (bug 400), la pausa por sesión (sin alarma) vs. la pausa por servidor caído (con alarma), la cancelación del usuario, el frenado suave y las cuatro ramas de la alarma de auto-heal. Lo único que queda a verificación manual/e2e es el núcleo de `popup.js` aún sin extraer (init + wiring + orquestación de scraping/render), que ADR-0005 define como no-extraíble (ver `docs/contributing.md`).
 
+**Lo que sumó el corte 7** (el segundo portal, 2026-08-07): las credenciales por portal (`core/estado/credencialesPortal.ts`, sobre el adaptador en memoria) y el adaptador entero de `sitio/anatomy-by-chris/` — el parser, el `resolverManifiesto` con sus tres `fetch` stubeados, y **el scraper contra el HTML REAL del portal** (`__fixtures__/listado-modulo.html`, 11 KB recortados de las páginas guardadas: se conservaron el markup de las filas tal cual y se vaciaron los `d=` de los `<path>` de los íconos). Ese fixture no es un lujo: las cuatro trampas de ese portal —el `innerText` envenenado por los `<title>` de los íconos, las flechas de navegación que parecen clases, las filas de texto sin video y el `<aside>` de Perfil que gana un `querySelector('aside')`— son exactamente lo que un doble escrito por quien escribió el scraper **no** reproduciría, así que un DOM inventado pasaría los tests con un scraper roto. Y el corte estrenó de paso lo que hasta ahora sólo tenía dobles: que los dos `esPaginaDelSitio` sean **disjuntos** (`sitio/registro.test.ts`) ya se afirma con dos portales de verdad. **Lo que ese fixture sigue sin poder ver es que `escanearListado` sea serializable y autocontenida** — acá corre importada, con su módulo entero disponible; en producción la serializa `chrome.scripting.executeScript`. Eso sólo lo detecta el navegador.
+
 ## Baseline de las verificaciones
 
 **Este doc es el hogar canónico de estos números** (convención DRY, ver `docs/adr/0007-dry-docs-canonical-homes.md`): `CLAUDE.md` y el resto apuntan acá en vez de repetirlos. Si agregás tests o un archivo nuevo, el número se actualiza **acá**, en el mismo cambio.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `npm test` | 29 archivos, 402 tests, todo en verde |
+| `npm test` | 33 archivos, 464 tests, todo en verde |
 | `npm run lint` | **0 errores, 0 warnings** |
 | `npx tsc --noEmit` | sin salida (limpio) |
 | `npm run build` | compila a `.output/chrome-mv3/` |
@@ -20,10 +22,14 @@ usar) se limpiaron con `catch {}` y prefijo `_`, sin tocar comportamiento.
 **Ojo con el alcance de `tsc`, que no es automático**: `allowJs` está en `false` y los dos
 entrypoints son `.js`, así que `tsc` los saltea junto con todo su grafo de imports. Lo que
 realmente typechequea es el `include` de `tsconfig.json` — hoy `core/`, `plataforma/` y
-`sitio/`: **42 archivos** (31 + 8 + 3, tests `.ts` incluidos, medidos con `--listFiles` el
-2026-08-05). *(Decía 39 desde el 2026-08-04 y ya estaba corto por 2 esa misma tarde: el corte 2
-del multi-sitio sumó `sitio/registro.ts` y su test sin que nadie re-midiera. Es el recordatorio
-de que este número no se mantiene solo.)*
+`sitio/`: **47 archivos** (35 + 8 + 4, tests `.ts` incluidos, medidos con `--listFiles` el
+2026-08-07, después del corte 7). *(Y van dos veces que el número se quedó corto solo: decía
+39 desde el 2026-08-04 —el corte 2 del multi-sitio sumó `sitio/registro.ts` y su test sin que
+nadie re-midiera— y decía 42 desde el 2026-08-05, cuando el segundo tramo del multiportal sumó
+`core/cola/identidadClase.ts` y su test. Es el recordatorio de que este número no se
+mantiene solo.)* **Ojo con lo que el corte 7 NO sumó**: los tres hermanos `.js` del adaptador
+nuevo (`scraper`, `parserTitulos`, `resolverManifiesto`) **no** los ve `tsc`, igual que los de
+Ramón Net — `allowJs` está en `false`. De la carpeta del portal nuevo sólo entra `config.ts`.
 **`shared/` salió del `include` en la Fase 6a: la carpeta dejó de existir.** `entrypoints/`
 figura en la lista pero **aporta cero archivos** — los dos son `.js`, y ahí está la trampa, no
 la salida. Una carpeta con `.ts` que no esté listada pasa la compuerta en

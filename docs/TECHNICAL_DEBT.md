@@ -2,7 +2,7 @@
 
 Inventario vivo de problemas conocidos en el código actual, ordenados por severidad. Cada ítem indica ubicación exacta, impacto y la solución propuesta. Este documento se actualiza a medida que se resuelven o aparecen nuevos hallazgos — no es un snapshot histórico (para eso está el changelog de cada archivo y el historial de git).
 
-Última auditoría: 2026-08-05.
+Última auditoría: 2026-08-07.
 
 **Lo que está abierto vive en la sección de abajo, y nada más.** Todo lo que sigue después
 (Seguridad, Mantenibilidad, Testing, Robustez, Menores) está ✅ resuelto y se conserva como
@@ -13,6 +13,40 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 ---
 
 ## 🔴 Abierto
+
+### La identidad (portal, título) colisiona dentro de un portal de dos niveles
+
+- **Estado**: 🔴 abierto (hallado el 2026-08-07, midiendo el árbol de clases de Anatomy by Chris
+  para rediseñar su escaneo). **Rompe datos hoy, sin ningún cambio previo.**
+- **Qué pasa**: `core/cola/identidadClase.ts` define la identidad de una clase como el par
+  **(portal, título)**. El corte D del multi-sitio lo estableció así porque dos portales pueden
+  tener clases homónimas; el supuesto tácito era que **dentro** de un portal el título es único.
+  Con un portal de dos niveles no lo es: en Anatomy by Chris hay **7 títulos que existen en dos
+  módulos a la vez** — `Miologia 1`, `2`, `3`, `4`, `5`, `6` e `Irrigación`, todos en *Miembro
+  Superior* **y** *Miembro Inferior*. Son clases distintas, con distinto video y distinta carpeta.
+- **Cómo se manifiesta** (el mismo modo de fallar que el corte D cerró para dos portales):
+  - `core/cola/procesadorCola.ts:352` y `:519` — al completar una descarga, la homónima **sale de
+    la cola**: nunca se baja y desaparece sin error.
+  - `popup.js:938` — al de-duplicar contra la cola, la segunda se descarta en silencio.
+  - El espejo de progreso (`estados[identidad.clave(item)]`) pinta el avance de una en la fila de
+    la otra.
+- **Cómo reproducirlo**: escanear *Miembro Superior*, encolar `Miologia 1`; escanear *Miembro
+  Inferior*, encolar `Miologia 1`. **No hace falta ningún cambio en el código.**
+- **Solución propuesta**: la identidad pasa a **(portal, módulo, tipo, título)**, con el módulo como
+  **origen** de la clase y no como carpeta de destino (si usara el destino, editar la carpeta
+  rompería el match contra la cola). Un portal de un solo nivel no manda módulo ni tipo y su clave
+  queda igual: **sin migración de datos**, porque la clave se calcula y no se persiste — salvo el
+  espejo de progreso, que vive en `storage.session` y muere con la sesión.
+- **Por qué también `tipo`** (agregado el 2026-08-07, más tarde el mismo día): desde que los
+  materiales entraron en alcance, un PDF y el video del que cuelga comparten portal, módulo y
+  título. El campo va **ahora, con `"video"` por omisión**, aunque el primer corte sólo traiga
+  videos: agregarlo después obliga a volver a tocar `identidadClase` y sus tests con la cola en
+  uso. Es exactamente el error que esta deuda documenta —una clave que alcanzaba hasta que apareció
+  un caso más— y no tiene sentido repetirlo sabiendo que el caso ya existe.
+- **Dónde está el detalle**: `docs/escaneo-api-anatomy-diseno.md` §El bloqueante (medición y plan)
+  y `docs/multisitio-diseno.md` §La trampa que el corte D no vio (la regla general). Es el corte 1
+  de ese frente, pero **la deuda es independiente**: se puede arreglar sin construir el escaneo por
+  API, y conviene, porque hoy pierde descargas.
 
 ### Soporte para un segundo portal: la selección de sitio no existe, y hay vocabulario filtrado
 

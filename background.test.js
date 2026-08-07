@@ -179,6 +179,10 @@ beforeAll(async () => {
       obtener: (id) =>
         id === undefined || id === 'ramonnet' ? globalThis.SitioActivo : undefined,
     },
+    // [CORTE 7] Credenciales del portal del ítem. Acá no hay ninguna, que es el caso de Ramón
+    // Net: resuelve con la cookie de sesión y su `resolverManifiesto` ignora el parámetro. El
+    // colaborador existe igual porque el bucle lo consulta en cada ítem.
+    credenciales: { para: async () => undefined },
     historial: globalThis.HistorialFallos,
     notificarFallo: () => {},
     calcularMetricas: globalThis.Utils.calcularMétricasProgreso,

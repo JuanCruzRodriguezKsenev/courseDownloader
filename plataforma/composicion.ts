@@ -27,6 +27,7 @@ import { crearHlsEngine } from "../core/hls/hlsEngine";
 import { crearEstadoSesion } from "../core/cola/estadoSesion";
 import { crearEstadosProgreso } from "../core/cola/estadosProgreso";
 import { crearIdentidadClase } from "../core/cola/identidadClase";
+import { crearCredencialesPortal } from "../core/estado/credencialesPortal";
 import { crearProcesadorCola } from "../core/cola/procesadorCola";
 import { notificarFallo, sitioIdDeNotificacion } from "./chrome/notificaciones";
 import { crearVolcadoLegacy } from "./chrome/volcadoLegacy";
@@ -213,6 +214,18 @@ export const sitioDeNotificacionDeFallo = (notificationId: string) =>
 export const identidadClase = crearIdentidadClase(sitios);
 
 /**
+ * [CORTE 7] Las credenciales que un portal expone sólo dentro de su pestaña y que su
+ * `resolverManifiesto` necesita después, desde el service worker (el `id_token` de la API de
+ * Hotmart Club es el caso que las trajo).
+ *
+ * Tercer export compartido de esta raíz por el mismo motivo que los dos de arriba: **lo escribe
+ * el popup y lo lee el SW**, y dos accesos armados por separado a la misma clave de storage es
+ * exactamente cómo se desincronizan. El módulo no sabe qué credenciales necesita cada portal:
+ * eso es vocabulario de Capa 2 y vive en el adaptador.
+ */
+export const credencialesPortal = crearCredencialesPortal(almacenamiento);
+
+/**
  * El procesador de la cola: el bucle FIFO + la clasificación de fallos, que fue el bloque más
  * grande de `background.js` hasta la Fase 6b.
  *
@@ -245,6 +258,7 @@ export const Cola = crearProcesadorCola({
    * saltearía entera como huérfana.
    */
   sitios,
+  credenciales: credencialesPortal,
   historial: HistorialFallos,
   notificarFallo,
   calcularMetricas: progreso.calcularMétricasProgreso,

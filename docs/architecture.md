@@ -298,6 +298,16 @@ con ADR-0012, porque la elección pasó a ser **por portal** (`facetaElegidaDe(s
 clave es ahora el `sitioId`. El archivo acumula las tres migraciones de datos del proyecto
 (`catedraElegida` → `facetaElegida` → `facetasElegidas`) → `docs/data-model.md`.
 
+**`core/estado/credencialesPortal.ts` guarda lo que un portal expone SÓLO dentro de su pestaña**
+y su `resolverManifiesto` necesita después, desde el service worker (corte 7). Factory
+`crearCredencialesPortal(almacenamiento)` sobre el puerto de storage, clave
+`credencialesPortal: { [sitioId]: {...} }`. **No está en `AppState` a propósito**: `AppState` es
+del popup y acá el lector es el SW, así que es un export compartido de `composicion.ts` — el
+mismo motivo por el que lo son `sitios` e `identidadClase`. El contenido es **opaco**: qué claves
+lleva lo decide cada adaptador, y por eso Capa 1 no nombra ningún token. Decisión y alternativas
+→ ADR-0013; la parte de seguridad (es la primera credencial que la extensión guarda) →
+`docs/security.md`.
+
 Detalle de forma en `sincronizarConBackground()`: usa `enviar()` (es una consulta) **y además**
 conserva su timeout de rescate de 3s, porque el puerto sólo promete rechazar cuando no hay
 receptor — no cubre al receptor que acepta, promete responder async y nunca responde.
@@ -356,9 +366,28 @@ fuera de `entrypoints/` porque WXT trata cada archivo suelto de ahí como un ent
 
 ### Capa 2 — `sitio/<portal>/`
 
-`sitio/ramonnet/config.ts` exporta **`SitioRamonNet` y nada más**: se declara implementación de
+**Hay dos portales desde el 2026-08-07** (corte 7): `sitio/ramonnet/` y
+`sitio/anatomy-by-chris/` (Hotmart Club). Cada uno son cuatro archivos —`config.ts` + tres
+hermanos `.js`— y su `rules.json` en `public/sitio/<portal>/`.
+
+`sitio/<portal>/config.ts` exporta **su descriptor y nada más**: se declara implementación de
 `PuertoSitio`, así que a un adaptador de portal al que le falte una pieza lo caza el compilador
 y no la lectura.
+
+**⚠️ Los globals de los tres hermanos llevan nombre por portal.** Los de Ramón Net son los que
+quedaron sin calificar por haber sido el primero (`Scraper`, `ParserTitulos`,
+`ResolverManifiesto`); los del segundo son `ScraperAnatomy`, `ParserTitulosAnatomy`,
+`ResolverManifiestoAnatomy`. Compartir un nombre hace que **el último entrypoint evaluado le pise
+los tres al otro portal**, y el síntoma sería un portal escaneando o resolviendo con el adaptador
+ajeno — en silencio, y sin que lo vea el bundler, el lint, `tsc` ni la suite. Cada nombre nuevo va
+también a `globalesDelProyecto` en `eslint.config.js`.
+
+**Cómo se autentica el portal decide si el corte toca Capa 1.** Ramón Net resuelve con la cookie
+de sesión (`credentials: "include"`) y no necesita nada más. Anatomy by Chris necesita un
+`id_token` que sólo existe en el `localStorage` de su pestaña, y el service worker no tiene
+pestaña: por eso su scraper lo devuelve en `ResultadoEscaneo.credenciales`, se guarda **por
+portal** en `core/estado/credencialesPortal.ts` y le vuelve como tercer parámetro de
+`resolverManifiesto`. La decisión y sus alternativas → ADR-0013.
 
 **Qué portal está activo NO lo decide este archivo**, y es un cambio del 2026-08-04 (corte 2 de
 `docs/multisitio-diseno.md`): acá vivía `const SitioActivo = SitioRamonNet`, o sea un portal
@@ -422,13 +451,29 @@ constante a nivel de módulo de su propio archivo** — lo que necesite viaja po
 `executeScript`. O sea que la regla de arriba ("las constantes nuevas del sitio van acá, no
 inline") **no aplica a lo que vive adentro de esa función**: subir un selector suyo a
 `config.ts` deja el escaneo devolviendo vacío en runtime. Y nada lo avisa — ni el bundler, ni
-el lint, ni `tsc`, ni la suite (no hay `scraper.test.js`). Se verifica abriendo el popup con
-una pestaña del aula virtual activa.
+el lint, ni `tsc`, ni la suite. Se verifica abriendo el popup con una pestaña del portal activa.
 
-El ruleset dNR vive en **`public/sitio/ramonnet/rules.json`** (en `public/` para que WXT lo
-copie tal cual a esa ruta exacta, que es la que referencia `wxt.config.ts`). El config lleva
-además el **descriptor de faceta**, cuya forma campo por campo está en
-`docs/rearquitectura-diseno.md` §UI.
+**Ojo con lo que un `scraper.test.js` sí y no puede afirmar.** Desde el corte 7 el scraper del
+segundo portal tiene tests contra el HTML **real** del portal (fixture recortado de las páginas
+guardadas), y eso cubre lo que el DOM le pueda hacer: títulos envenenados, enlaces que no son
+clases, filas de otro tipo. **Lo que no cubre es la serialización**, que es justamente esta
+regla: en el test la función corre importada, con su módulo entero disponible. Un test verde no
+dice nada sobre si sobrevive a `executeScript`.
+
+**`resolverManifiesto` tiene que devolver una playlist de MEDIOS, nunca un master
+multi-variante.** `core/hls/hlsEngine.ts` no los distingue: toma toda línea sin `#` como
+fragmento, así que ante un master se baja el `.m3u8` de la variante creyéndolo un `.ts`, lo
+descifra y le manda al backend un archivo de unos KB — **sin un error en ningún lado**. Ramón Net
+nunca lo destapó porque su plantilla apunta directo a una playlist de medios; el adaptador de
+Hotmart pide el master, elige la variante de mayor `BANDWIDTH` y devuelve esa. Elegir variante es
+trabajo del adaptador, no del motor.
+
+Cada portal lleva su ruleset dNR en **`public/sitio/<portal>/rules.json`** (en `public/` para que
+WXT lo copie tal cual a esa ruta exacta, que es la que referencia `wxt.config.ts`), con su `id`
+propio en el manifest. Los dos existentes hacen cosas distintas: el de Ramón Net **bloquea**
+requests a `bunnyinfra.net`; el de Anatomy by Chris **pone un header** (`Referer`) que `fetch` no
+puede setear y sin el cual el embed contesta 401. El config lleva además el **descriptor de
+faceta**, cuya forma campo por campo está en `docs/rearquitectura-diseno.md` §UI.
 
 ### `Utils` ya no es un archivo: es un ensamblado
 

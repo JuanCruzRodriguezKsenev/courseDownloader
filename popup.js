@@ -217,9 +217,14 @@ import BannerConexion from './popup/features/bannerConexion.preact.js';
  *                                  clase: por (portal, título). El MISMO que usa el service
  *                                  worker — si divergieran, el popup sacaría de la cola algo
  *                                  distinto de lo que el SW considera esa clase.
+ * @param {object} deps.credencialesPortal [CORTE 7] Dónde se guardan las credenciales que un
+ *                                  portal expone sólo dentro de su pestaña. Las escribe el
+ *                                  escaneo (acá) y las lee el service worker al bajar. El
+ *                                  MISMO módulo de los dos lados, por lo mismo que
+ *                                  `identidadClase`.
  * @param {object} deps.renderers   Pintado vanilla que todavía no es isla.
  */
-export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, sitios, identidadClase, renderers }) {
+export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, sitios, identidadClase, credencialesPortal, renderers }) {
   document.addEventListener('DOMContentLoaded', async () => {
     console.log("🤖 [POPUP-CORE] Orquestador unificado V5.4.1 activo. Sincronización de escáner híbrido (Chrome/Bun) integrada.");
 
@@ -873,7 +878,18 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           try {
             const resultado = res?.result || { materia: "biologia", enlaces: [] };
             const enlaces = resultado.enlaces;
-          
+
+            // [CORTE 7] Las credenciales que el portal expone SÓLO dentro de su pestaña
+            // (un token de localStorage, en Hotmart Club). El service worker las va a
+            // necesitar al bajar y no tiene pestaña de la cual sacarlas, así que este es el
+            // único momento en que se pueden cosechar. Se guardan por PORTAL y no con cada
+            // clase: son de la sesión del usuario, no de un video.
+            //
+            // Fire-and-forget deliberado: si falla el guardado, el escaneo igual sirve y el
+            // fallo se ve después como un error de resolución, no como un escaneo roto.
+            void credencialesPortal.guardar(portal.id, resultado.credenciales);
+
+
             nodos.folder.value = resultado.materia || "biologia";
 
             if (!enlaces || enlaces.length === 0) {

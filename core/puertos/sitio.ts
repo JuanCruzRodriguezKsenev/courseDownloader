@@ -38,6 +38,20 @@ export interface ResultadoEscaneo {
   /** Materia detectada en la página, base para el nombre de carpeta. */
   materia: string;
   enlaces: EnlaceListado[];
+  /**
+   * [CORTE 7] Credenciales que el portal expone **sólo dentro de su pestaña** y que su
+   * `resolverManifiesto` va a necesitar después, desde el service worker.
+   *
+   * Opcional porque la mayoría de los portales no las necesita: Ramón Net resuelve con la
+   * cookie de sesión, que el SW ya manda sola. Las necesita un portal cuya API pida un
+   * token de `localStorage` — Anatomy by Chris, que fue quien obligó a agregar esto.
+   *
+   * **No viajan con la clase ni con el ítem de la cola**: son de la sesión del usuario en el
+   * portal, no de una clase. El popup las guarda una vez por portal
+   * (`core/estado/credencialesPortal.ts`) y el SW las lee de ahí. Esa decisión salió de
+   * medir el camino completo del escaneo — ver ese módulo.
+   */
+  credenciales?: Record<string, string>;
 }
 
 /** Destino de una clase: valor del eje de faceta + carpeta en disco. */
@@ -134,8 +148,23 @@ export interface PuertoSitio {
   /** Página del listado de clases, a donde el onboarding manda al usuario. */
   readonly urlListado: string;
 
-  /** HTML de la página de la clase → URL del manifiesto `.m3u8`. Tira si no la encuentra. */
-  resolverManifiesto(urlClase: string, signal?: AbortSignal): Promise<string>;
+  /**
+   * URL de la página de la clase → URL del manifiesto `.m3u8`. Tira si no la encuentra.
+   *
+   * `credenciales` es lo que ese mismo portal cosechó en su último escaneo
+   * (`ResultadoEscaneo.credenciales`), o `undefined` si nunca cosechó ninguna. Un portal que
+   * no las use simplemente ignora el parámetro.
+   *
+   * **Devolver una playlist de MEDIOS, nunca un master multi-variante**: `core/hls/hlsEngine.ts`
+   * no los distingue —toma toda línea sin `#` como fragmento— así que ante un master se baja
+   * el `.m3u8` de la variante creyéndolo un `.ts` y no da error en ningún lado. Si el portal
+   * sirve un master, el adaptador elige la variante y devuelve esa.
+   */
+  resolverManifiesto(
+    urlClase: string,
+    signal?: AbortSignal,
+    credenciales?: Record<string, string>
+  ): Promise<string>;
 
   /**
    * Función que se INYECTA en la pestaña del portal (`chrome.scripting.executeScript`)

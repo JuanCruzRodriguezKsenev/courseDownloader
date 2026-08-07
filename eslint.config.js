@@ -28,12 +28,23 @@ const globalesDelProyecto = {
   Utils: "readonly",
   Scraper: "readonly",
 
-  // Adaptador de sitio (Capa 2 — ADR-0008): sitio/<portal>/config.js.
+  // Adaptador de sitio (Capa 2 — ADR-0008): sitio/<portal>/config.ts + sus tres hermanos .js.
   // `SitioActivo` salió en el corte 2 del multi-sitio: dejó de existir como global y como
   // concepto del portal — quién está activo lo decide `sitio/registro.ts`, que se importa.
+  //
+  // ⚠️ UN JUEGO DE NOMBRES POR PORTAL, y no es cosmético: los de Ramón Net son los que quedaron
+  // sin calificar por ser el primero. Un portal nuevo que copie `Scraper`/`ParserTitulos`/
+  // `ResolverManifiesto` hace que el último entrypoint evaluado le pise los tres al otro, y el
+  // síntoma es un portal escaneando o resolviendo con el adaptador ajeno — en silencio.
   SitioRamonNet: "readonly",
   ResolverManifiesto: "readonly",
   ParserTitulos: "readonly",
+
+  // Portal 2 (corte 7): Anatomy by Chris, sobre Hotmart Club.
+  SitioAnatomyByChris: "readonly",
+  ResolverManifiestoAnatomy: "readonly",
+  ParserTitulosAnatomy: "readonly",
+  ScraperAnatomy: "readonly",
 };
 
 module.exports = [

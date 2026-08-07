@@ -4,13 +4,19 @@
 multi-sitio (`148feda`) y los cinco del **multiportal** (`d52c292`), que cerraron los supuestos
 de "un solo portal" que habían quedado. Todo verificado en navegador.
 
-**Queda sólo el corte 7: escribir el segundo portal**, y está bloqueado porque ese portal no
-existe. → **Si venís a eso, andá derecho a §Cómo escribir un portal nuevo — el paso a paso.**
+**El corte 7 está construido** (2026-08-07): el segundo portal es **Anatomy by Chris**, sobre
+Hotmart Club, y vive en `sitio/anatomy-by-chris/`. **La verificación en navegador está a medias**:
+el escaneo ya pasó —o sea que `escanearListado` sobrevive a la serialización, que era el riesgo
+grande—, falta bajar una clase y mirar el popup con las dos colas mezcladas. →
+**Si venís a eso: lo específico de ese portal está en `portal-anatomy-by-chris-diseno.md`, y el
+cómo genérico acá, en §Cómo escribir un portal nuevo — el paso a paso.**
 
 Lo que **no** se pudo verificar y no hay que dar por bueno: todo lo que exige dos portales a la
 vez (la sección Portal del 6c, el criterio `portal` del 6b, y la mitad "el otro portal no se ve
-afectado" de los cinco cortes multiportal). Va cubierto por tests con dobles, que es toda la
-observación que tiene hasta que exista el segundo.
+afectado" de los cinco cortes multiportal). **Con el corte 7 una parte dejó de tener sólo dobles**
+—que los dos `esPaginaDelSitio` sean disjuntos ya se afirma con dos portales reales en
+`registro.test.ts`—, pero **todo lo que se mira con la cola mezclada sigue sin observación
+verdadera hasta abrir el popup con clases de los dos portales encoladas**.
 **Decisión de base**: [ADR-0009](adr/0009-registro-de-sitios-en-runtime.md) eligió *registro en
 runtime* sobre *una build por portal*, [ADR-0010](adr/0010-el-sitio-es-del-item.md) resuelve
 el punto que la 0009 no vio, y [ADR-0011](adr/0011-el-orden-de-la-cola-lo-decide-el-popup.md)
@@ -300,6 +306,27 @@ falta**. Es el corte 7. Los pasos son cinco y ninguno toca `core/`, `plataforma/
 que revisarlo leyendo. Los números salen de `core/puertos/sitio.ts`, que es su hogar canónico:
 si no coinciden con esta tabla, gana la interfaz.
 
+**⚠️ Los tres `.js` necesitan nombres de global PROPIOS** — hallado el 2026-08-06 midiendo el
+segundo portal, y esta sección no lo decía. Los de Ramón Net se publican **sin calificar**
+(`globalThis.ParserTitulos`, `.Scraper`, `.ResolverManifiesto`) y su `config.ts` los lee por
+`declare const`, que es la única forma que tiene un `.ts` de consumir un `.js` con `allowJs: false`.
+Copiar esos nombres en un portal nuevo hace que **el último entrypoint evaluado le pise los tres
+globals al otro portal**, y el síntoma es un portal escaneando o parseando con el adaptador ajeno:
+silencioso, y del mismo tipo que ADR-0010 previene en los datos, pero entrando por el espacio de
+nombres. Usá `ParserTitulos<Portal>`, `Scraper<Portal>`, `ResolverManifiesto<Portal>` y declaralos
+en `globalesDelProyecto` de `eslint.config.js`, o `no-undef` los marca.
+
+**⚠️ Y una pregunta que hay que hacerse ANTES de creer que este corte no toca `core/`: ¿cómo se
+autentica el portal?** Si resuelve con la **cookie de sesión** del navegador (Ramón Net:
+`fetch(..., { credentials: "include" })`), no toca nada. Si pide un **token que vive dentro de la
+pestaña** —`localStorage`, un header propio—, entonces el dato nace en la pestaña y lo necesita el
+**service worker**, que por diseño no tiene ninguna (ADR-0010). Eso **sí es Capa 1**, y ya está
+resuelto de forma genérica: el scraper lo devuelve en `ResultadoEscaneo.credenciales`, se guarda
+**por portal** en `core/estado/credencialesPortal.ts` y le llega al adaptador como tercer
+parámetro de `resolverManifiesto`. Ver [ADR-0013](adr/0013-credenciales-por-portal.md). Un portal
+nuevo con auth por token **no** tiene que volver a diseñar esto, pero sí tiene que saber que
+existe — y que las credenciales son del **portal**, no de la clase.
+
 Dos miembros que conviene mirar antes de escribir el resto:
 
 - **`id`** no es sólo para logs: **es el nombre de la carpeta en disco** (`raíz/<id>/<materia>/`)
@@ -308,6 +335,13 @@ Dos miembros que conviene mirar antes de escribir el resto:
 - **`faceta`** es el eje por el que se le pregunta al usuario una vez ("¿cuál cursás?"). Si el
   portal nuevo no tiene un eje así, igual hay que implementarlo: podés declarar un `valorComun`
   que devuelva siempre lo mismo y la UI queda inerte sola.
+- **`esPaginaDelSitio` no siempre puede mirar el host** — lección del corte 7. Ramón Net hace
+  `url.includes(host)` porque es dueño de todo su dominio; un portal hospedado en una plataforma
+  compartida (Hotmart, Teachable, Kajabi…) **no**: el mismo host sirve miles de cursos ajenos, y
+  como el registro recorre la lista en orden y gana el primero que dice que sí, un match por host
+  hace que ese adaptador reclame la pestaña de cualquier otro curso. Ahí hay que matchear el
+  **slug del curso**. `registro.test.ts` lo afirma: ninguno reclama la URL del otro, y un curso
+  ajeno de la misma plataforma no lo reclama nadie.
 
 ### 2. Registrarlo: `sitio/registro.ts`
 
@@ -400,6 +434,53 @@ La composición es el único lugar donde una regla de migración no ensucia a na
 
 ---
 
+## La trampa que el corte D no vio: (portal, título) también colisiona DENTRO de un portal
+
+*Hallada el 2026-08-07, midiendo el segundo portal. Es aprendizaje de este frente, no de ese portal.*
+
+El corte D estableció que la identidad de una clase es el par **(portal, título)**, porque con dos
+portales dos clases distintas pueden compartir nombre. El supuesto tácito era el que valía hasta
+entonces: **que dentro de un portal el título es único**.
+
+**No lo es cuando el portal tiene dos niveles.** Anatomy by Chris organiza el curso en 11 módulos, y
+7 títulos existen en dos módulos a la vez (`Miologia 1..6` e `Irrigación`, en *Miembro Superior* y
+*Miembro Inferior*). Son clases **distintas**, con distinto video y distinta carpeta de destino, y la
+clave `anatomy-by-chris|Miologia 1` las trata como una sola. El modo de fallar es idéntico al que el
+corte D cerró: completar una **saca de la cola a la otra**, que nunca se baja y desaparece sin error.
+
+Y no hace falta ningún cambio para que pase: alcanza con escanear un módulo, encolar, escanear el
+otro y encolar. **Está roto hoy**, y por eso vive en `TECHNICAL_DEBT.md` §🔴 Abierto.
+
+**La regla que sale**: la identidad es **(portal, módulo, título)**, donde el módulo es el **origen**
+de la clase y no su carpeta de destino. La distinción importa: si la clave usara el destino, editar
+la carpeta cambiaría la identidad de un ítem del listado pero no la del mismo ítem ya encolado, y el
+match se rompería. Un portal de un solo nivel no manda módulo y su clave queda igual que hoy — sin
+migración, porque la clave se calcula y no se persiste (salvo el espejo de progreso, que vive en
+`storage.session`).
+
+La regla general, para el próximo portal: **si el portal agrupa las clases en algo, ese algo es parte
+de la identidad**. El paso a paso de §Cómo escribir un portal nuevo lo asume.
+
+### Y el mismo día se repitió el error, con otro eje: el TIPO
+
+Horas después de escribir lo de arriba, los materiales (PDF) de ese portal pasaron a estar en
+alcance. Un adjunto y el video del que cuelga comparten portal, módulo y título — así que la clave
+recién arreglada **volvía a colisionar**, ahora entre un video y un PDF.
+
+La identidad final es **(portal, módulo, tipo, título)**, con `tipo` en `"video"` por omisión, y el
+campo entra en el **mismo corte** que el módulo aunque todavía no haya un solo ítem que no sea video.
+
+Lo que vale guardar no es el campo, es el patrón: **cada vez que el proyecto agregó un eje al
+catálogo —un portal, un nivel de agrupación, un tipo de archivo— la clave de identidad se quedó
+corta, y las tres veces el síntoma fue el mismo**: un ítem desaparece de la cola sin error cuando
+otro termina. La clave no falla por ser vieja: falla por ser *más chica que el catálogo*. Antes de
+sumar cualquier cosa a lo que la extensión enumera, la pregunta es si dos de esas cosas pueden
+compartir clave.
+
+*(El diseño completo, con los cinco cortes: `escaneo-api-anatomy-diseno.md`.)*
+
+---
+
 ## Orden de cortes propuesto
 
 Cada uno en su rama, con los 4 chequeos en verde y verificación en navegador antes del merge —
@@ -416,7 +497,7 @@ la regla que en toda la re-arquitectura atajó los únicos 3 defectos que llegar
 | 6b | El orden como criterio + sentido | ✅ **Hecho** (2026-08-05), **verificado en navegador** (2026-08-06). Nace `popup/features/orden.js` con las tres piezas que estaban sueltas en `popup.js`. +28 tests sobre código que no tenía ninguno, que era el motivo del corte. **La migración salió distinta de lo planeado**: el tri-estado `ordenAscendente` servía a las DOS pestañas con reglas distintas —Disponibles sólo mira su verdad/falsedad, así que `null` era *descendente*— y partirlo habría dado vuelta esa pestaña en toda instalación existente. La Cola estrenó un par propio (`criterioOrdenCola` + `ordenColaAscendente`) y `ordenAscendente` quedó intacto. **Y un segundo ajuste, tras probarlo en el navegador**: la primera versión dejó a Disponibles con el toggle viejo, así que el mismo botón hacía dos cosas según la pestaña — se notaba al primer uso. Ahora las dos abren el mismo panel, con los criterios que a cada una le corresponden (Disponibles: nombre, faceta, estado; sin `llegada` ni `portal`, que ahí no significan nada). De paso, el popover dejó de ser vidrio esmerilado: era `--bg-overlay` al 82% + blur y se leía la lista por detrás. **No se tocó el token**, que lo comparten cuatro fondos de modal donde la transparencia sí corresponde |
 | 6c | La sección Portal con casilla maestra y estado parcial; `valoresFaceta` calificado por portal. **Sin migración** (`filtrosActivos` es de memoria) | ✅ **Hecho** (2026-08-06). **No verificable en navegador hasta el corte 7**: la sección sólo aparece con la cola mezclada y hay un solo portal registrado, así que sus 9 tests son toda su observación. Dos cosas que el diseño no decía: el id del grupo sale del **descriptor** y no del campo crudo (un ítem sin `sitioId` migra al legado, y leer el campo pelado lo habría puesto en un grupo propio haciendo parecer mezclada una cola que no lo está), y los **huérfanos quedan fuera** de la sección — sin descriptor no hay nombre ni faceta, y adivinar es el bug que ADR-0010 previene |
 | 6d | El SW deja de ordenar y confía en el array; el popup persiste la cola reordenada — **ADR-0011** | ✅ **Hecho** (2026-08-06), **verificado en navegador** (2026-08-06), que es el que más la necesitaba. Los 14 de caracterización del bucle quedaron verdes sin tocarlos, que era la condición. **Pero uno sí se puso rojo y la ADR no lo previó**: `background.test.js` afirmaba *"respeta el orden FIFO por `fechaEncolado`, NO el del array"* — la caracterización exacta del `sort` que este corte elimina. Se invirtió la afirmación, que es lo honesto: el contrato cambió por decisión. Un tercer punto de llamada que el diseño no tenía: **encolar re-aplica el orden**, porque agrega al final y con un criterio que no sea "llegada" el ítem nuevo contradiría la pantalla. +13 tests |
-| 7 | Manifest + el primer adaptador real del segundo portal | Verificación en navegador, no hay otra red |
+| 7 | Manifest + el primer adaptador real del segundo portal | ✅ **Hecho** (2026-08-07) — **verificación en navegador a medias**: el escaneo ya pasó (o sea que `escanearListado` sobrevive a la serialización, que era el riesgo grande); falta bajar una clase y mirar el popup con las dos colas mezcladas. El portal es Anatomy by Chris (Hotmart Club): adaptador completo, registrado, con sus cinco `host_permissions` y su ruleset dNR, y 47 tests propios —incluido el scraper contra el HTML real del portal—. **Salió distinto del plan en un punto que importa: SÍ tocó Capa 1.** Su `resolverManifiesto` no scrapea HTML, le pega a una API que pide un token que sólo existe dentro de la pestaña, y el service worker no tiene pestaña. Se resolvió con credenciales **por portal** (ADR-0013), no por ítem; Ramón Net no cambió una línea. Lo otro que el plan no tenía: el ruleset dNR **sí** hacía falta (el embed da 401 sin `Referer`, que `fetch` no puede setear) |
 | 8 | El click de la notificación resuelve la pestaña con el sitio del ítem, no con `sitioAsumido` (bug de corrección — ver §5) | ✅ **Hecho** (2026-08-05), **verificado en navegador** (2026-08-06). Se hizo antes del 7, como preveía esta fila. +19 tests, con un segundo portal en los dobles: con uno solo el bug es invisible. **Y con esto `sitioAsumido` salió del service worker**: el SW ya no tiene UN portal. El dato viaja adentro del `notificationId` (§5) porque el worker se suspende y se lleva cualquier mapa en memoria |
 
 **Los cortes 1 y 2 son seguros y se pueden hacer ya**, antes de tener el segundo portal: dejan el

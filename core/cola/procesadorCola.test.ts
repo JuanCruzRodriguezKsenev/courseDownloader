@@ -57,6 +57,10 @@ function montar(over: Record<string, any> = {}) {
           ? { resolverManifiesto: resolverManifiestoDoble, nombre: "Portal de Prueba", id: "prueba" }
           : undefined,
     },
+    // [CORTE 7] Credenciales del portal del ítem. El default no tiene ninguna, que es el caso
+    // de Ramón Net (resuelve con la cookie de sesión) y el que ejercitan casi todos los tests
+    // de acá: lo que se afirma es que el bucle las PASA, no que sepa qué contienen.
+    credenciales: over.credenciales ?? { para: async () => undefined },
     historial: { registrar: vi.fn().mockResolvedValue({}) },
     notificarFallo,
     calcularMetricas: () => ({ porcentaje: 50, telemetry: { velocidadTexto: "1.5" } }),
@@ -186,6 +190,94 @@ describe("la identidad es (portal, título)", () => {
     );
     expect(titulos).toEqual(["Semana 3", "Semana 3"]);
     expect((almacenamiento._volcar().local as { colaDescargas: unknown[] }).colaDescargas).toEqual([]);
+  });
+});
+
+// [CORTE 7] El segundo portal resuelve el manifiesto contra una API que pide un token que sólo
+// existe dentro de la pestaña. El bucle no sabe qué es: lo lee por ítem y lo pasa.
+describe("las credenciales del portal viajan hasta resolverManifiesto", () => {
+  it("le pasa al adaptador las credenciales de SU portal", async () => {
+    resolverManifiestoDoble.mockClear();
+    const { cola, almacenamiento, sesion } = montar({
+      credenciales: { para: async (id: string | undefined) => ({ idToken: `token-de-${id}` }) },
+    });
+    await sesion.set({ rafagaCorriendo: true });
+    await almacenamiento.guardarLocal({
+      colaDescargas: [{ ...item("Clase 1"), sitioId: "prueba" }],
+      listaPersistente: [],
+    });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    expect(resolverManifiestoDoble).toHaveBeenCalledWith(
+      "https://p/Clase 1",
+      expect.anything(),
+      { idToken: "token-de-prueba" }
+    );
+  });
+
+  it("las pide por el id del DESCRIPTOR, no por el sitioId crudo del ítem", async () => {
+    // Mismo criterio que la carpeta del multiportal E: el del descriptor ya pasó por la
+    // migración, así que un ítem viejo sin `sitioId` busca las credenciales del portal legado
+    // y no las de `undefined`, que no existen y darían un fallo de auth sin explicación.
+    const pedidos: (string | undefined)[] = [];
+    const { cola, almacenamiento, sesion } = montar({
+      credenciales: {
+        para: async (id: string | undefined) => {
+          pedidos.push(id);
+          return undefined;
+        },
+      },
+    });
+    await sesion.set({ rafagaCorriendo: true });
+    await almacenamiento.guardarLocal({
+      colaDescargas: [item("Sin sitioId")], // sin el campo: encolada antes del multi-sitio
+      listaPersistente: [],
+    });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    expect(pedidos).toEqual(["prueba"]);
+  });
+
+  it("las lee POR ÍTEM, no una vez por ráfaga", async () => {
+    // Importa porque el usuario puede re-escanear el portal a mitad de una cola larga para
+    // renovar un token vencido: una lectura al arrancar no vería esa renovación.
+    resolverManifiestoDoble.mockClear();
+    let vuelta = 0;
+    const { cola, almacenamiento, sesion } = montar({
+      credenciales: { para: async () => ({ idToken: `t${++vuelta}` }) },
+    });
+    await sesion.set({ rafagaCorriendo: true });
+    await almacenamiento.guardarLocal({
+      colaDescargas: [item("Clase 1"), item("Clase 2")],
+      listaPersistente: [],
+    });
+
+    cola.arrancarSiNoCorre();
+    await esperar(200);
+
+    const tokens = resolverManifiestoDoble.mock.calls.map((c: unknown[]) => c[2]);
+    expect(tokens).toEqual([{ idToken: "t1" }, { idToken: "t2" }]);
+  });
+
+  it("un portal sin credenciales recibe undefined y baja igual (Ramón Net)", async () => {
+    resolverManifiestoDoble.mockClear();
+    const { cola, almacenamiento, sesion, motor } = montar();
+    await sesion.set({ rafagaCorriendo: true });
+    await almacenamiento.guardarLocal({
+      colaDescargas: [item("Clase 1")],
+      listaPersistente: [],
+    });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    const credencialesPasadas = resolverManifiestoDoble.mock.calls.map((c: unknown[]) => c[2]);
+    expect(credencialesPasadas).toEqual([undefined]);
+    expect(motor.compilarTranscodificacionStream).toHaveBeenCalledTimes(1);
   });
 });
 
