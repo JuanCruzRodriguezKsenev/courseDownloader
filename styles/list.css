@@ -178,6 +178,32 @@
   }
 }
 
+/* Chip de DESTINO de la fila (escaneo-api corte 2).
+   Dice a qué carpeta va a caer la clase: su módulo de origen, o `→ <carpeta>` cuando el input
+   de carpeta está pisando el destino. Sólo aparece en portales de dos niveles.
+
+   Deliberadamente MÁS callado que el badge de estado (sin uppercase, sin fondo sólido): el
+   estado es la información principal de la fila y el destino es contexto. Cuando hay override
+   sí se enciende, porque ahí el dato dejó de ser el esperado. */
+.chip-destino {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  padding: 2px var(--space-xs);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xs);
+  max-width: 11ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &.override {
+    color: var(--accent-orange);
+    border-color: var(--accent-orange);
+    background-color: rgba(var(--accent-orange-rgb), var(--alpha-badge));
+  }
+}
+
 /* Tarjeta de Error de Servidor Desconectado */
 .server-error-card {
   display: flex;

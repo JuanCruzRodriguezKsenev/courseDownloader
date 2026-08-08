@@ -128,7 +128,11 @@ describe('QueueFeature.encolarItemsEnCaliente', () => {
 
     expect(AppState.colaDescargas).toHaveLength(1);
     expect(AppState.colaDescargas[0].titulo).toBe('A');
-    expect(AppState.colaDescargas[0].carpeta).toBe('biologia'); // toma nodos.folder
+    // ⚠️ [ESCANEO-API CORTE 2] Este assert sigue en verde pero CAMBIÓ DE SIGNIFICADO. Antes
+    // afirmaba "la carpeta sale del input, siempre". Ahora afirma el camino del OVERRIDE: el
+    // ítem no trae carpeta propia y el input está escrito, así que el input gana. La regla
+    // completa (`override || carpeta del módulo`) la fijan los tests de abajo.
+    expect(AppState.colaDescargas[0].carpeta).toBe('biologia');
     expect(item.estado).toBe('process');
     expect(item.seleccionado).toBe(false);
     expect(nodos.queueBadge.textContent).toBe('1');
@@ -139,6 +143,124 @@ describe('QueueFeature.encolarItemsEnCaliente', () => {
     await flush();
     expect(console.warn).not.toHaveBeenCalled();
     expect(AppState.colaDescargas).toHaveLength(1);
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // [ESCANEO-API CORTE 2] El override del input de carpeta.
+  //
+  //     carpeta del ítem = override del input || carpeta de su módulo
+  //
+  // El punto de estos tests es que el override NO es la fuente: es una excepción explícita
+  // sobre un destino que ya venía decidido por el módulo de origen de cada clase.
+  // ───────────────────────────────────────────────────────────────────────────
+  describe('el override del input de carpeta', () => {
+    /** Una clase que trae módulo y su carpeta ya resuelta, como la deja el escaneo por API. */
+    const claseConModulo = (over = {}) => ({
+      id: 7,
+      numeroOriginal: 1,
+      titulo: 'Miologia 1',
+      urlInterna: 'u',
+      estado: 'pending',
+      seleccionado: true,
+      modulo: 'miembro_superior',
+      carpeta: 'miembro_superior',
+      ...over,
+    });
+
+    it('sin override, cada clase va a la carpeta de SU módulo', () => {
+      responderCon({ status: 'encolados_ok' });
+      const { feature, nodos } = crearFeature();
+      nodos.folder.value = '';
+
+      feature.encolarItemsEnCaliente([
+        claseConModulo(),
+        claseConModulo({ id: 8, modulo: 'miembro_inferior', carpeta: 'miembro_inferior' }),
+      ]);
+
+      expect(AppState.colaDescargas.map(c => c.carpeta)).toEqual([
+        'miembro_superior',
+        'miembro_inferior',
+      ]);
+    });
+
+    it('con override, TODAS van a la carpeta del input', () => {
+      responderCon({ status: 'encolados_ok' });
+      const { feature, nodos } = crearFeature();
+      nodos.folder.value = 'repaso_final';
+
+      feature.encolarItemsEnCaliente([
+        claseConModulo(),
+        claseConModulo({ id: 8, modulo: 'miembro_inferior', carpeta: 'miembro_inferior' }),
+      ]);
+
+      expect(AppState.colaDescargas.map(c => c.carpeta)).toEqual(['repaso_final', 'repaso_final']);
+    });
+
+    it('el override se sanea igual que el módulo: si no, la carpeta no matchea en disco', () => {
+      responderCon({ status: 'encolados_ok' });
+      const { feature, nodos } = crearFeature();
+      nodos.folder.value = '  Repaso Final ÚLTIMO!  ';
+
+      feature.encolarItemsEnCaliente([claseConModulo()]);
+
+      expect(AppState.colaDescargas[0].carpeta).toBe('repaso_final_ultimo');
+    });
+
+    it('un input con SÓLO basura no cuenta como override: la clase vuelve a su módulo', () => {
+      // Sanear `"!!!"` da `""`, y `"" || carpeta` cae en la carpeta del módulo. Es la diferencia
+      // entre "no escribiste nada útil" y "mandá todo a la carpeta vacía".
+      responderCon({ status: 'encolados_ok' });
+      const { feature, nodos } = crearFeature();
+      nodos.folder.value = '!!!';
+
+      feature.encolarItemsEnCaliente([claseConModulo()]);
+
+      expect(AppState.colaDescargas[0].carpeta).toBe('miembro_superior');
+    });
+
+    it('el override NO muta la clase de la lista: borrarlo la devuelve a su módulo', () => {
+      // Es la regla que evita el riesgo R4: si el override escribiera `c.carpeta`, borrar el
+      // input dejaría las clases en `""` — una carpeta inexistente, sin ningún error.
+      responderCon({ status: 'encolados_ok' });
+      const { feature, nodos } = crearFeature();
+      nodos.folder.value = 'repaso_final';
+
+      const clase = claseConModulo();
+      feature.encolarItemsEnCaliente([clase]);
+
+      expect(AppState.colaDescargas[0].carpeta).toBe('repaso_final');
+      expect(clase.carpeta).toBe('miembro_superior'); // la de la lista, intacta
+    });
+
+    it('el módulo de ORIGEN viaja con el ítem aunque el override cambie el destino', () => {
+      // Sin esto, la identidad del ítem encolado no coincidiría con la de la lista y el SW
+      // sacaría de la cola a la clase equivocada al terminar.
+      responderCon({ status: 'encolados_ok' });
+      const { feature, nodos } = crearFeature();
+      nodos.folder.value = 'repaso_final';
+
+      feature.encolarItemsEnCaliente([claseConModulo()]);
+
+      expect(AppState.colaDescargas[0].modulo).toBe('miembro_superior');
+    });
+
+    it('encolar con override y después sin él no reescribe lo ya encolado', () => {
+      responderCon({ status: 'encolados_ok' });
+      const { feature, nodos } = crearFeature();
+
+      nodos.folder.value = 'repaso_final';
+      feature.encolarItemsEnCaliente([claseConModulo()]);
+
+      nodos.folder.value = '';
+      feature.encolarItemsEnCaliente([
+        claseConModulo({ id: 9, modulo: 'miembro_inferior', carpeta: 'miembro_inferior' }),
+      ]);
+
+      expect(AppState.colaDescargas.map(c => c.carpeta)).toEqual([
+        'repaso_final',
+        'miembro_inferior',
+      ]);
+    });
   });
 
   it('revierte el optimistic update si el canal falla (SW dormido)', async () => {

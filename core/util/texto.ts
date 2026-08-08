@@ -1,13 +1,19 @@
 /**
- * UTILIDADES DE TEXTO (V1.0.0)
+ * UTILIDADES DE TEXTO (V1.1.0)
+ * ==========================================================================
+ * CHANGELOG v1.1.0:
+ * - [ESCANEO-API CORTE 2] Nace `sanearNombreCarpeta`, para el override del input de carpeta.
  * ==========================================================================
  * Capa 1. Salieron de `shared/utils.js` en la Fase 6a, sin cambios de lógica.
  *
- * Las tres son puras y sincrónicas, pero resuelven problemas distintos y conviene no
+ * Las cuatro son puras y sincrónicas, pero resuelven problemas distintos y conviene no
  * confundirlas al elegir cuál usar:
- *   - `sanitizarTexto` → nombre de archivo válido para el SO. Su lista de caracteres está
+ *   - `sanitizarTexto` → nombre de ARCHIVO válido para el SO. Su lista de caracteres está
  *     **sincronizada con el backend Bun**: si cambia acá y no allá, el archivo se escribe con
  *     otro nombre del que la extensión cree y la deduplicación por título deja de coincidir.
+ *   - `sanearNombreCarpeta` → nombre de CARPETA. Es mucho más estricto que el anterior
+ *     (minúsculas, sin acentos, sólo `[a-z0-9_]`) porque tiene que coincidir con lo que el
+ *     scraper produce a partir del nombre de un módulo, y esos dos valores se comparan.
  *   - `escaparHtml` → neutraliza markup de texto NO confiable (títulos scrapeados) antes de
  *     interpolarlo en un string que va a `.innerHTML`. Es la defensa del XSS, no un formateo.
  *   - `quitarAcentos` → normalización para comparar/parsear, no para mostrar.
@@ -52,6 +58,28 @@ export function escaparHtml(texto?: unknown): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+/**
+ * Texto libre → nombre de carpeta en disco (`raíz/<portal>/<carpeta>/`).
+ *
+ * ⚠️ **Tiene que producir exactamente lo mismo que el saneo del scraper de Anatomy**, que
+ * convierte el nombre del módulo en carpeta. Los dos valores se comparan —el override del input
+ * contra la carpeta del módulo— y también se buscan en disco, así que una diferencia de criterio
+ * haría que la extensión mire una carpeta y escriba en otra, sin error en ningún lado.
+ *
+ * Y la duplicación es DELIBERADA, no un descuido: la función del scraper se inyecta en la
+ * pestaña vía `executeScript` y no puede referenciar nada de la extensión, ni siquiera esto.
+ * Ver `docs/architecture.md` §Capa 2.
+ */
+export function sanearNombreCarpeta(texto?: string | null): string {
+  return String(texto || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
 /** Elimina acentos en un solo paso, vía tabla de lookup. */

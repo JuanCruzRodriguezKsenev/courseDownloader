@@ -779,7 +779,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     
       appState.respaldar();
       renderizarListadoInterfaz();
-    
+      // [CORTE 2] El texto del botón también dice el destino, así que se refresca con cada
+      // tecla junto con los chips de las filas. Los dos leen el MISMO input: si sólo se
+      // actualizara uno, el feedback se contradiría a sí mismo.
+      actualizarContadoresBoton();
+
       // Debounce de la sincronización de archivos físicos con Bun (400ms)
       clearTimeout(timerSincronizacionDebounce);
       timerSincronizacionDebounce = setTimeout(() => {
@@ -918,9 +922,13 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
 
             // Un portal de dos niveles no tiene UNA materia: tiene una por módulo, y viaja con
-            // cada enlace. Devuelve `materia: ""` y el input queda vacío a propósito — el
-            // placeholder que lo explica lo pone `_carpeta` (corte 2).
+            // cada enlace. El input queda vacío a propósito y el placeholder explica por qué —
+            // vacío y sin explicación se lee como "se rompió el escaneo".
             nodos.folder.value = resultado.materia || "";
+            const hayModulos = (enlaces || []).some(e => e && e.modulo);
+            nodos.folder.placeholder = hayModulos
+              ? "cada clase va a su módulo"
+              : "carpeta de destino";
 
             if (!enlaces || enlaces.length === 0) {
               // [ESCANEO-API CORTE 1] **NO se destruye la lista.** Antes esta rama hacía
@@ -946,7 +954,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
                   titulo: 'Sin clases detectadas',
                   // El nombre del portal sale del descriptor. Estaba hardcodeado "Ramón Net", y
                   // en el otro portal el cartel mandaba al usuario al lugar equivocado.
-                  descripcion: `No encontramos clases en esta pestaña.<br>Asegurate de estar dentro de ${Utils.escaparHtml(portal.nombre)} y hacé click en Re-escanear.`,
+                  descripcion: `No encontramos clases en esta pestaña.<br>Asegurate de estar dentro de ${utils.escaparHtml(portal.nombre)} y hacé click en Re-escanear.`,
                   icono: '🔍'
                 }});
               }
@@ -1330,6 +1338,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           anclaActiva,
           sinResultados,
           selectionMode,
+          // [ESCANEO-API CORTE 2] El override del input, ya saneado, para que cada fila pueda
+          // mostrar a dónde va a ir. **No es adorno**: si el input puede pisar el destino de 103
+          // clases, tenés que ver el efecto ANTES de encolar. Escribir algo cambia las 103 filas
+          // a la vez y es imposible no verlo.
+          overrideCarpeta: utils.sanearNombreCarpeta(nodos.folder.value),
           onCheckChange: (c, check) => {
             c.seleccionado = check;
 
@@ -1680,16 +1693,32 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         return;
       }
 
-      const sel = appState.listadoClasesGlobal.filter(c => c.seleccionado && c.estado === 'pending').length;
+      const seleccionadas = appState.listadoClasesGlobal.filter(c => c.seleccionado && c.estado === 'pending');
+      const sel = seleccionadas.length;
+
+      // [ESCANEO-API CORTE 2] El botón DICE el destino. Es la segunda mitad del feedback del
+      // override: el chip por fila muestra el efecto en la lista, y esto lo confirma en el
+      // mismo click que lo aplica. Sin esto, encolar 103 clases con el input tocado sin querer
+      // se descubre recién mirando el disco.
+      const textoDestino = () => {
+        const override = utils.sanearNombreCarpeta(nodos.folder.value);
+        if (override) return ` → /${override}/`;
+        // "por módulo" sólo si de verdad hay módulos: en un portal de un solo nivel esa frase
+        // no significaría nada.
+        return seleccionadas.some(c => c.modulo) ? " → por módulo" : "";
+      };
+      const textoBoton = sel === 0
+        ? "Seleccioná clases"
+        : `Agregar ${sel} clases a la fila 📥${textoDestino()}`;
 
       if (appState.ráfagaEnCurso) {
-        configurarBotonesUX("descargar", sel === 0 ? "Seleccioná clases" : `Agregar ${sel} clases a la fila 📥`, sel === 0);
+        configurarBotonesUX("descargar", textoBoton, sel === 0);
         nodos.btnAction.style.display = 'block';
         nodos.masterCheck.disabled = false;
       } else {
         nodos.txtEstado.innerHTML = "";
 
-        configurarBotonesUX("descargar", sel === 0 ? "Seleccioná clases" : `Agregar ${sel} clases a la fila 📥`, sel === 0);
+        configurarBotonesUX("descargar", textoBoton, sel === 0);
         nodos.btnAction.style.display = 'block';
         nodos.masterCheck.disabled = false;
       }

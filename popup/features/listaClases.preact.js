@@ -87,8 +87,19 @@ export function TarjetaEstado({ tipo, titulo, descripcion, icono }) {
 
 // Port 1:1 del antiguo renderers.js construirFilaClaseDOM (ramas disponibles/cola).
 export function FilaClase({ clase, ctx }) {
-  const { pestaña, sincronizado, enCurso, videoActivo, selectionMode, onCheckChange, onRemoverClick } = ctx;
+  const { pestaña, sincronizado, enCurso, videoActivo, selectionMode, onCheckChange, onRemoverClick, overrideCarpeta } = ctx;
   const sel = !!clase.seleccionado;
+
+  // [ESCANEO-API CORTE 2] El chip de DESTINO. Sólo aparece en clases que traen módulo, o sea en
+  // portales de dos niveles: en Ramón Net el destino es uno solo y el chip sería ruido en cada
+  // fila. Con override activo muestra `→ <carpeta>` en las 103 a la vez, que es todo el punto —
+  // el feedback tiene que llegar ANTES de encolar, no después de mirar el disco.
+  const destino = clase.modulo ? (overrideCarpeta || clase.modulo) : null;
+  const chipDestino = destino
+    ? html`<span class="chip-destino ${overrideCarpeta ? 'override' : ''}"
+             title=${overrideCarpeta ? `Override: va a ${destino}` : `Módulo: ${destino}`}
+           >${overrideCarpeta ? `→ ${destino}` : destino}</span>`
+    : null;
 
   const disponibles = pestaña === 'disponibles';
   const esActivo = clase.titulo === videoActivo && enCurso;
@@ -127,6 +138,7 @@ export function FilaClase({ clase, ctx }) {
       <div class="video-item ${sel ? 'selected' : ''}" title=${clase.titulo} style=${estilo} onClick=${onRowClick}>
         ${checkbox}
         <span class="video-label">${clase.titulo}</span>
+        ${chipDestino}
         <span class="badge ${badgeCls}">${badgeTxt}</span>
       </div>`;
   }

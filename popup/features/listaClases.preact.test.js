@@ -78,6 +78,56 @@ describe('Isla Preact: ListaClases', () => {
     expect(badges).toContain('Descargado');
   });
 
+  // [ESCANEO-API CORTE 2] El chip de destino. No es decoración: si el input de carpeta puede
+  // pisar el destino de 103 clases, el efecto tiene que verse ANTES de encolar.
+  describe('el chip de destino', () => {
+    const chips = () => [...root.querySelectorAll('.chip-destino')].map((c) => c.textContent);
+
+    it('una clase con módulo muestra su módulo', async () => {
+      puente.render({ modo: 'lista', ctx: ctxBase(), items: [
+        { id: 1, titulo: 'Miologia 1', estado: 'pending', modulo: 'miembro_superior' },
+      ]});
+      await flush();
+      expect(chips()).toEqual(['miembro_superior']);
+    });
+
+    it('una clase SIN módulo no muestra chip: en un portal de un nivel sería ruido', async () => {
+      puente.render({ modo: 'lista', ctx: ctxBase(), items: [
+        { id: 1, titulo: 'Anatomía TP 1', estado: 'pending' },
+      ]});
+      await flush();
+      expect(chips()).toEqual([]);
+    });
+
+    it('con override, TODAS las filas cambian a la vez y se marcan como override', async () => {
+      // Que cambien todas juntas es el mecanismo: es lo que hace imposible tocar el input sin
+      // darse cuenta de lo que hace.
+      puente.render({ modo: 'lista', ctx: ctxBase({ overrideCarpeta: 'repaso_final' }), items: [
+        { id: 1, titulo: 'Miologia 1', estado: 'pending', modulo: 'miembro_superior' },
+        { id: 2, titulo: 'Miologia 1', estado: 'pending', modulo: 'miembro_inferior' },
+      ]});
+      await flush();
+      expect(chips()).toEqual(['→ repaso_final', '→ repaso_final']);
+      expect(root.querySelectorAll('.chip-destino.override').length).toBe(2);
+    });
+
+    it('el override no le inventa chip a una clase sin módulo', async () => {
+      puente.render({ modo: 'lista', ctx: ctxBase({ overrideCarpeta: 'repaso_final' }), items: [
+        { id: 1, titulo: 'Anatomía TP 1', estado: 'pending' },
+      ]});
+      await flush();
+      expect(chips()).toEqual([]);
+    });
+
+    it('sin override el chip no lleva la clase override', async () => {
+      puente.render({ modo: 'lista', ctx: ctxBase({ overrideCarpeta: '' }), items: [
+        { id: 1, titulo: 'Miologia 1', estado: 'pending', modulo: 'miembro_superior' },
+      ]});
+      await flush();
+      expect(root.querySelectorAll('.chip-destino.override').length).toBe(0);
+    });
+  });
+
   it('sin sincronizar: filas atenuadas y sin checkbox', async () => {
     puente.render({ modo: 'lista', ctx: ctxBase({ sincronizado: false }), items: [
       { id: 1, titulo: 'A', estado: 'pending', seleccionado: false },

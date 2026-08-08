@@ -76,6 +76,10 @@
  */
 
 import { SITIO_LEGADO } from '../../core/estado/appState.ts';
+// [CORTE 2] Por import y no por el global `Utils`: es una función pura de Capa 1 y la feature
+// viaja por el grafo del bundler desde la Fase 8a. Sumar un lector de `globalThis` sería
+// caminar la migración para atrás.
+import { sanearNombreCarpeta } from '../../core/util/texto.ts';
 const QueueFeature = {
   crear(ctx) {
     const {
@@ -115,7 +119,17 @@ const QueueFeature = {
     }
 
     function encolarItemsEnCaliente(items) {
-      const carpeta = nodos.folder.value.trim().toLowerCase();
+      // [ESCANEO-API CORTE 2] El input es un OVERRIDE, no la fuente. La regla:
+      //
+      //     carpeta del ítem = override del input || carpeta de su módulo
+      //
+      // Se estampa al encolar (como siempre) y **no muta `c.carpeta`**: el override vive sólo
+      // en el input, así que borrarlo devuelve cada clase a su módulo en vez de dejarla en `""`.
+      //
+      // Se sanea igual que el módulo en el scraper (NFD + `[^a-z0-9] → _`) porque termina
+      // siendo un nombre de carpeta en disco: sin esto, escribir "Repaso Final" crearía una
+      // carpeta con espacio y mayúsculas que después no matchea contra el escaneo de disco.
+      const override = sanearNombreCarpeta(nodos.folder.value);
 
       // Crear los objetos limpios de la cola
       const nuevosEncolados = items.map((c, idx) => ({
@@ -123,7 +137,10 @@ const QueueFeature = {
         numeroOriginal: c.numeroOriginal,
         titulo: c.titulo,
         urlInterna: c.urlInterna,
-        carpeta: carpeta,
+        carpeta: override || c.carpeta || "",
+        // El módulo de ORIGEN viaja con el ítem: es media identidad de la clase, y el override
+        // de arriba justamente NO tiene que poder cambiarla.
+        modulo: c.modulo,
         fechaEncolado: Date.now() + idx,
         // ADR-0010: viaja con el ítem. Sale de la clase y NO del sitio activo a propósito —
         // la cola sobrevive a que el usuario cambie de pestaña, así que "el sitio de ahora"
