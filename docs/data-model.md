@@ -89,6 +89,13 @@ adopta la vieja, la borra al adoptarla, y con las dos presentes gana la nueva.
   urlInterna: string,             // URL de la página de la clase en el portal
   carpeta: string,                // subcarpeta de destino (materia, lowercase)
   sitioId: string,                // de qué portal salió (ADR-0010). Lo estampa el popup al escanear
+  modulo?: string,                // [ADR-0014] módulo de ORIGEN, en portales de dos niveles. Es
+                                  // identidad, no destino: `carpeta` la puede pisar el override
+                                  // del input y `modulo` NO. Ausente en portales de un nivel.
+  tipo?: "video" | "adjunto",     // [ADR-0014] ausente = "video" (todo lo persistido de antes)
+  idArchivo?: string,             // sólo en adjuntos: el `fileMembershipId` con el que el portal
+                                  // entrega la URL firmada. Se resuelve al BAJAR, no al escanear
+  bytes?: number,                 // sólo en adjuntos: peso declarado por el portal, para la UI
   catedra?: "A"|"B"|"C"|"D"|"COMUN",
   estado: "pending" | "process" | "downloaded",
   seleccionado: boolean,          // checkbox en la UI
@@ -106,6 +113,11 @@ adopta la vieja, la borra al adoptarla, y con las dos presentes gana la nueva.
   urlInterna: string,
   carpeta: string,
   sitioId: string,                // hereda el de la clase (ADR-0010), NO el del sitio activo
+  modulo?: string,                // [ADR-0014] hereda el de la clase. NO se deriva de `carpeta`:
+                                  // con el override activo son valores distintos
+  tipo?: "video" | "adjunto",     // [ADR-0014] ausente = "video"
+  idArchivo?: string,             // sólo en adjuntos
+  bytes?: number,                 // sólo en adjuntos
   fechaEncolado: number,          // Date.now() al encolar. Desde ADR-0011 NO es la fuente del
                                   // orden: es el dato del criterio "de llegada" y el que
                                   // normaliza las colas anteriores al corte 6d.
@@ -158,7 +170,27 @@ Encapsulado por `SessionState` (`core/cola/estadoSesion.ts`, tipado y con sus de
 | `abortadoPorUsuario` | `boolean` | `false` | Distingue un abort explícito del usuario de un fallo real, para no reintentar tras un abort. |
 | `videoActualSessionId` | `string` | `""` | Token único (`Date.now().toString()`) por descarga, usado para vincular fragmentos al backend Bun y evitar colisiones ante cancelaciones. |
 
-## La identidad de una clase es (portal, título)
+## La identidad de una clase es (portal, módulo, tipo, título)
+
+> **Desde el 2026-08-07 son CUATRO campos, no dos** (ADR-0014). El par `(portal, título)` que
+> describe el resto de esta sección asumía que **dentro** de un portal el título es único, y eso se
+> cayó con un portal de dos niveles: Anatomy by Chris tiene **7 títulos que viven en dos módulos a
+> la vez**, con distinto video y distinta carpeta. El modo de fallar era el mismo que el par había
+> cerrado para dos portales, sólo que intra-portal — y **rompía datos**.
+>
+> - **`modulo` es el ORIGEN de la clase, nunca su carpeta de destino.** Si fuera el destino,
+>   activar el override del input de carpeta le cambiaría la identidad a todos los ítems de una.
+> - **`tipo` cae en `"video"`** cuando no viene. Existe porque un adjunto y el video del que cuelga
+>   comparten portal, módulo y título.
+> - **No hubo migración**: la clave se calcula, no se persiste. Lo único que la guardaba es el
+>   espejo de progreso, cuya migración de lectura ahora cubre **dos** formatos viejos (`Título` y
+>   `portal|Título`), distinguidos por la cantidad de separadores.
+> - Un portal de un nivel no manda módulo ni tipo: su clave queda `ramonnet||video|Título`,
+>   semánticamente idéntica a la anterior.
+>
+> **La regla que se paga en vigilancia**: todo mensaje IPC que hable de un ítem lleva los cuatro
+> campos. Un payload incompleto no falla ruidosamente — la clave sale distinta y la operación no
+> hace nada. Ver `docs/patterns.md` §IPC.
 
 **Desde el 2026-08-06 (corte multiportal D).** Antes la identidad era **el título**: la cola se
 filtraba por título, `listaPersistente` se buscaba por título y el espejo de progreso era un

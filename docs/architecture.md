@@ -421,6 +421,20 @@ Son `resolverManifiesto.js` (HTML de la clase → `.m3u8`), `parserTitulos.js` (
 títulos/cátedra) y `scraper.js` (scraper del DOM), alcanzados vía
 `sitio.resolverManifiesto` / `.parsearTitulo` / `.clasificarCarpeta` / `.escanearListado`, donde `sitio` es el descriptor que el consumidor recibió inyectado.
 
+**Anatomy by Chris tiene un cuarto hermano** desde el corte 5 del escaneo por API:
+`descargarAdjunto.js` (`DescargarAdjuntoAnatomy`), alcanzado vía `sitio.resolverAdjunto` — un
+método **opcional** del puerto, que un portal sin materiales simplemente no implementa. Convierte
+el id de un adjunto en una URL descargable, y **nada más**: los bytes los baja el bucle, que es
+genérico. Se importa **sólo en el entrypoint del service worker** y no en el del popup, porque la
+URL que devuelve vive **una hora**: pedirla al escanear la vencería antes de usarla.
+
+**Y el scraper de ese portal ya no lee el DOM**: le pide el árbol a `/v1/navigation` (11 módulos,
+114 clases en una llamada) y después un `complementary-content` por lección con pool de 6. Por eso
+`escanearListado` puede ser `async` — `executeScript` espera la promesa—, y por eso el `fetch` va
+**inyectado en la pestaña** y no en el SW: desde la pestaña sale con el origen de `hotmart.com` y
+el `id_token` de su `localStorage`, que el service worker no puede replicar. Ramón Net sigue
+devolviendo sincrónicamente y no se enteró.
+
 **Cómo resuelve `ResolverManifiesto.resolver`, y por qué es el primer sospechoso cuando una
 descarga trae el video equivocado.** El camino principal **no** parsea el manifiesto: extrae el
 `<iframe>` activo que apunta a `b-cdn.net`/`mediadelivery.net`, le saca el hash UUID y

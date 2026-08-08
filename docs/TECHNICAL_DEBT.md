@@ -14,10 +14,29 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 ## 🔴 Abierto
 
-### La identidad (portal, título) colisiona dentro de un portal de dos niveles
+> **Al 2026-08-07 lo único abierto de esta sección son los 6 strings de `popup.js`** que nombran
+> a Ramón Net (segunda entrada), y siguen frenados a propósito. La entrada de la identidad quedó
+> **resuelta** el mismo día que se encontró (ADR-0014) y se conserva acá, y no en el registro
+> fechado de abajo, porque lo que enseñó sigue valiendo cada vez que se toca la cola o el escaneo.
+> Baja cuando el frente `escaneo-api-anatomy` se verifique en navegador y se mergee.
+>
+> **Y el freno de los strings se puede levantar**: la condición que lo sostenía era *"recién
+> cuando exista un segundo portal real"*, y desde el corte 7 existe.
 
-- **Estado**: 🔴 abierto (hallado el 2026-08-07, midiendo el árbol de clases de Anatomy by Chris
-  para rediseñar su escaneo). **Rompe datos hoy, sin ningún cambio previo.**
+### ✅ La identidad (portal, título) colisiona dentro de un portal de dos niveles
+
+- **Estado**: ✅ **RESUELTO el 2026-08-07**, el mismo día que se encontró, en el corte 1 del
+  escaneo por API. La identidad pasó a **(portal, módulo, tipo, título)** y la decisión quedó en
+  **ADR-0014**. Falta la verificación en navegador del frente entero (rama
+  `escaneo-api-anatomy`), pero el defecto que rompía datos ya no está en el código.
+- **Lo que enseñó de más, y por eso vale releer esta entrada**: arreglar la clave **no alcanzaba**.
+  Construirlo destapó **cinco lugares que armaban un objeto-identidad a mano con dos campos** — el
+  propio bucle de descarga (`esteItem`, que hacía que la clave saliera sin módulo y anulaba el
+  arreglo entero), los dos senders de `remover_item_de_cola` (con la clave incompleta, "Remover"
+  no removía nada y no avisaba) y los dos `clase_con_error`. Ninguno lo detecta el compilador: son
+  objetos literales estructuralmente válidos. La regla que quedó está en `docs/patterns.md` §IPC.
+- **Estado original**: 🔴 abierto (hallado el 2026-08-07, midiendo el árbol de clases de Anatomy by
+  Chris para rediseñar su escaneo). **Rompía datos ese día, sin ningún cambio previo.**
 - **Qué pasa**: `core/cola/identidadClase.ts` define la identidad de una clase como el par
   **(portal, título)**. El corte D del multi-sitio lo estableció así porque dos portales pueden
   tener clases homónimas; el supuesto tácito era que **dentro** de un portal el título es único.

@@ -1,5 +1,30 @@
 # El escaneo de Anatomy by Chris pasa de DOM a API — diseño de ejecución
 
+> ## ✅ Estado al 2026-08-07: los CINCO cortes están construidos
+>
+> Rama `escaneo-api-anatomy`, sin mergear. **Falta la verificación en navegador**, que es la
+> condición para mergear (la regla del proyecto, no una formalidad — ver el §Registro de riesgos:
+> tres de los cinco riesgos **sólo los detecta el navegador**).
+>
+> | corte | qué entró |
+> |---|---|
+> | 1 | identidad `(portal, módulo, tipo, título)` → **ADR-0014**; escaneo por `/v1/navigation`; carpeta por módulo |
+> | 2 | el override del input, con chip por fila y destino en el botón |
+> | 3 | tests, docs y el ADR (este bloque) |
+> | 4 | tope de calidad **720p**, por rango y no por igualdad |
+> | 5 | los adjuntos (PDF) entran a la cola |
+>
+> **Lo que hay que mirar PRIMERO al verificar, porque no se pudo medir desde acá**: cómo nombra el
+> backend Bun un archivo que no viene fragmentado (riesgo **R9**, es otro repo). El título del ítem
+> ya trae su `.pdf`; si el backend le agrega `.mp4` como a los videos, queda `… .pdf.mp4`.
+>
+> **Lo que construirlo enseñó y el plan no decía**: arreglar la clave de identidad **no alcanzaba**.
+> Aparecieron **cinco lugares** que armaban un objeto-identidad a mano con dos campos —incluido el
+> propio bucle de descarga, que anulaba el arreglo entero— y **dos defectos del corte 1** que sólo
+> se vieron al construir el 5: `esteItem` sin módulo, y el filtro de materia comparando contra el
+> input, que deja la lista entera invisible en un portal de dos niveles. Ninguno de los siete lo
+> detecta el compilador.
+
 **Estado al 2026-08-07: DIAGNOSTICADO Y MEDIDO, NADA CONSTRUIDO.** Este doc es el "cómo" de un
 frente que todavía no se empezó. Lo que sí está hecho es la medición: los tres síntomas tienen causa
 con línea de código, la API que los resuelve está probada contra el portal real, y apareció un

@@ -62,6 +62,16 @@ cambio).
 
 **El status de `/api/bypass-stream` es contrato, no detalle**: un **4xx** se interpreta como rechazo aplicativo con el server vivo → se reintenta N=3 y se **salta esa clase** sin pausar la cola; un **5xx** o un timeout se interpretan como caída → **pausa + auto-heal**. Un backend que devuelva 4xx ante una condición transitoria hace que la extensión descarte clases recuperables (es exactamente el bug 400 — ver `docs/TECHNICAL_DEBT.md` y `docs/patterns.md` §Circuit breaker).
 
+**Un archivo suelto (un PDF adjunto) viaja por el MISMO endpoint**, desde el corte 5 del escaneo
+por API: `/api/bypass-stream` no sabe qué es un video —recibe bytes con `x-chunk-index` /
+`x-total-chunks`—, así que un adjunto es *el chunk 0 de N*, cortado en bloques de 5 MB para que
+haya progreso real. Con eso el backend **probablemente no cambia**.
+
+⚠️ **Lo único de esa cadena que no está medido, y el backend es otro repo**: cómo nombra el
+archivo resultante. El `x-video-title` de un adjunto ya trae su extensión (`Yokochi 6ta ED.pdf`);
+si el backend le agrega `.mp4` como a los videos, el archivo queda `… .pdf.mp4`. Es lo primero a
+mirar al verificar ese corte en el navegador.
+
 **Idempotencia por `x-session-id`**: cada intento de descarga genera un id nuevo, y el backend clavetea su archivo `.part` por ese id. Es lo que evita que los bytes de un intento abortado se mezclen con los del reintento.
 
 ## Versionado

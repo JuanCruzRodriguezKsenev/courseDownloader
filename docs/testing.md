@@ -4,13 +4,33 @@
 
 **Lo que sumó el corte 7** (el segundo portal, 2026-08-07): las credenciales por portal (`core/estado/credencialesPortal.ts`, sobre el adaptador en memoria) y el adaptador entero de `sitio/anatomy-by-chris/` — el parser, el `resolverManifiesto` con sus tres `fetch` stubeados, y **el scraper contra el HTML REAL del portal** (`__fixtures__/listado-modulo.html`, 11 KB recortados de las páginas guardadas: se conservaron el markup de las filas tal cual y se vaciaron los `d=` de los `<path>` de los íconos). Ese fixture no es un lujo: las cuatro trampas de ese portal —el `innerText` envenenado por los `<title>` de los íconos, las flechas de navegación que parecen clases, las filas de texto sin video y el `<aside>` de Perfil que gana un `querySelector('aside')`— son exactamente lo que un doble escrito por quien escribió el scraper **no** reproduciría, así que un DOM inventado pasaría los tests con un scraper roto. Y el corte estrenó de paso lo que hasta ahora sólo tenía dobles: que los dos `esPaginaDelSitio` sean **disjuntos** (`sitio/registro.test.ts`) ya se afirma con dos portales de verdad. **Lo que ese fixture sigue sin poder ver es que `escanearListado` sea serializable y autocontenida** — acá corre importada, con su módulo entero disponible; en producción la serializa `chrome.scripting.executeScript`. Eso sólo lo detecta el navegador.
 
+**Lo que cambió con el escaneo por API (cortes 1 a 5, 2026-08-07)**, y lo primero es una **pérdida
+que conviene tener presente**: `sitio/anatomy-by-chris/scraper.test.js` **dejó de correr contra el
+HTML real**. No es un descuido — el escaneo ya no lee el DOM, así que un fixture de HTML no
+probaría nada—, pero con eso se fue la única observación real de ese portal que existía sin abrir
+el navegador. El fixture queda versionado porque sigue documentando el DOM, y ya no lo lee nadie.
+En su lugar el test corre contra un doble de `/v1/navigation` recortado del crudo medido.
+
+Lo que se ganó a cambio: las 7 colisiones reales de títulos entre módulos están fijadas una por una
+(`core/cola/identidadClase.test.ts`), el override de carpeta y su saneo tienen su bloque
+(`popup/features/queue.test.js`), la escalera de calidad real de cinco escalones prueba que la
+elección es **por rango y no por igualdad** —incluido el caso de que el CDN saque el escalón del
+tope—, y la rama del adjunto en el bucle afirma lo que más importa de ella: que **no toca el motor
+HLS**. El módulo nuevo `descargarAdjunto.js` tiene sus propios tests, casi todos sobre **cómo viene
+tipado cada error**, que es lo que decide entre saltear una clase y pausar la cola.
+
+**Y hay dos cosas que estos tests no pudieron ver, y por eso el navegador sigue siendo
+obligatorio**: que una función `async` inyectada por `executeScript` resuelva (riesgo R2), y **cómo
+nombra el backend Bun un archivo que no viene fragmentado** (riesgo R9) — es otro repo, y si le
+agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
+
 ## Baseline de las verificaciones
 
 **Este doc es el hogar canónico de estos números** (convención DRY, ver `docs/adr/0007-dry-docs-canonical-homes.md`): `CLAUDE.md` y el resto apuntan acá en vez de repetirlos. Si agregás tests o un archivo nuevo, el número se actualiza **acá**, en el mismo cambio.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `npm test` | 33 archivos, 484 tests, todo en verde |
+| `npm test` | 34 archivos, 568 tests, todo en verde |
 | `npm run lint` | **0 errores, 0 warnings** |
 | `npx tsc --noEmit` | sin salida (limpio) |
 | `npm run build` | compila a `.output/chrome-mv3/` |

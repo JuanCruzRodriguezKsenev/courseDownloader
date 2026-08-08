@@ -26,5 +26,6 @@ Registro formal de las decisiones de arquitectura significativas del proyecto.
 | [0011](0011-el-orden-de-la-cola-lo-decide-el-popup.md) | El orden de la cola lo decide el popup: el array **es** el orden | Aceptada |
 | [0012](0012-la-faceta-elegida-es-por-portal.md) | La faceta elegida es por portal, y `claveEstado` sale del puerto | Aceptada |
 | [0013](0013-credenciales-por-portal.md) | Las credenciales de un portal son suyas y del usuario, no de la clase | Aceptada |
+| [0014](0014-identidad-compuesta-de-clase.md) | La identidad de un ítem es (portal, módulo, tipo, título) | Aceptada |
 
 Estados posibles: `Propuesta` → `Aceptada` | `Rechazada` | `Diferida` → (eventualmente) `Superseded by NNNN`.

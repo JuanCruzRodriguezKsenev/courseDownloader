@@ -82,6 +82,28 @@ Es la tercera vez que este proyecto paga el mismo patrón (ver `docs/multisitio-
 nuevo desborda una identidad que asumía los ejes viejos, y el síntoma es siempre el mismo — un
 ítem que desaparece, se duplica o se atribuye mal, sin un error en ningún lado.
 
+### ⚠️ Y desde ADR-0014 son CUATRO campos: `sitioId`, `modulo`, `tipo`, `titulo`
+
+La regla de arriba se generalizó el mismo día: **un mensaje que habla de un ítem lleva la identidad
+entera**. La diferencia con el caso del `sitioId` está en el síntoma, y conviene conocer los dos:
+
+| falta | qué pasa |
+|---|---|
+| `sitioId` | la clave se atribuye al **portal legado** ⇒ le pega al ítem equivocado |
+| `modulo` / `tipo` | la clave **no matchea nada** ⇒ la operación no hace nada, en silencio |
+
+Construir el corte destapó **cinco lugares** que armaban un objeto-identidad a mano con dos campos,
+y ninguno lo detecta el compilador —son objetos literales estructuralmente válidos—:
+
+- `esteItem`, en el propio bucle de descarga: la clave del espejo de progreso y todos los filtrados
+  de la cola salían **sin módulo**, o sea que el arreglo de ADR-0014 quedaba anulado desde adentro.
+- Los **dos** senders de `remover_item_de_cola` (`popup.js` y `queue.js`): con la clave incompleta,
+  "Remover" **no removía nada y no avisaba**.
+- Los **dos** `clase_con_error` del procesador.
+
+**La heurística práctica**: si estás escribiendo `{ titulo: x.titulo, sitioId: x.sitioId }`, parás.
+Eso ya no es una identidad.
+
 ## State ownership split (AppState / SessionState)
 
 **Dónde**: `core/estado/appState.ts` (`AppState`, vive en el popup) vs. `SessionState` (`core/cola/estadoSesion.ts`, que vive en el service worker).
