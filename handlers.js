@@ -87,11 +87,23 @@ export async function handleEscanearDisco(url, corsHeaders) {
 
     const { readdir } = await import("node:fs/promises");
     const items = await readdir(carpetaDestino, { withFileTypes: true });
+    // [ADJUNTOS] Antes esto filtraba SÓLO `.mp4`, y con los materiales adentro era un fallo
+    // silencioso: un PDF ya bajado nunca se reportaba, así que la extensión lo mostraba
+    // pendiente para siempre y lo volvía a bajar en cada ráfaga.
+    //
+    // ⚠️ La asimetría de abajo es DELIBERADA, no un descuido: al video se le saca la extensión y
+    // al adjunto NO. La extensión compara estos nombres contra el título de la clase, y el
+    // título de un video no lleva extensión (`Clase 1`) mientras que el de un adjunto SÍ
+    // (`Atlas.pdf`) — es su nombre de archivo. Devolver `atlas` no matchearía nunca.
     const nombresLimpios = items
-      .filter(item => item.isFile() && item.name.toLowerCase().endsWith(".mp4"))
-      .map(item => item.name.replace(/\.[^/.]+$/, "").toLowerCase().trim());
+      .filter(item => item.isFile())
+      .map(item =>
+        item.name.toLowerCase().endsWith(".mp4")
+          ? item.name.replace(/\.[^/.]+$/, "").toLowerCase().trim()
+          : item.name.toLowerCase().trim()
+      );
 
-    process.stdout.write(`\r📂 [DISCO]     Carpeta "${subCarpeta}" sincronizada con la extensión (${nombresLimpios.length} videos detectados).\n`);
+    process.stdout.write(`\r📂 [DISCO]     Carpeta "${subCarpeta}" sincronizada con la extensión (${nombresLimpios.length} archivos detectados).\n`);
 
     return new Response(JSON.stringify({ archivos: nombresLimpios }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -165,6 +177,9 @@ export async function handleBypassStream(request, corsHeaders) {
     // `x-target-folder` justamente por el `path.basename()` de la sanitización.
     const carpetaSitio = carpetaDeSitio(request.headers.get("x-site-folder"));
     const sessionId   = request.headers.get("x-session-id") || "";
+    // [ADJUNTOS] Nombre de archivo COMPLETO, con su extensión, para lo que no es un `.mp4`.
+    // Vacío = el camino de siempre. Ver el comentario donde se arma `rutaArchivoFinal`.
+    const nombrePedido = decodeURIComponent(request.headers.get("x-file-name") || "");
     // La clave del acumulador lleva el portal; el título pelado se conserva para los logs y
     // para el nombre del archivo, que no cambian.
     const claveVideo  = claveSesion(carpetaSitio, tituloVideo);
@@ -246,7 +261,17 @@ export async function handleBypassStream(request, corsHeaders) {
       }
 
       const carpetaDestino = rutaDeDestino(carpetaSitio, subCarpetaFinal);
-      rutaArchivoFinal = path.join(carpetaDestino, `${tituloVideo}.mp4`);
+      // [ADJUNTOS] El `.mp4` era correcto mientras lo único que llegaba acá eran videos. Con los
+      // materiales de Hotmart adentro producía `Atlas.pdf.mp4`: un PDF válido con un nombre que
+      // ningún visor abre.
+      //
+      // El contrato es "si viene `x-file-name`, mandá; si no, hacé lo de siempre" — un `if`, y
+      // los videos no cambian en nada. Se sanitiza igual que todo lo demás: `path.basename()` +
+      // lista blanca, que **incluye el punto**, así que la extensión sobrevive.
+      rutaArchivoFinal = path.join(
+        carpetaDestino,
+        nombrePedido ? sanitizarNombreArchivo(nombrePedido) : `${tituloVideo}.mp4`
+      );
 
       if (!esRutaSegura(carpetaDestino) || !esRutaSegura(rutaArchivoFinal)) {
         log("ERROR", "SEGURIDAD", `Path traversal detectado`, { tituloVideo, rutaArchivoFinal });

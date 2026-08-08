@@ -47,7 +47,12 @@ const server = Bun.serve({
     const corsHeaders = {
       "Access-Control-Allow-Origin": originPermitido,
       "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, x-video-title, x-chunk-index, x-target-folder, x-total-chunks, x-session-id",
+      // Faltaban `x-site-folder` (multiportal) y `x-file-name` (adjuntos). **No estaba roto**, y
+      // por eso nadie lo notó: la extensión tiene `http://localhost:3001/*` en sus
+      // `host_permissions`, así que sus pedidos no pasan por CORS ni disparan preflight. La lista
+      // se mantiene al día igual porque es lo que ve cualquier OTRO cliente —un `curl` desde otro
+      // origen, una pestaña de prueba— y desactualizada manda a diagnosticar el lugar equivocado.
+      "Access-Control-Allow-Headers": "Content-Type, x-video-title, x-chunk-index, x-target-folder, x-total-chunks, x-session-id, x-site-folder, x-file-name",
     };
 
     // Preflight CORS
