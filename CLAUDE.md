@@ -19,8 +19,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 >   navegador → `docs/multisitio-diseno.md`, y su §Cómo escribir un portal nuevo si venís a eso.
 > - **Segundo portal** (Anatomy by Chris, sobre Hotmart Club): en `main`, con sus cuatro casillas
 >   de verificación cerradas → `docs/portal-anatomy-by-chris-diseno.md`.
-> - **Escaneo por API** (los 5 cortes de abajo): construido, **falta verificarlo en navegador** →
->   `docs/escaneo-api-anatomy-diseno.md`.
+> - **Escaneo por API** (los 5 cortes de abajo): construido **y verificado en navegador** →
+>   `docs/escaneo-api-anatomy-diseno.md`. Su corte 5 **tocó el otro repo**: `ramonnet-bun-backend`
+>   necesitó tres cambios para que un PDF no salga `.pdf.mp4` → `docs/deployment.md` §`x-file-name`.
 > - **Backlog**: la deuda 🔴 de la identidad quedó cerrada el mismo día (ADR-0014). Lo único que
 >   sigue abierto son 6 strings de `popup.js` que nombran a Ramón Net, y su freno ya se puede
 >   levantar → `docs/TECHNICAL_DEBT.md` §🔴 Abierto.
@@ -32,17 +33,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > calidad se topea en **720p**, por rango y no por igualdad; (5) los **PDF adjuntos** entran a la
 > cola (15 lecciones, el 13 % del curso).
 >
-> **LA PRÓXIMA ACCIÓN: verificar el frente en navegador y mergearlo.** Lo primero a mirar, porque
-> es lo único que no se pudo medir desde acá: **cómo nombra el backend Bun un archivo que no viene
-> fragmentado** (es otro repo; si le agrega `.mp4` a un PDF queda `… .pdf.mp4`). Después, los 6
-> puntos del corte 1 y la casilla de las dos colas mezcladas, que este frente **rehace** porque
-> reescribió `identidadClase`.
+> **LA PRÓXIMA ACCIÓN: mergear `escaneo-api-anatomy` a `main`.** Está verificado en navegador —
+> escaneo, videos, PDF y las métricas de progreso—, y con eso se cumple la condición para mergear.
+> Lo que la verificación NO registró es un desglose punto por punto: es un "funciona" global, del
+> mismo tipo que la casilla 4 del corte 7, y así está anotado en el doc.
+>
+> **Ojo con el otro repo**: `ramonnet-bun-backend` tiene dos commits que van con esto
+> (`8797ec6` + `79726a9`). Una extensión nueva contra un backend viejo funciona igual, pero los
+> PDF salen `.pdf.mp4`.
 >
 > **Y no la saltees**: los tres únicos defectos que llegaron a `main` en toda la re-arquitectura
 > los encontró usar la extensión, no la suite; el corte 7 costó **cuatro arreglos** que ningún test
-> podía ver; y construir estos cinco cortes destapó **siete** lugares más que el compilador no
-> puede ver —cinco objetos-identidad armados a mano con dos campos, y dos defectos del propio
-> corte 1—. De ahí sale la regla (una rama por corte, y no se mergea sin probarlo en Chrome), no de
+> podía ver; construir estos cinco cortes destapó **siete** lugares más que el compilador no puede
+> ver —cinco objetos-identidad armados a mano con dos campos, y dos defectos del propio corte 1—; y
+> bajar el primer PDF costó **otros cuatro**, tres de ellos por la misma asimetría (la medición se
+> hizo desde una pestaña, que manda `Origin`/`Referer`/cookies sola, y el service worker no). De ahí sale la regla (una rama por corte, y no se mergea sin probarlo en Chrome), no de
 > la ceremonia. **Lo que la suite no puede ver: el empaquetado, el orden de carga de los globals,
 > el núcleo de `popup.js` y cualquier efecto cuyo destino no sea el popup.** Los 7 puntos a mirar →
 > `docs/rearquitectura-diseno.md` §Verificación en navegador.

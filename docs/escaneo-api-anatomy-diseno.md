@@ -1,34 +1,68 @@
 # El escaneo de Anatomy by Chris pasa de DOM a API — diseño de ejecución
 
-> ## ✅ Estado al 2026-08-07: los CINCO cortes están construidos
+> ## ✅ Estado al 2026-08-07: los CINCO cortes están construidos Y VERIFICADOS EN NAVEGADOR
 >
-> Rama `escaneo-api-anatomy`, sin mergear. **Falta la verificación en navegador**, que es la
-> condición para mergear (la regla del proyecto, no una formalidad — ver el §Registro de riesgos:
-> tres de los cinco riesgos **sólo los detecta el navegador**).
+> Rama `escaneo-api-anatomy`, sin mergear. **La verificación en navegador pasó** — que es la
+> condición para mergear, y no una formalidad: tres de los riesgos del §Registro **sólo los
+> detecta el navegador**, y los tres se cerraron ahí (R1/R2 la inyección `async`, R9 el nombre
+> del archivo).
 >
-> | corte | qué entró |
-> |---|---|
-> | 1 | identidad `(portal, módulo, tipo, título)` → **ADR-0014**; escaneo por `/v1/navigation`; carpeta por módulo |
-> | 2 | el override del input, con chip por fila y destino en el botón |
-> | 3 | tests, docs y el ADR (este bloque) |
-> | 4 | tope de calidad **720p**, por rango y no por igualdad |
-> | 5 | los adjuntos (PDF) entran a la cola |
+> | corte | qué entró | estado |
+> |---|---|---|
+> | 1 | identidad `(portal, módulo, tipo, título)` → **ADR-0014**; escaneo por `/v1/navigation`; carpeta por módulo | ✅ funciona |
+> | 2 | el override del input, con chip por fila y destino en el botón | ✅ funciona |
+> | 3 | tests, docs y el ADR | ✅ |
+> | 4 | tope de calidad **720p**, por rango y no por igualdad | ✅ funciona |
+> | 5 | los adjuntos (PDF) entran a la cola | ✅ funciona, **tras tocar el backend** |
 >
-> **Lo que hay que mirar PRIMERO al verificar, porque no se pudo medir desde acá**: cómo nombra el
-> backend Bun un archivo que no viene fragmentado (riesgo **R9**, es otro repo). El título del ítem
-> ya trae su `.pdf`; si el backend le agrega `.mp4` como a los videos, queda `… .pdf.mp4`.
+> ### Lo que costó bajar el primer PDF: cuatro arreglos, ninguno visible desde los tests
 >
-> **Lo que construirlo enseñó y el plan no decía**: arreglar la clave de identidad **no alcanzaba**.
-> Aparecieron **cinco lugares** que armaban un objeto-identidad a mano con dos campos —incluido el
-> propio bucle de descarga, que anulaba el arreglo entero— y **dos defectos del corte 1** que sólo
-> se vieron al construir el 5: `esteItem` sin módulo, y el filtro de materia comparando contra el
-> input, que deja la lista entera invisible en un portal de dos niveles. Ninguno de los siete lo
-> detecta el compilador.
+> Los cuatro salieron de usar la extensión, y **tres de los cuatro son la misma asimetría**: la
+> medición original se hizo **desde una pestaña**, donde el navegador manda `Origin`, `Referer` y
+> cookies solo, y el service worker no manda ninguno. Es la tercera vez que este portal la cobra
+> (antes fueron el embed y el master).
+>
+> 1. **403** — los dos hosts de la cadena de adjuntos no estaban en `host_permissions`
+>    (`api-club-hot-club-api…` es **otro** host que el de las lecciones) y el paso 2 salía sin
+>    `x-product-id` ni `Referer`.
+> 2. **"la respuesta no trae una URL reconocible"** — el campo es **`directDownloadUrl`**, que no
+>    era adivinable; se habían probado cuatro nombres plausibles y erraron los cuatro. Lo que
+>    salvó el diagnóstico fue que el error **volcara el cuerpo recibido**.
+> 3. **`Atlas.pdf.mp4`** (riesgo R9, el único punto que no se podía cerrar desde este repo) — el
+>    backend le pegaba `.mp4` a todo. Se resolvió con un header nuevo, `x-file-name`, y **tres
+>    líneas en `ramonnet-bun-backend`**; el contrato está en `docs/deployment.md`.
+> 4. **La clase en curso se marcaba descargada a mitad de la descarga** — regresión del propio
+>    arreglo anterior: al abrir el escaneo de disco del backend para que entraran los PDF,
+>    volvieron a entrar los `.part`. `endsWith(".mp4")` estaba filtrando **dos** cosas —el tipo de
+>    archivo y los temporales— y se aflojaron las dos.
+>
+> **Qué quedó registrado de la verificación, y qué no**: el dueño confirmó que **funciona** —
+> escaneo, videos, PDF y las métricas de progreso en el popup y en la consola del backend—. No se
+> anotó un desglose punto por punto de los 6 chequeos del corte 1 ni de los 5 del corte 5, así que
+> **esta verificación es del mismo tipo que la de la casilla 4 del corte 7: resultado global, no
+> medición**. Se anota así a propósito, que es lo que la hace distinta de un ✅ inventado.
+>
+> ### Lo que construirlo enseñó y el plan no decía
+>
+> Arreglar la clave de identidad **no alcanzaba**. Aparecieron **cinco lugares** que armaban un
+> objeto-identidad a mano con dos campos —incluido el propio bucle de descarga, que anulaba el
+> arreglo entero— y **dos defectos del corte 1** que sólo se vieron al construir el 5: `esteItem`
+> sin módulo, y el filtro de materia comparando contra el input, que deja la lista entera
+> invisible en un portal de dos niveles. Ninguno de los siete lo detecta el compilador.
+>
+> Y una decisión de UX que duró horas: el filtro por tipo arrancaba en **"sólo video"** y se
+> revirtió al abrir el popup. El criterio no estaba mal; **un filtro activo que el usuario no
+> prendió es invisible**, y la lista venía recortada sin que hubiera cómo notarlo.
 
-**Estado al 2026-08-07: DIAGNOSTICADO Y MEDIDO, NADA CONSTRUIDO.** Este doc es el "cómo" de un
-frente que todavía no se empezó. Lo que sí está hecho es la medición: los tres síntomas tienen causa
-con línea de código, la API que los resuelve está probada contra el portal real, y apareció un
-**defecto activo hoy** que hay que arreglar sí o sí (§El bloqueante).
+*Lo que sigue es el doc tal como se escribió **antes** de construir, y se conserva así a propósito:
+es el plan contra el que se puede leer lo que efectivamente pasó (el banner de arriba). Cuando una
+sección quedó vieja, lo dice en su lugar en vez de reescribirse — mismo criterio que los cortes 4 y
+5, que están escritos como reversiones de este mismo doc.*
+
+**Estado en el momento de escribirlo: DIAGNOSTICADO Y MEDIDO, NADA CONSTRUIDO.** Los tres síntomas
+tienen causa con línea de código, la API que los resuelve está probada contra el portal real, y
+apareció un **defecto activo ese día** que había que arreglar sí o sí (§El bloqueante; lo cerró el
+corte 1 → ADR-0014).
 
 **Son cinco cortes, no tres.** Los dos últimos entraron el 2026-08-07 revirtiendo decisiones de este
 mismo doc, y las dos reversiones salieron de medir, no de cambiar de opinión: **§Corte 4** topea la

@@ -67,14 +67,14 @@ por API: `/api/bypass-stream` no sabe qué es un video —recibe bytes con `x-ch
 `x-total-chunks`—, así que un adjunto es *el chunk 0 de N*, cortado en bloques de 5 MB para que
 haya progreso real. Con eso el backend **probablemente no cambia**.
 
-### 🔴 `x-file-name`: lo único que le falta al backend para que los PDF salgan bien
+### ✅ `x-file-name`: el nombre de archivo lo pide la extensión
 
-**Confirmado en el navegador el 2026-08-07** (era el riesgo R9): el backend le pega `.mp4` a todo
-lo que recibe —correcto mientras lo único que recibía eran videos— y un adjunto sale
-`Atlas_Fotografico_Anatomia.pdf.mp4`: **un PDF válido con un nombre que ningún visor abre**.
+**Construido y verificado el 2026-08-07 en los dos repos.** Era el riesgo R9: el backend le pegaba
+`.mp4` a todo lo que recibía —correcto mientras lo único que recibía eran videos— y un adjunto salía
+`Atlas_Fotografico_Anatomia.pdf.mp4`: un PDF válido con un nombre que ningún visor abre.
 
-**No se puede arreglar desde la extensión**: el nombre lo escribe el backend. Lo que la extensión
-ya hace, desde el mismo día, es mandar el dato que hace falta:
+**No se podía arreglar desde la extensión**: el nombre lo escribe el backend. Lo que la extensión
+manda es el dato que hace falta:
 
 | header | valor | cuándo |
 |---|---|---|
@@ -98,8 +98,25 @@ Dos cosas que conviene no hacer, y que se descartaron acá:
   de N— y sumar un segundo camino de escritura duplicaría el `.part`, la idempotencia por
   `x-session-id` y el acumulador.
 
-⚠️ **Hasta que el backend lea ese header, los PDF siguen saliendo `.pdf.mp4`.** El archivo es
-correcto: renombrarlo sacándole `.mp4` lo deja usable.
+**Ya está del lado del backend** (`ramonnet-bun-backend`, commits `8797ec6` + `79726a9`), y con él
+vinieron otros dos cambios que el mismo corte destapó:
+
+- **`escanear-disco` dejó de filtrar sólo `.mp4`.** Era un fallo silencioso: un PDF ya bajado nunca
+  se reportaba, así que la extensión lo mostraba pendiente para siempre y lo volvía a bajar en cada
+  ráfaga. La forma del fix tiene una asimetría **deliberada** — al video se le saca la extensión y
+  al adjunto no—, porque la extensión compara estos nombres contra el título de la clase y el
+  título de un adjunto **es** su nombre de archivo.
+- **Los `.part` volvieron a quedar afuera**, y esto fue una regresión del cambio anterior:
+  `endsWith(".mp4")` estaba filtrando **dos** cosas —el tipo de archivo y los temporales— y al
+  aflojarlo entraron los dos. El efecto pegaba justo durante una descarga: la extensión cruzaba
+  `Clase 1.mp4.part` con su `includes` de respaldo y marcaba **como descargada la clase que se
+  estaba bajando**.
+
+**La lección, para la próxima vez que se toque ese filtro**: un predicado que filtra por extensión
+suele estar filtrando más de una cosa a la vez. Antes de aflojarlo, enumerá qué deja afuera hoy.
+
+⚠️ **Una extensión nueva contra un backend viejo sigue funcionando**: el header se ignora y los PDF
+salen `.pdf.mp4`. El archivo es correcto — renombrarlo sacándole `.mp4` lo deja usable.
 
 **Idempotencia por `x-session-id`**: cada intento de descarga genera un id nuevo, y el backend clavetea su archivo `.part` por ese id. Es lo que evita que los bytes de un intento abortado se mezclen con los del reintento.
 

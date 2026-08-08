@@ -232,9 +232,14 @@ Y la premisa de fondo —"valor bajo, son un botón que ya funciona"— también
 alcance real: no es una clase con materiales, es **el 13 % del curso**, repartido en módulos que el
 escaneo hoy ni siquiera muestra.
 
-**Estado actual: en alcance, como corte 5 de `escaneo-api-anatomy-diseno.md`.** Ahí está el plan con
-sus archivos, su verificación y lo único que sigue sin medirse (cómo reacciona el backend Bun a un
-archivo que no viene fragmentado). La cadena de descarga está en §Apéndice B —ya **sin huecos**— y el
+**Estado actual: ✅ CONSTRUIDO Y FUNCIONANDO** (corte 5 de `escaneo-api-anatomy-diseno.md`,
+verificado en navegador el 2026-08-07). Los PDF se escanean, se encolan y se bajan a la carpeta de
+su módulo con su nombre y su extensión.
+
+**Lo que seguía sin medirse ya se midió, y no salió gratis**: el backend Bun le pegaba `.mp4` a
+todo, así que un adjunto salía `Atlas.pdf.mp4`. Se resolvió con un header nuevo (`x-file-name`) y
+**tres cambios en el otro repo** — el nombre, el escaneo de disco que sólo miraba `.mp4`, y los
+`.part` que ese mismo arreglo dejó entrar. Contrato y detalle en `docs/deployment.md`. La cadena de descarga está en §Apéndice B —ya **sin huecos**— y el
 diseño con sus cuatro trampas en §Apéndice C, del que una ya se resolvió: la identidad lleva `tipo`
 desde el corte 1.
 
