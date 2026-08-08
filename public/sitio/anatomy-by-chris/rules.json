@@ -5,12 +5,18 @@
     "action": {
       "type": "modifyHeaders",
       "requestHeaders": [
-        { "header": "Referer", "operation": "set", "value": "https://hotmart.com/" }
+        {
+          "header": "Referer",
+          "operation": "set",
+          "value": "https://hotmart.com/"
+        }
       ]
     },
     "condition": {
       "urlFilter": "||cf-embed.play.hotmart.com/embed/",
-      "resourceTypes": ["xmlhttprequest"]
+      "resourceTypes": [
+        "xmlhttprequest"
+      ]
     }
   },
   {
@@ -19,12 +25,43 @@
     "action": {
       "type": "modifyHeaders",
       "requestHeaders": [
-        { "header": "Referer", "operation": "set", "value": "https://cf-embed.play.hotmart.com/" }
+        {
+          "header": "Referer",
+          "operation": "set",
+          "value": "https://cf-embed.play.hotmart.com/"
+        }
       ]
     },
     "condition": {
-      "requestDomains": ["vod-akm.play.hotmart.com", "contentplayer.hotmart.com"],
-      "resourceTypes": ["xmlhttprequest"]
+      "requestDomains": [
+        "vod-akm.play.hotmart.com",
+        "contentplayer.hotmart.com"
+      ],
+      "resourceTypes": [
+        "xmlhttprequest"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        {
+          "header": "Referer",
+          "operation": "set",
+          "value": "https://hotmart.com/"
+        }
+      ]
+    },
+    "condition": {
+      "requestDomains": [
+        "api-club-hot-club-api.cb.hotmart.com"
+      ],
+      "resourceTypes": [
+        "xmlhttprequest"
+      ]
     }
   }
 ]

@@ -47,6 +47,10 @@ export default defineConfig({
       'https://cf-embed.play.hotmart.com/*',                               // el embed del player
       'https://vod-akm.play.hotmart.com/*',                                // master/variante/fragmentos (Akamai)
       'https://contentplayer.hotmart.com/*',                               // la clave AES
+      // [CORTE 5] Los dos de la cadena de ADJUNTOS. Ojo: el primero es OTRO host que el de las
+      // lecciones (`hot-club-api`, no el gateway), y es fácil darlo por cubierto de un vistazo.
+      'https://api-club-hot-club-api.cb.hotmart.com/*',                    // firma del adjunto
+      'https://hotmart-club-files.cb.hotmart.com/*',                       // el archivo (CloudFront)
       // --- Backend local ---
       'http://localhost:3001/*',
     ],

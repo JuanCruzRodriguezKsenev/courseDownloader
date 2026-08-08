@@ -58,7 +58,8 @@ declare const DescargarAdjuntoAnatomy: {
   resolver(
     idArchivo: string,
     signal?: AbortSignal,
-    credenciales?: Record<string, string>
+    credenciales?: Record<string, string>,
+    productId?: string
   ): Promise<string>;
 };
 declare const ParserTitulosAnatomy: {
@@ -140,8 +141,11 @@ const SitioAnatomyByChris: SitioAnatomyDescriptor = {
   },
 
   // [CORTE 5] Los adjuntos. Se resuelve al BAJAR, no al escanear: la firma vive 1 hora.
-  resolverAdjunto: (idArchivo, signal, credenciales) =>
-    DescargarAdjuntoAnatomy.resolver(idArchivo, signal, credenciales),
+  // El `productId` viaja como cuarto parámetro por lo mismo que el tope de calidad: el valor es
+  // del portal y el `.js` no puede leer este `.ts`.
+  resolverAdjunto(idArchivo, signal, credenciales) {
+    return DescargarAdjuntoAnatomy.resolver(idArchivo, signal, credenciales, this.productId);
+  },
 
   // Getter y no arrow: hay que entregar la función CRUDA, porque `executeScript` serializa su
   // código fuente y lo corre en la página. Envolverla rompería la inyección.

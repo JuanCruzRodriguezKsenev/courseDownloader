@@ -36,11 +36,30 @@ describe('DescargarAdjuntoAnatomy.resolver — el camino feliz', () => {
     await DescargarAdjuntoAnatomy.resolver(ID, undefined, CREDS);
 
     const [url, opciones] = fetchMock.mock.calls[0];
-    // OJO: es OTRO host que el de las lecciones (`hot-club-api`, no el gateway).
+    // OJO: es OTRO host que el de las lecciones (`hot-club-api`, no el gateway). Ese descuido es
+    // la mitad del 403 que dio el primer PDF: el host no estaba en `host_permissions`.
     expect(url).toBe(
       `https://api-club-hot-club-api.cb.hotmart.com/rest/v3/attachment/${ID}/download`
     );
     expect(opciones.headers.Authorization).toBe('Bearer ID_TOKEN_FALSO');
+  });
+
+  it('manda x-product-id cuando el descriptor se lo pasa', async () => {
+    // La otra mitad del 403. El club identifica al producto por header en todas sus llamadas, y
+    // la primera versión de este módulo no lo mandaba.
+    const fetchMock = responder({ url: FIRMADA });
+    await DescargarAdjuntoAnatomy.resolver(ID, undefined, CREDS, '6083220');
+
+    expect(fetchMock.mock.calls[0][1].headers['x-product-id']).toBe('6083220');
+  });
+
+  it('sin productId no manda el header vacío: lo omite', async () => {
+    // Un `x-product-id: ""` es peor que no mandarlo — una API que valida el header lo rechaza
+    // con 400, y eso se lee como otra cosa.
+    const fetchMock = responder({ url: FIRMADA });
+    await DescargarAdjuntoAnatomy.resolver(ID, undefined, CREDS);
+
+    expect('x-product-id' in fetchMock.mock.calls[0][1].headers).toBe(false);
   });
 
   it('devuelve la URL firmada', async () => {

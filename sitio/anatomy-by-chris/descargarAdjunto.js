@@ -1,6 +1,8 @@
 /**
- * ADAPTADOR DE SITIO — ANATOMY BY CHRIS: LA URL FIRMADA DE UN ADJUNTO (V1.0.0)
+ * ADAPTADOR DE SITIO — ANATOMY BY CHRIS: LA URL FIRMADA DE UN ADJUNTO (V1.1.0)
  * ==========================================================================
+ * CHANGELOG v1.1.0:
+ * - [FIX 403] El paso 2 manda `x-product-id`. Ver el bloque del 403 más abajo.
  * CHANGELOG v1.0.0:
  * - [ESCANEO-API CORTE 5] Nace con los materiales. Cuarto hermano `.js` del adaptador.
  * ==========================================================================
@@ -25,6 +27,21 @@
  * camino, y el fallo se leería como "el portal rechazó el archivo" cuando en realidad se
  * resolvió demasiado temprano. Es el riesgo R8, y es la misma trampa que el `hdnts` de 500 s del
  * master ya había puesto en el camino del video.
+ *
+ * ⚠️ EL 403 DEL PRIMER PDF (2026-08-07), Y LAS DOS COSAS QUE LE FALTABAN
+ * ------------------------------------------------------------------------
+ * Bajar el primer adjunto dio **403**, y las dos causas eran del mismo tipo que ya habían
+ * mordido dos veces en la cadena de video: **la medición se hizo desde una pestaña**, donde el
+ * navegador manda `Origin`, `Referer` y cookies solo, y el service worker no manda ninguno.
+ *
+ *   1. Los dos hosts de esta cadena **no estaban en `host_permissions`** (`wxt.config.ts`). El
+ *      de la firma es OTRO host que el de las lecciones —`hot-club-api`, no el gateway— y es
+ *      fácil darlo por cubierto de un vistazo.
+ *   2. El paso 2 salía **sin `x-product-id`** y **sin `Referer`**. El header lo pone este
+ *      módulo; el `Referer` lo pone una regla dNR nueva, igual que para el embed.
+ *
+ * **El paso 3 NO lleva `Referer` a propósito**: está medido que anda con un `curl` pelado, y
+ * agregarle uno sería inventar un requisito que el CDN no pidió.
  *
  * EL PASO 3 NO NECESITA CREDENCIALES, Y ESO DECIDE QUE EL SW PUEDA BAJARLO
  * ------------------------------------------------------------------------
@@ -56,9 +73,11 @@ const DescargarAdjuntoAnatomy = {
    * @param {string} idArchivo
    * @param {AbortSignal} [signal]
    * @param {{ idToken?: string }} [credenciales]
+   * @param {string} [productId] Lo pasa `config.ts`, como el tope de calidad: el VALOR es del
+   *        portal y este `.js` no puede leer el `.ts` del descriptor (`allowJs: false`).
    * @returns {Promise<string>}
    */
-  async resolver(idArchivo, signal, credenciales) {
+  async resolver(idArchivo, signal, credenciales, productId) {
     if (!idArchivo) {
       // De ESTE ítem y de ningún otro: se saltea y la cola sigue.
       throw fallo("adjunto", "el ítem no trae idArchivo", { tipoPortal: "rechazo" });
@@ -74,9 +93,16 @@ const DescargarAdjuntoAnatomy = {
       );
     }
 
+    // El `x-product-id` va también acá, aunque esta API sea otro host que la de lecciones: el
+    // club identifica al producto por header en todas sus llamadas, y **la primera versión de
+    // este módulo no lo mandaba** — que es una de las dos causas candidatas del 403 que apareció
+    // al bajar el primer PDF. Es barato y no puede empeorar nada: si la API lo ignora, lo ignora.
+    const headers = { Authorization: `Bearer ${idToken}` };
+    if (productId) headers["x-product-id"] = String(productId);
+
     const r = await fetch(API_ADJUNTO + encodeURIComponent(idArchivo) + "/download", {
       signal,
-      headers: { Authorization: `Bearer ${idToken}` },
+      headers,
     });
 
     if (!r.ok) {
