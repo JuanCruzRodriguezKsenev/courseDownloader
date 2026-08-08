@@ -1,6 +1,9 @@
 /**
- * ADAPTADOR DE SITIO — ANATOMY BY CHRIS: LA URL FIRMADA DE UN ADJUNTO (V1.1.0)
+ * ADAPTADOR DE SITIO — ANATOMY BY CHRIS: LA URL FIRMADA DE UN ADJUNTO (V1.2.0)
  * ==========================================================================
+ * CHANGELOG v1.2.0:
+ * - [FIX] El campo de la respuesta es **`directDownloadUrl`**, medido bajando el primer PDF. No
+ *   era adivinable y la v1.1.0 probó cuatro nombres plausibles y erró los cuatro.
  * CHANGELOG v1.1.0:
  * - [FIX 403] El paso 2 manda `x-product-id`. Ver el bloque del 403 más abajo.
  * CHANGELOG v1.0.0:
@@ -18,6 +21,7 @@
  *
  *   1. listado   → `/v1/pages/<hash>/complementary-content`  (lo hace el scraper, al escanear)
  *   2. **firma** → `/rest/v3/attachment/<uuid>/download`     ← ESTE ARCHIVO
+ *                  → `{ "directDownloadUrl": "https://hotmart-club-files…" }`  (medido)
  *   3. archivo   → CloudFront                                (lo hace el bucle, al bajar)
  *
  * ⚠️ POR QUÉ ESTO SE PIDE AL BAJAR Y NO AL ESCANEAR
@@ -123,10 +127,19 @@ const DescargarAdjuntoAnatomy = {
       );
     }
 
-    // La respuesta trae la URL firmada. Se aceptan las dos formas en las que una API de este
-    // estilo la devuelve —un string pelado o un objeto con la URL adentro— porque la medición
-    // sólo observó el resultado final, y adivinar la envoltura exacta sería justo el tipo de
-    // suposición que este repo no permite. Si no aparece, se dice qué se recibió.
+    // La respuesta, MEDIDA el 2026-08-07 bajando el primer PDF:
+    //
+    //   { "directDownloadUrl": "https://hotmart-club-files.cb.hotmart.com/membership_area/…" }
+    //
+    // El nombre del campo **no era adivinable** —no es `url` ni `downloadUrl`— y la primera
+    // versión de este módulo probó cuatro nombres plausibles y erró los cuatro. Lo que salvó el
+    // diagnóstico fue que el error **volcara el cuerpo recibido** en vez de decir "no se pudo":
+    // con los 120 caracteres del mensaje alcanzó para ver el campo real. Si tocás este bloque,
+    // conservá eso.
+    //
+    // Los otros nombres quedan como TOLERANCIA, no como conocimiento: cubren que Hotmart lo
+    // renombre, y ninguno puede resolver el archivo equivocado —son claves distintas del mismo
+    // objeto—, que es la diferencia con los fallbacks por regex que este proyecto sí prohíbe.
     const texto = (await r.text()).trim();
 
     let url = "";
@@ -135,7 +148,12 @@ const DescargarAdjuntoAnatomy = {
         const cuerpo = JSON.parse(texto);
         url =
           (typeof cuerpo === "string" && cuerpo) ||
-          (cuerpo && (cuerpo.url || cuerpo.downloadUrl || cuerpo.signedUrl || cuerpo.link)) ||
+          (cuerpo &&
+            (cuerpo.directDownloadUrl || // ← el medido
+              cuerpo.url ||
+              cuerpo.downloadUrl ||
+              cuerpo.signedUrl ||
+              cuerpo.link)) ||
           "";
       } catch (e) {
         void e;

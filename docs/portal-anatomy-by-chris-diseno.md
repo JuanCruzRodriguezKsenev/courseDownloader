@@ -1149,7 +1149,27 @@ justo `/v1/pages/<hash>/complementary-content`, que no contiene ninguna de las t
 ### El paso 2 y la vida de la firma
 
 El `<uuid>` sale del listado; con él, `GET .../rest/v3/attachment/<uuid>/download` devuelve la URL
-firmada. Para medirla:
+firmada.
+
+> **✅ El cuerpo de ese paso quedó medido el 2026-08-07**, bajando el primer PDF de verdad:
+>
+> ```json
+> { "directDownloadUrl": "https://hotmart-club-files.cb.hotmart.com/membership_area/<uuid>/<nombre>.pdf?…" }
+> ```
+>
+> **El nombre del campo no era adivinable** —no es `url` ni `downloadUrl`— y la primera versión del
+> módulo probó cuatro nombres plausibles y erró los cuatro. Lo que salvó el diagnóstico fue que el
+> error **volcara el cuerpo recibido** en vez de decir "no se pudo resolver": con 120 caracteres
+> alcanzó. Es la misma lección que el §Apéndice B ya había dejado escrita para el listado —*si un
+> endpoint devuelve 200 y tu parser dice "no hay nada", sospechá del parser"*— y esta vez el
+> mensaje de error ya estaba escrito para que se notara.
+>
+> **Y ese mismo PDF destapó dos cosas que la medición desde la pestaña no podía ver**: los dos
+> hosts de esta cadena no estaban en `host_permissions`, y el paso 2 necesita `x-product-id` y
+> `Referer` — que el navegador manda solo y el service worker no. Tercera vez que esta asimetría
+> muerde en este portal (el embed, el master, y ahora la firma del adjunto).
+
+Para medirla:
 
 ```js
 const url = '<la firmada>';

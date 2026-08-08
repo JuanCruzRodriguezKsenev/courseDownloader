@@ -62,6 +62,18 @@ describe('DescargarAdjuntoAnatomy.resolver — el camino feliz', () => {
     expect('x-product-id' in fetchMock.mock.calls[0][1].headers).toBe(false);
   });
 
+  it('devuelve la URL firmada del campo MEDIDO: directDownloadUrl', async () => {
+    // Medido el 2026-08-07 bajando el primer PDF. El nombre no era adivinable —no es `url` ni
+    // `downloadUrl`— y la primera versión probó cuatro nombres plausibles y erró los cuatro.
+    responder({ directDownloadUrl: FIRMADA });
+    expect(await DescargarAdjuntoAnatomy.resolver(ID, undefined, CREDS)).toBe(FIRMADA);
+  });
+
+  it('el campo medido gana sobre los alias, si vinieran los dos', async () => {
+    responder({ directDownloadUrl: FIRMADA, url: 'https://otra/cosa.pdf' });
+    expect(await DescargarAdjuntoAnatomy.resolver(ID, undefined, CREDS)).toBe(FIRMADA);
+  });
+
   it('devuelve la URL firmada', async () => {
     expect(await DescargarAdjuntoAnatomy.resolver(ID, undefined, CREDS)).toBe(FIRMADA);
   });
@@ -126,7 +138,10 @@ describe('DescargarAdjuntoAnatomy.resolver — los fallos, y con qué tipo', () 
     expect(err.tipoConexion).toBeUndefined();
   });
 
-  it('una respuesta sin URL reconocible es sistémica y dice qué llegó', async () => {
+  it('una respuesta sin URL reconocible es sistémica y VUELCA el cuerpo recibido', async () => {
+    // Volcar el cuerpo no es verbosidad: es lo único que permitió encontrar que el campo se
+    // llamaba `directDownloadUrl`. Un mensaje que dijera sólo "no se pudo resolver" habría
+    // costado otra corrida entera. Si tocás el mensaje, conservá el volcado.
     responder({ otraCosa: 1 });
     const err = await DescargarAdjuntoAnatomy.resolver(ID, undefined, CREDS).catch((e) => e);
     expect(err.tipoPortal).toBe('bloqueo');
