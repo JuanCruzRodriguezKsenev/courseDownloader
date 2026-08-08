@@ -37,9 +37,7 @@ function crearFeature(overrides = {}) {
     materias: new Set(),
     valoresFaceta: new Set(),
     portales: new Set(),
-    // [ESCANEO-API CORTE 5] Vacío y NO con el default de producción (`['video']`) a propósito:
-    // así los tests de acá siguen afirmando sobre los otros ejes sin que el tipo los filtre por
-    // el costado. El default y su UX se prueban en su propio bloque, más abajo.
+    // [ESCANEO-API CORTE 5] Vacío, igual que en producción: el filtro por tipo no tiene default.
     tipos: new Set(),
   };
   const ctx = {
@@ -567,7 +565,22 @@ describe('FilterFeature — el filtro por tipo', () => {
     expect(AppState.listadoClasesGlobal.map(c => c.visible)).toEqual([true, true]);
   });
 
-  it('el default de producción ("sólo video") esconde los materiales', () => {
+  it('arranca vacío: los materiales se ven sin pedir nada', () => {
+    // El default de "sólo video" duró lo que tardó el dueño en abrir el popup. El problema no
+    // era el criterio: era que **un filtro activo que nadie prendió es invisible** — la lista
+    // venía recortada y no había cómo notarlo salvo contando.
+    const { feature, ctx } = crearFeature();
+    expect(ctx.filtrosActivos.tipos.size).toBe(0);
+
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [{ ...video }, { ...pdf }];
+
+    feature.aplicarFiltrosCruzados();
+
+    expect(AppState.listadoClasesGlobal.map(c => c.visible)).toEqual([true, true]);
+  });
+
+  it('pidiendo sólo videos, los materiales se esconden', () => {
     const { feature, ctx } = crearFeature();
     ctx.filtrosActivos.tipos.add('video');
     AppState.pestañaActiva = 'disponibles';
@@ -625,18 +638,26 @@ describe('FilterFeature — el filtro por tipo', () => {
     expect(opciones).toContain('Materiales 📄');
   });
 
-  it('el badge NO cuenta el default de "sólo video"', () => {
-    // Arrancar en "Filtros (1)" sin haber tocado nada haría que el número deje de significar
-    // "lo que elegiste".
-    const { feature, ctx, nodos } = crearFeature();
-    ctx.filtrosActivos.tipos.add('video');
+  it('sin filtros el badge no cuenta nada', () => {
+    const { feature, nodos } = crearFeature();
 
     feature.actualizarPillsUIState();
 
     expect(nodos.btnFilterPills.querySelector('span').textContent).toBe('Filtros');
   });
 
-  it('el badge SÍ cuenta el tipo cuando el usuario lo cambió', () => {
+  it('el badge cuenta el tipo como cualquier otro eje', () => {
+    // Ya no hay excepción: desde que el filtro arranca vacío, todo lo que tenga adentro lo puso
+    // el usuario.
+    const { feature, ctx, nodos } = crearFeature();
+    ctx.filtrosActivos.tipos.add('video');
+
+    feature.actualizarPillsUIState();
+
+    expect(nodos.btnFilterPills.querySelector('span').textContent).toBe('Filtros (1)');
+  });
+
+  it('el badge cuenta el tipo cuando el usuario pide materiales', () => {
     const { feature, ctx, nodos } = crearFeature();
     ctx.filtrosActivos.tipos.add('adjunto');
 

@@ -327,10 +327,13 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       materias: new Set(),
       valoresFaceta: new Set(),
       portales: new Set(),
-      // [ESCANEO-API CORTE 5] Arranca en **sólo video**, y es una decisión de UX, no un default
-      // cómodo: con los materiales adentro, un curso de 103 videos suma 15 PDF que le
-      // contaminan la lista a quien vino a bajar clases. Aparecen cuando se los pide.
-      tipos: new Set(['video'])
+      // [ESCANEO-API CORTE 5] Arranca VACÍO, como los otros cuatro Sets: sin filtro.
+      //
+      // Arrancó en "sólo video" y duró lo que tardó el dueño en abrir el popup. El problema no
+      // era el criterio sino que **un filtro activo que nadie prendió es invisible**: la lista ya
+      // venía recortada y no había cómo notarlo salvo contando. Un default que esconde datos
+      // tiene que anunciarse, y anunciarlo cuesta más UI que no filtrar.
+      tipos: new Set()
     };
 
     // --- Isla Preact #3: Onboarding (welcome tour) — features/onboarding.preact.js ---
@@ -817,11 +820,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // calificados por portal y en Disponibles van crudos. Que el Set se vacíe al conmutar es
       // lo que hace que esas dos convenciones no puedan cruzarse.
       filtrosActivos.portales.clear();
-      // [CORTE 5] El tipo se resetea a lo que corresponde a CADA pestaña, no a vacío:
-      // Disponibles vuelve a "sólo video" (descubrir) y la Cola queda sin filtro (revisar lo
-      // que uno mismo encoló, PDF incluidos).
+      // [CORTE 5] El tipo se limpia como los demás. No hay default por pestaña: el filtro
+      // arranca vacío en las dos.
       filtrosActivos.tipos.clear();
-      if (id === "disponibles") filtrosActivos.tipos.add('video');
       actualizarPillsUIState();
       if (nodos.filterMenu) nodos.filterMenu.style.display = 'none';
       if (nodos.btnFilterPills) nodos.btnFilterPills.classList.remove('open');

@@ -137,10 +137,7 @@ const FilterFeature = {
         || filtrosActivos.portales.has(idPortalDe(clase));
       const coincideFaceta = filtrosActivos.valoresFaceta.size === 0
         || filtrosActivos.valoresFaceta.has(claveFaceta(clase));
-      // [CORTE 5] Mismo Set que en Disponibles, pero en la Cola arranca VACÍO (lo pone
-      // `conmutarPestañaA`): lo que ya está encolado lo puso el usuario a mano, y esconderle un
-      // PDF que él mismo agregó sería el peor momento para opinar. El default de "sólo video"
-      // es para descubrir, no para revisar.
+      // [CORTE 5] Mismo Set que en Disponibles, y vacío por omisión en las dos.
       const coincideTipo = filtrosActivos.tipos.size === 0
         || filtrosActivos.tipos.has(clase.tipo || 'video');
       return coincideTexto && coincideMateria && coincidePortal && coincideFaceta && coincideTipo;
@@ -214,15 +211,13 @@ const FilterFeature = {
     // Actualiza el badge del botón "Filtros (N)" según cuántos filtros haya activos.
     function actualizarPillsUIState() {
       if (!nodos.btnFilterPills) return;
-      // [CORTE 5] `tipos` NO suma al contador cuando está en su default de una sola opción
-      // ("sólo video"): el badge cuenta lo que el usuario eligió, y arrancar en "Filtros (1)"
-      // sin haber tocado nada haría que el número deje de significar eso.
-      const tiposElegidosAMano =
-        filtrosActivos.tipos.size === 1 && filtrosActivos.tipos.has('video')
-          ? 0
-          : filtrosActivos.tipos.size;
+      // `tipos` cuenta como cualquier otro eje: desde que arranca vacío, todo lo que tenga
+      // adentro lo puso el usuario. (Tuvo una excepción mientras existió el default de "sólo
+      // video", que descontaba ese caso para que el badge no arrancara en "Filtros (1)"; con el
+      // default afuera, la excepción sobra y sería una mentira al revés.)
       const total = filtrosActivos.estados.size + filtrosActivos.materias.size
-        + filtrosActivos.valoresFaceta.size + filtrosActivos.portales.size + tiposElegidosAMano;
+        + filtrosActivos.valoresFaceta.size + filtrosActivos.portales.size
+        + filtrosActivos.tipos.size;
       nodos.btnFilterPills.classList.toggle('active', total > 0);
       const span = nodos.btnFilterPills.querySelector('span');
       if (span) {

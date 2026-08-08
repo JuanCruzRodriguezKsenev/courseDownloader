@@ -1252,6 +1252,16 @@ calculado, no texto scrapeado, así que no toca la frontera de escapado de `secu
 contamina la lista de quien sólo quiere videos. Recomendado: por defecto **sólo video**, y los
 materiales aparecen al pedirlos.
 
+> **🔄 REVERTIDO al construirlo (2026-08-07).** Se implementó así y **duró lo que tardó el dueño en
+> abrir el popup**. El criterio no estaba mal; lo que estaba mal era el mecanismo: **un filtro
+> activo que el usuario no prendió es invisible**. La lista ya venía recortada y no había cómo
+> notarlo salvo contando las filas. Un default que esconde datos tiene que anunciarse, y anunciarlo
+> cuesta más UI que no filtrar.
+>
+> **El filtro por tipo arranca vacío, como los otros cuatro ejes.** Y con eso desapareció también
+> su excepción en el badge —que descontaba el default para no arrancar en "Filtros (1)"—, que era
+> exactamente la clase de regla que existe sólo para tapar una decisión discutible.
+
 ### 4. El bucle y el backend: la parte más barata
 
 `enviarFragmentoStream` no sabe qué es un video — manda bytes con `x-chunk-index` / `x-total-chunks`.
