@@ -85,47 +85,40 @@ export function TarjetaEstado({ tipo, titulo, descripcion, icono }) {
     </div>`;
 }
 
-/**
- * Bytes → texto corto. Hace falta porque en la lección más cargada del curso conviven un PDF de
- * 83,9 MB con guías de 90 KB: sin el peso, las dos filas se ven igual y la decisión de bajarlas
- * es a ciegas.
- */
-export function formatearPeso(bytes) {
-  const n = Number(bytes) || 0;
-  if (n <= 0) return '';
-  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
-  const mb = n / (1024 * 1024);
-  return mb >= 100 ? `${Math.round(mb)} MB` : `${mb.toFixed(1)} MB`;
-}
-
 // Port 1:1 del antiguo renderers.js construirFilaClaseDOM (ramas disponibles/cola).
 export function FilaClase({ clase, ctx }) {
-  const { pestaña, sincronizado, enCurso, videoActivo, selectionMode, onCheckChange, onRemoverClick, overrideCarpeta } = ctx;
+  const { pestaña, sincronizado, enCurso, videoActivo, selectionMode, onCheckChange, onRemoverClick, overrideCarpeta, portalDe } = ctx;
   const sel = !!clase.seleccionado;
 
-  // [ESCANEO-API CORTE 2] El chip de DESTINO. Sólo aparece en clases que traen módulo, o sea en
-  // portales de dos niveles: en Ramón Net el destino es uno solo y el chip sería ruido en cada
-  // fila. Con override activo muestra `→ <carpeta>` en las 103 a la vez, que es todo el punto —
-  // el feedback tiene que llegar ANTES de encolar, no después de mirar el disco.
-  // [ESCANEO-API CORTE 5] Insignia de tipo y peso. Los dos son datos CALCULADOS (un campo del
-  // ítem y un número), no texto scrapeado, así que no tocan la frontera de escapado de
-  // `docs/security.md` — el título sí, y ese ya viaja escapado desde el vm.
-  const esAdjunto = clase.tipo === 'adjunto';
-  const chipTipo = esAdjunto
-    ? html`<span class="chip-tipo" title="Material adjunto (PDF)">📄</span>`
-    : null;
-  const chipPeso = esAdjunto && clase.bytes
-    ? html`<span class="chip-peso">${formatearPeso(clase.bytes)}</span>`
-    : null;
-
-  const destino = clase.modulo ? (overrideCarpeta || clase.modulo) : null;
-  const chipDestino = destino
-    ? html`<span class="chip-destino ${overrideCarpeta ? 'override' : ''}"
-             title=${overrideCarpeta ? `Override: va a ${destino}` : `Módulo: ${destino}`}
-           >${overrideCarpeta ? `→ ${destino}` : destino}</span>`
-    : null;
-
   const disponibles = pestaña === 'disponibles';
+
+  // ── Ícono de TIPO ────────────────────────────────────────────────────────────────────────
+  // Va SIEMPRE y en las dos pestañas, no sólo en los adjuntos. Mostrarlo únicamente cuando hay
+  // un PDF obliga a leer la ausencia de un ícono como información, y eso no se lee: la fila sin
+  // nada parecía una fila a la que le faltaba algo.
+  const esAdjunto = clase.tipo === 'adjunto';
+  const chipTipo = html`<span class="chip-tipo" title=${esAdjunto ? 'Material adjunto (PDF)' : 'Video'}
+    >${esAdjunto ? '📄' : '🎬'}</span>`;
+
+  // ── Pastilla de MATERIA, pintada con el color del PORTAL ──────────────────────────────────
+  // Dos datos en un solo elemento, y a propósito: en la Cola —que mezcla portales— la fila no
+  // tenía CÓMO decir de dónde salía ni a qué carpeta iba. Sumar dos pastillas por fila en una
+  // lista de 28 px de alto es peor que resolverlo con el color de la que ya hacía falta.
+  //
+  // En Disponibles muestra el destino con el override aplicado (corte 2); en la Cola, la carpeta
+  // ya estampada. `portalDe` lo resuelve popup.js: la isla no conoce el registro de sitios.
+  const portal = portalDe ? portalDe(clase) : null;
+  const materia = disponibles
+    ? (overrideCarpeta || clase.modulo || clase.carpeta)
+    : clase.carpeta;
+  const conOverride = disponibles && !!overrideCarpeta && !!clase.modulo;
+  const chipMateria = materia
+    ? html`<span class="chip-materia ${conOverride ? 'override' : ''}"
+             style=${portal && portal.color ? `--color-portal:${portal.color}` : ''}
+             title=${`${portal ? portal.nombre + ' · ' : ''}${conOverride ? 'va a ' : ''}${materia}`}
+           >${conOverride ? `→ ${materia}` : materia}</span>`
+    : null;
+
   const esActivo = clase.titulo === videoActivo && enCurso;
   // En Disponibles no hay checkbox si no está sincronizado o ya está descargado/en fila.
   const sinCheckbox = disponibles
@@ -163,8 +156,7 @@ export function FilaClase({ clase, ctx }) {
         ${checkbox}
         ${chipTipo}
         <span class="video-label">${clase.titulo}</span>
-        ${chipPeso}
-        ${chipDestino}
+        ${chipMateria}
         <span class="badge ${badgeCls}">${badgeTxt}</span>
       </div>`;
   }
@@ -176,7 +168,7 @@ export function FilaClase({ clase, ctx }) {
       ${checkbox}
       ${chipTipo}
       <span class="video-label" style=${`cursor:${tieneCheckbox ? 'pointer' : 'default'}`}>${clase.titulo}</span>
-      ${chipPeso}
+      ${chipMateria}
       ${esActivo
         ? html`<span class="badge process">Bajando</span>`
         : html`<button class="btn-row-action remove-action"

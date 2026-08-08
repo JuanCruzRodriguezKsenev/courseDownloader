@@ -178,46 +178,46 @@
   }
 }
 
-/* Chip de DESTINO de la fila (escaneo-api corte 2).
-   Dice a qué carpeta va a caer la clase: su módulo de origen, o `→ <carpeta>` cuando el input
-   de carpeta está pisando el destino. Sólo aparece en portales de dos niveles.
-
-   Deliberadamente MÁS callado que el badge de estado (sin uppercase, sin fondo sólido): el
-   estado es la información principal de la fila y el destino es contexto. Cuando hay override
-   sí se enciende, porque ahí el dato dejó de ser el esperado. */
-.chip-destino {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  padding: 2px var(--space-xs);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-xs);
-  max-width: 11ch;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex-shrink: 0;
-
-  &.override {
-    color: var(--accent-orange);
-    border-color: var(--accent-orange);
-    background-color: rgba(var(--accent-orange-rgb), var(--alpha-badge));
-  }
-}
-
-/* Insignia de TIPO y peso de la fila (escaneo-api corte 5).
-   Sólo aparecen en adjuntos: un video no lleva ninguna de las dos, así que la lista de un
-   portal sin materiales se ve exactamente como antes. */
+/* Ícono de TIPO de la fila (🎬 / 📄).
+   Va en todas las filas y en las dos pestañas: si sólo apareciera en los adjuntos, habría que
+   leer la AUSENCIA de un ícono como información, y eso no se lee. */
 .chip-tipo {
   font-size: var(--text-sm);
   line-height: 1;
   flex-shrink: 0;
 }
 
-.chip-peso {
+/* Pastilla de MATERIA, pintada con el color del PORTAL.
+   Dos datos en un solo elemento: en la Cola —que mezcla portales a propósito— la fila no tenía
+   cómo decir de dónde salía ni a qué carpeta iba, y dos pastillas por fila en una lista de 28 px
+   son peor que una sola bien elegida.
+
+   El color entra por la custom property `--color-portal`, que la fila setea inline desde el
+   descriptor del portal (`PuertoSitio.color`). El fallback importa: un ítem huérfano —portal ya
+   no registrado— no resuelve descriptor, y sin fallback quedaría con `border-color` inválido y
+   la pastilla se vería rota en vez de neutra. */
+.chip-materia {
+  --color-portal: var(--text-muted);
   font-size: var(--text-xs);
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
+  color: var(--color-portal);
+  padding: 2px var(--space-xs);
+  border: 1px solid var(--color-portal);
+  border-radius: var(--radius-xs);
+  max-width: 11ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   flex-shrink: 0;
+  opacity: 0.85;
+
+  /* Override del input activo: se enciende, porque ahí el destino dejó de ser el esperado.
+     Usa el naranja del acento a propósito —es una advertencia, no una identidad— y por eso NO
+     puede ser un color de portal. */
+  &.override {
+    --color-portal: var(--accent-orange);
+    opacity: 1;
+    font-weight: var(--font-bold);
+  }
 }
 
 /* Tarjeta de Error de Servidor Desconectado */

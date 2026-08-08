@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // FASE 8: el puente dejó de ser `puente` y se importa. La API que este archivo
 // afirma es la misma; lo que cambió es de dónde sale.
 import puente from './listaClases.preact.js';
-import { montar, __resetStore, formatearPeso } from './listaClases.preact.js';
+import { montar, __resetStore } from './listaClases.preact.js';
 
 async function flush() {
   for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 16));
@@ -78,12 +78,54 @@ describe('Isla Preact: ListaClases', () => {
     expect(badges).toContain('Descargado');
   });
 
-  // [ESCANEO-API CORTE 2] El chip de destino. No es decoración: si el input de carpeta puede
-  // pisar el destino de 103 clases, el efecto tiene que verse ANTES de encolar.
-  describe('el chip de destino', () => {
-    const chips = () => [...root.querySelectorAll('.chip-destino')].map((c) => c.textContent);
+  // [ESCANEO-API CORTE 2 + ajuste de UI del 2026-08-07] El icono de tipo y la pastilla de
+  // materia. La pastilla lleva DOS datos --la materia y, en su color, el portal-- porque en la
+  // Cola, que mezcla portales, la fila no tenia como decir ninguna de las dos cosas.
+  describe('el icono de tipo y la pastilla de materia', () => {
+    const RAMONNET = { id: 'ramonnet', nombre: 'Ramon Net', color: '#005AD7' };
+    const ANATOMY = { id: 'anatomy-by-chris', nombre: 'Anatomy by Chris', color: '#8E44FF' };
+    const registro = (m) => (clase) => m[clase && clase.sitioId];
 
-    it('una clase con módulo muestra su módulo', async () => {
+    const chips = () => [...root.querySelectorAll('.chip-materia')].map((c) => c.textContent);
+    const iconos = () => [...root.querySelectorAll('.chip-tipo')].map((c) => c.textContent);
+
+    it('un video lleva el icono de video y un adjunto el de PDF, en Disponibles', async () => {
+      puente.render({ modo: 'lista', ctx: ctxBase(), items: [
+        { id: 1, titulo: 'Osteologia', estado: 'pending', tipo: 'video' },
+        { id: 2, titulo: 'Atlas.pdf', estado: 'pending', tipo: 'adjunto' },
+      ]});
+      await flush();
+      expect(iconos()).toEqual(['\u{1F3AC}', '\u{1F4C4}']);
+    });
+
+    it('tambien en la Cola: es donde no se sabia que se estaba bajando', async () => {
+      puente.render({ modo: 'lista', ctx: ctxBase({ 'pesta\u00f1a': 'cola' }), items: [
+        { id: 1, titulo: 'Osteologia', carpeta: 'ms', tipo: 'video' },
+        { id: 2, titulo: 'Atlas.pdf', carpeta: 'ms', tipo: 'adjunto' },
+      ]});
+      await flush();
+      expect(iconos()).toEqual(['\u{1F3AC}', '\u{1F4C4}']);
+    });
+
+    it('un item SIN tipo cuenta como video: es todo lo persistido de antes', async () => {
+      puente.render({ modo: 'lista', ctx: ctxBase(), items: [
+        { id: 1, titulo: 'Vieja', estado: 'pending' },
+      ]});
+      await flush();
+      expect(iconos()).toEqual(['\u{1F3AC}']);
+    });
+
+    it('NO se muestra el peso de un adjunto', async () => {
+      // Se saco a pedido del dueno: no cambia ninguna decision y suma ruido a la fila.
+      puente.render({ modo: 'lista', ctx: ctxBase(), items: [
+        { id: 1, titulo: 'Atlas.pdf', estado: 'pending', tipo: 'adjunto', bytes: 83952102 },
+      ]});
+      await flush();
+      expect(root.querySelector('.chip-peso')).toBeNull();
+      expect(root.textContent).not.toContain('MB');
+    });
+
+    it('la pastilla muestra el modulo en Disponibles', async () => {
       puente.render({ modo: 'lista', ctx: ctxBase(), items: [
         { id: 1, titulo: 'Miologia 1', estado: 'pending', modulo: 'miembro_superior' },
       ]});
@@ -91,12 +133,54 @@ describe('Isla Preact: ListaClases', () => {
       expect(chips()).toEqual(['miembro_superior']);
     });
 
-    it('una clase SIN módulo no muestra chip: en un portal de un nivel sería ruido', async () => {
-      puente.render({ modo: 'lista', ctx: ctxBase(), items: [
-        { id: 1, titulo: 'Anatomía TP 1', estado: 'pending' },
+    it('y la carpeta ya estampada en la Cola', async () => {
+      // Es el dato que faltaba: en la Cola la clase ya tiene destino decidido.
+      puente.render({ modo: 'lista', ctx: ctxBase({ 'pesta\u00f1a': 'cola' }), items: [
+        { id: 1, titulo: 'Miologia 1', carpeta: 'miembro_superior', modulo: 'miembro_superior' },
       ]});
       await flush();
-      expect(chips()).toEqual([]);
+      expect(chips()).toEqual(['miembro_superior']);
+    });
+
+    it('se pinta con el color del portal DEL ITEM, no del portal activo', async () => {
+      // La Cola mezcla portales a proposito: es el caso que hace falta que ande.
+      puente.render({ modo: 'lista', ctx: ctxBase({
+        'pesta\u00f1a': 'cola',
+        portalDe: registro({ ramonnet: RAMONNET, 'anatomy-by-chris': ANATOMY }),
+      }), items: [
+        { id: 1, titulo: 'Clase', carpeta: 'bio', sitioId: 'ramonnet' },
+        { id: 2, titulo: 'Miologia 1', carpeta: 'ms', sitioId: 'anatomy-by-chris' },
+      ]});
+      await flush();
+
+      const pastillas = [...root.querySelectorAll('.chip-materia')];
+      expect(pastillas[0].style.getPropertyValue('--color-portal')).toBe('#005AD7');
+      expect(pastillas[1].style.getPropertyValue('--color-portal')).toBe('#8E44FF');
+    });
+
+    it('el nombre del portal viaja en el tooltip, que es donde no ocupa lugar', async () => {
+      puente.render({ modo: 'lista', ctx: ctxBase({
+        'pesta\u00f1a': 'cola',
+        portalDe: registro({ 'anatomy-by-chris': ANATOMY }),
+      }), items: [
+        { id: 1, titulo: 'Miologia 1', carpeta: 'ms', sitioId: 'anatomy-by-chris' },
+      ]});
+      await flush();
+      expect(root.querySelector('.chip-materia').title).toContain('Anatomy by Chris');
+    });
+
+    it('un huerfano no rompe la pastilla: queda sin color de portal', async () => {
+      // Sin el fallback del CSS, border-color quedaria invalido y la pastilla se veria rota.
+      puente.render({ modo: 'lista', ctx: ctxBase({
+        'pesta\u00f1a': 'cola',
+        portalDe: registro({ ramonnet: RAMONNET }),
+      }), items: [
+        { id: 1, titulo: 'Huerfana', carpeta: 'bio', sitioId: 'portal-borrado' },
+      ]});
+      await flush();
+      const pastilla = root.querySelector('.chip-materia');
+      expect(pastilla).not.toBeNull();
+      expect(pastilla.style.getPropertyValue('--color-portal')).toBe('');
     });
 
     it('con override, TODAS las filas cambian a la vez y se marcan como override', async () => {
@@ -107,72 +191,32 @@ describe('Isla Preact: ListaClases', () => {
         { id: 2, titulo: 'Miologia 1', estado: 'pending', modulo: 'miembro_inferior' },
       ]});
       await flush();
-      expect(chips()).toEqual(['→ repaso_final', '→ repaso_final']);
-      expect(root.querySelectorAll('.chip-destino.override').length).toBe(2);
+      expect(chips()).toEqual(['\u2192 repaso_final', '\u2192 repaso_final']);
+      expect(root.querySelectorAll('.chip-materia.override').length).toBe(2);
     });
 
-    it('el override no le inventa chip a una clase sin módulo', async () => {
+    it('el override no marca a una clase sin modulo (no tiene destino propio que pisar)', async () => {
       puente.render({ modo: 'lista', ctx: ctxBase({ overrideCarpeta: 'repaso_final' }), items: [
-        { id: 1, titulo: 'Anatomía TP 1', estado: 'pending' },
+        { id: 1, titulo: 'Anatomia TP 1', estado: 'pending', carpeta: 'biologia' },
+      ]});
+      await flush();
+      expect(root.querySelectorAll('.chip-materia.override').length).toBe(0);
+    });
+
+    it('el override NO llega a la Cola: ahi la carpeta ya esta estampada', async () => {
+      puente.render({ modo: 'lista', ctx: ctxBase({ 'pesta\u00f1a': 'cola', overrideCarpeta: 'repaso_final' }), items: [
+        { id: 1, titulo: 'Miologia 1', carpeta: 'miembro_superior', modulo: 'miembro_superior' },
+      ]});
+      await flush();
+      expect(chips()).toEqual(['miembro_superior']);
+    });
+
+    it('sin materia no hay pastilla', async () => {
+      puente.render({ modo: 'lista', ctx: ctxBase(), items: [
+        { id: 1, titulo: 'Suelta', estado: 'pending' },
       ]});
       await flush();
       expect(chips()).toEqual([]);
-    });
-
-    it('sin override el chip no lleva la clase override', async () => {
-      puente.render({ modo: 'lista', ctx: ctxBase({ overrideCarpeta: '' }), items: [
-        { id: 1, titulo: 'Miologia 1', estado: 'pending', modulo: 'miembro_superior' },
-      ]});
-      await flush();
-      expect(root.querySelectorAll('.chip-destino.override').length).toBe(0);
-    });
-  });
-
-  // [ESCANEO-API CORTE 5] La insignia de tipo y el peso. Sólo en adjuntos: la lista de un
-  // portal sin materiales tiene que verse exactamente como antes.
-  describe('la insignia de tipo y el peso', () => {
-    it('un adjunto lleva 📄 y su peso', async () => {
-      puente.render({ modo: 'lista', ctx: ctxBase(), items: [
-        { id: 1, titulo: 'Atlas.pdf', estado: 'pending', tipo: 'adjunto', bytes: 656307 },
-      ]});
-      await flush();
-      expect(root.querySelector('.chip-tipo').textContent).toBe('📄');
-      expect(root.querySelector('.chip-peso').textContent).toBe('641 KB');
-    });
-
-    it('un video no lleva ninguna de las dos', async () => {
-      puente.render({ modo: 'lista', ctx: ctxBase(), items: [
-        { id: 1, titulo: 'Osteologia', estado: 'pending', tipo: 'video' },
-      ]});
-      await flush();
-      expect(root.querySelector('.chip-tipo')).toBeNull();
-      expect(root.querySelector('.chip-peso')).toBeNull();
-    });
-
-    it('un ítem sin tipo tampoco: es todo lo persistido de antes del corte', async () => {
-      puente.render({ modo: 'lista', ctx: ctxBase(), items: [
-        { id: 1, titulo: 'Vieja', estado: 'pending' },
-      ]});
-      await flush();
-      expect(root.querySelector('.chip-tipo')).toBeNull();
-    });
-
-    it('un adjunto sin peso muestra el ícono pero no un "0 KB"', async () => {
-      puente.render({ modo: 'lista', ctx: ctxBase(), items: [
-        { id: 1, titulo: 'Guia.pdf', estado: 'pending', tipo: 'adjunto' },
-      ]});
-      await flush();
-      expect(root.querySelector('.chip-tipo')).not.toBeNull();
-      expect(root.querySelector('.chip-peso')).toBeNull();
-    });
-
-    it('formatearPeso cambia de unidad y de precisión con el tamaño', () => {
-      // El rango real del curso: guías de 90 KB conviviendo con un PDF de 83,9 MB.
-      expect(formatearPeso(92160)).toBe('90 KB');
-      expect(formatearPeso(83952102)).toBe('80.1 MB');
-      expect(formatearPeso(200 * 1024 * 1024)).toBe('200 MB'); // sin decimal, ya no aporta
-      expect(formatearPeso(0)).toBe('');
-      expect(formatearPeso(undefined)).toBe('');
     });
   });
 

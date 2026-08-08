@@ -421,6 +421,25 @@ Son `resolverManifiesto.js` (HTML de la clase → `.m3u8`), `parserTitulos.js` (
 títulos/cátedra) y `scraper.js` (scraper del DOM), alcanzados vía
 `sitio.resolverManifiesto` / `.parsearTitulo` / `.clasificarCarpeta` / `.escanearListado`, donde `sitio` es el descriptor que el consumidor recibió inyectado.
 
+**La fila de la lista dice cuatro cosas, y una entró al puerto por eso** (ajuste de UI del
+2026-08-07, después de usar el frente): ícono de tipo (🎬/📄) en **las dos pestañas**, título, y una
+**pastilla de materia pintada con el color del portal** (`PuertoSitio.color`). El color entra al
+puerto porque lo lee alguien de afuera de `sitio/`. Tres decisiones que no son obvias:
+
+- **El ícono va siempre, no sólo en los adjuntos.** Mostrarlo únicamente cuando hay un PDF obliga a
+  leer la *ausencia* de un ícono como información, y eso no se lee.
+- **Materia y portal comparten un solo elemento.** En la Cola —que mezcla portales a propósito— la
+  fila no tenía cómo decir de dónde salía ni a qué carpeta iba; dos pastillas por fila en una lista
+  de 28 px de alto es peor que resolverlo con el color de la que ya hacía falta. El nombre del
+  portal viaja en el `title`, que no ocupa lugar.
+- **El naranja del acento no puede ser un color de portal**: ya significa "seleccionada" y
+  "bajando" en esa misma fila, y lo reusa el estado de override de la pastilla, que es una
+  advertencia y no una identidad.
+
+El peso de un adjunto **se sacó**: no cambiaba ninguna decisión (los PDF se bajan o no por lo que
+son, no por lo que pesan) y sumaba ruido. El campo `bytes` sigue en el ítem porque el bucle lo usa
+como respaldo del `Content-Length`.
+
 **Anatomy by Chris tiene un cuarto hermano** desde el corte 5 del escaneo por API:
 `descargarAdjunto.js` (`DescargarAdjuntoAnatomy`), alcanzado vía `sitio.resolverAdjunto` — un
 método **opcional** del puerto, que un portal sin materiales simplemente no implementa. Convierte

@@ -1364,6 +1364,16 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           // clases, tenés que ver el efecto ANTES de encolar. Escribir algo cambia las 103 filas
           // a la vez y es imposible no verlo.
           overrideCarpeta: utils.sanearNombreCarpeta(nodos.folder.value),
+          // El portal DEL ÍTEM, para que la fila pueda pintar su pastilla con el color del
+          // portal correcto. Va como función y no como campo de cada clase a propósito: la isla
+          // es vista pura y no conoce el registro, y estampar el color en el objeto de estado
+          // sería persistir en `listaPersistente` un dato de presentación.
+          //
+          // Se resuelve con `sitios.obtener` (que aplica la migración) y no comparando el
+          // `sitioId` crudo, por lo mismo de siempre: un ítem anterior al multi-sitio es del
+          // portal legado, no de "ninguno". Un huérfano devuelve `undefined` y la pastilla cae
+          // a su color neutro, que es lo correcto — no sabemos de dónde vino.
+          portalDe: (clase) => sitios.obtener(clase && clase.sitioId),
           onCheckChange: (c, check) => {
             c.seleccionado = check;
 

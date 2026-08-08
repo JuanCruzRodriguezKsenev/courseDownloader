@@ -168,6 +168,19 @@ export interface PuertoSitio {
   nombre: string;
 
   /**
+   * Color con el que la UI distingue a este portal de un vistazo (CSS válido).
+   *
+   * Entra al puerto porque lo lee alguien de **afuera** de `sitio/`: la fila de la lista, que
+   * pinta con él la pastilla de materia. Hasta acá lo único que la UI sabía de un portal era su
+   * nombre, y en la Cola —que mezcla portales a propósito— dos filas de portales distintos se
+   * veían exactamente iguales.
+   *
+   * ⚠️ **No uses el naranja del acento** (`--accent-orange`): ya significa "seleccionada" y
+   * "bajando" en esa misma fila, y un tercer significado para el mismo color no se distingue.
+   */
+  color: string;
+
+  /**
    * Origen del portal. Lo usa el daemon de conexión como sonda de "hay internet":
    * es deliberadamente el sitio objetivo y no un genérico tipo google.com — lo que
    * importa no es tener red, sino poder llegar A ESTE portal.

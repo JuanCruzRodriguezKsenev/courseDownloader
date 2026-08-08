@@ -80,6 +80,9 @@ interface SitioRamonNetDescriptor extends PuertoSitio {
 const SitioRamonNet: SitioRamonNetDescriptor = {
   id: "ramonnet",
   nombre: "Ramón Net",
+  // Azul. No es el naranja del acento a propósito: ese ya significa "seleccionada"/"bajando"
+  // en la misma fila.
+  color: "#005AD7",
 
   // --- Endpoints y marcadores del portal ---------------------------------------
   // Origen del portal. Lo usa el daemon de conexión como sonda de "hay internet":

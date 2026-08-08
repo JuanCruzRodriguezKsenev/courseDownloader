@@ -92,6 +92,9 @@ const SitioAnatomyByChris: SitioAnatomyDescriptor = {
   // Cambiarlo después obliga a migrar storage y a mover archivos.
   id: "anatomy-by-chris",
   nombre: "Anatomy by Chris",
+  // Violeta: bien separado del azul de Ramón Net incluso en una fila de 28 px, que es donde se
+  // mira. Los dos se eligieron mirando la Cola con las dos colas mezcladas.
+  color: "#8E44FF",
 
   slugCurso: "anatomy-by-chris",
   productId: "6083220",
