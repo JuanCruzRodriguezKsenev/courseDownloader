@@ -1,10 +1,15 @@
 # Portal nuevo: Anatomy by Chris (Hotmart Club) — diseño de ejecución
 
-**Estado al 2026-08-07: CONSTRUIDO, VERIFICACIÓN EN NAVEGADOR A MEDIAS.** El adaptador entero
-está escrito y con tests (`sitio/anatomy-by-chris/`), el portal está registrado, el manifest tiene
-sus cinco orígenes y su ruleset, y las cuatro verificaciones dan verde. **El escaneo ya se probó
-en Chrome y anduvo** (ver abajo); **falta bajar una clase de verdad**, que es donde se contesta
-casi todo lo demás.
+**Estado al 2026-08-07: CONSTRUIDO Y VERIFICADO EN NAVEGADOR — el corte 7 está cerrado.** El
+adaptador entero está escrito y con tests (`sitio/anatomy-by-chris/`), el portal está registrado,
+el manifest tiene sus cinco orígenes y su ruleset, y las cuatro verificaciones dan verde. Las
+cuatro casillas de abajo pasaron: escaneo, descarga de punta a punta (tras cuatro arreglos),
+`patronPestañas` y las dos colas mezcladas.
+
+> **Que esté verificado no quiere decir que el portal esté terminado.** El escaneo por DOM sólo ve
+> el módulo abierto y la identidad `(portal, título)` pierde descargas dentro de este portal — los
+> dos frentes viven en `escaneo-api-anatomy-diseno.md`, y el corte 1 de ahí **rehace lo que la
+> casilla 4 probó**.
 
 Es **el corte 7** de `multisitio-diseno.md` — el último que quedaba de aquel frente.
 
@@ -136,14 +141,35 @@ de unos KB en vez del video sería el master colándose.
 
 (`https://hotmart.com/*/club/anatomy-by-chris/*`, con el `/*/` del segmento de idioma.) Se ve al
 clickear la notificación de un fallo de este portal: si no matchea, abre una pestaña nueva en vez
-de enfocar la abierta. *(Pendiente 5.)*
+de enfocar la abierta. *(Era el pendiente 5.)*
 
-### ⬜ 4. Con las dos colas mezcladas
+> **✅ CERRADA el 2026-08-07.** El fallo se forzó **apagando el backend Bun** con una clase de
+> Anatomy encolada: eso cae en la rama (6) de `procesadorCola.ts`, el daemon la tipa `"servidor"` y
+> la notificación sale con el `sitioId` adentro del `notificationId` (corte 8 del multisitio).
+> Clickeada, **enfocó la pestaña de Anatomy ya abierta**. O sea que matchean las dos cosas que este
+> punto prueba: el `/*/` del idioma en el patrón y el `sitioId` viajando en el id de la
+> notificación.
+>
+> **Por qué apagar el Bun sirve para forzarlo**, y conviene saberlo para repetir la prueba: el
+> arranque de la cola no lo bloquea, porque `verificarRedAntesDeDescargar` (`queue.js`) mira
+> **sólo `.internet`**, no el backend. Con el backend caído la ráfaga arranca igual y falla al
+> streamear, que es justo lo que hace falta.
+
+### ✅ 4. Con las dos colas mezcladas (2026-08-07)
 
 Una clase de cada portal encolada a la vez: la sección Portal del filtro, el criterio de orden
 `portal`, que la faceta elegida en Ramón Net no afecte a éste, y que completar una clase no saque
-de la cola a su homónima del otro portal. Todo eso hoy tiene tests, pero **con dobles** — es la
-lista del final de `multisitio-diseno.md` §Cómo escribir un portal nuevo.
+de la cola a su homónima del otro portal. Todo eso tenía tests, pero **con dobles** — es la lista
+del final de `multisitio-diseno.md` §Cómo escribir un portal nuevo.
+
+> **Verificada por el dueño el 2026-08-07**, usando los dos portales a la vez. **Lo que quedó
+> registrado es el resultado global —"funciona"—, no un desglose punto por punto**, y se anota así
+> a propósito: es más débil que las tres casillas de arriba, que sí tienen medición.
+>
+> **Y tiene fecha de vencimiento corta**: el corte 1 de `escaneo-api-anatomy-diseno.md` reescribe
+> `identidadClase` de `portal|titulo` a `portal|modulo|tipo|titulo`, que es exactamente el cuarto
+> punto de esta casilla. **Hay que volver a correrla después de ese corte**, y ahí conviene el
+> desglose: encolar `Miologia 1` de los dos módulos y ver que las dos sobreviven.
 
 ---
 

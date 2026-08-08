@@ -4,8 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > ## ⚠️ Trabajo en curso — leer esto primero
 >
-> **⚠️ El corte 7 vive en una rama, no en `main`**: `corte-7-anatomy-by-chris` (`ebc98b1`), sin
-> pushear. `main` sigue en `3be643b` y **no tiene una línea del segundo portal** — si mirás `main`
+> **⚠️ El corte 7 vive en una rama, no en `main`**: `corte-7-anatomy-by-chris`, sin
+> pushear. `main` **no tiene una línea del segundo portal** — si mirás `main`
 > y no encontrás `sitio/anatomy-by-chris/`, no falta nada: estás en la rama equivocada. No se
 > mergea hasta que la verificación en navegador esté completa, que es la regla de abajo.
 >
@@ -35,9 +35,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > aviso al popup no llevaba `sitioId` — eso último rebajaba la misma clase para siempre. Las tres
 > corridas, con lo que enseñó cada una, en `docs/portal-anatomy-by-chris-diseno.md` §2.
 >
-> **LA PRÓXIMA ACCIÓN: terminar la verificación en navegador** — faltan el `patronPestañas` y **el
-> popup con las dos colas mezcladas**, que es lo que saca de "sólo dobles" a media docena de
-> afirmaciones. Casillas 3 y 4 del mismo doc. Después de eso el corte se puede mergear a `main`.
+> **La verificación en navegador del corte 7 está CERRADA (2026-08-07)**: las cuatro casillas
+> pasaron. `patronPestañas` se probó forzando un fallo con el backend Bun apagado y la notificación
+> enfocó la pestaña abierta; las dos colas mezcladas las verificó el dueño usando los dos portales
+> a la vez. **El corte se puede mergear a `main`.**
+>
+> **LA PRÓXIMA ACCIÓN: el corte 1 de `docs/escaneo-api-anatomy-diseno.md`** — identidad
+> `(portal, módulo, tipo, título)` + escaneo por `/v1/navigation` + carpeta por módulo, que van
+> juntos a propósito. Arregla la deuda 🔴 que pierde descargas hoy y convierte 11 escaneos manuales
+> en uno. **Ojo**: rehace lo que probó la casilla 4, así que esa casilla se vuelve a correr
+> después — con desglose esta vez.
 >
 > **Y no la saltees**: los tres únicos defectos que llegaron a `main` en toda la re-arquitectura
 > los encontró usar la extensión, no la suite — y abrir el popup el 2026-08-05 encontró otros tres
@@ -46,6 +53,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > la suite no puede ver: el empaquetado, el orden de carga de los globals, el núcleo de `popup.js`
 > y cualquier efecto cuyo destino no sea el popup.** Los 7 puntos a mirar →
 > `docs/rearquitectura-diseno.md` §Verificación en navegador.
+
+## Cómo responderle al dueño de este repo
+
+- **Bullets, no prosa.** Cortos, concisos, directos, con indentación jerárquica cuando hay subgrupos.
+- **Un bullet por hecho**, con su archivo y línea adentro del bullet.
+- **La excepción, y es la única**: que pida explícitamente *"redactá un informe"* o *"ampliá"*.
+- Sigue valiendo explicar el contexto **antes** de ofrecer opciones — pero en bullets.
 
 ## Project Overview
 
@@ -111,7 +125,7 @@ The bullets below are the *why* behind each.
 - **Debug the popup**: right-click the extension icon → "Inspect popup" (or open it and press F12). Note the whole popup graph is bundled into one chunk (`.output/chrome-mv3/chunks/popup-*.js`) and **`wxt build` emits no sourcemaps** — for anything beyond a stack trace, use `npm run dev`, which serves readable sources with HMR.
 - **Debug the service worker**: on `chrome://extensions/`, click "service worker" (or "Inspect views: service worker") under this extension to get DevTools for `background.js` and the engine it drives (`core/hls/hlsEngine.ts`).
 - **Companion backend required for actual downloads**: Turbo Mode (`modoTurboBun`) is hardcoded to `true` throughout the codebase, meaning fragments are always streamed to the local Bun backend rather than assembled in-browser. Without the Bun server running on port 3001, downloads will fail at the streaming step — start it separately per the backend's own instructions before testing end-to-end downloads.
-- **Not shipped, don't edit as if it were live code**: `wxt.config.ts` is the authority on the manifest, and `.output/` on what the browser loads (both `.output/` and `.wxt/` are gitignored build artifacts — never edit them). `prototype/preact-serverConnection/` is a standalone, throwaway demo (its own vendored Preact copy) that proved out ADR-0006 — it duplicates connection-feature logic and is intentionally *not* kept in sync with `popup/features/serverConnection.js`. `.agents/skills/` + `skills-lock.json` are vendored agent skills (`chrome-extensions` from `googlechrome/modern-web-guidance`, `frontend-design` from `anthropics/skills`); consult `.agents/skills/chrome-extensions/references/` for MV3 API questions (service worker lifecycle, `declarativeNetRequest`, storage, popup UI) instead of guessing. **And `sitio/nuevo sitio/` is not an adapter**, despite sitting where every other child of `sitio/` is one: it's ~4 MB of saved HTML captured from Hotmart Club while measuring the second portal — evidence for `docs/portal-anatomy-by-chris-diseno.md`, untracked, not source. Don't import it, don't lint it, and don't take it as a half-written portal. **`descargas/` is the same kind of thing** — the three `medicion-*.json` that `escaneo-api-anatomy-diseno.md` measures from (`/v1/navigation`, los materiales, la corrida completa), sitting at the repo root where every sibling *is* source, and with a name that reads like the download code (`plataforma/chrome/descargas.ts`). Neither folder is gitignored, so a `git add -A` commits ~4 MB of saved HTML plus the measurements: **stage by path in this repo, never `-A`**.
+- **Not shipped, don't edit as if it were live code**: `wxt.config.ts` is the authority on the manifest, and `.output/` on what the browser loads (both `.output/` and `.wxt/` are gitignored build artifacts — never edit them). `prototype/preact-serverConnection/` is a standalone, throwaway demo (its own vendored Preact copy) that proved out ADR-0006 — it duplicates connection-feature logic and is intentionally *not* kept in sync with `popup/features/serverConnection.js`. `.agents/skills/` + `skills-lock.json` are vendored agent skills (`chrome-extensions` from `googlechrome/modern-web-guidance`, `frontend-design` from `anthropics/skills`); consult `.agents/skills/chrome-extensions/references/` for MV3 API questions (service worker lifecycle, `declarativeNetRequest`, storage, popup UI) instead of guessing. **And `sitio/nuevo sitio/` is not an adapter**, despite sitting where every other child of `sitio/` is one: it's ~4 MB of saved HTML captured from Hotmart Club while measuring the second portal — evidence for `docs/portal-anatomy-by-chris-diseno.md`, untracked, not source. Don't import it, don't lint it, and don't take it as a half-written portal. **`descargas/` is the same kind of thing** — the three `medicion-*.json` that `escaneo-api-anatomy-diseno.md` measures from (`/v1/navigation`, los materiales, la corrida completa), sitting at the repo root where every sibling *is* source, and with a name that reads like the download code (`plataforma/chrome/descargas.ts`). Both are gitignored by path (`.gitignore` says why), which is the *only* thing standing between a `git add -A` and ~4 MB of saved HTML in a commit — so if you add a third pile of evidence, ignore it in the same change, and prefer staging by path anyway.
 - **Opening a PR**: `.github/PULL_REQUEST_TEMPLATE.md` encodes the docs-as-code checklist (storage shape → `data-model.md`; new IPC action → `architecture.md`/`patterns.md`; architectural decision → new ADR; scraped-content handling → `security.md`; debt resolved → mark it in `TECHNICAL_DEBT.md`). Fill it rather than replacing the body.
 - The test/lint baselines are hand-maintained and live in **one place: `docs/testing.md`** (§Baseline de las verificaciones). When you add tests or a new file, update them there in the same change — the same rule the docs get. Don't re-state a count in this file; the whole point of the single home is that it can't drift against a copy.
 - A legacy non-Turbo code path (in-browser blob assembly via the `offscreen` document + `chrome.downloads`) still exists in `background.js`/`plataforma/chrome/descargas.ts` but is currently unreachable (`establecerModoTurbo` forces `true`). Why the two paths exist → `docs/tech-stack.md` §Por qué Bun.
@@ -179,5 +193,5 @@ Most files carry a version-numbered docstring banner at the top (e.g. `V5.6.0`) 
 
 - **Title parsing** (`sitio/ramonnet/parserTitulos.js` — `formatTitleStructured` / `clasificarCatedraYCarpeta`, reached via the injected descriptor's gates (`sitio.parsearTitulo` / `.clasificarCarpeta`); was in `shared/utils.js` until v6.0.0, a file that no longer exists): derives the canonical filename + cátedra/folder from messy scraped titles. It's the most regression-sensitive logic in the project (regex order matters) — if a change silently mis-files or mis-names classes, look here. Mechanism, the `>12` date heuristic, and the classification order → `docs/patterns.md` §Sanitización de nombres de archivo y parsing de títulos.
 - **M3U8 resolution** (`ResolverManifiesto.resolver`, `sitio/ramonnet/resolverManifiesto.js` — was `HlsEngine.extraerEnlaceMaestroM3u8Clasico` until 2026-08-02): fragile against upstream markup changes by construction, and its regex fallbacks degrade *silently* (they can resolve another class's video instead of failing). **If downloads start bringing the wrong video, look here first, not at the engine** — the engine only ever receives the already-resolved URL. Mechanism and the four consequences → `docs/architecture.md` §Capa 2.
-- **`resolverManifiesto` must return a *media* playlist, never a multi-variant master** — `core/hls/hlsEngine.ts` can't tell them apart and fails **silently**: it treats every `#`-less line as a fragment, so given a master it downloads the variant's `.m3u8` believing it's a `.ts` and ships the backend a KB-sized file, with no error anywhere. Ramón Net never exposed this because its template points straight at a media playlist; a portal whose CDN serves a master (Hotmart does) has to resolve one level further down. This is a property of the engine, so it outlives whichever portal found it.
+- **`resolverManifiesto` must return a *media* playlist, never a multi-variant master** — the rule, the silent failure mode and the per-portal caps are in §Execution contexts above, and they belong there because this is **a property of the engine, not of the portal that found it**: it outlives Anatomy by Chris, and the next portal whose CDN serves a master inherits it.
 - **`declarativeNetRequest`** — one ruleset per portal, and they do opposite things. Ramón Net's (`public/sitio/ramonnet/rules.json`) *blocks* `bunnyinfra.net` image/xhr/other requests — intentional, not a bug (rationale → `docs/security.md` permisos). Anatomy by Chris's (`public/sitio/anatomy-by-chris/rules.json`) *rewrites* the `Referer` to `https://hotmart.com/` on XHR to `cf-embed.play.hotmart.com/embed/`, and it is **load-bearing for downloading**: without it the embed fetch comes back 401 and the class fails.
