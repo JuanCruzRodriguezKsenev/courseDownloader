@@ -15,13 +15,15 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 ## 🔴 Abierto
 
 > **Al 2026-08-07 lo único abierto de esta sección son los 6 strings de `popup.js`** que nombran
-> a Ramón Net (segunda entrada), y siguen frenados a propósito. La entrada de la identidad quedó
-> **resuelta** el mismo día que se encontró (ADR-0014) y se conserva acá, y no en el registro
-> fechado de abajo, porque lo que enseñó sigue valiendo cada vez que se toca la cola o el escaneo.
-> Baja cuando el frente `escaneo-api-anatomy` se verifique en navegador y se mergee.
+> a Ramón Net (segunda entrada). La entrada de la identidad quedó **resuelta** el mismo día que se
+> encontró (ADR-0014) y se conserva acá, y no en el registro fechado de abajo, porque lo que
+> enseñó sigue valiendo cada vez que se toca la cola o el escaneo.
 >
-> **Y el freno de los strings se puede levantar**: la condición que lo sostenía era *"recién
-> cuando exista un segundo portal real"*, y desde el corte 7 existe.
+> **El freno de los strings ya no aplica, y aun así NO se hacen todavía.** La condición original
+> era *"recién cuando exista un segundo portal real"*, y desde el corte 7 existe — o sea que el
+> ítem pasó de **bloqueado** a **postergado**, que no es lo mismo y conviene no confundirlo: no
+> hay nada esperando, es una decisión de prioridad del dueño (2026-08-07). Ver el §Fix propuesto
+> de esa entrada, que ahora dice qué mirar cuando se retome.
 
 ### ✅ La identidad (portal, título) colisiona dentro de un portal de dos niveles
 
@@ -137,6 +139,28 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
   6c y 7c). Las 3 fugas de `core/` ya se cerraron (arriba). *(Hasta el 2026-08-05 esta línea
   también frenaba "el registro", que para entonces llevaba un día construido — contradecía al
   Estado de esta misma entrada.)*
+
+- **Estado (2026-08-07): el freno se cumplió, y el ítem queda POSTERGADO por decisión del dueño.**
+  El segundo portal existe, está en `main` y se usa a diario, así que la condición
+  —*"recién cuando exista un segundo portal real"*— ya no sostiene nada. **Lo que lo mantiene
+  abierto ahora es prioridad, no dependencia**, y esa distinción es el motivo de esta línea: sin
+  ella, la próxima sesión lee el freno de arriba, lo da por vigente y no vuelve a mirar el ítem.
+
+  **Lo que cambió a favor de hacerlo**: con dos portales usándose en serio, cuatro de esos seis
+  strings son copy que el usuario ve, y la mitad de las veces nombra al portal equivocado. Ya no
+  es una violación teórica de capas — es un cartel que miente.
+
+  **Lo que sigue costando**: es `popup.js`, el único archivo del proyecto **sin tests** (ADR-0005
+  lo define como no-extraíble), así que el cambio se verifica sólo en el navegador. Y el séptimo
+  caso —`catedra:` como **nombre de campo**, no como string— es de otra naturaleza: toca el
+  esquema de `Clase` (`docs/data-model.md`), no un texto, y ahí hay migración de datos. **No los
+  mezcles en el mismo corte**: los 6 strings son cosméticos y reversibles, el campo no.
+
+  **Cómo re-medir cuando se retome** (el conteo envejece solo, ya pasó dos veces): con ripgrep,
+  no `grep` — `grep -E "Ram[oó]n"` no matchea los acentuados en algunas builds y cuenta de
+  menos—, y **filtrando comentarios**, o cuenta de más. El nombre correcto sale del descriptor
+  (`sitio.nombre`), que el popup ya recibe: es el mismo camino que ya usan el cartel de "sin
+  clases detectadas" y la tarjeta de error.
 
 #### Sub-ítem: el click en la notificación de fallo enfoca el portal equivocado
 
