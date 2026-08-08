@@ -32,6 +32,27 @@ export interface HeadersFragmento {
    */
   siteFolder?: string;
   sessionId?: string;
+  /**
+   * [ESCANEO-API CORTE 5] **Nombre de archivo COMPLETO, con su extensión**, para cuando el
+   * destino no es un `.mp4`.
+   *
+   * Existe porque el backend le pega `.mp4` a todo lo que recibe —correcto mientras lo único
+   * que recibía eran videos— y con los adjuntos eso produce `Atlas.pdf.mp4`: un PDF válido con
+   * un nombre que ningún visor abre. Medido en el navegador el 2026-08-07; es el riesgo R9 del
+   * diseño, y era el único punto de la cadena que no se podía cerrar desde este repo.
+   *
+   * **El contrato es "si viene, mandá; si no, hacé lo de siempre"**, que es un `if` del lado del
+   * backend y deja a los videos exactamente como están.
+   *
+   * ⚠️ **Hasta que el backend lo lea, este header no cambia nada** y los PDF siguen saliendo
+   * `.pdf.mp4`. Se manda igual, y a propósito: un header que el servidor no conoce lo ignora,
+   * así que mandarlo no puede romper nada y el día que el backend se actualice funciona sin
+   * tocar la extensión. Lo que NO se hizo —y es la tentación— es sacarle el `.pdf` al título
+   * para que quede `Atlas.mp4`: eso es peor, porque pierde el dato en vez de duplicarlo.
+   *
+   * Va URL-encodeado como `videoTitle`, por la misma razón: un header HTTP no lleva no-ASCII.
+   */
+  fileName?: string;
 }
 
 /** Telemetría que se empuja a la consola gráfica del servidor. */
@@ -158,7 +179,9 @@ export const BunClient = {
           "x-total-chunks":  headers.totalChunks.toString(),
           "x-target-folder": headers.targetFolder,
           "x-site-folder":   headers.siteFolder || "",
-          "x-session-id":    headers.sessionId || ""
+          "x-session-id":    headers.sessionId || "",
+          // Vacío = "usá tu lógica de siempre" (`.mp4`). Ver `HeadersFragmento.fileName`.
+          "x-file-name":     headers.fileName ? encodeURIComponent(headers.fileName) : ""
         },
         body: bloqueBinario,
         signal: timeoutController.signal

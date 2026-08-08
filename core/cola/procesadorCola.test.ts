@@ -770,6 +770,21 @@ describe("la rama del adjunto", () => {
     });
   });
 
+  it("manda el nombre de archivo COMPLETO, para que el backend no le pegue .mp4", async () => {
+    // Riesgo R9, confirmado en el navegador el 2026-08-07: el backend le pega `.mp4` a todo lo
+    // que recibe y los PDF salían `Atlas.pdf.mp4` — un PDF válido con un nombre que ningún visor
+    // abre. El header es la mitad de la extensión de este lado; la otra mitad es un `if` en el
+    // backend, que es otro repo.
+    const { cola, almacenamiento, sesion, enviarBloqueAdjunto } = montarConAdjuntos();
+    await sesion.set({ rafagaCorriendo: true, modoTurboBunActivo: true });
+    await almacenamiento.guardarLocal({ colaDescargas: [PDF], listaPersistente: [] });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    expect(enviarBloqueAdjunto.mock.calls[0]![1].fileName).toBe("Yokochi 6ta ED.pdf");
+  });
+
   it("un archivo grande se corta en bloques: progreso real, no un 0→100", async () => {
     // 12 MB con bloques de 5 MB ⇒ 3 bloques.
     const { cola, almacenamiento, sesion, enviarBloqueAdjunto } = montarConAdjuntos(12 * 1024 * 1024);

@@ -278,6 +278,8 @@ export interface DependenciasCola {
       targetFolder: string;
       siteFolder?: string;
       sessionId?: string;
+      /** Nombre final con extensión, para lo que NO es un `.mp4`. Ver `bunClient`. */
+      fileName?: string;
     },
     signal?: AbortSignal
   ): Promise<unknown>;
@@ -504,6 +506,11 @@ export function crearProcesadorCola(deps: DependenciasCola) {
           targetFolder: subcarpeta,
           siteFolder: sitio.id,
           sessionId,
+          // El título de un adjunto YA es un nombre de archivo con su extensión (`Atlas.pdf`),
+          // así que se manda tal cual. Sin esto el backend le pega `.mp4` y queda `Atlas.pdf.mp4`
+          // — un PDF válido con un nombre que ningún visor abre (riesgo R9, confirmado en el
+          // navegador el 2026-08-07).
+          fileName: titulo,
         },
         signal
       );

@@ -32,7 +32,7 @@ Lo que la extensión **espera** del backend, derivado de `core/backend/bunClient
 |---|---|---|
 | `GET /api/health` | — | JSON con `ruta` (la carpeta raíz configurada). Doble función: liveness probe del daemon `Conexion` **y** lectura de la ruta. Timeout duro de 4000 ms. |
 | `GET /api/escanear-disco?carpeta=<sub>&sitio=<id>` | query `carpeta` y `sitio` (URL-encoded) | JSON `{ archivos: string[] }` — nombres ya guardados, para pintar clases como descargadas. **`sitio` es opcional**: sin él se mira el layout viejo de un solo nivel. |
-| `POST /api/bypass-stream` | headers `x-video-title` (URL-encoded), `x-chunk-index`, `x-total-chunks`, `x-target-folder`, **`x-site-folder`**, `x-session-id`; body = fragmento binario descifrado | Sólo importa el status. Timeout 30 s. |
+| `POST /api/bypass-stream` | headers `x-video-title` (URL-encoded), `x-chunk-index`, `x-total-chunks`, `x-target-folder`, **`x-site-folder`**, `x-session-id`, **`x-file-name`** (URL-encoded, sólo en adjuntos — ver abajo); body = fragmento binario descifrado | Sólo importa el status. Timeout 30 s. |
 | `GET /api/seleccionar-carpeta` | — | JSON `{ success: boolean, ruta: string }` — abre el diálogo nativo de carpeta. |
 | `GET /api/cancelar-descarga?titulo=&sessionId=&sitio=` | query | Sólo el status; los fallos se tragan (best-effort). **`sitio` importa**: sin él el backend podría borrar el `.part` de la clase homónima de otro portal. |
 | `POST /api/actualizar-consola` | JSON `{ titulo, porcentaje, terminados, totales, velocidad }` | Sólo el status; los fallos se tragan (telemetría a la consola gráfica del server). |
@@ -67,10 +67,39 @@ por API: `/api/bypass-stream` no sabe qué es un video —recibe bytes con `x-ch
 `x-total-chunks`—, así que un adjunto es *el chunk 0 de N*, cortado en bloques de 5 MB para que
 haya progreso real. Con eso el backend **probablemente no cambia**.
 
-⚠️ **Lo único de esa cadena que no está medido, y el backend es otro repo**: cómo nombra el
-archivo resultante. El `x-video-title` de un adjunto ya trae su extensión (`Yokochi 6ta ED.pdf`);
-si el backend le agrega `.mp4` como a los videos, el archivo queda `… .pdf.mp4`. Es lo primero a
-mirar al verificar ese corte en el navegador.
+### 🔴 `x-file-name`: lo único que le falta al backend para que los PDF salgan bien
+
+**Confirmado en el navegador el 2026-08-07** (era el riesgo R9): el backend le pega `.mp4` a todo
+lo que recibe —correcto mientras lo único que recibía eran videos— y un adjunto sale
+`Atlas_Fotografico_Anatomia.pdf.mp4`: **un PDF válido con un nombre que ningún visor abre**.
+
+**No se puede arreglar desde la extensión**: el nombre lo escribe el backend. Lo que la extensión
+ya hace, desde el mismo día, es mandar el dato que hace falta:
+
+| header | valor | cuándo |
+|---|---|---|
+| `x-file-name` | el nombre final **con su extensión**, URL-encodeado (`Yokochi%206ta%20ED.pdf`) | sólo en adjuntos; **vacío** en videos |
+
+**El contrato es "si viene, mandá; si no, hacé lo de siempre"** — un `if`, y los videos no cambian:
+
+```js
+// donde hoy arma el nombre del archivo final
+const nombrePedido = decodeURIComponent(req.headers.get("x-file-name") || "");
+const nombreFinal = nombrePedido
+  ? path.basename(nombrePedido)          // basename, por lo mismo que el resto: sanitiza el segmento
+  : `${tituloSanitizado}.mp4`;           // el camino de siempre
+```
+
+Dos cosas que conviene no hacer, y que se descartaron acá:
+
+- **Sacarle el `.pdf` al título** para que quede `Atlas.mp4`. Es peor: pierde el dato en vez de
+  duplicarlo, y deja un archivo que tampoco abre pero que además ya no dice qué era.
+- **Un endpoint nuevo para adjuntos.** El de fragmentos ya sirve —un archivo suelto es el chunk 0
+  de N— y sumar un segundo camino de escritura duplicaría el `.part`, la idempotencia por
+  `x-session-id` y el acumulador.
+
+⚠️ **Hasta que el backend lea ese header, los PDF siguen saliendo `.pdf.mp4`.** El archivo es
+correcto: renombrarlo sacándole `.mp4` lo deja usable.
 
 **Idempotencia por `x-session-id`**: cada intento de descarga genera un id nuevo, y el backend clavetea su archivo `.part` por ese id. Es lo que evita que los bytes de un intento abortado se mezclen con los del reintento.
 
