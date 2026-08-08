@@ -44,6 +44,26 @@ export interface EnlaceListado {
    * La segunda la puede pisar el override del input; la primera **nunca**.
    */
   modulo?: string;
+
+  /**
+   * [ESCANEO-API CORTE 5] Qué es este ítem. **Ausente = `"video"`**, por el mismo motivo que
+   * `sitioId`: todo lo ya persistido es de antes de que existieran los adjuntos, y era video.
+   *
+   * Viaja con el ÍTEM y no con el portal, mismo razonamiento que ADR-0010: la cola sobrevive a
+   * la pestaña, así que "qué estoy bajando" tiene que estar en el ítem.
+   */
+  tipo?: "video" | "adjunto";
+
+  /** Sólo en adjuntos: el id con el que el portal entrega la URL firmada. */
+  idArchivo?: string;
+
+  /**
+   * Sólo en adjuntos: el peso en bytes, que el portal ya devuelve en el listado.
+   *
+   * Se muestra porque **hace falta para decidir**: en la lección más cargada de este curso
+   * conviven un PDF de 83,9 MB con guías de 90 KB.
+   */
+  bytes?: number;
 }
 
 /** Lo que devuelve el escaneo del listado de clases de una pestaña. */
@@ -175,6 +195,23 @@ export interface PuertoSitio {
    */
   resolverManifiesto(
     urlClase: string,
+    signal?: AbortSignal,
+    credenciales?: Record<string, string>
+  ): Promise<string>;
+
+  /**
+   * [ESCANEO-API CORTE 5] Id de un adjunto → **URL directa y descargable** del archivo.
+   *
+   * **Opcional**: un portal sin adjuntos no lo implementa, y el bucle nunca se lo pide porque
+   * ningún ítem suyo lleva `tipo: "adjunto"`.
+   *
+   * ⚠️ **Se resuelve al BAJAR, nunca al escanear** (riesgo R8). La URL que devuelve Hotmart es
+   * de CloudFront y vive **exactamente 1 hora**; resolverla al encolar haría que una cola larga
+   * de PDF empiece a fallar a mitad de camino, y el fallo se vería como "el portal rechazó el
+   * archivo". Es la misma razón por la que las credenciales se leen por ítem y no por ráfaga.
+   */
+  resolverAdjunto?(
+    idArchivo: string,
     signal?: AbortSignal,
     credenciales?: Record<string, string>
   ): Promise<string>;

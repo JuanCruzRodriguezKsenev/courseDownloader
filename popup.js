@@ -326,7 +326,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       estados: new Set(),
       materias: new Set(),
       valoresFaceta: new Set(),
-      portales: new Set()
+      portales: new Set(),
+      // [ESCANEO-API CORTE 5] Arranca en **sólo video**, y es una decisión de UX, no un default
+      // cómodo: con los materiales adentro, un curso de 103 videos suma 15 PDF que le
+      // contaminan la lista a quien vino a bajar clases. Aparecen cuando se los pide.
+      tipos: new Set(['video'])
     };
 
     // --- Isla Preact #3: Onboarding (welcome tour) — features/onboarding.preact.js ---
@@ -813,6 +817,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // calificados por portal y en Disponibles van crudos. Que el Set se vacíe al conmutar es
       // lo que hace que esas dos convenciones no puedan cruzarse.
       filtrosActivos.portales.clear();
+      // [CORTE 5] El tipo se resetea a lo que corresponde a CADA pestaña, no a vacío:
+      // Disponibles vuelve a "sólo video" (descubrir) y la Cola queda sin filtro (revisar lo
+      // que uno mismo encoló, PDF incluidos).
+      filtrosActivos.tipos.clear();
+      if (id === "disponibles") filtrosActivos.tipos.add('video');
       actualizarPillsUIState();
       if (nodos.filterMenu) nodos.filterMenu.style.display = 'none';
       if (nodos.btnFilterPills) nodos.btnFilterPills.classList.remove('open');
@@ -967,7 +976,14 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
                 // `clasificarCarpeta` ya devuelve la carpeta por clase y no hubo que tocar el
                 // parser de títulos de ningún portal.
                 const materiaBase = item.modulo || nodos.folder.value.trim();
-                const tituloFinalEstandar = portal.parsearTitulo(item.texto, materiaBase);
+                // [ESCANEO-API CORTE 5] Un ADJUNTO no pasa por el parser de títulos. Ese parser
+                // existe para normalizar títulos de clase scrapeados (fechas, cátedras, basura
+                // del DOM); el nombre de un PDF ya es un nombre de archivo con su extensión, y
+                // pasarlo por ahí lo mutilaría — perdería el `.pdf`, entre otras cosas.
+                const esAdjunto = item.tipo === 'adjunto';
+                const tituloFinalEstandar = esAdjunto
+                  ? item.texto
+                  : portal.parsearTitulo(item.texto, materiaBase);
                 const clasif = portal.clasificarCarpeta(item.texto, materiaBase);
 
                 return {
@@ -980,6 +996,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
                   // 7 títulos que Anatomy repite en dos módulos son un solo ítem para la cola.
                   // No confundir con `carpeta`, que es el destino y lo puede pisar el override.
                   modulo: item.modulo,
+                  // [CORTE 5] Qué es. Ausente sería `video`, pero se estampa explícito porque
+                  // también es parte de la identidad y viaja en cada mensaje IPC del ítem.
+                  tipo: item.tipo || 'video',
+                  idArchivo: item.idArchivo,
+                  bytes: item.bytes,
                   // ADR-0010: de qué portal salió. Se estampa ACÁ, que es el único momento en
                   // que se sabe con certeza — el escaneo corre sobre una pestaña concreta.
                   // Después la cola es independiente de la pestaña y ya no habría cómo deducirlo.
@@ -1410,7 +1431,10 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
             // Igual que arriba: el re-render diferido no depende de que el SW conteste (la UI
             // local ya se actualizó), así que va en .finally.
-            mensajeria.enviar({ action: "remover_item_de_cola", titulo: c.titulo, sitioId: c.sitioId })
+            // Los CUATRO campos de la identidad, no dos: desde el corte 1 la clave lleva módulo
+            // y tipo, y un pedido incompleto no matchea ningún ítem — o sea que "Remover" no
+            // remueve nada y no avisa. Ver `docs/patterns.md` §IPC.
+            mensajeria.enviar({ action: "remover_item_de_cola", titulo: c.titulo, sitioId: c.sitioId, modulo: c.modulo, tipo: c.tipo })
               .catch(() => undefined)
               .finally(() => {
                 setTimeout(aplicarFiltrosCruzados, 100);

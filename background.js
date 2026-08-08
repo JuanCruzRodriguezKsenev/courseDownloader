@@ -360,7 +360,14 @@ export function iniciarServiceWorker({
 
       // [MULTIPORTAL D] El pedido trae el portal además del título; sin él, quitar una clase
       // de la cola se llevaría también a su homónima del otro portal.
-      const aQuitar = { titulo: request.titulo, sitioId: request.sitioId };
+      // [ESCANEO-API CORTE 1] Los cuatro campos. Con `{titulo, sitioId}` la clave sale sin
+      // módulo, no matchea el ítem real, y la remoción no saca nada — sin error en ningún lado.
+      const aQuitar = {
+        titulo: request.titulo,
+        sitioId: request.sitioId,
+        modulo: request.modulo,
+        tipo: request.tipo,
+      };
       colaDescargas = colaDescargas.filter(c => !identidad.misma(c, aQuitar));
       delete estados[identidad.clave(aQuitar)];
 

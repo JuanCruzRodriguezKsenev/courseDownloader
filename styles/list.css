@@ -204,6 +204,22 @@
   }
 }
 
+/* Insignia de TIPO y peso de la fila (escaneo-api corte 5).
+   Sólo aparecen en adjuntos: un video no lleva ninguna de las dos, así que la lista de un
+   portal sin materiales se ve exactamente como antes. */
+.chip-tipo {
+  font-size: var(--text-sm);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.chip-peso {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
 /* Tarjeta de Error de Servidor Desconectado */
 .server-error-card {
   display: flex;

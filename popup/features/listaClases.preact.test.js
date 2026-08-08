@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // FASE 8: el puente dejó de ser `puente` y se importa. La API que este archivo
 // afirma es la misma; lo que cambió es de dónde sale.
 import puente from './listaClases.preact.js';
-import { montar, __resetStore } from './listaClases.preact.js';
+import { montar, __resetStore, formatearPeso } from './listaClases.preact.js';
 
 async function flush() {
   for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 16));
@@ -125,6 +125,54 @@ describe('Isla Preact: ListaClases', () => {
       ]});
       await flush();
       expect(root.querySelectorAll('.chip-destino.override').length).toBe(0);
+    });
+  });
+
+  // [ESCANEO-API CORTE 5] La insignia de tipo y el peso. Sólo en adjuntos: la lista de un
+  // portal sin materiales tiene que verse exactamente como antes.
+  describe('la insignia de tipo y el peso', () => {
+    it('un adjunto lleva 📄 y su peso', async () => {
+      puente.render({ modo: 'lista', ctx: ctxBase(), items: [
+        { id: 1, titulo: 'Atlas.pdf', estado: 'pending', tipo: 'adjunto', bytes: 656307 },
+      ]});
+      await flush();
+      expect(root.querySelector('.chip-tipo').textContent).toBe('📄');
+      expect(root.querySelector('.chip-peso').textContent).toBe('641 KB');
+    });
+
+    it('un video no lleva ninguna de las dos', async () => {
+      puente.render({ modo: 'lista', ctx: ctxBase(), items: [
+        { id: 1, titulo: 'Osteologia', estado: 'pending', tipo: 'video' },
+      ]});
+      await flush();
+      expect(root.querySelector('.chip-tipo')).toBeNull();
+      expect(root.querySelector('.chip-peso')).toBeNull();
+    });
+
+    it('un ítem sin tipo tampoco: es todo lo persistido de antes del corte', async () => {
+      puente.render({ modo: 'lista', ctx: ctxBase(), items: [
+        { id: 1, titulo: 'Vieja', estado: 'pending' },
+      ]});
+      await flush();
+      expect(root.querySelector('.chip-tipo')).toBeNull();
+    });
+
+    it('un adjunto sin peso muestra el ícono pero no un "0 KB"', async () => {
+      puente.render({ modo: 'lista', ctx: ctxBase(), items: [
+        { id: 1, titulo: 'Guia.pdf', estado: 'pending', tipo: 'adjunto' },
+      ]});
+      await flush();
+      expect(root.querySelector('.chip-tipo')).not.toBeNull();
+      expect(root.querySelector('.chip-peso')).toBeNull();
+    });
+
+    it('formatearPeso cambia de unidad y de precisión con el tamaño', () => {
+      // El rango real del curso: guías de 90 KB conviviendo con un PDF de 83,9 MB.
+      expect(formatearPeso(92160)).toBe('90 KB');
+      expect(formatearPeso(83952102)).toBe('80.1 MB');
+      expect(formatearPeso(200 * 1024 * 1024)).toBe('200 MB'); // sin decimal, ya no aporta
+      expect(formatearPeso(0)).toBe('');
+      expect(formatearPeso(undefined)).toBe('');
     });
   });
 

@@ -85,6 +85,19 @@ export function TarjetaEstado({ tipo, titulo, descripcion, icono }) {
     </div>`;
 }
 
+/**
+ * Bytes → texto corto. Hace falta porque en la lección más cargada del curso conviven un PDF de
+ * 83,9 MB con guías de 90 KB: sin el peso, las dos filas se ven igual y la decisión de bajarlas
+ * es a ciegas.
+ */
+export function formatearPeso(bytes) {
+  const n = Number(bytes) || 0;
+  if (n <= 0) return '';
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  const mb = n / (1024 * 1024);
+  return mb >= 100 ? `${Math.round(mb)} MB` : `${mb.toFixed(1)} MB`;
+}
+
 // Port 1:1 del antiguo renderers.js construirFilaClaseDOM (ramas disponibles/cola).
 export function FilaClase({ clase, ctx }) {
   const { pestaña, sincronizado, enCurso, videoActivo, selectionMode, onCheckChange, onRemoverClick, overrideCarpeta } = ctx;
@@ -94,6 +107,17 @@ export function FilaClase({ clase, ctx }) {
   // portales de dos niveles: en Ramón Net el destino es uno solo y el chip sería ruido en cada
   // fila. Con override activo muestra `→ <carpeta>` en las 103 a la vez, que es todo el punto —
   // el feedback tiene que llegar ANTES de encolar, no después de mirar el disco.
+  // [ESCANEO-API CORTE 5] Insignia de tipo y peso. Los dos son datos CALCULADOS (un campo del
+  // ítem y un número), no texto scrapeado, así que no tocan la frontera de escapado de
+  // `docs/security.md` — el título sí, y ese ya viaja escapado desde el vm.
+  const esAdjunto = clase.tipo === 'adjunto';
+  const chipTipo = esAdjunto
+    ? html`<span class="chip-tipo" title="Material adjunto (PDF)">📄</span>`
+    : null;
+  const chipPeso = esAdjunto && clase.bytes
+    ? html`<span class="chip-peso">${formatearPeso(clase.bytes)}</span>`
+    : null;
+
   const destino = clase.modulo ? (overrideCarpeta || clase.modulo) : null;
   const chipDestino = destino
     ? html`<span class="chip-destino ${overrideCarpeta ? 'override' : ''}"
@@ -137,7 +161,9 @@ export function FilaClase({ clase, ctx }) {
     return html`
       <div class="video-item ${sel ? 'selected' : ''}" title=${clase.titulo} style=${estilo} onClick=${onRowClick}>
         ${checkbox}
+        ${chipTipo}
         <span class="video-label">${clase.titulo}</span>
+        ${chipPeso}
         ${chipDestino}
         <span class="badge ${badgeCls}">${badgeTxt}</span>
       </div>`;
@@ -148,7 +174,9 @@ export function FilaClase({ clase, ctx }) {
   return html`
     <div class="video-item ${sel ? 'selected' : ''} ${esActivo ? 'bajando' : ''}" title=${clase.titulo} onClick=${onRowClick}>
       ${checkbox}
+      ${chipTipo}
       <span class="video-label" style=${`cursor:${tieneCheckbox ? 'pointer' : 'default'}`}>${clase.titulo}</span>
+      ${chipPeso}
       ${esActivo
         ? html`<span class="badge process">Bajando</span>`
         : html`<button class="btn-row-action remove-action"

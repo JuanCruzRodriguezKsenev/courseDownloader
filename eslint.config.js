@@ -45,6 +45,7 @@ const globalesDelProyecto = {
   ResolverManifiestoAnatomy: "readonly",
   ParserTitulosAnatomy: "readonly",
   ScraperAnatomy: "readonly",
+  DescargarAdjuntoAnatomy: "readonly",
 };
 
 module.exports = [

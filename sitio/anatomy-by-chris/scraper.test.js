@@ -77,10 +77,26 @@ function estarEn(url) {
   window.location = new URL(url);
 }
 
-function mockearApi(respuesta, { ok = true } = {}) {
-  const fetchMock = vi.fn().mockResolvedValue({
-    ok,
-    json: async () => respuesta,
+/**
+ * Doble de la API. Rutea por URL porque desde el corte 5 el escaneo llama a DOS endpoints:
+ * `/v1/navigation` (una vez) y `/v1/pages/<hash>/complementary-content` (una por lección).
+ *
+ * `adjuntosPorHash` mapea hash → array de `attachments`; lo que no esté ahí devuelve el cuerpo
+ * vacío real que el portal manda para las 99 lecciones sin material.
+ */
+function mockearApi(respuesta, { ok = true, adjuntosPorHash = {} } = {}) {
+  const fetchMock = vi.fn().mockImplementation(async (url) => {
+    if (String(url).includes('/complementary-content')) {
+      const hash = /\/v1\/pages\/([^/]+)\/complementary-content/.exec(String(url))?.[1];
+      return {
+        ok: true,
+        json: async () => ({
+          complementaryReadings: [],
+          attachments: adjuntosPorHash[hash] || [],
+        }),
+      };
+    }
+    return { ok, json: async () => respuesta };
   });
   globalThis.fetch = fetchMock;
   return fetchMock;
@@ -105,7 +121,10 @@ describe('escanearListadoDelModulo — la llamada a la API', () => {
     const fetchMock = mockearApi(ARBOL);
     await escanear();
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // El árbol es UNA llamada. Las demás son el barrido de adjuntos del corte 5, una por
+    // lección, y se afirman aparte.
+    const alArbol = fetchMock.mock.calls.filter(([u]) => u === API);
+    expect(alArbol).toHaveLength(1);
     const [url, opciones] = fetchMock.mock.calls[0];
     expect(url).toBe(API);
     expect(opciones.headers.Authorization).toBe('Bearer ID_TOKEN_FALSO');
@@ -238,6 +257,130 @@ describe('escanearListadoDelModulo — las clases', () => {
   it('devuelve materia vacía: ya no hay UNA materia, hay una por módulo', async () => {
     const { materia } = await escanear();
     expect(materia).toBe('');
+  });
+
+  it('los videos salen con tipo "video" explícito', async () => {
+    const { enlaces } = await escanear();
+    expect(enlaces.every((e) => e.tipo === 'video')).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [CORTE 5] Los adjuntos (PDF).
+//
+// Medido el 2026-08-07: 15 de las 114 lecciones tienen material, y barrerlas todas con pool de
+// 6 cuesta 7,1 s. Eso es lo que dio vuelta la decisión de dejarlos afuera — se creía que
+// descubrirlos era un frente aparte.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('escanearListadoDelModulo — los adjuntos', () => {
+  const UN_PDF = [
+    {
+      fileOrder: 4,
+      fileMembershipId: '641db8a0-b918-4460-b007-a001b9f79bb5',
+      fileName: 'PDF DIAPOSITIVAS MMSS_watermark (1).pdf',
+      fileSize: 83952102,
+    },
+  ];
+
+  it('cada adjunto sale como un enlace más, con su id y su peso', async () => {
+    mockearApi(ARBOL, { adjuntosPorHash: { aaa111: UN_PDF } });
+    const { enlaces } = await escanear();
+
+    const pdf = enlaces.find((e) => e.tipo === 'adjunto');
+    expect(pdf).toMatchObject({
+      texto: 'PDF DIAPOSITIVAS MMSS_watermark (1).pdf',
+      modulo: 'miembro_superior',
+      tipo: 'adjunto',
+      idArchivo: '641db8a0-b918-4460-b007-a001b9f79bb5',
+      bytes: 83952102,
+    });
+  });
+
+  it('el nombre del ítem es el del ARCHIVO, no el de la lección', async () => {
+    // Es lo que el usuario reconoce en la lista y lo que termina en disco.
+    mockearApi(ARBOL, { adjuntosPorHash: { aaa111: UN_PDF } });
+    const { enlaces } = await escanear();
+    const pdf = enlaces.find((e) => e.tipo === 'adjunto');
+    expect(pdf.texto).not.toBe('Osteologia');
+  });
+
+  it('barre TODAS las lecciones, no sólo las de video', async () => {
+    // Los adjuntos cuelgan también de clases de Texto: varias de las 15 están en *Libros y
+    // Herramientas de Estudio*, el módulo que sin esto devuelve cero.
+    mockearApi(ARBOL, { adjuntosPorHash: { ccc111: UN_PDF } });
+    const { enlaces } = await escanear();
+
+    const enLibros = enlaces.filter((e) => e.modulo === 'libros_y_herramientas_de_estudio');
+    expect(enLibros).toHaveLength(1);
+    expect(enLibros[0].tipo).toBe('adjunto');
+  });
+
+  it('una lección bloqueada no se barre: no hay material que pedirle', async () => {
+    mockearApi(ARBOL, { adjuntosPorHash: { bbb444: UN_PDF } });
+    const { enlaces } = await escanear();
+    expect(enlaces.some((e) => e.tipo === 'adjunto')).toBe(false);
+  });
+
+  it('las lecciones sin material no agregan nada', async () => {
+    mockearApi(ARBOL);
+    const { enlaces } = await escanear();
+    expect(enlaces.every((e) => e.tipo === 'video')).toBe(true);
+  });
+
+  it('pide el material con las mismas credenciales que el árbol', async () => {
+    const fetchMock = mockearApi(ARBOL, { adjuntosPorHash: { aaa111: UN_PDF } });
+    await escanear();
+
+    const [, opciones] = fetchMock.mock.calls.find(([u]) =>
+      String(u).includes('/complementary-content')
+    );
+    expect(opciones.headers.Authorization).toBe('Bearer ID_TOKEN_FALSO');
+    expect(opciones.headers['x-product-id']).toBe('6083220');
+  });
+
+  it('NO resuelve la URL de descarga al escanear: la firma vive 1 hora', async () => {
+    // Riesgo R8. Resolverla acá haría que una cola larga de PDF empiece a fallar a mitad de
+    // camino, con un error que parece del portal.
+    const fetchMock = mockearApi(ARBOL, { adjuntosPorHash: { aaa111: UN_PDF } });
+    await escanear();
+    expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/download'))).toBe(false);
+  });
+
+  it('una lección cuyo material falla no rompe el escaneo de los videos', async () => {
+    globalThis.fetch = vi.fn().mockImplementation(async (url) => {
+      if (String(url).includes('/complementary-content')) throw new TypeError('Failed to fetch');
+      return { ok: true, json: async () => ARBOL };
+    });
+
+    const { enlaces } = await escanear();
+    expect(enlaces.filter((e) => e.tipo === 'video')).toHaveLength(5);
+  });
+
+  it('un adjunto sin id o sin nombre no se cuela', async () => {
+    mockearApi(ARBOL, { adjuntosPorHash: { aaa111: [
+      { fileMembershipId: '', fileName: 'sin id.pdf', fileSize: 1 },
+      { fileMembershipId: 'x', fileName: '', fileSize: 1 },
+    ] } });
+    const { enlaces } = await escanear();
+    expect(enlaces.some((e) => e.tipo === 'adjunto')).toBe(false);
+  });
+
+  it('no dispara las 114 llamadas de una: el pool las limita', async () => {
+    let enVuelo = 0;
+    let pico = 0;
+    globalThis.fetch = vi.fn().mockImplementation(async (url) => {
+      if (String(url).includes('/complementary-content')) {
+        enVuelo++;
+        pico = Math.max(pico, enVuelo);
+        await new Promise((r) => setTimeout(r, 1));
+        enVuelo--;
+        return { ok: true, json: async () => ({ attachments: [] }) };
+      }
+      return { ok: true, json: async () => ARBOL };
+    });
+
+    await escanear();
+    expect(pico).toBeLessThanOrEqual(6);
   });
 });
 

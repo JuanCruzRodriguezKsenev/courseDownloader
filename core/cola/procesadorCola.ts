@@ -134,6 +134,27 @@ export interface SitioDeDescarga {
    * ítem sin `sitioId` escribe en la carpeta del portal legado y no en una vacía.
    */
   id: string;
+  /**
+   * [ESCANEO-API CORTE 5] Id de un adjunto → URL descargable. **Opcional**: un portal sin
+   * adjuntos no lo implementa, y el bucle no se lo pide nunca porque ningún ítem suyo lleva
+   * `tipo: "adjunto"`. Ver `core/puertos/sitio.ts`.
+   */
+  resolverAdjunto?(
+    idArchivo: string,
+    signal: AbortSignal,
+    credenciales?: Record<string, string>
+  ): Promise<string>;
+}
+
+/**
+ * Un error con la clasificación que el bucle lee para decidir entre saltear y pausar. Es el
+ * mismo contrato que ya usan `bunClient` y los adaptadores de sitio; acá se declara porque el
+ * camino del adjunto los produce dentro de Capa 1.
+ */
+interface ErrorTipado extends Error {
+  tipoConexion?: string;
+  tipoPortal?: "rechazo" | "bloqueo";
+  httpStatus?: number;
 }
 
 export interface ItemCola {
@@ -147,6 +168,18 @@ export interface ItemCola {
    * cuenta, así que acá puede llegar `undefined` y hay que tratarlo.
    */
   sitioId?: string;
+  /**
+   * [ESCANEO-API CORTE 1] El módulo de ORIGEN, en portales de dos niveles. Es parte de la
+   * identidad del ítem, así que tiene que viajar con él y no derivarse de `carpeta` — que es el
+   * destino y lo puede haber pisado el override del input.
+   */
+  modulo?: string;
+  /** [ESCANEO-API CORTE 5] Ausente = `"video"`, que es todo lo persistido antes de ese corte. */
+  tipo?: "video" | "adjunto";
+  /** Sólo en adjuntos: el id con el que el portal entrega la URL firmada. */
+  idArchivo?: string;
+  /** Sólo en adjuntos: el peso declarado en el escaneo. Sirve de respaldo del `Content-Length`. */
+  bytes?: number;
 }
 
 export interface ClasePersistida {
@@ -227,6 +260,27 @@ export interface DependenciasCola {
     /** [MULTIPORTAL E] El backend lo necesita para saber de qué descarga es este progreso. */
     sitioId?: string;
   }): void;
+  /**
+   * [ESCANEO-API CORTE 5] Manda un bloque de un ARCHIVO SUELTO al backend, con **el mismo
+   * contrato de fragmento** que usa el motor para los `.ts` de un video.
+   *
+   * Es a propósito el mismo endpoint y no uno nuevo: `/api/bypass-stream` no sabe qué es un
+   * video —recibe bytes con `x-chunk-index` / `x-total-chunks`—, así que un archivo suelto es
+   * simplemente *el chunk 0 de N*. Con eso el backend, que es otro repo, probablemente no
+   * cambia.
+   */
+  enviarBloqueAdjunto(
+    bloque: ArrayBuffer | ArrayBufferView<ArrayBuffer>,
+    headers: {
+      videoTitle: string;
+      chunkIndex: number;
+      totalChunks: number;
+      targetFolder: string;
+      siteFolder?: string;
+      sessionId?: string;
+    },
+    signal?: AbortSignal
+  ): Promise<unknown>;
   /** Capa 3, camino legacy no-Turbo: volcar el blob a disco. */
   guardarBlobLegacy(blob: Blob, subRuta: string): Promise<void>;
   /** Espejo liviano de progreso que lee el popup. */
@@ -254,6 +308,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
     notificarFallo,
     calcularMetricas,
     actualizarConsolaBackend,
+    enviarBloqueAdjunto,
     guardarBlobLegacy,
     persistirEstados,
     recuperarEstados,
@@ -289,6 +344,213 @@ export function crearProcesadorCola(deps: DependenciasCola) {
       notificarFallo(tipo, titulo, motivo, sitioId);
     } catch (e) {
       console.warn("[SW] No se pudo disparar la notificación de fallo:", e);
+    }
+  }
+
+  /**
+   * Lo que pasa cuando un ítem terminó BIEN: sale de la cola, queda marcado `downloaded`, se le
+   * borra el progreso y se le avisa al popup.
+   *
+   * [ESCANEO-API CORTE 5] Es una extracción, no lógica nueva: la comparten el camino del video y
+   * el del adjunto. Vivía inline en el del video, y duplicarla habría sido la forma más fácil de
+   * que los dos caminos se desincronizaran — que es exactamente el defecto que este archivo
+   * documenta tres veces (la identidad, el `sitioId` del aviso, la clave del espejo).
+   */
+  async function finalizarItemDescargado(
+    // La IDENTIDAD del ítem, no el ítem entero: acá sólo se compara y se avisa, así que pedir
+    // `ItemCola` completo obligaría a arrastrar campos que esta función no mira.
+    esteItem: Pick<ItemCola, "titulo" | "sitioId" | "modulo" | "tipo">,
+    listaCompleta: ClasePersistida[],
+    claveItem: string,
+    tituloInmutable: string,
+    sitioDelItem: SitioDeDescarga
+  ): Promise<void> {
+    const postWriteState = await sesion.get();
+    if (!postWriteState.rafagaCorriendo) return;
+
+    // Cola fresca: pudo cambiar mientras se descargaba.
+    const dataUpdate = await almacenamiento.obtenerLocal<{ colaDescargas: ItemCola[] }>([
+      "colaDescargas",
+    ]);
+    const colaActual = (dataUpdate.colaDescargas || []).filter(
+      (c) => !identidad.misma(c, esteItem)
+    );
+
+    const objPersistente = listaCompleta.find((c) => identidad.misma(c, esteItem));
+    if (objPersistente) objPersistente.estado = "downloaded";
+
+    const estadosUpdate = await recuperarEstados();
+    delete estadosUpdate[claveItem];
+
+    // Escritura ATÓMICA: las tres claves describen el estado de la misma clase
+    // (descargada → fuera de la cola, marcada 'downloaded', sin entrada de progreso).
+    // En un solo `set` para que una suspensión del SW no las desincronice.
+    await almacenamiento.guardarLocal({
+      listaPersistente: listaCompleta,
+      colaDescargas: colaActual,
+      SW_ESTADOS_PROGRESO: estadosUpdate,
+    });
+
+    mensajeria.notificar({
+      action: "clase_guardada_ok",
+      titulo: tituloInmutable,
+      // ⚠️ EL `sitioId` NO ES OPCIONAL ACÁ. El popup usa este mensaje para sacar la clase de
+      // SU copia de la cola, y compara por identidad. Sin este campo el `sitioId` viaja
+      // `undefined`, la migración lo interpreta como dato viejo y lo resuelve al portal
+      // LEGADO — así que el mensaje de una clase de otro portal no matchea nada, el popup no
+      // la saca, y su `respaldar()` reescribe la cola que el SW acaba de vaciar. Resultado: el
+      // bucle vuelve a tomar la misma clase y la baja para siempre.
+      // (Medido el 2026-08-07 con Anatomy. En Ramón Net no se veía porque su id ES el legado,
+      // así que la clave coincidía de casualidad.)
+      sitioId: esteItem.sitioId,
+      // [CORTE 5] El módulo y el tipo viajan por el mismo motivo que el `sitioId`: desde que la
+      // identidad los incluye, un aviso sin ellos matchea la clase equivocada — o ninguna.
+      modulo: esteItem.modulo,
+      tipo: esteItem.tipo,
+      suaveFrenado: postWriteState.frenadoSuaveSolicitado,
+    });
+
+    void sitioDelItem;
+    setTimeout(procesarSiguiente, 60);
+  }
+
+  /** Bloques de ~5 MB. Un PDF de 65 MB son 13, o sea barra de progreso real y no un 0→100. */
+  const TAMANO_BLOQUE_ADJUNTO = 5 * 1024 * 1024;
+
+  /**
+   * [ESCANEO-API CORTE 5] Baja un ARCHIVO SUELTO y se lo manda al backend en bloques.
+   *
+   * Tres cosas que no son obvias:
+   *
+   * 1. **La URL firmada se pide ACÁ**, al bajar, no al escanear: vive 1 hora (CloudFront), y
+   *    resolverla al encolar haría que una cola larga de PDF empiece a fallar a mitad de camino
+   *    con un error que parece del portal (riesgo R8).
+   * 2. **El último salto va sin credenciales** (`credentials: "omit"`), y está medido: la URL
+   *    firmada responde a un `curl` pelado. Mandar cookies ahí no aporta y puede hacer que
+   *    CloudFront rechace.
+   * 3. **Se corta en bloques en vez de mandar el archivo entero**: da progreso real y reusa el
+   *    contrato de fragmento del backend en lugar de inventar un endpoint.
+   *
+   * ⚠️ **Lo único de esta cadena que NO está medido** es cómo nombra el backend Bun el archivo
+   * resultante (es otro repo). El título del ítem ya trae su extensión (`… .pdf`); si el backend
+   * le agrega `.mp4` como hace con los videos, el archivo va a quedar `… .pdf.mp4`. Es lo primero
+   * a mirar al verificar este corte en el navegador — riesgo R9.
+   */
+  async function descargarAdjunto(args: {
+    item: ItemCola;
+    sitio: SitioDeDescarga;
+    credencialesDelPortal: Record<string, string> | undefined;
+    titulo: string;
+    subcarpeta: string;
+    sessionId: string;
+    signal: AbortSignal;
+  }): Promise<void> {
+    const { item, sitio, credencialesDelPortal, titulo, subcarpeta, sessionId, signal } = args;
+
+    if (typeof sitio.resolverAdjunto !== "function") {
+      // Determinístico y de este ítem: el portal no sabe bajar adjuntos. Se saltea.
+      const e: ErrorTipado = new Error(
+        `[${sitio.id}] este portal no resuelve adjuntos, y el ítem "${titulo}" es uno`
+      );
+      e.tipoPortal = "rechazo";
+      throw e;
+    }
+
+    const urlFirmada = await sitio.resolverAdjunto(
+      item.idArchivo || "",
+      signal,
+      credencialesDelPortal
+    );
+
+    const respuesta = await fetch(urlFirmada, { signal, credentials: "omit" });
+    if (!respuesta.ok) {
+      const e: ErrorTipado = new Error(
+        `[${sitio.id}] el archivo "${titulo}" respondió HTTP ${respuesta.status}`
+      );
+      e.httpStatus = respuesta.status;
+      // Un 403 acá es la firma vencida: sistémico para toda una cola de PDF, no de este archivo.
+      if (respuesta.status === 403) e.tipoPortal = "bloqueo";
+      else if (respuesta.status >= 400 && respuesta.status < 500) e.tipoPortal = "rechazo";
+      throw e;
+    }
+
+    // El total de bloques sale del peso. `Content-Length` primero (es la verdad del momento) y
+    // el `bytes` del escaneo como respaldo — el backend necesita `x-total-chunks` de entrada,
+    // así que un total desconocido no es una opción.
+    const largoCabecera = Number(respuesta.headers.get("content-length") || 0);
+    const bytesTotales = largoCabecera > 0 ? largoCabecera : Number(item.bytes || 0);
+
+    const buffer = await respuesta.arrayBuffer();
+    const bytesReales = buffer.byteLength;
+    const totalBloques = Math.max(1, Math.ceil(bytesReales / TAMANO_BLOQUE_ADJUNTO));
+
+    await sesion.set({ totalFragmentosEnVideoActual: totalBloques });
+
+    const inicio = (await sesion.get()).tiempoInicioVideoActual;
+
+    for (let i = 0; i < totalBloques; i++) {
+      const estadoActual = await sesion.get();
+      if (!estadoActual.rafagaCorriendo) return;
+
+      const desde = i * TAMANO_BLOQUE_ADJUNTO;
+      const bloque = buffer.slice(desde, Math.min(desde + TAMANO_BLOQUE_ADJUNTO, bytesReales));
+
+      await enviarBloqueAdjunto(
+        bloque,
+        {
+          videoTitle: titulo,
+          chunkIndex: i,
+          totalChunks: totalBloques,
+          targetFolder: subcarpeta,
+          siteFolder: sitio.id,
+          sessionId,
+        },
+        signal
+      );
+
+      const bytesAcumulados = Math.min(desde + bloque.byteLength, bytesReales);
+      const progreso = calcularMetricas(bytesAcumulados, i + 1, totalBloques, inicio);
+      const velocidadMbs = parseFloat(progreso.telemetry.velocidadTexto) || 0;
+
+      await sesion.set({
+        bytesProcesadosEnVideoActual: bytesAcumulados,
+        fragmentosTerminadosEnVideoActual: i + 1,
+        velocidadMbsActual: velocidadMbs,
+      });
+
+      // Los dos destinos del progreso, igual que en el camino del video: el popup Y la consola
+      // del backend, que es la única que el usuario ve con el popup cerrado.
+      if (estadoActual.modoTurboBunActivo) {
+        actualizarConsolaBackend({
+          titulo,
+          sitioId: sitio.id,
+          porcentaje: progreso.porcentaje,
+          terminados: i + 1,
+          totales: totalBloques,
+          velocidad: velocidadMbs,
+        });
+      }
+
+      mensajeria.notificar({
+        action: "update_progress_bar",
+        percentage: progreso.porcentaje,
+        titulo,
+        compiling: false,
+        telemetry: {
+          bytesProcesados: bytesAcumulados,
+          fragsTerminados: i + 1,
+          totalFrags: totalBloques,
+          velocidadMbs,
+        },
+      });
+    }
+
+    if (bytesTotales > 0 && bytesReales !== bytesTotales) {
+      // No se corta la descarga por esto: el archivo ya está entero en el backend. Se deja dicho
+      // porque un desfase acá es la pista de que el listado del escaneo envejeció.
+      console.warn(
+        `⚠️ [SW] "${titulo}" pesaba ${bytesTotales} según el listado y llegaron ${bytesReales} bytes.`
+      );
     }
   }
 
@@ -381,7 +643,19 @@ export function crearProcesadorCola(deps: DependenciasCola) {
       // [MULTIPORTAL D] La identidad es (portal, título), no el título solo: dos portales
       // pueden tener una clase homónima y sacar "la del título X" borraría las dos. Ver
       // `core/cola/identidadClase.ts`, que es el único lugar donde vive esa regla.
-      const esteItem = { titulo: tituloInmutableVideo, sitioId: elementoActual.sitioId };
+      // ⚠️ Esta es LA IDENTIDAD del ítem que se está bajando, y todo el bucle compara contra
+      // ella: la clave del espejo de progreso, el filtrado de la cola al terminar, el salteo, la
+      // rama de huérfano. **Tiene que llevar los cuatro campos.**
+      //
+      // [ESCANEO-API CORTE 1] Con `{ titulo, sitioId }` solamente, la clave sale sin módulo y
+      // vuelve a valer lo que el corte vino a arreglar: `Miologia 1` de Miembro Superior y la de
+      // Miembro Inferior se comparan iguales, y completar una saca a la otra de la cola.
+      const esteItem = {
+        titulo: tituloInmutableVideo,
+        sitioId: elementoActual.sitioId,
+        modulo: elementoActual.modulo,
+        tipo: elementoActual.tipo,
+      };
       const claveItem = identidad.clave(esteItem);
 
       /**
@@ -415,6 +689,11 @@ export function crearProcesadorCola(deps: DependenciasCola) {
           action: "clase_con_error",
           titulo: tituloInmutableVideo,
           sitioId: elementoActual.sitioId,
+          // [CORTE 1/5] La identidad entera, por lo mismo que el `sitioId`: el popup usa este
+          // aviso para sacar la clase de su copia de la cola, y con la clave incompleta saca la
+          // equivocada — o ninguna.
+          modulo: elementoActual.modulo,
+          tipo: elementoActual.tipo,
           motivo,
         });
         setTimeout(procesarSiguiente, 60); // seguir con la próxima
@@ -447,6 +726,8 @@ export function crearProcesadorCola(deps: DependenciasCola) {
           // a ningún descriptor, pero `identidadClase` cae al valor crudo justamente para que dos
           // huérfanos del mismo portal muerto sigan comparándose entre sí.
           sitioId: elementoActual.sitioId,
+          modulo: elementoActual.modulo,
+          tipo: elementoActual.tipo,
           motivo: motivoHuerfano,
         });
         setTimeout(procesarSiguiente, 60);
@@ -493,6 +774,37 @@ export function crearProcesadorCola(deps: DependenciasCola) {
         // así que un ítem viejo sin `sitioId` busca las credenciales del portal legado y no
         // las de `undefined`.
         const credencialesDelPortal = await credenciales.para(sitioDelItem.id);
+
+        const subcarpetaFinal = elementoActual.carpeta
+          ? elementoActual.carpeta.trim().toLowerCase()
+          : "biologia";
+
+        // [ESCANEO-API CORTE 5] La bifurcación por TIPO. Un adjunto **no pasa por `hlsEngine`**:
+        // no hay manifiesto, ni clave AES, ni fragmentos que pedir. Lo único que comparte con un
+        // video es el último tramo —los bytes al backend, con el mismo contrato de fragmento— y
+        // por eso la rama es corta y el motor no se enteró.
+        //
+        // El default es video: `tipo` ausente es todo lo persistido antes de este corte.
+        if (elementoActual.tipo === "adjunto") {
+          await descargarAdjunto({
+            item: elementoActual,
+            sitio: sitioDelItem,
+            credencialesDelPortal,
+            titulo: tituloInmutableVideo,
+            subcarpeta: subcarpetaFinal,
+            sessionId,
+            signal: controlador.signal,
+          });
+
+          const trasAdjunto = await sesion.get();
+          if (!trasAdjunto.rafagaCorriendo) return;
+
+          await finalizarItemDescargado(esteItem, listaCompleta, claveItem, tituloInmutableVideo, sitioDelItem);
+          return;
+        }
+
+        // La resolución del .m3u8 es específica del portal (iframe, CDN, API): vive en el
+        // adaptador de sitio, no en el motor, que es genérico.
         const urlM3u8Descubierta = await sitioDelItem.resolverManifiesto(
           elementoActual.urlInterna,
           controlador.signal,
@@ -509,10 +821,6 @@ export function crearProcesadorCola(deps: DependenciasCola) {
           controlador.signal
         );
         await sesion.set({ totalFragmentosEnVideoActual: listaFragmentos.urls.length });
-
-        const subcarpetaFinal = elementoActual.carpeta
-          ? elementoActual.carpeta.trim().toLowerCase()
-          : "biologia";
 
         const resultadoBloquesBlob = await motor.compilarTranscodificacionStream(
           listaFragmentos,
@@ -599,50 +907,13 @@ export function crearProcesadorCola(deps: DependenciasCola) {
           console.log(`✨ [SW-ENGINE] Modo Turbo Bun completado con éxito para: "${tituloInmutableVideo}"`);
         }
 
-        const postWriteState = await sesion.get();
-        if (!postWriteState.rafagaCorriendo) {
-          return;
-        }
-
-        // Cola fresca: pudo cambiar mientras se descargaba.
-        const dataUpdate = await almacenamiento.obtenerLocal<{ colaDescargas: ItemCola[] }>([
-          "colaDescargas",
-        ]);
-        const colaActual = (dataUpdate.colaDescargas || []).filter(
-          (c) => !identidad.misma(c, esteItem)
+        await finalizarItemDescargado(
+          esteItem,
+          listaCompleta,
+          claveItem,
+          tituloInmutableVideo,
+          sitioDelItem
         );
-
-        const objPersistente = listaCompleta.find((c) => identidad.misma(c, esteItem));
-        if (objPersistente) objPersistente.estado = "downloaded";
-
-        const estadosUpdate = await recuperarEstados();
-        delete estadosUpdate[claveItem];
-
-        // Escritura ATÓMICA: las tres claves describen el estado de la misma clase
-        // (descargada → fuera de la cola, marcada 'downloaded', sin entrada de progreso).
-        // En un solo `set` para que una suspensión del SW no las desincronice.
-        await almacenamiento.guardarLocal({
-          listaPersistente: listaCompleta,
-          colaDescargas: colaActual,
-          SW_ESTADOS_PROGRESO: estadosUpdate,
-        });
-
-        mensajeria.notificar({
-          action: "clase_guardada_ok",
-          titulo: tituloInmutableVideo,
-          // ⚠️ EL `sitioId` NO ES OPCIONAL ACÁ. El popup usa este mensaje para sacar la clase de
-          // SU copia de la cola, y compara por identidad (portal, título). Sin este campo el
-          // `sitioId` viaja `undefined`, la migración lo interpreta como dato viejo y lo resuelve
-          // al portal LEGADO — así que el mensaje de una clase de otro portal no matchea nada, el
-          // popup no la saca, y su `respaldar()` reescribe la cola que el SW acaba de vaciar.
-          // Resultado: el bucle vuelve a tomar la misma clase y la baja para siempre.
-          // (Medido el 2026-08-07 con Anatomy. En Ramón Net no se veía porque su id ES el legado,
-          // así que la clave coincidía de casualidad.)
-          sitioId: elementoActual.sitioId,
-          suaveFrenado: postWriteState.frenadoSuaveSolicitado,
-        });
-
-        setTimeout(procesarSiguiente, 60);
       } catch (errDescarga) {
         const err = errDescarga as { name?: string; message?: string; tipoConexion?: string; tipoBackend?: string; tipoPortal?: string; httpStatus?: number };
         const estadoTrasFallo = await sesion.get();

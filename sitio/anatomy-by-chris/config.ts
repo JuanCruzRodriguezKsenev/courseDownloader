@@ -54,6 +54,13 @@ declare const ScraperAnatomy: {
   // leer el DOM. `executeScript` espera la promesa y el puerto admite las dos formas.
   escanearListadoDelModulo: () => Promise<ResultadoEscaneo>;
 };
+declare const DescargarAdjuntoAnatomy: {
+  resolver(
+    idArchivo: string,
+    signal?: AbortSignal,
+    credenciales?: Record<string, string>
+  ): Promise<string>;
+};
 declare const ParserTitulosAnatomy: {
   formatearTitulo(crudo: string, materiaBase?: string, opciones?: OpcionesParseo): string;
   clasificarCarpeta(crudo: string, materiaBase?: string): ClasificacionCarpeta;
@@ -128,6 +135,10 @@ const SitioAnatomyByChris: SitioAnatomyDescriptor = {
   resolverManifiesto(urlClase, signal, credenciales) {
     return ResolverManifiestoAnatomy.resolver(urlClase, signal, credenciales, this.alturaMaxima);
   },
+
+  // [CORTE 5] Los adjuntos. Se resuelve al BAJAR, no al escanear: la firma vive 1 hora.
+  resolverAdjunto: (idArchivo, signal, credenciales) =>
+    DescargarAdjuntoAnatomy.resolver(idArchivo, signal, credenciales),
 
   // Getter y no arrow: hay que entregar la función CRUDA, porque `executeScript` serializa su
   // código fuente y lo corre en la página. Envolverla rompería la inyección.

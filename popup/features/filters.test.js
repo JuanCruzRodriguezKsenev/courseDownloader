@@ -37,6 +37,10 @@ function crearFeature(overrides = {}) {
     materias: new Set(),
     valoresFaceta: new Set(),
     portales: new Set(),
+    // [ESCANEO-API CORTE 5] Vacío y NO con el default de producción (`['video']`) a propósito:
+    // así los tests de acá siguen afirmando sobre los otros ejes sin que el tipo los filtre por
+    // el costado. El default y su UX se prueban en su propio bloque, más abajo.
+    tipos: new Set(),
   };
   const ctx = {
     nodos,
@@ -539,5 +543,144 @@ describe('FilterFeature — Disponibles es de un solo portal (multiportal A)', (
     const opciones = [...nodos.filterMenu.querySelectorAll('.popover-option span')].map(s => s.textContent);
     expect(opciones).toContain('Cat A');
     expect(opciones).not.toContain('Cat ZZZ');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [ESCANEO-API CORTE 5] El filtro por TIPO.
+//
+// Vive en su propio Set y no en `valoresFaceta` a propósito: la faceta es el eje DE UN PORTAL,
+// con vocabulario propio y elegido por portal (ADR-0012); el tipo es universal y ortogonal.
+// Mezclarlos reabriría el bug que ese ADR cerró.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('FilterFeature — el filtro por tipo', () => {
+  const video = { titulo: 'Osteologia', carpeta: 'ms', estado: 'pending', catedra: 'COMUN', sitioId: 'ramonnet', modulo: 'ms', tipo: 'video' };
+  const pdf = { titulo: 'Atlas.pdf', carpeta: 'ms', estado: 'pending', catedra: 'COMUN', sitioId: 'ramonnet', modulo: 'ms', tipo: 'adjunto' };
+
+  it('con el Set vacío no filtra nada', () => {
+    const { feature } = crearFeature();
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [{ ...video }, { ...pdf }];
+
+    feature.aplicarFiltrosCruzados();
+
+    expect(AppState.listadoClasesGlobal.map(c => c.visible)).toEqual([true, true]);
+  });
+
+  it('el default de producción ("sólo video") esconde los materiales', () => {
+    const { feature, ctx } = crearFeature();
+    ctx.filtrosActivos.tipos.add('video');
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [{ ...video }, { ...pdf }];
+
+    feature.aplicarFiltrosCruzados();
+
+    expect(AppState.listadoClasesGlobal.map(c => c.visible)).toEqual([true, false]);
+  });
+
+  it('un ítem SIN tipo cuenta como video: es todo lo persistido de antes', () => {
+    const { feature, ctx } = crearFeature();
+    ctx.filtrosActivos.tipos.add('video');
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [{ ...video, tipo: undefined }];
+
+    feature.aplicarFiltrosCruzados();
+
+    expect(AppState.listadoClasesGlobal[0].visible).toBe(true);
+  });
+
+  it('pidiendo materiales se esconden los videos', () => {
+    const { feature, ctx } = crearFeature();
+    ctx.filtrosActivos.tipos.add('adjunto');
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [{ ...video }, { ...pdf }];
+
+    feature.aplicarFiltrosCruzados();
+
+    expect(AppState.listadoClasesGlobal.map(c => c.visible)).toEqual([false, true]);
+  });
+
+  it('la sección Tipo del popover sólo aparece si el portal trajo adjuntos', () => {
+    const { feature, nodos } = crearFeature();
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [{ ...video }];
+
+    feature.renderizarFiltrosMenuPopover();
+
+    const titulos = [...nodos.filterMenu.querySelectorAll('.popover-section-title')].map(t => t.textContent);
+    expect(titulos).not.toContain('Tipo');
+  });
+
+  it('con adjuntos, la sección Tipo aparece con sus dos opciones', () => {
+    const { feature, nodos } = crearFeature();
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [{ ...video }, { ...pdf }];
+
+    feature.renderizarFiltrosMenuPopover();
+
+    const titulos = [...nodos.filterMenu.querySelectorAll('.popover-section-title')].map(t => t.textContent);
+    expect(titulos).toContain('Tipo');
+    const opciones = [...nodos.filterMenu.querySelectorAll('.popover-option span')].map(s => s.textContent);
+    expect(opciones).toContain('Videos 🎬');
+    expect(opciones).toContain('Materiales 📄');
+  });
+
+  it('el badge NO cuenta el default de "sólo video"', () => {
+    // Arrancar en "Filtros (1)" sin haber tocado nada haría que el número deje de significar
+    // "lo que elegiste".
+    const { feature, ctx, nodos } = crearFeature();
+    ctx.filtrosActivos.tipos.add('video');
+
+    feature.actualizarPillsUIState();
+
+    expect(nodos.btnFilterPills.querySelector('span').textContent).toBe('Filtros');
+  });
+
+  it('el badge SÍ cuenta el tipo cuando el usuario lo cambió', () => {
+    const { feature, ctx, nodos } = crearFeature();
+    ctx.filtrosActivos.tipos.add('adjunto');
+
+    feature.actualizarPillsUIState();
+
+    expect(nodos.btnFilterPills.querySelector('span').textContent).toBe('Filtros (1)');
+  });
+
+  it('en la Cola también filtra por tipo', () => {
+    const { feature, ctx } = crearFeature();
+    ctx.filtrosActivos.tipos.add('adjunto');
+
+    expect(feature.coincideConFiltrosCola({ ...video }, '')).toBe(false);
+    expect(feature.coincideConFiltrosCola({ ...pdf }, '')).toBe(true);
+  });
+});
+
+// [ESCANEO-API CORTE 1] La carpeta de una clase con módulo NO la decide el input.
+describe('FilterFeature — el filtro de materia con módulos', () => {
+  it('una clase con módulo NO se compara contra el input de carpeta', () => {
+    // Sin esta regla, un portal de dos niveles deja la lista ENTERA invisible apenas el input
+    // queda vacío — que es exactamente lo que hace el escaneo por API.
+    const { feature, nodos } = crearFeature();
+    AppState.pestañaActiva = 'disponibles';
+    nodos.folder.value = '';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'Miologia 1', carpeta: 'miembro_superior', modulo: 'miembro_superior', estado: 'pending', catedra: 'COMUN', sitioId: 'ramonnet' },
+    ];
+
+    feature.aplicarFiltrosCruzados();
+
+    expect(AppState.listadoClasesGlobal[0].visible).toBe(true);
+  });
+
+  it('una clase SIN módulo sigue comparándose contra el input, como siempre', () => {
+    const { feature, nodos } = crearFeature();
+    AppState.pestañaActiva = 'disponibles';
+    nodos.folder.value = 'otra';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'Clase', carpeta: 'biologia', estado: 'pending', catedra: 'COMUN', sitioId: 'ramonnet' },
+    ];
+
+    feature.aplicarFiltrosCruzados();
+
+    expect(AppState.listadoClasesGlobal[0].visible).toBe(false);
   });
 });

@@ -9,7 +9,7 @@
  * antes eran variables de módulo sueltas en `background.js` y que ahora son estado privado.
  * Son justamente las que nadie miraba.
  */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { AlmacenamientoEnMemoria } from "../puertos/almacenamientoEnMemoria";
 import { MensajeriaEnMemoria } from "../puertos/mensajeriaEnMemoria";
 import { ProgramadorEnMemoria } from "../puertos/programadorEnMemoria";
@@ -65,6 +65,9 @@ function montar(over: Record<string, any> = {}) {
     notificarFallo,
     calcularMetricas: () => ({ porcentaje: 50, telemetry: { velocidadTexto: "1.5" } }),
     actualizarConsolaBackend: vi.fn(),
+    // [CORTE 5] El envío de un bloque de adjunto al backend. Se declara afuera (ver
+    // `enviarBloqueAdjunto` abajo) para poder afirmar CÓMO se cortó el archivo.
+    enviarBloqueAdjunto: over.enviarBloqueAdjunto ?? vi.fn().mockResolvedValue({ ok: true }),
     guardarBlobLegacy: vi.fn(),
     persistirEstados: (e) => estados.persistir(e),
     recuperarEstados: () => estados.recuperar(),
@@ -666,5 +669,157 @@ describe("el portal del ítem viaja al backend", () => {
     await esperar(120);
 
     expect((await sesion.get()).videoActualSitioId).toBe("prueba");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [ESCANEO-API CORTE 5] La rama del ADJUNTO.
+//
+// Lo que se fija: que un archivo suelto NO pase por `hlsEngine` (no hay manifiesto, ni clave
+// AES, ni fragmentos) y que igual termine como termina un video — fuera de la cola, marcado
+// `downloaded`, con el aviso al popup llevando la identidad entera.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("la rama del adjunto", () => {
+  const PDF = {
+    titulo: "Yokochi 6ta ED.pdf",
+    urlInterna: "https://p/leccion",
+    fechaEncolado: 1,
+    tipo: "adjunto" as const,
+    idArchivo: "uuid-1",
+    bytes: 12,
+    carpeta: "miembro_superior",
+    modulo: "miembro_superior",
+  };
+
+  /** Sitio doble que resuelve adjuntos, con el `fetch` global sirviendo los bytes. */
+  function montarConAdjuntos(bytes = 12, over: Record<string, any> = {}) {
+    const resolverAdjunto = vi.fn().mockResolvedValue("https://cdn/firmada.pdf");
+    const enviarBloqueAdjunto = vi.fn().mockResolvedValue({ ok: true });
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: () => String(bytes) },
+      arrayBuffer: async () => new ArrayBuffer(bytes),
+    }) as unknown as typeof fetch;
+
+    const montado = montar({
+      enviarBloqueAdjunto,
+      sitios: {
+        obtener: (id: string | undefined) =>
+          id === undefined || id === "prueba"
+            ? {
+                resolverManifiesto: resolverManifiestoDoble,
+                resolverAdjunto,
+                nombre: "Portal de Prueba",
+                id: "prueba",
+              }
+            : undefined,
+      },
+      ...over,
+    });
+
+    return { ...montado, resolverAdjunto, enviarBloqueAdjunto };
+  }
+
+  afterEach(() => {
+    delete (globalThis as { fetch?: unknown }).fetch;
+  });
+
+  it("NO toca el motor HLS", async () => {
+    const { cola, almacenamiento, sesion, motor } = montarConAdjuntos();
+    await sesion.set({ rafagaCorriendo: true, modoTurboBunActivo: true });
+    await almacenamiento.guardarLocal({ colaDescargas: [PDF], listaPersistente: [] });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    expect(motor.descargarYAnalizarIndexM3u8).not.toHaveBeenCalled();
+    expect(motor.compilarTranscodificacionStream).not.toHaveBeenCalled();
+  });
+
+  it("resuelve la firma al BAJAR, con el id del ítem", async () => {
+    // Riesgo R8: la URL vive 1 hora. Resolverla al escanear haría fallar una cola larga de PDF
+    // a mitad de camino, con un error que parece del portal.
+    const { cola, almacenamiento, sesion, resolverAdjunto } = montarConAdjuntos();
+    await sesion.set({ rafagaCorriendo: true, modoTurboBunActivo: true });
+    await almacenamiento.guardarLocal({ colaDescargas: [PDF], listaPersistente: [] });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    expect(resolverAdjunto).toHaveBeenCalledWith("uuid-1", expect.anything(), undefined);
+  });
+
+  it("manda los bytes con el MISMO contrato de fragmento, y con la carpeta del portal", async () => {
+    const { cola, almacenamiento, sesion, enviarBloqueAdjunto } = montarConAdjuntos();
+    await sesion.set({ rafagaCorriendo: true, modoTurboBunActivo: true });
+    await almacenamiento.guardarLocal({ colaDescargas: [PDF], listaPersistente: [] });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    expect(enviarBloqueAdjunto).toHaveBeenCalledTimes(1);
+    const [, headers] = enviarBloqueAdjunto.mock.calls[0]!;
+    expect(headers).toMatchObject({
+      videoTitle: "Yokochi 6ta ED.pdf",
+      chunkIndex: 0,
+      totalChunks: 1,
+      targetFolder: "miembro_superior",
+      siteFolder: "prueba",
+    });
+  });
+
+  it("un archivo grande se corta en bloques: progreso real, no un 0→100", async () => {
+    // 12 MB con bloques de 5 MB ⇒ 3 bloques.
+    const { cola, almacenamiento, sesion, enviarBloqueAdjunto } = montarConAdjuntos(12 * 1024 * 1024);
+    await sesion.set({ rafagaCorriendo: true, modoTurboBunActivo: true });
+    await almacenamiento.guardarLocal({ colaDescargas: [PDF], listaPersistente: [] });
+
+    cola.arrancarSiNoCorre();
+    await esperar(200);
+
+    expect(enviarBloqueAdjunto).toHaveBeenCalledTimes(3);
+    expect(enviarBloqueAdjunto.mock.calls.map(([, h]) => h.chunkIndex)).toEqual([0, 1, 2]);
+    expect(enviarBloqueAdjunto.mock.calls.every(([, h]) => h.totalChunks === 3)).toBe(true);
+  });
+
+  it("al terminar sale de la cola y avisa con la identidad ENTERA", async () => {
+    const { cola, almacenamiento, sesion, mensajeria } = montarConAdjuntos();
+    await sesion.set({ rafagaCorriendo: true, modoTurboBunActivo: true });
+    await almacenamiento.guardarLocal({
+      colaDescargas: [{ ...PDF, sitioId: "prueba" }],
+      listaPersistente: [{ ...PDF, sitioId: "prueba", estado: "process" }],
+    });
+
+    cola.arrancarSiNoCorre();
+    await esperar(150);
+
+    const data = await almacenamiento.obtenerLocal<{ colaDescargas: unknown[] }>(["colaDescargas"]);
+    expect(data.colaDescargas).toEqual([]);
+
+    const aviso = mensajeria.notificados.find((m: any) => m.action === "clase_guardada_ok");
+    // Sin `modulo` y `tipo` el popup compara con la clave incompleta y no saca la clase de su
+    // copia — el mismo bucle infinito que el `sitioId` faltante produjo el 2026-08-07.
+    expect(aviso).toMatchObject({
+      titulo: "Yokochi 6ta ED.pdf",
+      sitioId: "prueba",
+      modulo: "miembro_superior",
+      tipo: "adjunto",
+    });
+  });
+
+  it("un portal que no resuelve adjuntos saltea el ítem, no pausa la cola", async () => {
+    const { cola, almacenamiento, sesion } = montar({
+      enviarBloqueAdjunto: vi.fn(),
+    });
+    await sesion.set({ rafagaCorriendo: true, modoTurboBunActivo: true });
+    await almacenamiento.guardarLocal({ colaDescargas: [PDF], listaPersistente: [] });
+
+    cola.arrancarSiNoCorre();
+    await esperar(150);
+
+    // Determinístico: reintentarlo no lo arregla, así que la cola sigue en vez de pausarse.
+    expect((await sesion.get()).colaPausadaPorError).toBeFalsy();
   });
 });

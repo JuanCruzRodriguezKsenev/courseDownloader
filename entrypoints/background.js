@@ -37,6 +37,9 @@ import '../sitio/ramonnet/resolverManifiesto.js';
 import '../sitio/anatomy-by-chris/config.ts';
 import '../sitio/anatomy-by-chris/parserTitulos.js';
 import '../sitio/anatomy-by-chris/resolverManifiesto.js';
+// [CORTE 5] El cuarto hermano. Va SÓLO acá y no en el popup: resolver la firma de un adjunto es
+// del que baja, y su URL vive 1 hora — pedirla desde el popup al escanear la vencería.
+import '../sitio/anatomy-by-chris/descargarAdjunto.js';
 
 import BunClient from '../core/backend/bunClient.ts';
 // [MULTISITIO CORTE 8] Acá se importaba `sitioAsumido`: el SW era el último lector del andamio

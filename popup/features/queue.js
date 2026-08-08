@@ -141,6 +141,12 @@ const QueueFeature = {
         // El módulo de ORIGEN viaja con el ítem: es media identidad de la clase, y el override
         // de arriba justamente NO tiene que poder cambiarla.
         modulo: c.modulo,
+        // [CORTE 5] El tipo también es identidad. `idArchivo` y `bytes` los necesita el bucle:
+        // sin el primero no hay con qué pedir la URL firmada, y el segundo es el respaldo del
+        // `Content-Length` para saber en cuántos bloques cortar.
+        tipo: c.tipo,
+        idArchivo: c.idArchivo,
+        bytes: c.bytes,
         fechaEncolado: Date.now() + idx,
         // ADR-0010: viaja con el ítem. Sale de la clase y NO del sitio activo a propósito —
         // la cola sobrevive a que el usuario cambie de pestaña, así que "el sitio de ahora"
@@ -241,7 +247,9 @@ const QueueFeature = {
       // cada envío absorbe su error — igual que antes, cuando el callback de Chrome resolvía
       // la promesa con undefined incluso habiendo lastError.
       const promesas = items.map(c =>
-        mensajeria.enviar({ action: "remover_item_de_cola", titulo: c.titulo, sitioId: c.sitioId }).catch(() => undefined)
+        // Los CUATRO campos de la identidad (corte 1). Con dos, la clave no matchea ningún ítem
+        // y la remoción no hace nada, en silencio.
+        mensajeria.enviar({ action: "remover_item_de_cola", titulo: c.titulo, sitioId: c.sitioId, modulo: c.modulo, tipo: c.tipo }).catch(() => undefined)
       );
 
       Promise.all(promesas).then(() => {

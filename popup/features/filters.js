@@ -137,7 +137,13 @@ const FilterFeature = {
         || filtrosActivos.portales.has(idPortalDe(clase));
       const coincideFaceta = filtrosActivos.valoresFaceta.size === 0
         || filtrosActivos.valoresFaceta.has(claveFaceta(clase));
-      return coincideTexto && coincideMateria && coincidePortal && coincideFaceta;
+      // [CORTE 5] Mismo Set que en Disponibles, pero en la Cola arranca VACÍO (lo pone
+      // `conmutarPestañaA`): lo que ya está encolado lo puso el usuario a mano, y esconderle un
+      // PDF que él mismo agregó sería el peor momento para opinar. El default de "sólo video"
+      // es para descubrir, no para revisar.
+      const coincideTipo = filtrosActivos.tipos.size === 0
+        || filtrosActivos.tipos.has(clase.tipo || 'video');
+      return coincideTexto && coincideMateria && coincidePortal && coincideFaceta && coincideTipo;
     }
 
     // Recalcula la visibilidad del listado global de disponibles cruzando materia +
@@ -166,9 +172,20 @@ const FilterFeature = {
         // compararlo pelado lo mostraría en el portal que fuese. Y un huérfano no matchea
         // ninguno, que es lo correcto — no sabemos de dónde vino.
         const coincidePortal = idPortalDe(clase) === idActivo;
-        const coincideMateria = !clase.carpeta || (clase.carpeta.toLowerCase() === materiaActiva);
+        // [ESCANEO-API CORTE 1] Una clase CON MÓDULO no se filtra por el input: su carpeta la
+        // decide su módulo, así que compararla contra el input dejaría **toda la lista
+        // invisible** apenas el input quede vacío — que es justamente lo que pasa ahora en un
+        // portal de dos niveles. Sin módulo, la comparación de siempre.
+        const coincideMateria = clase.modulo
+          ? true
+          : (!clase.carpeta || (clase.carpeta.toLowerCase() === materiaActiva));
         const coincideTexto = clase.titulo.toLowerCase().includes(busqueda);
         const coincideEstado = filtrosActivos.estados.size === 0 || filtrosActivos.estados.has(clase.estado);
+        // [ESCANEO-API CORTE 5] El tipo es ORTOGONAL a la faceta y por eso vive en su propio
+        // Set y no en `valoresFaceta`: la faceta es el eje DE UN PORTAL, con vocabulario propio
+        // y elegido por portal (ADR-0012); el tipo es universal. Mezclarlos reabriría ese bug.
+        const coincideTipo = filtrosActivos.tipos.size === 0
+          || filtrosActivos.tipos.has(clase.tipo || 'video');
 
         const valor = faceta.leer(clase);
         const elegido = appState.facetaElegidaDe(sitio().id); // [MULTIPORTAL B] por portal
@@ -179,7 +196,7 @@ const FilterFeature = {
           coincideFaceta = (valor === elegido || valor === faceta.valorComun);
         }
 
-        clase.visible = coincidePortal && coincideMateria && coincideTexto && coincideEstado && coincideFaceta;
+        clase.visible = coincidePortal && coincideMateria && coincideTexto && coincideEstado && coincideFaceta && coincideTipo;
       });
 
       renderizar();
@@ -197,8 +214,15 @@ const FilterFeature = {
     // Actualiza el badge del botón "Filtros (N)" según cuántos filtros haya activos.
     function actualizarPillsUIState() {
       if (!nodos.btnFilterPills) return;
+      // [CORTE 5] `tipos` NO suma al contador cuando está en su default de una sola opción
+      // ("sólo video"): el badge cuenta lo que el usuario eligió, y arrancar en "Filtros (1)"
+      // sin haber tocado nada haría que el número deje de significar eso.
+      const tiposElegidosAMano =
+        filtrosActivos.tipos.size === 1 && filtrosActivos.tipos.has('video')
+          ? 0
+          : filtrosActivos.tipos.size;
       const total = filtrosActivos.estados.size + filtrosActivos.materias.size
-        + filtrosActivos.valoresFaceta.size + filtrosActivos.portales.size;
+        + filtrosActivos.valoresFaceta.size + filtrosActivos.portales.size + tiposElegidosAMano;
       nodos.btnFilterPills.classList.toggle('active', total > 0);
       const span = nodos.btnFilterPills.querySelector('span');
       if (span) {
@@ -258,6 +282,34 @@ const FilterFeature = {
           secEstado.appendChild(opt);
         });
         nodos.filterMenu.appendChild(secEstado);
+
+        // --- Sección Tipo (escaneo-api corte 5) ---
+        // Sólo aparece si el portal escaneado trajo adjuntos: en Ramón Net todo es video y una
+        // sección con una sola opción sería ruido puro.
+        const hayAdjuntos = clasesDelPortalActivo().some(c => c.tipo === 'adjunto');
+        if (hayAdjuntos) {
+          const secTipo = document.createElement("div");
+          secTipo.className = "popover-section";
+
+          const titTipo = document.createElement("div");
+          titTipo.className = "popover-section-title";
+          titTipo.textContent = "Tipo";
+          secTipo.appendChild(titTipo);
+
+          [
+            { key: "video", label: "Videos 🎬" },
+            { key: "adjunto", label: "Materiales 📄" },
+          ].forEach(t => {
+            const opt = crearPopoverOptionDOM(t.label, filtrosActivos.tipos.has(t.key), (checked) => {
+              if (checked) filtrosActivos.tipos.add(t.key);
+              else filtrosActivos.tipos.delete(t.key);
+              actualizarPillsUIState();
+              aplicarFiltrosCruzados();
+            });
+            secTipo.appendChild(opt);
+          });
+          nodos.filterMenu.appendChild(secTipo);
+        }
 
         // --- Sección de la faceta del sitio (en Ramón Net: Cátedra) ---
         // [MULTIPORTAL A] Sólo las clases del portal activo: `listadoClasesGlobal` puede traer

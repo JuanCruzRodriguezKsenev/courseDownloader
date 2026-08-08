@@ -1,6 +1,13 @@
 /**
- * ADAPTADOR DE SITIO — ANATOMY BY CHRIS: ESCANEO DEL LISTADO (V2.0.0)
+ * ADAPTADOR DE SITIO — ANATOMY BY CHRIS: ESCANEO DEL LISTADO (V2.1.0)
  * ==========================================================================
+ * CHANGELOG v2.1.0:
+ * - [ESCANEO-API CORTE 5] El escaneo también trae los **adjuntos** (PDF). Una llamada a
+ *   `/v1/pages/<hash>/complementary-content` por lección, con pool de 6: **7,1 s las 114**,
+ *   medido. Cada adjunto sale como un enlace más, con `tipo: "adjunto"`, su `idArchivo` y su
+ *   peso. Los videos salen con `tipo: "video"` explícito.
+ * - Se barren TODAS las lecciones, no sólo las de video: los adjuntos cuelgan también de clases
+ *   de Texto, y por eso *Libros y Herramientas de Estudio* deja de devolver cero.
  * CHANGELOG v2.0.0:
  * - [ESCANEO-API CORTE 1] **El escaneo deja de leer el DOM y le pide el árbol a la API del
  *   club.** Una sola llamada a `/v1/navigation` devuelve los 11 módulos y las 114 clases. Eso
@@ -153,6 +160,11 @@ const ScraperAnatomy = {
     const modulos = (arbol && arbol.modules) || [];
     const enlaces = [];
 
+    // Las lecciones NO bloqueadas, con su módulo. Se juntan todas porque el barrido de
+    // adjuntos del paso 5 las necesita a todas, no sólo a las de video: los materiales
+    // cuelgan también de clases de Texto (por eso *Libros y Herramientas* deja de dar cero).
+    const lecciones = [];
+
     for (let i = 0; i < modulos.length; i++) {
       const modulo = modulos[i];
       if (!modulo) continue;
@@ -163,11 +175,6 @@ const ScraperAnatomy = {
         const pagina = paginas[j];
         if (!pagina || !pagina.hash) continue;
 
-        // `hasPlayerMedia` es el tipo como DATO: reemplaza a la heurística del thumbnail, que
-        // dependía de que el sidebar hubiera terminado de pintar. Las 11 clases de Texto del
-        // curso salen por acá.
-        if (!pagina.hasPlayerMedia) continue;
-
         // Una clase bloqueada (drip de contenido) no se puede resolver: encolarla sería
         // programar un fallo. No es lo mismo que no existir, pero para el escaneo sí.
         if (pagina.locked) continue;
@@ -177,15 +184,95 @@ const ScraperAnatomy = {
           .trim();
         if (!texto) continue;
 
+        // Es exactamente la forma que `resolverManifiesto` ya parsea (`RE_HASH_LECCION` +
+        // `RE_PRODUCT_ID`): encaja sin tocarlo.
+        const href = base + "/content/" + pagina.hash;
+        lecciones.push({ hash: pagina.hash, texto: texto, href: href, modulo: nombreModulo });
+
+        // `hasPlayerMedia` es el tipo como DATO: reemplaza a la heurística del thumbnail, que
+        // dependía de que el sidebar hubiera terminado de pintar. Las 11 clases de Texto del
+        // curso salen por acá.
+        if (!pagina.hasPlayerMedia) continue;
+
         enlaces.push({
           texto: texto,
-          // Es exactamente la forma que `resolverManifiesto` ya parsea (`RE_HASH_LECCION` +
-          // `RE_PRODUCT_ID`): encaja sin tocarlo.
-          href: base + "/content/" + pagina.hash,
+          href: href,
           modulo: nombreModulo,
+          tipo: "video",
         });
       }
     }
+
+    // --- 5. Los adjuntos: una llamada por lección, con pool -----------------------------
+    //
+    // Medido el 2026-08-07: **7,1 segundos** las 114 lecciones con 6 en paralelo, cero errores.
+    // Eso es lo que dio vuelta la decisión de dejarlos afuera — se creía que descubrirlos era un
+    // frente aparte, y entra en el escaneo normal.
+    //
+    // 15 de las 114 tienen adjuntos; las otras 99 devuelven exactamente 45 bytes
+    // (`{"complementaryReadings":[],"attachments":[]}`).
+    //
+    // ⚠️ NO se resuelve acá la URL de descarga, sólo el listado: la firma de CloudFront vive
+    // **1 hora** y una cola larga de PDF empezaría a fallar a mitad de camino (riesgo R8). La
+    // URL se pide al bajar, por ítem.
+    const CONCURRENCIA = 6;
+    const API_ADJUNTOS =
+      "https://api-club-course-consumption-gateway-ga.cb.hotmart.com/v1/pages/";
+
+    const adjuntosDe = async function (leccion) {
+      try {
+        const r = await fetch(
+          API_ADJUNTOS + encodeURIComponent(leccion.hash) + "/complementary-content",
+          {
+            headers: {
+              Authorization: "Bearer " + idToken,
+              "x-product-id": productId,
+            },
+          }
+        );
+        if (!r.ok) return [];
+        const cuerpo = await r.json();
+        const adjuntos = (cuerpo && cuerpo.attachments) || [];
+
+        const salida = [];
+        for (let k = 0; k < adjuntos.length; k++) {
+          const a = adjuntos[k];
+          if (!a || !a.fileMembershipId || !a.fileName) continue;
+          salida.push({
+            // El nombre del ARCHIVO, no el de la lección: es lo que el usuario reconoce en la
+            // lista y lo que termina en disco. Dos lecciones pueden compartir un adjunto con el
+            // mismo nombre, y la identidad las distingue por módulo igual que a los videos.
+            texto: String(a.fileName).replace(/\s+/g, " ").trim(),
+            href: leccion.href,
+            modulo: leccion.modulo,
+            tipo: "adjunto",
+            idArchivo: String(a.fileMembershipId),
+            bytes: typeof a.fileSize === "number" ? a.fileSize : undefined,
+          });
+        }
+        return salida;
+      } catch (e) {
+        // Un adjunto que no se pudo listar no puede romper el escaneo de los 103 videos.
+        void e;
+        return [];
+      }
+    };
+
+    // Pool a mano: `Promise.all` sobre las 114 dispararía 114 requests de una y Hotmart puede
+    // cortar. Seis trabajadores compartiendo un índice es todo lo que hace falta.
+    let siguiente = 0;
+    const trabajador = async function () {
+      while (siguiente < lecciones.length) {
+        const mia = lecciones[siguiente++];
+        const suyos = await adjuntosDe(mia);
+        for (let k = 0; k < suyos.length; k++) enlaces.push(suyos[k]);
+      }
+    };
+    const trabajadores = [];
+    for (let w = 0; w < Math.min(CONCURRENCIA, lecciones.length); w++) {
+      trabajadores.push(trabajador());
+    }
+    await Promise.all(trabajadores);
 
     return { materia: "", enlaces: enlaces, credenciales: credenciales };
   },
