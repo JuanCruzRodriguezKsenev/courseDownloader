@@ -49,7 +49,9 @@ declare const ResolverManifiestoAnatomy: {
   ): Promise<string>;
 };
 declare const ScraperAnatomy: {
-  escanearListadoDelModulo: () => ResultadoEscaneo;
+  // `async` desde el corte 1 del escaneo por API: le pide el árbol a `/v1/navigation` en vez de
+  // leer el DOM. `executeScript` espera la promesa y el puerto admite las dos formas.
+  escanearListadoDelModulo: () => Promise<ResultadoEscaneo>;
 };
 declare const ParserTitulosAnatomy: {
   formatearTitulo(crudo: string, materiaBase?: string, opciones?: OpcionesParseo): string;

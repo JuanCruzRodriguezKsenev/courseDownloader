@@ -333,7 +333,7 @@ describe('inyectar_items_en_cola_activa', () => {
     expect(resp).toEqual({ status: 'encolados_ok' });
     expect(store.local.colaDescargas).toEqual([{ titulo: 'Clase 1', carpeta: 'anatomia' }]);
     // MULTIPORTAL D: la clave del espejo es (portal|título), no el título solo.
-    expect(store.local.SW_ESTADOS_PROGRESO['ramonnet|Clase 1']).toBe('process');
+    expect(store.local.SW_ESTADOS_PROGRESO['ramonnet||video|Clase 1']).toBe('process');
     expect(store.local.listaPersistente[0].estado).toBe('process');
     expect(store.local.listaPersistente[0].carpeta).toBe('anatomia');
   });
@@ -360,7 +360,7 @@ describe('remover_item_de_cola', () => {
 
     expect(resp).toEqual({ status: 'removido_ok' });
     expect(store.local.colaDescargas).toEqual([{ titulo: 'Clase 2' }]);
-    expect(store.local.SW_ESTADOS_PROGRESO['ramonnet|Clase 1']).toBeUndefined();
+    expect(store.local.SW_ESTADOS_PROGRESO['ramonnet||video|Clase 1']).toBeUndefined();
     expect(store.local.listaPersistente[0].estado).toBe('pending');
   });
 });
@@ -378,7 +378,7 @@ describe('obtener_estados_en_progreso', () => {
 
     // MULTIPORTAL D: se sembró con la clave vieja (título pelado) y vuelve migrada al par
     // (portal|título). O sea que este test afirma además la migración de lectura del espejo.
-    expect(resp.estados).toEqual({ 'ramonnet|Clase 1': 'process' });
+    expect(resp.estados).toEqual({ 'ramonnet||video|Clase 1': 'process' });
     expect(resp.videoActual).toBe('Clase 1');
     expect(resp.porcentaje).toBe(50);
     expect(resp.telemetry).toEqual({
@@ -386,6 +386,27 @@ describe('obtener_estados_en_progreso', () => {
       fragsTerminados: 5,
       totalFrags: 10,
       velocidadMbs: 2.5,
+    });
+  });
+
+  it('migra también las claves del multiportal D, que ya tenían portal pero no módulo', async () => {
+    // [ESCANEO-API CORTE 1] El espejo acumuló DOS formatos viejos: `Título` (pre-D) y
+    // `portal|Título` (D). Sin esta rama, la clave de D quedaba tal cual y el popup no la
+    // reconocía: la barra de progreso de una clase en curso simplemente no aparecía, sin error.
+    store.local.SW_ESTADOS_PROGRESO = { 'ramonnet|Clase 1': 'process' };
+
+    const resp = await invocar({ action: 'obtener_estados_en_progreso' });
+
+    expect(resp.estados).toEqual({ 'ramonnet||video|Clase 1': 'process' });
+  });
+
+  it('una clave ya migrada se deja intacta', async () => {
+    store.local.SW_ESTADOS_PROGRESO = { 'anatomy-by-chris|miembro_superior|video|Miologia 1': 'process' };
+
+    const resp = await invocar({ action: 'obtener_estados_en_progreso' });
+
+    expect(resp.estados).toEqual({
+      'anatomy-by-chris|miembro_superior|video|Miologia 1': 'process',
     });
   });
 });

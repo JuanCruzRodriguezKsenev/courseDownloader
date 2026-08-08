@@ -1,9 +1,14 @@
 /**
- * ESPEJO DE PROGRESO POR CLASE (V1.0.0)
+ * ESPEJO DE PROGRESO POR CLASE (V2.0.0)
+ * ==========================================================================
+ * CHANGELOG v2.0.0:
+ * - [ESCANEO-API CORTE 1] La clave del espejo la calcula `identidadClase`, que pasó de
+ *   `portal|titulo` a `portal|modulo|tipo|titulo`. La migración de lectura ahora cubre **dos**
+ *   formatos viejos, no uno, y por eso mira la CANTIDAD de separadores en vez de si hay alguno.
  * ==========================================================================
  * Capa 1. Salió de `background.js` en la Fase 6b.
  *
- * Mapa `<sitioId>|<titulo> → estado` bajo la clave local `SW_ESTADOS_PROGRESO`. Es un **espejo
+ * Mapa `<clave de identidad> → estado` bajo la clave local `SW_ESTADOS_PROGRESO`. Es un **espejo
  * liviano** del progreso que escribe el service worker para que el popup pueda reconciliar su
  * lista sin pedirle el detalle completo por IPC en cada render.
  *
@@ -38,12 +43,30 @@ export function crearEstadosProgreso(
       const data = await almacenamiento.obtenerLocal<{ [CLAVE]: EstadosProgreso }>([CLAVE]);
       const crudos = data[CLAVE] || {};
 
-      // Migración de lectura: una clave sin `|` es de antes del multiportal D. No se reescribe
-      // storage acá —este espejo se regenera solo en cada ráfaga— así que migrar al leer
-      // alcanza y evita una escritura extra en el camino caliente del bucle.
+      // Migración de lectura, ahora con DOS formatos viejos que cubrir. Se distinguen por la
+      // cantidad de separadores, que es lo único que los distingue sin ambigüedad:
+      //
+      //   `Título`                        (0) → anterior al multiportal D. Portal legado.
+      //   `portal|Título`                 (1) → multiportal D. Le faltan módulo y tipo.
+      //   `portal|modulo|tipo|Título`     (3) → la actual. Se deja como está.
+      //
+      // No se reescribe storage acá —este espejo se regenera solo en cada ráfaga— así que
+      // migrar al leer alcanza y evita una escritura extra en el camino caliente del bucle.
+      //
+      // Los dos formatos viejos migran con módulo VACÍO y tipo `video`, que es exactamente lo
+      // que eran: en aquel momento no existía ni un portal de dos niveles ni un adjunto.
       const migrados: EstadosProgreso = {};
       for (const [clave, estado] of Object.entries(crudos)) {
-        migrados[clave.includes("|") ? clave : `${sitioLegado}|${clave}`] = estado;
+        const partes = clave.split("|");
+        if (partes.length >= 4) {
+          migrados[clave] = estado; // ya está en el formato actual
+        } else if (partes.length === 1) {
+          migrados[`${sitioLegado}||video|${clave}`] = estado;
+        } else {
+          // Un título con un `|` adentro cae acá y se re-arma entero: el portal es el primer
+          // segmento y todo lo demás es el título.
+          migrados[`${partes[0]}||video|${partes.slice(1).join("|")}`] = estado;
+        }
       }
       return migrados;
     },

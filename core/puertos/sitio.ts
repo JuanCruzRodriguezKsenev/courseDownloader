@@ -25,12 +25,25 @@
  * nadie fuera de su carpeta, no pertenece al puerto.
  */
 
-/** Un enlace de clase tal como lo devuelve el scraper desde el DOM del portal. */
+/** Un enlace de clase tal como lo devuelve el scraper del portal (del DOM o de su API). */
 export interface EnlaceListado {
   /** Texto visible del enlace: el título crudo, sin normalizar. */
   texto: string;
   /** URL absoluta de la página de la clase. */
   href: string;
+  /**
+   * [ESCANEO-API CORTE 1] El módulo del que salió la clase, **ya saneado como nombre de
+   * carpeta**, en portales de dos niveles (producto → módulos → clases).
+   *
+   * Aditivo a propósito: un portal de un solo nivel —Ramón Net— no lo manda, y ausente es un
+   * valor válido que nadie rellena por su cuenta.
+   *
+   * Sirve para dos cosas que conviene no confundir:
+   *   1. **La identidad** de la clase (`core/cola/identidadClase.ts`), donde es el ORIGEN.
+   *   2. La carpeta de destino por omisión, que el popup deriva de él.
+   * La segunda la puede pisar el override del input; la primera **nunca**.
+   */
+  modulo?: string;
 }
 
 /** Lo que devuelve el escaneo del listado de clases de una pestaña. */
@@ -168,10 +181,18 @@ export interface PuertoSitio {
 
   /**
    * Función que se INYECTA en la pestaña del portal (`chrome.scripting.executeScript`)
-   * para leer el listado del DOM. Se entrega CRUDA: executeScript serializa su código
-   * fuente y lo corre en la página, donde no existe ninguna global de la extensión.
+   * para leer el listado. Se entrega CRUDA: executeScript serializa su código fuente y lo
+   * corre en la página, donde no existe ninguna global de la extensión.
+   *
+   * **Puede ser `async`** desde el corte 1 del escaneo por API: `executeScript` espera la
+   * promesa y devuelve su valor resuelto. Eso es lo que habilita leer el listado de la **API
+   * del portal** en vez del DOM — un `fetch` desde la pestaña sale con el origen y el
+   * `localStorage` del portal, cosa que el service worker no puede replicar.
+   *
+   * El único call-site (`popup.js`) hace `await` del resultado, así que las dos formas
+   * conviven: Ramón Net sigue devolviendo sincrónicamente y no se enteró.
    */
-  readonly escanearListado: () => ResultadoEscaneo;
+  readonly escanearListado: () => ResultadoEscaneo | Promise<ResultadoEscaneo>;
 
   /** Título crudo scrapeado → nombre canónico del archivo. */
   parsearTitulo(crudo: string, materiaBase?: string, options?: OpcionesParseo): string;

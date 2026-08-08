@@ -761,10 +761,18 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       if (modoActual === 're-escanear') return; 
 
       const nuevaRuta = nodos.folder.value.trim();
-    
+
       // Actualizar la carpeta de destino en todas las clases no encoladas en caliente (KeyUp)
+      //
+      // [ESCANEO-API CORTE 1] **Una clase que trae `modulo` no se toca.** Su carpeta la decide
+      // su módulo de origen, y escribir el input encima haría dos cosas malas: mandaría los 103
+      // ítems de once módulos a una sola carpeta, y —peor— al BORRAR el input los dejaría en
+      // `""`, que es una carpeta inexistente y un fallo silencioso (riesgo R4).
+      //
+      // El override del input vuelve en el corte 2, pero **sin mutar `c.carpeta`**: vive sólo en
+      // el input y se estampa al encolar. La carpeta del ítem sigue siendo la de su módulo.
       appState.listadoClasesGlobal.forEach(c => {
-        if (c.estado !== 'process') {
+        if (c.estado !== 'process' && !c.modulo) {
           c.carpeta = nuevaRuta;
         }
       });
@@ -862,7 +870,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         chrome.scripting.executeScript({
           target: { tabId: tab.id },
           func: portal.escanearListado
-        }, (resultados) => {
+        }, async (resultados) => {
           clearTimeout(safetyTimeout);
 
           // Controlar de forma resiliente si ocurrió un error de inyección (ej: permisos de host o página de sistema)
@@ -886,7 +894,16 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
           const res = resultados?.[0];
           try {
-            const resultado = res?.result || { materia: "biologia", enlaces: [] };
+            // [ESCANEO-API CORTE 1] `await` porque el escaneo de un portal puede ser `async`
+            // (Anatomy le pide el árbol a su API). `chrome.scripting` ya resuelve la promesa
+            // antes de llamar a este callback, así que el `await` es cinturón y tirantes: sobre
+            // un valor plano no hace nada, y si algún día la API cambia de conducta, no se
+            // rompe en silencio con un `[object Promise]` como listado.
+            //
+            // El default deja de traer `materia: "biologia"`: ese literal era el fallback del
+            // scraper de Ramón Net filtrado a la capa genérica, y en el portal equivocado
+            // mandaba las clases a `raíz/anatomy-by-chris/biologia/`.
+            const resultado = (await res?.result) || { materia: "", enlaces: [] };
             const enlaces = resultado.enlaces;
 
             // [CORTE 7] Las credenciales que el portal expone SÓLO dentro de su pestaña
@@ -900,26 +917,48 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             void credencialesPortal.guardar(portal.id, resultado.credenciales);
 
 
-            nodos.folder.value = resultado.materia || "biologia";
+            // Un portal de dos niveles no tiene UNA materia: tiene una por módulo, y viaja con
+            // cada enlace. Devuelve `materia: ""` y el input queda vacío a propósito — el
+            // placeholder que lo explica lo pone `_carpeta` (corte 2).
+            nodos.folder.value = resultado.materia || "";
 
             if (!enlaces || enlaces.length === 0) {
-              appState.listadoClasesGlobal = itemsEnCola;
-              appState.respaldar();
-              nodos.search.disabled = true;
-              nodos.btnFilterPills.disabled = true;
-              nodos.masterCheck.disabled = true;
-            
-              ListaClases.render({ modo: 'card', card: {
-                tipo: 'info',
-                titulo: 'Sin clases detectadas',
-                descripcion: 'No encontramos enlaces de video en esta pestaña.<br>Asegurate de estar dentro de una clase de Ramón Net y hacé click en Re-escanear.',
-                icono: '🔍'
-              }});
-            
+              // [ESCANEO-API CORTE 1] **NO se destruye la lista.** Antes esta rama hacía
+              // `listadoClasesGlobal = itemsEnCola`, o sea que un escaneo que volvía vacío
+              // —cosa que en Anatomy pasaba por llegar antes de que el sidebar pintara— te
+              // borraba de la pantalla todo lo que ya habías escaneado. Un escaneo fallido no
+              // es información nueva sobre las clases viejas: se avisa y se deja lo que había.
+              const habiaLista = appState.listadoClasesGlobal.length > 0;
+
+              if (habiaLista) {
+                nodos.txtEstado.textContent = "⚠️ El escaneo no devolvió clases. Se conserva la lista anterior.";
+                desbanearFiltros();
+                aplicarFiltrosCruzados();
+              } else {
+                appState.listadoClasesGlobal = itemsEnCola;
+                appState.respaldar();
+                nodos.search.disabled = true;
+                nodos.btnFilterPills.disabled = true;
+                nodos.masterCheck.disabled = true;
+
+                ListaClases.render({ modo: 'card', card: {
+                  tipo: 'info',
+                  titulo: 'Sin clases detectadas',
+                  // El nombre del portal sale del descriptor. Estaba hardcodeado "Ramón Net", y
+                  // en el otro portal el cartel mandaba al usuario al lugar equivocado.
+                  descripcion: `No encontramos clases en esta pestaña.<br>Asegurate de estar dentro de ${Utils.escaparHtml(portal.nombre)} y hacé click en Re-escanear.`,
+                  icono: '🔍'
+                }});
+              }
+
               configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
             } else {
               const nuevasClases = enlaces.map((item, idx) => {
-                const materiaBase = nodos.folder.value.trim();
+                // [ESCANEO-API CORTE 1] La base de la carpeta sale del MÓDULO de la clase si el
+                // portal es de dos niveles, y sólo cae al input cuando no lo es. Así
+                // `clasificarCarpeta` ya devuelve la carpeta por clase y no hubo que tocar el
+                // parser de títulos de ningún portal.
+                const materiaBase = item.modulo || nodos.folder.value.trim();
                 const tituloFinalEstandar = portal.parsearTitulo(item.texto, materiaBase);
                 const clasif = portal.clasificarCarpeta(item.texto, materiaBase);
 
@@ -928,6 +967,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
                   numeroOriginal: idx + 1,
                   titulo: tituloFinalEstandar,
                   urlInterna: item.href,
+                  // El módulo de ORIGEN. Es media identidad de la clase
+                  // (`core/cola/identidadClase.ts`) y por eso se persiste con ella: sin él, los
+                  // 7 títulos que Anatomy repite en dos módulos son un solo ítem para la cola.
+                  // No confundir con `carpeta`, que es el destino y lo puede pisar el override.
+                  modulo: item.modulo,
                   // ADR-0010: de qué portal salió. Se estampa ACÁ, que es el único momento en
                   // que se sabe con certeza — el escaneo corre sobre una pestaña concreta.
                   // Después la cola es independiente de la pestaña y ya no habría cómo deducirlo.
@@ -983,15 +1027,36 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         }
       });
 
-      // Inyectores lógicos del resolvedor final de nombres
-      const resolverMapeoEnUI = (nombresEnDisco) => {
-        try {
-          const setArchivosNormalizados = new Set(
-            nombresEnDisco.map(nom => nom.toLowerCase().trim())
-          );
+      // [ESCANEO-API CORTE 1] La clave del par (portal, carpeta) en la que vive una clase en
+      // disco (`raíz/<portal>/<carpeta>/`). Vive en UNA función porque la usan los dos lados —
+      // el que pide los listados y el que los cruza— y si divergieran el match fallaría entero,
+      // en silencio y con toda la lista dando "pendiente".
+      const clavePar = (clase) => {
+        const idPortal = sitios.obtener(clase && clase.sitioId)?.id;
+        if (!idPortal) return null; // huérfano: no sabemos en qué carpeta de portal buscar
+        return `${idPortal}|${clase.carpeta || subcarpetaFiltro}`;
+      };
 
+      // Inyectores lógicos del resolvedor final de nombres
+      //
+      // [ESCANEO-API CORTE 1] Recibe un MAPA `par → archivos`, no una lista aplanada. Antes se
+      // volcaban en un solo Set los archivos de todas las carpetas, así que un `Miologia 1.mp4`
+      // bajado en `miembro_superior/` marcaba como descargada también a la de `miembro_inferior/`
+      // — que nunca se bajaba (riesgo R5). Con un módulo por portal el aplanado era inocuo;
+      // con once, no.
+      const resolverMapeoEnUI = (archivosPorPar) => {
+        try {
           appState.listadoClasesGlobal.forEach(clase => {
-            if (clase.estado === 'process') return; 
+            if (clase.estado === 'process') return;
+
+            const setArchivosNormalizados = archivosPorPar.get(clavePar(clase));
+            // Sin listado para su par (huérfana, o la carpeta no se pudo escanear) la clase
+            // queda pendiente: es el default seguro. Darla por descargada la escondería.
+            if (!setArchivosNormalizados) {
+              clase.estado = 'pending';
+              clase.seleccionado = perteneceASeleccionFaceta(clase);
+              return;
+            }
 
             const tituloNormalizado = clase.titulo.toLowerCase().trim();
             let yaExiste = setArchivosNormalizados.has(tituloNormalizado);
@@ -1036,10 +1101,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // crudo, así que una clase anterior al multi-sitio se busca en la carpeta del legado.
       const paresUnicos = new Map();
       appState.listadoClasesGlobal.forEach(c => {
-        const carpeta = c.carpeta || subcarpetaFiltro;
-        const idPortal = sitios.obtener(c && c.sitioId)?.id;
-        if (!idPortal) return; // huérfano: no sabemos en qué carpeta de portal buscar
-        paresUnicos.set(`${idPortal}|${carpeta}`, { idPortal, carpeta });
+        const clave = clavePar(c);
+        if (!clave) return; // huérfano
+        paresUnicos.set(clave, { idPortal: sitios.obtener(c.sitioId).id, carpeta: c.carpeta || subcarpetaFiltro });
       });
       if (paresUnicos.size === 0) {
         const idPortal = sitioActivo.id;
@@ -1047,26 +1111,33 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       }
 
       try {
-        let todosLosArchivos = [];
-        const promesas = Array.from(paresUnicos.values()).map(({ idPortal, carpeta: carp }) =>
+        // El resultado de cada par se queda ATADO a su par (antes se aplanaba). El `.catch`
+        // devuelve el par con lista vacía en vez de nada, para que una carpeta que no se pudo
+        // leer se distinga de una carpeta vacía... y para que las demás igual se crucen.
+        const promesas = Array.from(paresUnicos.entries()).map(([clave, { idPortal, carpeta: carp }]) =>
           backend.escanearDisco(carp, idPortal)
-            .then(data => data?.archivos || [])
+            .then(data => [clave, data?.archivos || []])
             .catch(e => {
               if (e instanceof TypeError || e.message?.includes("fetch") || e.message?.includes("connect")) {
                 throw e;
               }
               console.warn(`⚠️ No se pudo escanear la carpeta ${idPortal}/${carp}:`, e.message);
-              return [];
+              return [clave, []];
             })
         );
         const resultados = await Promise.all(promesas);
-        todosLosArchivos = resultados.flat();
+        const archivosPorPar = new Map(
+          resultados.map(([clave, archivos]) => [
+            clave,
+            new Set(archivos.map(nom => String(nom).toLowerCase().trim())),
+          ])
+        );
 
         // (el puntito de estado lo maneja la isla Preact features/conexionHeader.preact.js)
         const tabsBar = document.querySelector(".tabs-bar");
         if (tabsBar) tabsBar.style.display = "flex";
-      
-        resolverMapeoEnUI(todosLosArchivos);
+
+        resolverMapeoEnUI(archivosPorPar);
       } catch (errFetch) {
         console.error("❌ [UI-ERROR] Imposible conectar con el escáner de Bun:", errFetch.message);
         activarEstadoOfflineUI();
