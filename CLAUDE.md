@@ -2,54 +2,58 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> ## ⚠️ Trabajo en curso — leer esto primero
+> ## ✅ Estado al 2026-08-07 — no hay trabajo a medio terminar
 >
-> **⚠️ El trabajo vive en una rama, no en `main`**: `escaneo-api-anatomy`, sin pushear. El corte 7
-> (el segundo portal) **ya está en `main`** desde el 2026-08-07, verificado en navegador.
+> **`main` está al día y verificado en navegador.** Los dos frentes grandes cerraron el mismo día:
+> el **segundo portal** (Anatomy by Chris, corte 7) y el **escaneo por API** con sus cinco cortes.
+> No queda ninguna rama con trabajo pendiente de mergear.
 >
-> **Empezá por `docs/escaneo-api-anatomy-diseno.md`**, cuyo banner tiene la tabla de los cinco
-> cortes y lo que hay que mirar primero al verificar. Para el contexto de fases y las 4
-> verificaciones del gate: `docs/rearquitectura-diseno.md` §Cómo retomar esto en una sesión nueva.
+> **Nada está pusheado**: `origin/main` está 19 commits atrás.
+>
+> **⚠️ Y hay otro repo que va con éste**: `ramonnet-bun-backend` (al lado de éste, en `Dev/`) tiene
+> **dos commits que hacen falta para los PDF** (`8797ec6` + `79726a9`). Una extensión nueva contra
+> un backend viejo funciona igual, pero los adjuntos salen `Atlas.pdf.mp4`. Contrato →
+> `docs/deployment.md` §`x-file-name`.
+>
+> **Por dónde empezar**: `docs/architecture.md`, y `docs/rearquitectura-diseno.md` §Cómo retomar
+> esto en una sesión nueva para el estado por fase y las 4 verificaciones del gate.
 >
 > El resto es una línea y el puntero; el detalle vive en el doc, no acá (ADR-0007):
 >
 > - **Re-arquitectura** (puertos y adaptadores + TS + WXT): fases 0–8a completas, la 8b es
 >   *decisión abierta*, no pendiente → `docs/rearquitectura-diseno.md` §Estado de avance.
-> - **Multiportal** (una extensión, N portales): terminado y mergeado el 2026-08-06, verificado en
->   navegador → `docs/multisitio-diseno.md`, y su §Cómo escribir un portal nuevo si venís a eso.
-> - **Segundo portal** (Anatomy by Chris, sobre Hotmart Club): en `main`, con sus cuatro casillas
->   de verificación cerradas → `docs/portal-anatomy-by-chris-diseno.md`.
-> - **Escaneo por API** (los 5 cortes de abajo): construido **y verificado en navegador** →
->   `docs/escaneo-api-anatomy-diseno.md`. Su corte 5 **tocó el otro repo**: `ramonnet-bun-backend`
->   necesitó tres cambios para que un PDF no salga `.pdf.mp4` → `docs/deployment.md` §`x-file-name`.
-> - **Backlog**: la deuda 🔴 de la identidad quedó cerrada el mismo día (ADR-0014). Lo único que
->   sigue abierto son 6 strings de `popup.js` que nombran a Ramón Net, y su freno ya se puede
->   levantar → `docs/TECHNICAL_DEBT.md` §🔴 Abierto.
+> - **Multiportal** (una extensión, N portales): terminado el 2026-08-06 →
+>   `docs/multisitio-diseno.md`, y su §Cómo escribir un portal nuevo si venís a eso.
+> - **Segundo portal** (Anatomy by Chris, sobre Hotmart Club) →
+>   `docs/portal-anatomy-by-chris-diseno.md`.
+> - **Escaneo por API** (5 cortes: identidad, escaneo, override de carpeta, 720p, PDF) →
+>   `docs/escaneo-api-anatomy-diseno.md`, cuyo banner tiene la tabla y los cuatro arreglos que
+>   costó bajar el primer PDF.
+> - **Backlog**: la deuda 🔴 de la identidad quedó cerrada (ADR-0014). Lo único abierto son 6
+>   strings de `popup.js` que nombran a Ramón Net, y su freno **ya se puede levantar** →
+>   `docs/TECHNICAL_DEBT.md` §🔴 Abierto.
 >
-> **Los cinco cortes del 2026-08-07, en una línea cada uno**: (1) la identidad pasa a
-> `(portal, módulo, tipo, título)` y el escaneo le pide el árbol a `/v1/navigation` —11 módulos y
-> 114 clases en una llamada, en vez de un módulo por vez—, con la carpeta por módulo; (2) el input
-> de carpeta vuelve como **override visible y no destructivo**; (3) tests, docs y ADR-0014; (4) la
-> calidad se topea en **720p**, por rango y no por igualdad; (5) los **PDF adjuntos** entran a la
-> cola (15 lecciones, el 13 % del curso).
+> ### Lo que este proyecto cobra caro, y conviene saber antes de tocar nada
 >
-> **LA PRÓXIMA ACCIÓN: mergear `escaneo-api-anatomy` a `main`.** Está verificado en navegador —
-> escaneo, videos, PDF y las métricas de progreso—, y con eso se cumple la condición para mergear.
-> Lo que la verificación NO registró es un desglose punto por punto: es un "funciona" global, del
-> mismo tipo que la casilla 4 del corte 7, y así está anotado en el doc.
+> **Los tests no ven lo que importa.** El corte 7 costó cuatro arreglos que ningún test podía ver;
+> el escaneo por API destapó **once** más — siete al construir (cinco objetos-identidad armados a
+> mano con dos campos, incluido el propio bucle de descarga, que anulaba el arreglo entero) y
+> cuatro al bajar el primer PDF. De ahí sale la regla, no de la ceremonia: **una rama por corte, y
+> no se mergea sin probarlo en Chrome.**
 >
-> **Ojo con el otro repo**: `ramonnet-bun-backend` tiene dos commits que van con esto
-> (`8797ec6` + `79726a9`). Una extensión nueva contra un backend viejo funciona igual, pero los
-> PDF salen `.pdf.mp4`.
+> Tres patrones que ya se cobraron varias veces cada uno:
 >
-> **Y no la saltees**: los tres únicos defectos que llegaron a `main` en toda la re-arquitectura
-> los encontró usar la extensión, no la suite; el corte 7 costó **cuatro arreglos** que ningún test
-> podía ver; construir estos cinco cortes destapó **siete** lugares más que el compilador no puede
-> ver —cinco objetos-identidad armados a mano con dos campos, y dos defectos del propio corte 1—; y
-> bajar el primer PDF costó **otros cuatro**, tres de ellos por la misma asimetría (la medición se
-> hizo desde una pestaña, que manda `Origin`/`Referer`/cookies sola, y el service worker no). De ahí sale la regla (una rama por corte, y no se mergea sin probarlo en Chrome), no de
-> la ceremonia. **Lo que la suite no puede ver: el empaquetado, el orden de carga de los globals,
-> el núcleo de `popup.js` y cualquier efecto cuyo destino no sea el popup.** Los 7 puntos a mirar →
+> 1. **Cada eje nuevo desborda la clave de identidad**, y el síntoma es silencioso (un ítem
+>    desaparece cuando otro termina; una clase se re-descarga para siempre). Antes de agregar algo
+>    a lo que la extensión enumera: ¿dos de ellas pueden compartir clave? → ADR-0014.
+> 2. **Medir desde una pestaña miente sobre el service worker**: el navegador manda `Origin`,
+>    `Referer` y cookies solo, y el SW no manda ninguno. Tres 401/403 distintos salieron de ahí.
+> 3. **Un predicado que filtra por extensión filtra más de una cosa.** Aflojar `endsWith(".mp4")`
+>    para que entraran los PDF dejó entrar también los `.part`, y eso marcaba como descargada la
+>    clase que se estaba bajando.
+>
+> **Lo que la suite no puede ver**: el empaquetado, el orden de carga de los globals, el núcleo de
+> `popup.js` y cualquier efecto cuyo destino no sea el popup. Los 7 puntos a mirar →
 > `docs/rearquitectura-diseno.md` §Verificación en navegador.
 
 ## Cómo responderle al dueño de este repo
