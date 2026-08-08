@@ -95,8 +95,13 @@ export async function handleEscanearDisco(url, corsHeaders) {
     // al adjunto NO. La extensión compara estos nombres contra el título de la clase, y el
     // título de un video no lleva extensión (`Clase 1`) mientras que el de un adjunto SÍ
     // (`Atlas.pdf`) — es su nombre de archivo. Devolver `atlas` no matchearía nunca.
+    // ⚠️ **Los `.part` quedan afuera, y esto no es prolijidad.** Mientras el filtro era
+    // `endsWith(".mp4")` quedaban excluidos solos; al abrirlo a todos los archivos volvieron a
+    // entrar, y el efecto es feo y silencioso: durante una descarga hay un `Clase 1.mp4.part` en
+    // la carpeta, la extensión lo cruza con `nom.includes(titulo)` y marca como **descargada la
+    // clase que se está bajando en ese momento**.
     const nombresLimpios = items
-      .filter(item => item.isFile())
+      .filter(item => item.isFile() && !item.name.toLowerCase().endsWith(".part"))
       .map(item =>
         item.name.toLowerCase().endsWith(".mp4")
           ? item.name.replace(/\.[^/.]+$/, "").toLowerCase().trim()
