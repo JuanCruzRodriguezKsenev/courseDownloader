@@ -45,7 +45,8 @@ declare const ResolverManifiestoAnatomy: {
   resolver(
     urlClase: string,
     signal?: AbortSignal,
-    credenciales?: Record<string, string>
+    credenciales?: Record<string, string>,
+    alturaMaxima?: number
   ): Promise<string>;
 };
 declare const ScraperAnatomy: {
@@ -64,6 +65,16 @@ interface SitioAnatomyDescriptor extends PuertoSitio {
   slugCurso: string;
   /** Id numérico del producto, el que la URL lleva en `/products/<id>`. */
   productId: string;
+  /**
+   * [CORTE 4] Tope de calidad, en altura de línea. La escalera del CDN, medida el 2026-08-07:
+   * 240 / 360 / 540 / **720** / 1080 — no hay 480.
+   *
+   * No entra al puerto porque **no lo lee nadie fuera de esta carpeta**: se lo pasa el descriptor
+   * a su propio `resolverManifiesto`. La regla que lo consume es por RANGO, nunca por igualdad
+   * (ver `resolverManifiesto.js` §elegirVariante), así que este número puede no existir en la
+   * escalera y el algoritmo elige vecino igual.
+   */
+  alturaMaxima: number;
 }
 
 const SitioAnatomyByChris: SitioAnatomyDescriptor = {
@@ -77,6 +88,12 @@ const SitioAnatomyByChris: SitioAnatomyDescriptor = {
 
   slugCurso: "anatomy-by-chris",
   productId: "6083220",
+
+  // 720p ≈ 119 MB/hora. La referencia real: los 29 videos ya bajados de Ramón Net dan 243 MB/h
+  // a 480p, o sea que Hotmart comprime tanto que su 1080p (173 MB/h) YA pesa menos que el 480p
+  // que se viene bajando todos los días. Elegido con esa tabla a la vista: la mitad que su
+  // normal de Ramón Net, y con más definición que él.
+  alturaMaxima: 720,
 
   // Sonda de "hay internet" del daemon de conexión: el sitio objetivo, no un genérico.
   urlSondeoInternet: "https://hotmart.com",
@@ -105,8 +122,12 @@ const SitioAnatomyByChris: SitioAnatomyDescriptor = {
   // Se referencian perezosamente (arrow / getter) para no depender del orden de evaluación
   // de los imports del entrypoint.
 
-  resolverManifiesto: (urlClase, signal, credenciales) =>
-    ResolverManifiestoAnatomy.resolver(urlClase, signal, credenciales),
+  // El tope de calidad viaja como cuarto parámetro: el VALOR es del portal (vive acá) y el
+  // ALGORITMO que lo aplica es del resolvedor. No se importa al revés porque el `.js` no puede
+  // leer este `.ts` con `allowJs: false`.
+  resolverManifiesto(urlClase, signal, credenciales) {
+    return ResolverManifiestoAnatomy.resolver(urlClase, signal, credenciales, this.alturaMaxima);
+  },
 
   // Getter y no arrow: hay que entregar la función CRUDA, porque `executeScript` serializa su
   // código fuente y lo corre en la página. Envolverla rompería la inyección.

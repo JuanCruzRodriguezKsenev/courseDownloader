@@ -113,8 +113,11 @@ const ResolverManifiestoAnatomy = {
    * @param {AbortSignal} [signal]
    * @param {{ idToken?: string }} [credenciales] Cosechadas por el scraper en la pestaña
    *        (`core/estado/credencialesPortal.ts`). Sin ellas no se puede ni empezar.
+   * @param {number} [alturaMaxima] Tope de calidad del portal, que lo pone `config.ts` — el
+   *        VALOR es del portal y el ALGORITMO de acá. Se pasa por parámetro y no se importa
+   *        porque este `.js` no puede leer el `.ts` del descriptor (`allowJs: false`).
    */
-  async resolver(urlClase, signal, credenciales) {
+  async resolver(urlClase, signal, credenciales, alturaMaxima) {
     // Una URL mal formada es de ESTA clase y de ninguna otra: se saltea y la cola sigue.
     const hash = (RE_HASH_LECCION.exec(urlClase || "") || [])[1];
     if (!hash) {
@@ -248,31 +251,54 @@ const ResolverManifiestoAnatomy = {
     }
     const textoMaster = await rMaster.text();
 
-    return ResolverManifiestoAnatomy.elegirVariante(textoMaster, master);
+    return ResolverManifiestoAnatomy.elegirVariante(textoMaster, master, alturaMaxima);
   },
 
   /**
    * Playlist master → URL absoluta de la variante elegida.
    *
-   * **Criterio: la de mayor `BANDWIDTH`.** Ramón Net baja una calidad fija (480p) porque su
-   * plantilla la clavaba; acá no hay plantilla, y el usuario está bajando clases para verlas,
-   * no para ahorrar disco.
+   * **EL CRITERIO, Y POR QUÉ ES UN RANGO Y NO UN NÚMERO**
+   * ------------------------------------------------------
+   *     el escalón MÁS ALTO cuyo `RESOLUTION` no pase de `alturaMaxima`;
+   *     si ninguno baja de ahí, el MÁS CHICO disponible.
+   *
+   * Nunca una búsqueda exacta ("dame 720"). El día que Hotmart mueva la escalera, una búsqueda
+   * exacta no encuentra nada y se rompe **hacia el peor lado posible**: devolver el master, que
+   * `hlsEngine` no distingue de una playlist de medios y baja como si fuera un `.ts`, mandándole
+   * al backend un archivo de KB sin un error en ningún lado. Con la regla por rango, el mismo
+   * cambio de escalera degrada sola a la calidad vecina.
+   *
+   * La escalera medida el 2026-08-07 (clase *Osteologia*): 240 / 360 / 540 / 720 / 1080.
+   * **No hay escalón 480**, así que "clavarlo en 480" era irrealizable tal cual — hay que
+   * elegir vecino, que es exactamente lo que hace esta regla.
+   *
+   * `alturaMaxima` la pone el PORTAL (`config.ts`), no este archivo: es una decisión de
+   * producto, no del algoritmo.
+   *
+   * **El fallback a `BANDWIDTH`** cubre un master cuyas variantes no declaren `RESOLUTION`
+   * (es opcional en el estándar). Ahí no hay altura que comparar y se elige la de mayor ancho
+   * de banda, que era el criterio anterior de este método.
    *
    * Si el texto NO es un master (no tiene `#EXT-X-STREAM-INF`) se devuelve la URL original:
    * ya es una playlist de medios y el motor la puede leer tal cual. Eso deja este resolvedor
    * a salvo de que Hotmart cambie a servir la playlist directo.
+   *
+   * @param {string} textoMaster
+   * @param {string} urlMaster
+   * @param {number} [alturaMaxima] Tope del portal. Sin tope, se comporta como antes.
    */
-  elegirVariante(textoMaster, urlMaster) {
+  elegirVariante(textoMaster, urlMaster, alturaMaxima) {
     const lineas = String(textoMaster || "").split(/\r?\n/);
-    let mejorAncho = -1;
-    let mejorUrl = "";
+
+    /** @type {{ alto: number, ancho: number, uri: string }[]} */
+    const variantes = [];
 
     for (let i = 0; i < lineas.length; i++) {
       const linea = lineas[i].trim();
       if (linea.indexOf("#EXT-X-STREAM-INF") !== 0) continue;
 
       const mBw = /BANDWIDTH=(\d+)/.exec(linea);
-      const ancho = mBw ? parseInt(mBw[1], 10) : 0;
+      const mRes = /RESOLUTION=(\d+)x(\d+)/.exec(linea);
 
       // La URI de la variante es la primera línea no vacía y no-comentario que sigue.
       let j = i + 1;
@@ -280,10 +306,27 @@ const ResolverManifiestoAnatomy = {
       const uri = j < lineas.length ? lineas[j].trim() : "";
       if (!uri) continue;
 
-      if (ancho > mejorAncho) {
-        mejorAncho = ancho;
-        mejorUrl = uri;
-      }
+      variantes.push({
+        alto: mRes ? parseInt(mRes[2], 10) : 0,
+        ancho: mBw ? parseInt(mBw[1], 10) : 0,
+        uri: uri,
+      });
+    }
+
+    let mejorUrl = "";
+
+    // Con altura declarada en alguna variante, manda la altura. Se ordena de mayor a menor y se
+    // toma la primera que entra en el tope; si ninguna entra, la última (la más chica).
+    const conAltura = variantes.filter((v) => v.alto > 0);
+    if (conAltura.length > 0) {
+      conAltura.sort((a, b) => b.alto - a.alto);
+      const tope = typeof alturaMaxima === "number" && alturaMaxima > 0 ? alturaMaxima : Infinity;
+      const elegida =
+        conAltura.find((v) => v.alto <= tope) || conAltura[conAltura.length - 1];
+      mejorUrl = elegida.uri;
+    } else if (variantes.length > 0) {
+      // Sin `RESOLUTION` en ninguna: criterio viejo, el mayor `BANDWIDTH`.
+      mejorUrl = variantes.reduce((a, b) => (b.ancho > a.ancho ? b : a)).uri;
     }
 
     if (!mejorUrl) {

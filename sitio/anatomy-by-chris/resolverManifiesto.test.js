@@ -325,3 +325,80 @@ describe('elegirVariante', () => {
     );
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [CORTE 4] El tope de calidad.
+//
+// La regla NO es "dame 720": es *el escalón más alto que no pase del tope; si ninguno baja de
+// ahí, el más chico*. La diferencia importa porque una búsqueda exacta se rompe el día que el
+// CDN mueva la escalera, y se rompe hacia el peor lado — devolver el master, que `hlsEngine` no
+// distingue de una playlist de medios (baja el `.m3u8` creyéndolo un `.ts`, sin error).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** La escalera REAL, medida el 2026-08-07 sobre la clase *Osteologia*. Ojo: NO hay 480. */
+const ESCALERA_REAL = `#EXTM3U
+#EXT-X-STREAM-INF:BANDWIDTH=136000,RESOLUTION=400x240
+v-240.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=170000,RESOLUTION=600x360
+v-360.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=222000,RESOLUTION=900x540
+v-540.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=277000,RESOLUTION=1200x720
+v-720.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=403000,RESOLUTION=1800x1080
+v-1080.m3u8
+`;
+
+describe('elegirVariante — el tope de calidad', () => {
+  const elegir = (texto, tope) =>
+    ResolverManifiestoAnatomy.elegirVariante(texto, URL_MASTER, tope);
+
+  it('con la escalera real y tope 720, elige 720', () => {
+    expect(elegir(ESCALERA_REAL, 720)).toContain('v-720.m3u8');
+  });
+
+  it('con tope 480 elige 360, porque NO existe el escalón 480', () => {
+    // El hallazgo que dio vuelta la decisión: "clavarlo en 480p" era irrealizable tal cual.
+    expect(elegir(ESCALERA_REAL, 480)).toContain('v-360.m3u8');
+  });
+
+  it('con tope 1080 elige 1080: el tope no obliga a bajar de calidad', () => {
+    expect(elegir(ESCALERA_REAL, 1080)).toContain('v-1080.m3u8');
+  });
+
+  it('si el CDN saca el escalón del tope, degrada al vecino de abajo en vez de romperse', () => {
+    // Riesgo R7. Con una búsqueda exacta, este caso devolvía el master: el fallo silencioso.
+    const sin720 = ESCALERA_REAL.split('#EXT-X-STREAM-INF:BANDWIDTH=277000,RESOLUTION=1200x720\nv-720.m3u8\n').join('');
+    expect(elegir(sin720, 720)).toContain('v-540.m3u8');
+  });
+
+  it('si TODOS los escalones superan el tope, elige el más chico', () => {
+    // Nunca "ninguno": quedarse sin variante caería en el throw, que pausa la cola entera por
+    // algo que tiene una respuesta razonable.
+    expect(elegir(ESCALERA_REAL, 100)).toContain('v-240.m3u8');
+  });
+
+  it('con una sola variante la toma, entre o no en el tope', () => {
+    const una = '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=403000,RESOLUTION=1800x1080\nv-1080.m3u8\n';
+    expect(elegir(una, 720)).toContain('v-1080.m3u8');
+  });
+
+  it('sin RESOLUTION en ninguna variante cae al criterio viejo: el mayor BANDWIDTH', () => {
+    // `RESOLUTION` es opcional en el estándar. Sin altura que comparar no hay regla que aplicar.
+    const sinRes =
+      '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=100\nchica.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=900\ngrande.m3u8\n';
+    expect(elegir(sinRes, 720)).toContain('grande.m3u8');
+  });
+
+  it('sin tope se queda con la más alta: el tope es del portal, no del algoritmo', () => {
+    expect(elegir(ESCALERA_REAL, undefined)).toContain('v-1080.m3u8');
+  });
+
+  it('lo que devuelve es SIEMPRE una variante, nunca el master', () => {
+    // La mitad silenciosa del bug: `hlsEngine` toma toda línea sin `#` como fragmento, así que
+    // ante un master baja el `.m3u8` creyéndolo un `.ts` y manda al backend un archivo de KB.
+    const elegida = elegir(ESCALERA_REAL, 720);
+    expect(elegida).not.toBe(URL_MASTER);
+    expect(elegida).toContain('v-720.m3u8');
+  });
+});
