@@ -14,8 +14,10 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 ## 🔴 Abierto
 
-> **Al 2026-08-07 lo único abierto de esta sección son los 6 strings de `popup.js`** que nombran
-> a Ramón Net (segunda entrada). La entrada de la identidad quedó **resuelta** el mismo día que se
+> **Al 2026-08-07 lo único abierto de esta sección es el copy genérico que nombra a Ramón Net**
+> (segunda entrada). Decía "6 strings de `popup.js`" hasta que el re-relevamiento del 2026-08-11
+> lo midió bien: son **9 textos en 17 sitios**, y el inventario vive en
+> `docs/copy-generico-diseno.md`. La entrada de la identidad quedó **resuelta** el mismo día que se
 > encontró (ADR-0014) y se conserva acá, y no en el registro fechado de abajo, porque lo que
 > enseñó sigue valiendo cada vez que se toca la cola o el escaneo.
 >
@@ -161,6 +163,19 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
   menos—, y **filtrando comentarios**, o cuenta de más. El nombre correcto sale del descriptor
   (`sitio.nombre`), que el popup ya recibe: es el mismo camino que ya usan el cartel de "sin
   clases detectadas" y la tarjeta de error.
+
+- **Re-medido el 2026-08-11, y el "6" era corto: son 9 textos en 17 sitios.** El inventario
+  completo, la regla de decisión y el corte propuesto viven ahora en su propio doc →
+  **`docs/copy-generico-diseno.md`** (relevamiento y propuesta; **nada decidido ni construido**).
+  No se copian acá: este ítem es el hogar del *estado*, ese doc el del *cómo* (ADR-0007).
+  Lo que sí corresponde corregir acá es el conteo y su causa, porque es la tercera vez que
+  envejece **y siempre a la baja por el mismo motivo**: se buscó el *nombre* del portal y no
+  *su jerga*. La familia `"aula virtual"` —7 sitios, entre ellos el label del botón
+  "Re-escanear aula virtual 🔄" que aparece 5 veces— estaba desde el principio y no la vio
+  ninguna de las tres mediciones. **Al re-medir, buscar también "cátedra", "aula",
+  "clases grabadas", "comisión".** Y el barrido va sobre toda la capa genérica, no sólo
+  `popup.js`: se le habían escapado `entrypoints/popup/index.html` (4) y
+  `popup/features/onboarding.preact.js` (2).
 
 #### Sub-ítem: el click en la notificación de fallo enfoca el portal equivocado
 
