@@ -20,6 +20,12 @@
  *   del auto-heal, que pasa seguido. Las PESTAÑAS quedan operativas —con el servidor caído
  *   sigue siendo legítimo mirar la cola— y el progreso, si hay una descarga, se queda en
  *   pantalla bloqueado en vez de desaparecer.
+ * - [ALERTA ⇒ NINGUNA ACCIÓN] `actualizarContadoresBoton` mira la alerta ANTES que la pestaña.
+ *   Sin eso el footer lo decidía la pestaña: con el servidor caído, pasar a Fila mostraba
+ *   "Iniciar descarga masiva 🚀" y volver a Clases mostraba "Seleccioná clases". La función
+ *   conocía la cola pausada (`fallaConexionActiva`) y no la otra alerta, que es un estado
+ *   distinto y más grave. Los dos botones se apagan juntos, porque `btnStartQueue` lo enciende
+ *   `conmutarPestañaA` sin consultar nada.
  * - [EL BOTÓN, SEGÚN HAYA ALGO QUE HACER] Sin label no se muestra, y `configurarBotonesUX` es
  *   quien lo decide. Con la alerta de conexión no hay ninguna acción (la reconexión es
  *   automática) → se va; con la cola pausada sí la hay → "Reintentar 🔄". La regla que queda:
@@ -1717,6 +1723,25 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     function calcularContadoresBoton() {
       actualizarMasterCheckState();
       actualizarModoSeleccion();
+
+      // [ALERTA ⇒ NINGUNA ACCIÓN] Va PRIMERO, antes que cualquier otra rama, porque manda sobre
+      // la pestaña y sobre la selección: con la alerta de conexión en pantalla no hay nada que
+      // el usuario pueda hacer desde el footer —no se puede iniciar una descarga contra un
+      // servidor que no está, ni encolar contra una lista que no se ve—.
+      //
+      // Sin esto, el estado del footer lo decidía la PESTAÑA: pasar a Fila mostraba "Iniciar
+      // descarga masiva 🚀" y volver a Clases mostraba "Seleccioná clases", los dos con el
+      // servidor caído. La función miraba `fallaConexionActiva` (la cola pausada) y no sabía
+      // que existe la otra alerta, que es un estado distinto y más grave.
+      //
+      // Los dos botones se van juntos: `btnStartQueue` lo enciende `conmutarPestañaA` sin
+      // consultar nada, así que apagarlo acá —que corre después— es lo que cierra el paso.
+      if (BannerConexion.get().visible) {
+        configurarBotonesUX("sincronizar-disco", "", true); // sin label ⇒ oculto
+        nodos.btnStartQueue.style.display = 'none';
+        nodos.masterCheck.disabled = true;
+        return;
+      }
 
       if (appState.fallaConexionActiva) {
         // [BANNER DUEÑO DEL DIAGNÓSTICO] Un solo texto para los cinco tipos de pausa, y es un
