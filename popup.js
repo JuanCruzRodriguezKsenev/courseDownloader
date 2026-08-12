@@ -1452,7 +1452,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           ListaClases.render({ modo: 'card', card: {
             tipo: 'error',
             titulo: 'Servidor Desconectado',
-            descripcion: `El servidor local de Bun se desconectó.<br>Por favor, ejecutá <strong>iniciar.bat</strong> para reanudar.<br><br><strong>Pausado en:</strong> ${titulo}`,
+            descripcion: `El servidor local de Bun se desconectó.<br>Por favor, ejecutá <strong>backend/iniciar.bat</strong> para reanudar.<br><br><strong>Pausado en:</strong> ${titulo}`,
             icono: '🔌'
           }});
         } else {

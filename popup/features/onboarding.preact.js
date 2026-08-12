@@ -121,7 +121,7 @@ export function Onboarding({ conexion, appState, sitio: sitioInyectado }) {
             <div class="onboarding-slide">
               <div class="onboarding-icon">🔌</div>
               <h3>Conectá tu Servidor</h3>
-              <p>Ejecutá <strong>iniciar.bat</strong>. El servidor debe quedar abierto (podés minimizar la consola y no tenés que hacer nada más).</p>
+              <p>Ejecutá <strong>backend/iniciar.bat</strong>. El servidor debe quedar abierto (podés minimizar la consola y no tenés que hacer nada más).</p>
             </div>
             <div class="onboarding-slide">
               <div class="onboarding-icon">📁</div>
@@ -134,7 +134,7 @@ export function Onboarding({ conexion, appState, sitio: sitioInyectado }) {
                 class="btn-adv-primary"
                 style="margin-top: 10px; padding: 6px 14px; font-size: var(--text-sm);"
                 disabled=${!servidorOk}
-                title=${servidorOk ? 'Seleccionar carpeta principal de descargas' : 'Servidor desconectado. Ejecutá iniciar.bat primero.'}
+                title=${servidorOk ? 'Seleccionar carpeta principal de descargas' : 'Servidor desconectado. Ejecutá backend/iniciar.bat primero.'}
                 onClick=${() => { if (typeof _store.onExplore === 'function') _store.onExplore(); }}
               >📂 Seleccionar Carpeta</button>
             </div>

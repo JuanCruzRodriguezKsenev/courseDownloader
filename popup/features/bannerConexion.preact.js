@@ -34,7 +34,7 @@ const TARJETAS_OFFLINE = {
   servidor: {
     icono: '🔌',
     titulo: 'Servidor Desconectado',
-    cuerpo: 'Por favor, iniciá el servidor ejecutando <strong>iniciar.bat</strong> en tu PC.<br>La extensión se sincronizará sola apenas esté encendido.',
+    cuerpo: 'Por favor, iniciá el servidor ejecutando <strong>backend/iniciar.bat</strong> en tu PC.<br>La extensión se sincronizará sola apenas esté encendido.',
     pulso: 'Esperando conexión en puerto 3001...',
   },
   internet: {

@@ -2,7 +2,7 @@
 
 Inventario vivo de problemas conocidos en el código actual, ordenados por severidad. Cada ítem indica ubicación exacta, impacto y la solución propuesta. Este documento se actualiza a medida que se resuelven o aparecen nuevos hallazgos — no es un snapshot histórico (para eso está el changelog de cada archivo y el historial de git).
 
-Última auditoría: 2026-08-07.
+Última auditoría: 2026-08-12.
 
 **Lo que está abierto vive en la sección de abajo, y nada más.** Todo lo que sigue después
 (Seguridad, Mantenibilidad, Testing, Robustez, Menores) está ✅ resuelto y se conserva como
@@ -14,29 +14,64 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 ## 🔴 Abierto
 
-> **Al 2026-08-07 lo único abierto de esta sección es el copy genérico que nombra a Ramón Net**
-> (segunda entrada). Decía "6 strings de `popup.js`" hasta que el re-relevamiento del 2026-08-11
-> lo midió bien: eran **9 textos en 17 sitios** —**7 en 12 desde el 2026-08-12**, cuando el rename
-> a Course Downloader cerró de arrastre los 4 de la marca—, y el inventario vive en
-> `docs/copy-generico-diseno.md`. La entrada de la identidad quedó **resuelta** el mismo día que se
-> encontró (ADR-0014) y se conserva acá, y no en el registro fechado de abajo, porque lo que
-> enseñó sigue valiendo cada vez que se toca la cola o el escaneo.
+> ## Estado al 2026-08-12 (tarde): queda **UNA** entrada abierta
 >
-> **El freno de los strings ya no aplica, y aun así NO se hacen todavía.** La condición original
-> era *"recién cuando exista un segundo portal real"*, y desde el corte 7 existe — o sea que el
-> ítem pasó de **bloqueado** a **postergado**, que no es lo mismo y conviene no confundirlo: no
-> hay nada esperando, es una decisión de prioridad del dueño (2026-08-07). Ver el §Fix propuesto
-> de esa entrada, que ahora dice qué mirar cuando se retome.
+> **La única abierta es el mecanismo de popovers sin tests** (última entrada de esta sección).
+> Todo lo demás está construido, en la rama `integracion-alertas`, **a la espera de la
+> verificación en navegador** — que en este proyecto es la única verificación que ve estas
+> cosas. Qué mirar y en qué orden → `docs/ramas-en-revision.md`.
 >
-> **Al 2026-08-12 se suman CINCO entradas nuevas**, salidas de auditar los loaders, los estados
-> de carga y los banners. Ninguna se arregló; el detalle técnico de las cinco vive en
-> `docs/alertas-y-bloqueo-diseno.md` §6 y acá está sólo el estado. La primera es la única que el
-> usuario ve todos los días.
+> **Y acá hubo un error de conteo que conviene dejar escrito, porque duró cinco días.** Este
+> mismo encabezado decía, desde el 2026-08-07, que «lo único abierto es el copy genérico», y
+> después «se suman CINCO»: total, seis. Eran **siete**. La entrada de los popovers —hallada el
+> 2026-08-05, marcada `🔴 abierto`, tres secciones más abajo— **no estaba contada**: el resumen
+> ya la omitía el día que se escribió. `AGENTS.md` (entonces `CLAUDE.md`) heredó el número y lo
+> repitió hasta hoy.
+>
+> El error entró **por el resumen, no por el inventario**: las siete entradas siempre estuvieron
+> completas y correctas. Es exactamente el modo de falla contra el que existe la convención DRY
+> del proyecto (ADR-0007), aparecido adentro del propio doc canónico. **Al agregar una entrada
+> acá, re-contá la sección en vez de sumarle uno al número que ya estaba.**
+>
+> ### Lo que se cerró el 2026-08-12
+>
+> - **Los CINCO de la auditoría de loaders** (`✅` cada uno, abajo): el timeout que saltaba
+>   siempre en Anatomy, el loader del escaneo inicial que no se veía nunca, la lista que
+>   quedaba atenuada al 50%, los dos `fetch` sin techo, y el onboarding que recibía siempre el
+>   portal legado. El detalle técnico está en `docs/alertas-y-bloqueo-diseno.md` §6; acá, sólo
+>   el estado.
+> - **El copy genérico que nombraba a Ramón Net**: construido en dos cortes y mergeado. Decía
+>   "6 strings de `popup.js`" hasta que el re-relevamiento del 2026-08-11 lo midió bien —eran
+>   **9 textos en 17 sitios**, y **7 en 12** desde que el rename a Course Downloader cerró de
+>   arrastre los 4 de la marca—. Inventario → `docs/copy-generico-diseno.md`.
+>   Su historia vale como recordatorio: pasó de **bloqueado** ("recién cuando exista un segundo
+>   portal real") a **postergado** el 2026-08-07, que no es lo mismo; y de ahí a hecho.
+>
+> La entrada de la identidad (ADR-0014) sigue **resuelta y conservada acá**, y no en el registro
+> fechado de abajo, porque lo que enseñó vale cada vez que se toca la cola o el escaneo.
 
-### 🔴 El timeout del escaneo salta SIEMPRE en Anatomy, y el mensaje miente
+### ✅ El timeout del escaneo salta SIEMPRE en Anatomy, y el mensaje miente
 
-- **Estado**: 🔴 abierto (hallado el 2026-08-12, auditando los loaders). **Pasa hoy, en cada
-  escaneo de ese portal.**
+- **Estado**: ✅ **RESUELTO el 2026-08-12** (hallado ese mismo día, auditando los loaders), en
+  `integracion-alertas`. **Falta verificarlo en navegador** — el watchdog vive en el núcleo de
+  `popup.js`, que ADR-0005 declara no-extraíble, así que ningún test lo alcanza.
+- **Cómo se cerró**, los cuatro puntos del fix propuesto:
+  - el tope salió del descriptor: `PuertoSitio.topeEscaneoMs`, **requerido** por el mismo motivo
+    que `instruccionEscaneo` — un portal nuevo que lo olvide tiene que no compilar, no heredar
+    un número ajeno. 6 s Ramón Net, **30 s Anatomy** (margen deliberado sobre los ~11 s medidos:
+    el pool sale a la red 114 veces y una conexión lenta lo estira sin que eso sea una falla);
+  - el watchdog **se arma después de resolver el portal**, porque antes el portal no se sabe —
+    la misma trampa que el cartel genérico de `ejecutarPaso1...` (`copy-generico-diseno.md` §4);
+  - **abandono explícito por generación**: al vencerse, el watchdog invalida la corrida, así que
+    el callback que llega tarde se descarta en vez de pintar. Es el arreglo del síntoma visible,
+    no sólo del número;
+  - **guarda de reentrada** y el mensaje en la **tarjeta de la lista**, no en el footer.
+- **Tests**: +5 en `sitio/registro.test.ts`, sobre el **valor** y no sobre la existencia del
+  campo — que exista ya lo obliga `tsc`, y el bug fue un tope que existía y estaba mal. Fijan un
+  piso de 5 s, el margen de Anatomy sobre sus 11 s medidos, que Ramón Net conserve los suyos, y
+  que el orden entre los dos no se invierta por un copy-paste entre configs.
+
+<details><summary>El diagnóstico original, como se registró</summary>
 - **Qué pasa**: el `safetyTimeout` de `popup.js` es de **6 s** y el escaneo de Anatomy mide
   **~11 s** (`/v1/navigation` ~4,0 s + el pool de 114 materiales 7,1 s, los dos medidos en
   `escaneo-api-anatomy-diseno.md`). A los 6 s escribe *"⚠️ Timeout de carga del DOM."* —que
@@ -52,45 +87,67 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
   descriptor del portal —requerido, como `instruccionEscaneo`—, abandono explícito para que un
   callback tardío no pinte sobre un estado ya dado por muerto, el mensaje en la tarjeta de la
   lista y no en el footer, y guarda de reentrada.
+</details>
 
-### 🟠 El loader del escaneo inicial no se ve nunca
+### ✅ El loader del escaneo inicial no se ve nunca
 
-- **Estado**: 🔴 abierto (2026-08-12).
-- **Qué pasa**: `conectarYArrancar` llama al escaneo y apaga el loader en su `finally`, **en el
-  mismo tick** — el escaneo no es `async`—, así que el navegador nunca pinta entre las dos. En el
-  arranque automático "Escaneando la pestaña…" es código muerto en pantalla.
-- **Por qué importa más de lo que parece**: el cartel del cambio de portal, que es lo que hay que
-  mirar al verificar la copy genérica, **no se puede observar abriendo el popup**. Hay que
-  forzarlo con "Re-escanear".
+- **Estado**: ✅ **RESUELTO el 2026-08-12** en `integracion-alertas`, sin verificar en navegador.
+- **Qué pasaba**: `conectarYArrancar` llamaba al escaneo y apagaba el loader en su `finally`, **en
+  el mismo tick** — el escaneo no es `async`—, así que el navegador nunca pintaba entre las dos.
+  En el arranque automático "Escaneando la pestaña…" era código muerto en pantalla.
+- **Cómo se cerró**: `ejecutarPaso1...` **devuelve si tomó posesión del loader** y el `finally` lo
+  respeta. La guarda de reentrada devuelve `false` justamente para no dejarlo girando.
+- **Por qué importaba más de lo que parece, y por qué se hizo antes que verificar el copy**: el
+  cartel del cambio de portal —lo que hay que mirar al verificar la copy genérica— **no se podía
+  observar abriendo el popup**, había que forzarlo con "Re-escanear". Era un bug abierto
+  funcionando como **precondición para verificar otra cosa**, y el orden de trabajo no lo
+  reflejaba.
 
-### 🟠 La lista puede quedar atenuada al 50% indefinidamente
+### ✅ La lista puede quedar atenuada al 50% indefinidamente
 
-- **Estado**: 🔴 abierto (2026-08-12).
-- **Qué pasa**: `setAtenuada(true)` se pone al sincronizar y se apaga en un solo lugar (el
-  `finally` de `resolverMapeoEnUI`). Si `escanearDisco` falla por red, el `catch` externo va a
-  `activarEstadoOfflineUI()` y ese `finally` nunca corrió; `atenuada` y `oculta` son flags
-  independientes, así que al reconectar la lista vuelve **al 50%**. Se auto-cura sólo si el
-  re-escaneo posterior termina en una sincronización exitosa.
+- **Estado**: ✅ **RESUELTO el 2026-08-12** en `integracion-alertas`, sin verificar en navegador.
+- **Qué pasaba**: `setAtenuada(true)` se ponía al sincronizar y se apagaba en un solo lugar (el
+  `finally` de `resolverMapeoEnUI`). Si `escanearDisco` fallaba por red, el `catch` externo iba a
+  `activarEstadoOfflineUI()` y ese `finally` nunca corría; `atenuada` y `oculta` son flags
+  independientes, así que al reconectar la lista volvía **al 50%**. Se auto-curaba sólo si el
+  re-escaneo posterior terminaba en una sincronización exitosa.
+- **Cómo se cerró**: la apaga quien la prendió — el `finally` pasó a
+  `ejecutarPaso2SincronizarDiscoVeloz`, que cubre los dos caminos. Es la regla **una región, un
+  dueño** de `alertas-y-bloqueo-diseno.md` aplicada al indicador en vez de al DOM.
 
-### 🟠 `escanearDisco` y `seleccionarCarpeta` no tienen timeout
+### ✅ `escanearDisco` y `seleccionarCarpeta` no tienen timeout
 
-- **Estado**: 🔴 abierto (2026-08-12).
-- **Qué pasa**: el cliente es asimétrico — `obtenerRutaServidor` tiene 4 s y
+- **Estado**: ✅ **RESUELTO el 2026-08-12** en `integracion-alertas`. **Éste sí tiene tests** (+6
+  en `core/backend/bunClient.test.ts`): el cliente es núcleo, no popup.
+- **Qué pasaba**: el cliente era asimétrico — `obtenerRutaServidor` tiene 4 s y
   `enviarFragmentoStream` 30 s, con el comentario que explica por qué (en Windows
-  `localhost:3001` **cuelga** en vez de rechazar). Esos dos no tienen ninguno. El de
-  `seleccionarCarpeta` es defendible (del otro lado hay un diálogo nativo esperando a una
-  persona), pero deja el loader sin techo; el de `escanearDisco` cuelga el botón en
-  "Sincronizando disco local..." con la lista atenuada por el ítem de arriba, sin salida ni
-  mensaje.
+  `localhost:3001` **cuelga** en vez de rechazar). Esos dos no tenían ninguno. El de
+  `escanearDisco` colgaba el botón en "Sincronizando disco local..." con la lista atenuada por el
+  ítem de arriba, sin salida ni mensaje.
+- **Cómo se cerró, y lo que no hay que "unificar" después**: los dos techos son **deliberadamente
+  distintos**. `escanearDisco` 15 s (el server lee disco de verdad, y una carpeta grande tarda);
+  `seleccionarCarpeta` **3 minutos**, porque del otro lado de ese fetch no hay un servidor
+  calculando sino **una persona mirando un explorador de archivos** — un techo de segundos le
+  cancelaría el diálogo a alguien que está eligiendo, que es peor que el cuelgue que viene a
+  evitar. Hay un test que fija esa desproporción contra el otro valor, para que nadie los empareje.
 
-### ⚪ El onboarding recibe siempre el portal legado
+### ✅ El onboarding recibe siempre el portal legado
 
-- **Estado**: 🔴 abierto (2026-08-12).
-- **Qué pasa**: `entrypoints/popup/main.js` monta la isla con `sitios.obtener(undefined)` sin
-  mirar la pestaña, así que la slide 3 muestra **la frase de Ramón Net también en Anatomy**. El
+- **Estado**: ✅ **RESUELTO el 2026-08-12** en `integracion-alertas`, sin verificar en navegador.
+- **Qué pasaba**: `entrypoints/popup/main.js` montaba la isla con `sitios.obtener(undefined)` sin
+  mirar la pestaña, así que la slide 3 mostraba **la frase de Ramón Net también en Anatomy**. El
   corte 2 del copy genérico movió ese texto al descriptor (correcto y necesario), pero el defecto
-  que venía a cerrar **sigue en pantalla**. El comentario de ese archivo dice "cuando exista un
+  que venía a cerrar **seguía en pantalla**. El comentario de ese archivo decía "cuando exista un
   segundo" portal, y existe desde el 2026-08-07.
+- **Cómo se cerró**: resuelve por pestaña (`sitios.resolverPorUrl(tab.url)`) con fallback al
+  legado si no es un portal reconocido — el tour se abre desde cualquier lado y ahí no hay portal
+  correcto que mostrar. El montaje se movió adentro del callback de `chrome.tabs.query`: montar
+  con el legado y "corregir" después haría parpadear la copy.
+- **De paso destapó un agujero de cobertura**: el wrapper `sitios` de `plataforma/composicion.ts`
+  —el export compartido entre SW y popup, que existe **para que la regla de resolución no pueda
+  divergir**— no tenía ni un test propio. Ahora sí: `plataforma/composicion.test.ts`, con los tres
+  casos del `sitioId` (ausente → legado; presente-no-registrado → huérfano; por URL → sin
+  migración). Ese archivo es la parte más reutilizable de este ítem.
 - **Fix**: resolver el portal por pestaña y pasárselo a la isla. Corte chico y aislado.
 
 ### ✅ La identidad (portal, título) colisiona dentro de un portal de dos niveles
@@ -137,9 +194,24 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
   de ese frente, pero **la deuda es independiente**: se puede arreglar sin construir el escaneo por
   API, y conviene, porque hoy pierde descargas.
 
-### Soporte para un segundo portal: la selección de sitio no existe, y hay vocabulario filtrado
+### ✅ Soporte para un segundo portal: la selección de sitio no existe, y hay vocabulario filtrado
 
-- **Estado**: 🔴 abierto (hallado el 2026-08-04, auditando la arquitectura tras la Fase 8a).
+- **Estado (2026-08-12, el que vale)**: ✅ **RESUELTO**, en `integracion-alertas` y sin verificar
+  en navegador. El multi-sitio cerró el 2026-08-06 y lo último que quedaba era el **vocabulario
+  filtrado** — la mitad de esta entrada que sobrevivió a la otra. Se construyó en dos cortes:
+  la UI genérica dejó de hablar como Ramón Net (7 textos en 12 sitios) y `instruccionEscaneo`
+  entró a `PuertoSitio`. Inventario y regla de decisión → `docs/copy-generico-diseno.md`.
+- **Lo que enseñó la medición, y es lo que sobrevive de esta entrada**: la primera cuenta decía
+  "6 strings de `popup.js`" y el re-relevamiento del 2026-08-11 encontró **9 textos en 17
+  sitios**. La vieja había buscado el **nombre** del portal y no **su jerga**: la familia
+  `"aula virtual"`, 7 sitios, nunca se había contado. Después bajó a 7 en 12 porque el rename a
+  Course Downloader cerró de arrastre los 4 de la marca, desde otro frente — que es por qué el
+  *estado* vive acá y no en el doc del cómo.
+- **Y la distinción que costó nombrar**: pasó de **bloqueado** ("recién cuando exista un segundo
+  portal real") a **postergado** el 2026-08-07, cuando el corte 7 hizo existir ese portal. No es
+  lo mismo: bloqueado es que algo espera; postergado es una decisión de prioridad. Confundirlos
+  deja ítems durmiendo con una condición que ya se cumplió.
+- **Estado (2026-08-04)**: 🔴 abierto (hallado auditando la arquitectura tras la Fase 8a).
 - **Estado (2026-08-04, tarde)**: **en construcción, no ya sólo registrado.** El dueño confirmó
   que el objetivo es multi-sitio; hay diseño (`docs/multisitio-diseno.md`), ADR-0010 y **los
   cortes 1 a 4 hechos**: el registro existe (`sitio/registro.ts`), los ítems llevan `sitioId`
@@ -287,9 +359,21 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
   y se lo lleva, mientras la notificación sobrevive en pantalla. +19 tests. **De paso,
   `sitioAsumido` salió del service worker**: era su último lector.
 
-### El mecanismo de popovers de `popup.js` no tiene tests
+### 🔴 El mecanismo de popovers de `popup.js` no tiene tests
+
+> **LA ÚNICA ENTRADA ABIERTA DE ESTA SECCIÓN** (al 2026-08-12). Y la que el resumen del
+> encabezado **omitió durante cinco días**, contando seis abiertos donde había siete: se
+> escribió el 2026-08-07 diciendo "lo único abierto es el copy genérico" con esta entrada ya
+> presente, dos años-luz más abajo en el mismo archivo. Si venís a agregar una entrada nueva,
+> **re-contá la sección**; no le sumes uno al número que estaba.
 
 - **Estado**: 🔴 abierto (hallado el 2026-08-05, al sumar el segundo popover en el corte 6b).
+  Revisado el 2026-08-12: **se decide dejarlo abierto**, no cerrarlo ni arreglarlo.
+- **Por qué no entró en la tanda del 2026-08-12**, que cerró las otras seis: cubrirlo no es
+  escribir un test, es **extraer una feature** (`popup/features/popovers.js`) — un corte propio,
+  sobre código que hoy anda y que ningún test cubre, o sea con el riesgo entero adelante y el
+  retorno atrás. Las otras seis eran defectos con síntoma visible; ésta es cobertura ausente
+  sobre algo que funciona.
 - **Dónde**: `popup.js` — el listener global de `document` que cierra los popovers, y el handler
   de `btnFilterPills`. `OrdenFeature` sí quedó cubierta; esta mitad no.
 - **Qué pasa**: el mecanismo es "un listener global cierra todo, y cada botón hace
