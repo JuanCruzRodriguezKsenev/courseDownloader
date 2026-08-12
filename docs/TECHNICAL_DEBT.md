@@ -16,7 +16,8 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 > **Al 2026-08-07 lo único abierto de esta sección es el copy genérico que nombra a Ramón Net**
 > (segunda entrada). Decía "6 strings de `popup.js`" hasta que el re-relevamiento del 2026-08-11
-> lo midió bien: son **9 textos en 17 sitios**, y el inventario vive en
+> lo midió bien: eran **9 textos en 17 sitios** —**7 en 12 desde el 2026-08-12**, cuando el rename
+> a Course Downloader cerró de arrastre los 4 de la marca—, y el inventario vive en
 > `docs/copy-generico-diseno.md`. La entrada de la identidad quedó **resuelta** el mismo día que se
 > encontró (ADR-0014) y se conserva acá, y no en el registro fechado de abajo, porque lo que
 > enseñó sigue valiendo cada vez que se toca la cola o el escaneo.
@@ -176,6 +177,13 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
   "clases grabadas", "comisión".** Y el barrido va sobre toda la capa genérica, no sólo
   `popup.js`: se le habían escapado `entrypoints/popup/index.html` (4) y
   `popup/features/onboarding.preact.js` (2).
+
+- **Al 2026-08-12 quedan 7 textos en 12 sitios**, no 9 en 17: el rename de la extensión a
+  **Course Downloader** (`ee32c0c`, Fase 3 de la fusión) cerró de arrastre los 4 sitios de la
+  marca —`index.html:5` y `:26`, `wxt.config.ts:20`, y el `alt="Logo de Ramón Net"` del logo, que
+  era el único defecto real del grupo—. **El ítem sigue abierto y postergado**: lo que se cerró
+  era la parte independiente. Con eso, de los tres cortes propuestos **quedan dos**
+  (`copy-generico-diseno.md` §7). Lo demás está intacto y re-verificado línea por línea ese día.
 
 #### Sub-ítem: el click en la notificación de fallo enfoca el portal equivocado
 

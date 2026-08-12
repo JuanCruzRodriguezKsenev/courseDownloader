@@ -1,11 +1,18 @@
 # Copy genérica: sacar el vocabulario de Ramón Net de las capas genéricas
 
-**Estado (2026-08-11): 🔵 RELEVADO Y PROPUESTO — NADA DECIDIDO, NADA CONSTRUIDO.**
+**Estado (2026-08-12): 🔵 RELEVADO Y PROPUESTO — con una excepción: §5.2, la marca, YA ESTÁ HECHA.**
 
 Esto no es un plan aprobado ni un corte en curso: es el **inventario medido** de dónde la UI
 genérica nombra a Ramón Net, más una propuesta de cómo arreglarlo, escrita para poder discutirse
-en otra sesión sin volver a medir. **No se tocó ni una línea de código.** Si venís a ejecutarlo,
-lo primero es acordar §3 y §6; lo segundo es leer §4, que es donde está la trampa.
+en otra sesión sin volver a medir. Si venís a ejecutarlo, lo primero es acordar §3 y §6; lo
+segundo es leer §4, que es donde está la trampa.
+
+**Lo que cambió el 2026-08-12**: la Fase 3 de la fusión (`ee32c0c`) renombró la extensión a
+**Course Downloader** y con eso cerró **§5.2 entera, incluido el `alt` del logo** — sin que este
+doc participara, porque ese corte venía de `fusion-monorepo-diseno.md`. O sea que el corte 3 de §7
+está hecho y **quedan dos**. El resto —§5.1 ítems 1 a 7 y §5.3— sigue **intacto en el código**,
+re-verificado línea por línea el 2026-08-12: **7 textos en 12 sitios** que el usuario lee, más los
+2 `console.log` que no ve nadie.
 
 **Dónde vive el estado del backlog**: en `TECHNICAL_DEBT.md` §🔴 Abierto, y ahí sigue —ese doc es
 el hogar canónico de *qué está abierto y por qué* (ADR-0007). Este doc es el **cómo**, igual que
@@ -36,6 +43,12 @@ No aparecieron: la medición original buscó **una sola palabra** ("Ramón") en 
 **Total: 9 textos distintos en 17 sitios** que el usuario lee. Los 2 `console.log` que sí contaba
 la medición vieja siguen ahí y son los únicos que no ve nadie.
 
+> **Al 2026-08-12 ese total ya no es lo que falta**: `ee32c0c` cerró los 4 sitios de §5.2 (los 3 de
+> la marca + el `alt`), así que **quedan 7 textos en 12 sitios**. El número de arriba se conserva
+> porque es el que documenta *por qué la medición vieja quedaba corta*, que es de lo que trata esta
+> sección. Ojo: los dos totales no reconcilian por exactamente un sitio, según se cuente
+> `popup.js:671` como uno o como dos (tiene dos frases en la misma línea) — ver §8.
+
 > **Lección para la próxima vez que se re-mida** (van tres): buscar el **nombre** del portal no
 > alcanza. Hay que buscar también **su jerga** — "aula virtual", "cátedra", "clases grabadas",
 > "comisión". Un portal se filtra por su vocabulario mucho más que por su nombre.
@@ -49,7 +62,7 @@ sesión futura "arregle" algo que ya está resuelto:
   nombre como colaborador y cae a `"el portal"` si no llega (`:587`). Las tres fugas que registraba
   el backlog se cerraron de verdad el 2026-08-04.
 - **`plataforma/` está limpia.**
-- **El onboarding ya resuelve bien el caso difícil**: `onboarding.preact.js:113` dice
+- **El onboarding ya resuelve bien el caso difícil**: `onboarding.preact.js:116` dice
   *"subcarpetas por materia y `${(sitio.faceta?.etiqueta || 'categoría').toLowerCase()}`"*. Es
   exactamente la frase que `popup.js:671` tiene hardcodeada — **el patrón ya existe y funciona, no
   hay que diseñarlo** (ver ítem 5).
@@ -125,25 +138,33 @@ Detalles que cambian el arreglo:
   incoherente según por dónde entre el usuario (`serverConnection.js:233` es el camino de
   *recuperación tras caída del server*).
 - **El #4 aparece 5 veces** y una (`:874`) es la rama sin portal — ver §4.
-- **El #5 no necesita diseño**: copiar el patrón de `onboarding.preact.js:113`, que ya dice esa
+- **El #5 no necesita diseño**: copiar el patrón de `onboarding.preact.js:116`, que ya dice esa
   misma frase bien.
 - **Los 2 `console.log`** (`popup.js:531` y `:546`, "Pestaña Ramón Net actualizada/enfocada") no los
   ve el usuario. Van de arrastre en el mismo corte o no van; da igual.
 
-### 5.2 Marca de la extensión — decisión del dueño, no defecto
+### 5.2 Marca de la extensión — ✅ HECHA el 2026-08-12 (`ee32c0c`)
 
-| Dónde | Qué dice |
-|---|---|
-| `entrypoints/popup/index.html:26` | `<h4>RamonNet Downloader</h4>` — cabecera, siempre visible |
-| `entrypoints/popup/index.html:5` | `<title>Ramonnet Video Downloader</title>` |
-| `wxt.config.ts:20` | `name: 'Ramonnet Video Downloader'` — lo que se lee en `chrome://extensions` |
+**Se renombró a `Course Downloader`, y los cuatro sitios entraron en el mismo cambio**, que es lo
+que este doc pedía. No lo ejecutó este frente: vino de arrastre con la Fase 3 de
+`fusion-monorepo-diseno.md`, porque el rename de la extensión y el del backend tocaban los mismos
+archivos.
 
-Los tres son **el nombre del producto**, no el del portal, y es legítimo que una extensión se llame
-así aunque sirva a dos portales. **Si se renombra, los tres van en el mismo cambio** o quedan
-discordantes entre sí. Nada obliga a decidirlo junto con §5.1.
+| Dónde | Decía | Dice hoy |
+|---|---|---|
+| `entrypoints/popup/index.html:26` | `<h4>RamonNet Downloader</h4>` | `<h4>Course Downloader</h4>` |
+| `entrypoints/popup/index.html:5` | `<title>Ramonnet Video Downloader</title>` | `<title>Course Downloader</title>` |
+| `wxt.config.ts:20` | `name: 'Ramonnet Video Downloader'` | `name: 'Course Downloader'` |
+| `entrypoints/popup/index.html:25` | `alt="Logo de Ramón Net"` | `alt="Logo de la extensión"` |
 
-**La excepción del grupo, y es un defecto claro**: `index.html:25`, `alt="Logo de Ramón Net"`. Esa
-imagen es `icons/icon48.png`, **el logo de la extensión**, no el del portal. Cuesta una línea.
+Lo que sigue valiendo del análisis original, por si el nombre se vuelve a tocar: los tres primeros
+son **el nombre del producto**, no el del portal —es legítimo que una extensión se llame así aunque
+sirva a dos portales—, y **van los tres juntos o quedan discordantes entre sí**. El cuarto era otra
+cosa: un **defecto claro**, porque esa imagen es `icons/icon48.png`, el logo de la extensión y no el
+del portal.
+
+**Que esto se cerrara solo es el dato útil de esta sección**: era el único grupo del doc
+independiente de §5.1, y por eso pudo entrar por otra puerta sin romper nada.
 
 ### 5.3 El único que no es un swap de string
 
@@ -175,13 +196,14 @@ son una rama propia de puro rename, y ahí el diff grande no tapa nada.
 
 ## 7. Corte sugerido, y qué cuesta verificar cada uno
 
-Tres ramas, y la razón es **el costo de verificación**, no la prolijidad:
+Eran tres ramas, y la razón es **el costo de verificación**, no la prolijidad. **Quedan dos**: el
+corte 3 se ejecutó por su cuenta el 2026-08-12 (§5.2).
 
 | Corte | Qué entra | Cómo se verifica |
 |---|---|---|
-| **1 — Los baratos** | §5.1 ítems 1–6, el `alt` del logo, y de arrastre los 2 `console.log` | **Sólo navegador.** Casi todo cae en `popup.js`, el único archivo sin tests (ADR-0005). |
+| **1 — Los baratos** | §5.1 ítems 1–6, y de arrastre los 2 `console.log` | **Sólo navegador.** Casi todo cae en `popup.js`, el único archivo sin tests (ADR-0005). |
 | **2 — La instrucción de escaneo** | §5.3: miembro nuevo en `PuertoSitio` + los dos `config.ts` + `architecture.md` | `tsc` cubre que los dos portales lo implementen; el texto, navegador. |
-| **3 — La marca** | §5.2, sólo si se decide renombrar | Independiente de todo lo demás. |
+| ~~**3 — La marca**~~ | ~~§5.2~~ | ✅ **hecho** en `ee32c0c`, con el rename a Course Downloader. El `alt` del logo se fue con él, así que **salió del corte 1**. |
 
 **Verificación en navegador del corte 1** (los cuatro carteles, **en los dos portales**):
 
@@ -208,3 +230,24 @@ Para la próxima sesión, y porque este proyecto anota los errores de medición:
 - **Hay que filtrar comentarios**, o se cuenta de más: `popup.js` tiene **12** menciones a Ramón Net
   en comentarios (líneas 10, 28, 62, 176, 509, 512, 528, 538, 918, 965, 1234, 1241) que son
   correctas y deben quedarse — dos de ellas son los precedentes de §3.
+
+**Lo que agregó la re-verificación del 2026-08-12** (motivada por preguntar si esto seguía
+pendiente, no por ejecutarlo):
+
+- **El grep no encuentra el ítem de §5.3, y nunca lo iba a encontrar.**
+  `onboarding.preact.js:106` no contiene ni el nombre del portal ni su jerga: describe un flujo
+  ("el selector", "👁️ mostrar") que en Anatomy no existe. **Es el único de los 9 que no se puede
+  medir buscando palabras** — apareció leyendo la slide, no grepeando. Cualquier re-conteo futuro
+  que se apoye sólo en ripgrep lo va a perder de nuevo.
+- **Las líneas de este doc envejecen aunque el texto no cambie.** `onboarding.preact.js:113` pasó a
+  `:116` porque `ee32c0c` insertó líneas arriba; las de `popup.js` no se movieron. Se corrigieron
+  las dos citas (§2 y §5.1). Al retomar, **re-verificar cada línea antes de editar**, que cuesta un
+  `rg` y evita tocar la línea equivocada de `popup.js`, que es el archivo sin tests.
+- **Los dos totales no cierran por un sitio** (9 textos/17 sitios contra los 7/12 que quedan más los
+  4 que cerró `ee32c0c` = 16). La diferencia está en si `popup.js:671` cuenta como un sitio o como
+  dos: es **una** línea con **dos** frases a cambiar (el ejemplo `'RamonNet'` y "por materia y
+  cátedra"). No se corrigió el número viejo hacia atrás —el conteo de §1 documenta la medición de
+  esa fecha— pero conviene saberlo antes de citarlo como si fuera exacto.
+- **Un frente ajeno cerró parte de este doc sin que el doc se enterara** (§5.2, vía la fusión). Es
+  el argumento a favor de que el *estado* viva en `TECHNICAL_DEBT.md` y no acá: si el número de
+  pendientes viviera en este archivo, hoy estaría mintiendo en dos lugares en vez de uno.
