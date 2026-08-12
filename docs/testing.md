@@ -30,7 +30,7 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `npm test` | 34 archivos, 578 tests, todo en verde |
+| `npm test` | 34 archivos, 580 tests, todo en verde |
 | `npm run lint` | **0 errores, 0 warnings** |
 | `npx tsc --noEmit` | sin salida (limpio) |
 | `npm run build` | compila a `.output/chrome-mv3/` |

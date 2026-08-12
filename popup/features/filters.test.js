@@ -233,6 +233,39 @@ describe('FilterFeature.aplicarFiltrosCruzados', () => {
     expect(ctx.actualizarContadores).toHaveBeenCalled();
   });
 
+  // [LA SELECCIÓN SIGUE AL FILTRO] Sin esto la selección quedaba invisible y operante: "Todos"
+  // sin filtro marcaba las 103, filtrabas a 12 en pantalla y el botón seguía ofreciendo —y
+  // encolando— las 103, porque el conteo lee `seleccionado` y no `visible`.
+  it('deselecciona lo que el filtro deja fuera', () => {
+    const { feature, nodos } = crearFeature();
+    nodos.search.value = 'semana';
+    nodos.folder.value = 'biologia';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'Semana 1', carpeta: 'biologia', estado: 'pending', catedra: 'COMUN', seleccionado: true },
+      { titulo: 'Otra cosa', carpeta: 'biologia', estado: 'pending', catedra: 'COMUN', seleccionado: true },
+    ];
+
+    feature.aplicarFiltrosCruzados();
+
+    expect(AppState.listadoClasesGlobal[0].seleccionado).toBe(true);  // sigue visible
+    expect(AppState.listadoClasesGlobal[1].seleccionado).toBe(false); // la filtró el texto
+  });
+
+  it('no toca la selección de lo que sigue visible al re-aplicar el filtro', () => {
+    const { feature, nodos } = crearFeature();
+    nodos.folder.value = 'biologia';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'A', carpeta: 'biologia', estado: 'pending', catedra: 'COMUN', seleccionado: true },
+      { titulo: 'B', carpeta: 'biologia', estado: 'pending', catedra: 'COMUN', seleccionado: false },
+    ];
+
+    feature.aplicarFiltrosCruzados();
+    feature.aplicarFiltrosCruzados();
+
+    expect(AppState.listadoClasesGlobal[0].seleccionado).toBe(true);
+    expect(AppState.listadoClasesGlobal[1].seleccionado).toBe(false);
+  });
+
   it('el filtro de estado restringe la visibilidad', () => {
     const { feature, filtrosActivos, nodos } = crearFeature();
     nodos.folder.value = 'biologia';
