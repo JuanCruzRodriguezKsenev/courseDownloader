@@ -33,8 +33,25 @@ sigue sin empaquetar `backend/`. Los números y su desglose → `docs/testing.md
 | 4 | `2e2eac8` | **El tope del escaneo sale del descriptor** — ítem 🔴 de la auditoría, el que se veía a diario |
 | 5 | `928b436` | **Los otros cuatro loaders**: el que no se ve, la lista atenuada, los dos `fetch` sin techo, el onboarding con el portal legado |
 
-Las cinco ramas viejas **ya no hacen falta**: están todas adentro. `copy-generico-verificacion`
-—la sexta, la del banco de pruebas— **quedó obsoleta**: su build no tiene los cortes 4 y 5.
+Las cinco ramas viejas **ya no hacen falta**: están todas adentro.
+
+### ⚠️ Y hay una segunda rama, que es la que se carga en Chrome
+
+**`verificacion-integracion`** sale de ésta y le agrega **sólo el banco de pruebas** (🧪 al lado
+del ❓ en la cabecera, o **F9**): 7 commits y un módulo, `verificacion/modoVerificacion.js`.
+
+- **Buildeá y cargá esa, no ésta.** El banco es lo que permite forzar las caídas de servidor e
+  internet, la cola pausada en sus 5 tipos, el escaneo vacío o colgado, y **grabar los carteles
+  que duran milisegundos**. Sin él, media checklist de alertas no se mira: se deduce.
+- **Es un andamio: no se mergea nunca y se descarta entera después de la pasada.** Suma ~15 KB
+  al bundle del popup, que es exactamente el motivo. Lo único que vuelve de ahí son los defectos
+  que encuentre.
+- Reemplaza a `copy-generico-verificacion`, la rama original del banco, que **quedó obsoleta**
+  —su build no tiene los cortes 4 y 5— y se puede borrar.
+
+Este bloque vive acá, en la rama que **sí** sobrevive, y no sólo en la descartable: si el puntero
+viviera únicamente en el andamio, al borrarlo nadie sabría que el banco existió. Ya pasó una vez
+en esta misma sesión.
 
 ### Los conflictos que hubo, y por qué no eran de lógica
 
@@ -50,9 +67,16 @@ El de la baseline es el que vale contar: una rama decía 587 y la otra 580, y la
 
 ## Cómo verificarlo en Chrome
 
-`npm run build` y recargar en `chrome://extensions/`. **El build actual de `.output/chrome-mv3/`
-ya es el de esta rama.** Necesitás el backend corriendo (`backend/iniciar.bat`) para todo lo que
-toque disco.
+```bash
+git checkout verificacion-integracion   # la del banco, NO integracion-alertas
+npm run build
+```
+
+Y recargar en `chrome://extensions/`. **El build actual de `.output/chrome-mv3/` ya es el de esa
+rama.** Necesitás el backend corriendo (`backend/iniciar.bat`) para todo lo que toque disco.
+
+El banco se abre con **F9** o con el 🧪 de la cabecera. F9 anda aunque la barra de pestañas esté
+oculta —que es justo el estado en el que hace falta volver—, así que si te quedás sin UI, F9 sale.
 
 Las checklists detalladas ya están escritas y no hay que reconstruirlas:
 
