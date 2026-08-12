@@ -57,7 +57,7 @@
  * descripción se escapa con Utils.escaparHtml EN popup.js, antes de armar el vm.
  * ==========================================================================
  */
-import { html, render, useState, useEffect } from '../vendor/htm-preact-standalone.module.js';
+import { html, render, useState, useEffect, useLayoutEffect } from '../vendor/htm-preact-standalone.module.js';
 // [ALERTA EN EL CONTENEDOR] La alerta de conexión es un COMPONENTE que se pinta dentro de esta
 // región, no una isla hermana con root propio. De la #2 sobreviven su store (quién decide que
 // hay alerta y de qué tipo) y su vista; lo que murió es su lugar en el DOM.
@@ -208,7 +208,22 @@ export function ListaClases() {
   // Reflejar los atributos de host sobre el nodo real #ui-list (sin tocar el CSS,
   // que sigue keyeando sobre .list-wrapper.selection-mode). Se ejecuta aunque el
   // render devuelva null (el componente sigue montado).
-  useEffect(() => {
+  //
+  // **`useLayoutEffect` y NO `useEffect`, y no es intercambiable.** En Preact `useEffect` se
+  // agenda por `requestAnimationFrame`, o sea DESPUÉS del paint. Con eso, al reemplazar la
+  // lista por una card el navegador pintaba un frame intermedio: la card ya adentro, pero
+  // `#ui-list` todavía con la geometría de la lista —su padding, su borde y **la barra de
+  // scroll de la lista larga**— y recién al frame siguiente entraba `sin-marco`.
+  //
+  // Se veía como "la barra tarda en desaparecer" y "el banner parpadea", y llevó a buscarlo
+  // como si fuera una animación del navegador: no lo era, y no hay ninguna que apagar. El
+  // contenido y el marco de su región tienen que entrar en el MISMO frame, y eso es lo que
+  // hace `useLayoutEffect`, que corre en el commit, antes de pintar.
+  //
+  // Regla que deja: cualquier efecto que cambie la GEOMETRÍA de una región va acá; los que
+  // sólo se suscriben o disparan trabajo asíncrono se quedan en `useEffect` (ver el de
+  // `useListaClases`, arriba, que no toca layout).
+  useLayoutEffect(() => {
     if (!_host) return;
     _host.classList.toggle('selection-mode', host.selectionMode);
     _host.classList.toggle('sin-marco', cardLlenaLaRegion);
