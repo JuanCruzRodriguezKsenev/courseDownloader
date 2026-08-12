@@ -598,7 +598,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
           nodos.folder.disabled = false;
           nodos.btnExplore.disabled = false;
-          document.querySelector('.path-bar')?.classList.remove('offline');
+          document.querySelector('.path-bar')?.classList.remove('bloqueada');
 
           nodos.btnExplore.title = `Carpeta raíz actual: ${ruta} (Click para cambiar)`;
           RutaDisco.mostrar(ruta);
@@ -845,7 +845,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // está—, pero el bloqueo sigue a la falla: con la cola pausada, cambiar de pestaña
       // desbloqueaba la toolbar encima de la card. El estado de falla manda sobre la pestaña.
       nodos.filtersBar.style.display = 'flex';
+      // [UN SOLO BLOQUEO] Las dos regiones siguen al mismo estado y con la misma clase.
       nodos.filtersBar.classList.toggle('bloqueada', !!appState.fallaConexionActiva);
+      document.querySelector('.path-bar')?.classList.toggle('bloqueada', !!appState.fallaConexionActiva);
       nodos.btnStartQueue.style.display = appState.ráfagaEnCurso ? 'none' : qDisp;
     
       // Limpiar filtros activos y cerrar el menú
@@ -1858,7 +1860,14 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // reconexión del auto-heal. Atenuada e inerte se lee como "ahora no". Las pestañas
       // quedan operativas a propósito: la cola tiene que seguir siendo consultable mientras
       // está pausada, que es justo lo que uno quiere mirar cuando algo falló.
+      //
+      // [UN SOLO BLOQUEO] La path-bar va junto con la toolbar y con la misma clase. Antes no
+      // entraba acá —sólo se bloqueaba con el banner de conexión, y con otro nombre
+      // (`.offline`)—, así que con la cola pausada quedaban dos comportamientos distintos para
+      // el mismo estado: los filtros inertes y, al lado, el input de materia y el badge de la
+      // faceta vivos sobre una lista que no está en pantalla.
       nodos.filtersBar.classList.add('bloqueada');
+      document.querySelector('.path-bar')?.classList.add('bloqueada');
 
       conectarEscuchadoresDelWorker();
     

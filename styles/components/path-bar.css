@@ -11,15 +11,13 @@
   flex-shrink: 0;
   box-shadow: var(--shadow-bar);
 
-  /* [BANNER] Atenuada Y inerte. El `opacity` solo era lo peor de los dos mundos: el input y el
-     botón 📂 sí quedaban `disabled` por JS, pero el badge de la faceta es un <span> —no admite
-     `disabled`— así que se veía apagado y seguía abriendo el modal de cátedra sobre una UI
-     muerta. `pointer-events` cubre a los tres sin que haya que acordarse de cada uno, y se
-     revierte solo con la clase, al reconectar. */
-  &.offline {
-    opacity: 0.5;
-    pointer-events: none;
-  }
+  /* [UN SOLO BLOQUEO] Acá vivía `&.offline` con su propio `opacity`, y era el segundo mecanismo
+     para la misma idea: la toolbar usaba `.bloqueada` y esta barra `.offline`, con distinta
+     definición, distinto dueño y —lo peor— distinto ALCANCE: `.offline` sólo se ponía con el
+     banner de conexión, así que con la cola pausada la toolbar quedaba bloqueada y esta barra
+     no. Ahora las dos usan la utilitaria `.bloqueada` de `base.css` y las dos siguen al mismo
+     estado. El `disabled` de sus controles se conserva: `pointer-events` no saca del orden de
+     tabulación, y el input de materia sí es focuseable con teclado. */
 }
 
 .meta-row {

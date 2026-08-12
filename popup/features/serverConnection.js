@@ -150,7 +150,7 @@ const ServerConnectionFeature = {
 
       nodos.folder.disabled = true;
       nodos.btnExplore.disabled = true;
-      document.querySelector('.path-bar')?.classList.add('offline');
+      document.querySelector('.path-bar')?.classList.add('bloqueada');
 
       nodos.search.disabled = true;
       nodos.btnFilterPills.disabled = true;
@@ -250,7 +250,7 @@ const ServerConnectionFeature = {
 
           nodos.folder.disabled = false;
           nodos.btnExplore.disabled = false;
-          document.querySelector('.path-bar')?.classList.remove('offline');
+          document.querySelector('.path-bar')?.classList.remove('bloqueada');
 
           nodos.txtEstado.textContent = "Analizando aula virtual...";
 
