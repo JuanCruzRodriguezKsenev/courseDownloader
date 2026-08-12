@@ -385,19 +385,6 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     let escaneoMuertoPorTimeout = null;
 
     /**
-     * ¿Hay una alerta ocupando `#ui-list`? Es la condición ÚNICA del bloqueo de regiones.
-     *
-     * Vive en una función y no repetida en cada call-site a propósito: cuando eran dos motivos
-     * la condición estaba escrita a mano en `conmutarPestañaA`, y al aparecer el tercero hubo
-     * que acordarse de ese sitio. Un cuarto motivo se agrega acá y funciona en todos lados.
-     */
-    function hayAlertaOcupandoLaRegion() {
-      return !!appState.fallaConexionActiva
-        || BannerConexion.get().visible
-        || escaneoMuertoDominaLaPestaña();
-    }
-
-    /**
      * El timeout del escaneo ocupa la región **sólo en Disponibles**, y esto no es un detalle.
      *
      * Las otras dos alertas valen en las dos pestañas porque rompen las dos: con la cola
@@ -572,7 +559,14 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // [BLOQUEO REAL] El mismo bloqueo que usa la cola pausada, para que los dos estados de
       // alerta no se comporten distinto. Va envuelto por la misma razón que el de arriba: la
       // función se declara más abajo en este closure.
-      bloquearRegiones: (bloquear) => bloquearRegionesDeAlerta(bloquear),
+      // [LOADERS — ítem 1h] La feature manda su propia condición (sabe del servidor, no del
+      // escaneo), pero al DESBLOQUEAR no puede pisar un bloqueo que no es suyo: si el servidor
+      // vuelve y el escaneo sigue muerto, la materia y la faceta tienen que quedarse
+      // bloqueadas. De ahí los dos `||`.
+      bloquearRegiones: (bloquear) => {
+        bloquearRegionesDeAlerta(bloquear || escaneoMuertoDominaLaPestaña());
+        bloquearFilaDePortal(bloquear || !!escaneoMuertoPorTimeout);
+      },
       onReintentarCola: () => ejecutarReintentoDeCola(),
       onReescanearAula: () => ejecutarPaso1EscaneoRamonAutomatico()
     });
@@ -713,6 +707,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           // por timeout no puede existir todavía —este punto es anterior al primer escaneo—.
           // Es el único call-site donde el `false` literal es correcto.
           bloquearRegionesDeAlerta(false);
+          bloquearFilaDePortal(false);
 
           nodos.btnExplore.title = `Carpeta raíz actual: ${ruta} (Click para cambiar)`;
           RutaDisco.mostrar(ruta);
@@ -976,7 +971,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // falta porque cambiar de pestaña volvía a habilitar lo que la alerta había bloqueado.
       // La condición estaba escrita a mano acá y ahora sale de `hayAlertaOcupandoLaRegion()`:
       // el tercer motivo (el escaneo muerto por timeout) se olvidaba justo en este sitio.
-      bloquearRegionesDeAlerta(hayAlertaOcupandoLaRegion());
+      sincronizarBloqueosDeAlerta();
       nodos.btnStartQueue.style.display = appState.ráfagaEnCurso ? 'none' : qDisp;
     
       // Limpiar filtros activos y cerrar el menú
@@ -1103,7 +1098,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             portal: utils.escaparHtml(portal.nombre),
             segundos: Math.round(portal.topeEscaneoMs / 1000),
           };
-          bloquearRegionesDeAlerta(true);
+          sincronizarBloqueosDeAlerta();
           // [ítem 1d] El mensaje va a la TARJETA de la lista, no al footer, donde convive con el
           // diagnóstico de conexión —que tiene otro dueño— y queda pisado.
           renderizarListadoInterfaz();
@@ -1286,7 +1281,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             // `bloquear(false)` a secas, porque si además hay una alerta de conexión viva, ésa
             // manda y las regiones siguen bloqueadas. Liberar a ciegas acá desbloquearía la
             // toolbar por debajo del banner de conexión.
-            bloquearRegionesDeAlerta(hayAlertaOcupandoLaRegion());
+            sincronizarBloqueosDeAlerta();
           }
         });
       });
@@ -1997,6 +1992,23 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         return;
       }
 
+      // [LOADERS — ítem 1g] El escaneo muerto por timeout también manda sobre la pestaña, y
+      // acá SÍ hay una acción que ofrecer —a diferencia del banner de conexión, que se
+      // recupera solo—: volver a escanear. Es lo que la tarjeta le pide al usuario.
+      //
+      // Estaba puesto a mano desde el watchdog (`configurarBotonesUX(...)` suelto) y por eso
+      // **el botón no aparecía**: cualquier `actualizarContadoresBoton()` posterior —y hay una
+      // docena de call-sites, incluido `conmutarPestañaA`— pasaba por acá, no encontraba
+      // ninguna rama para este estado y caía en la del final, que lo reescribe según la
+      // selección. Es el mismo error que la tarjeta: estado pintado una vez en vez de
+      // derivado. El footer se deriva ACÁ o no se sostiene.
+      if (escaneoMuertoDominaLaPestaña()) {
+        configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
+        nodos.btnStartQueue.style.display = 'none';
+        nodos.masterCheck.disabled = true;
+        return;
+      }
+
       if (appState.fallaConexionActiva) {
         // [BANNER DUEÑO DEL DIAGNÓSTICO] Un solo texto para los cinco tipos de pausa, y es un
         // VERBO. Antes había cuatro variantes que le repetían al usuario lo que la card de
@@ -2130,6 +2142,48 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
      * deshabilitaba seis controles y el otro ninguno, así que el mismo bloque bloqueado se
      * comportaba distinto según qué hubiera fallado.
      */
+    /**
+     * [LOADERS — ítem 1h] El embudo del bloqueo. **Todo call-site pasa por acá.**
+     *
+     * Existe porque las regiones NO siguen todas a la misma condición, y tratarlas como si
+     * sí lo hicieran fue el defecto:
+     *
+     *   - **La toolbar y la lista** son de la pestaña que estás mirando. Si el escaneo murió
+     *     pero estás en Fila, la cola es real y operable: no se bloquean.
+     *   - **La fila de materia + faceta NO es de la pestaña, es del PORTAL ACTIVO.** La materia
+     *     es el destino en disco del próximo encolado y la faceta sale del listado escaneado.
+     *     Si el escaneo murió, esos dos no describen nada — mires la pestaña que mires. Que se
+     *     desbloquearan al pasar a Fila era ofrecer editar el destino de un escaneo que no
+     *     existe.
+     *
+     * La fila del disco (`.row-pc`: la ruta y 📂 Explorar) queda **fuera** del bloqueo por
+     * timeout a propósito: es configuración del backend, no del portal, y el backend está
+     * sano. Sí la bloquea la alerta de conexión, porque ahí el servidor no está.
+     *
+     * Acá vivía `hayAlertaOcupandoLaRegion()`, una condición única para todo. Se murió al
+     * descubrirse que **no hay una condición, hay dos**, y ése era justamente el defecto: con
+     * una sola, o se desbloqueaba de más (la materia editable con el escaneo muerto) o de
+     * menos (la cola inoperable por un escaneo que no la toca).
+     */
+    function sincronizarBloqueosDeAlerta() {
+      const alertaGlobal = !!appState.fallaConexionActiva || BannerConexion.get().visible;
+      // 1) Lo que sigue a la pestaña. Va primero: su rama de desbloqueo re-habilita controles
+      //    a los que el paso 2 les pone la palabra final.
+      bloquearRegionesDeAlerta(alertaGlobal || escaneoMuertoDominaLaPestaña());
+      // 2) Lo que sigue al portal, en las DOS pestañas.
+      bloquearFilaDePortal(alertaGlobal || !!escaneoMuertoPorTimeout);
+    }
+
+    /** La fila `📚 Materia` + el badge de la faceta. Ver `sincronizarBloqueosDeAlerta`. */
+    function bloquearFilaDePortal(bloquear) {
+      const fila = document.querySelector('.meta-row.row-aula');
+      if (fila) fila.classList.toggle('bloqueada', bloquear);
+      // El input admite `disabled`; el badge es un <span> y lleva `aria-disabled` — el mismo
+      // contrato de dos formas que documenta `styles/base.css`, no dos criterios.
+      if (nodos.folder) nodos.folder.disabled = bloquear;
+      if (nodos.facetaBadge) nodos.facetaBadge.setAttribute('aria-disabled', String(bloquear));
+    }
+
     function bloquearRegionesDeAlerta(bloquear) {
       const pathBar = document.querySelector('.path-bar');
       [pathBar, nodos.filtersBar, nodos.cancelBox].forEach((n) => n && n.classList.toggle('bloqueada', bloquear));
@@ -2194,7 +2248,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // (`.offline`)—, así que con la cola pausada quedaban dos comportamientos distintos para
       // el mismo estado: los filtros inertes y, al lado, el input de materia y el badge de la
       // faceta vivos sobre una lista que no está en pantalla.
-      bloquearRegionesDeAlerta(true);
+      sincronizarBloqueosDeAlerta();
 
       conectarEscuchadoresDelWorker();
     
