@@ -2,11 +2,27 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> ## ✅ Estado al 2026-08-12 — no hay trabajo a medio terminar
+> ## 🔎 Estado al 2026-08-12 — hay DOS RAMAS ESPERANDO VERIFICACIÓN EN NAVEGADOR
 >
-> **`main` está al día y verificado en navegador.** El **segundo portal** (Anatomy by Chris) y el
-> **escaneo por API** cerraron el 2026-08-07; la **fusión del backend** (ADR-0015) el 2026-08-12.
-> No queda ninguna rama con trabajo pendiente.
+> **`main` está al día y verificado**; lo que está en revisión vive fuera de él. El **segundo
+> portal** (Anatomy by Chris) y el **escaneo por API** cerraron el 2026-08-07; la **fusión del
+> backend** (ADR-0015) el 2026-08-12.
+>
+> **Lo que quedó a mitad de camino, y es lo primero que hay que resolver:**
+>
+> - `copy-generico-corte-1` — la UI genérica deja de hablar el vocabulario de Ramón Net
+>   (6 textos, 11 sitios + 2 `console.log`).
+> - `copy-generico-corte-2` — **apilada sobre la anterior**, no sobre `main`: las dos tocan
+>   `onboarding.preact.js`. Suma `instruccionEscaneo` a `PuertoSitio` (11 → **12 miembros**).
+>
+> Las dos tienen **la compuerta en verde** (la del corte 2 con 2 tests nuevos, 578 → 580) y
+> **ninguna está verificada en Chrome**, que acá es la única verificación que ve algo: casi todo
+> cae en `popup.js`, sin tests por ADR-0005. **Se mergean en orden: 1 y después 2.**
+>
+> **La checklist para correrla está escrita, no hay que reconstruirla** →
+> `docs/copy-generico-diseno.md` §7 «EN REVISIÓN»: 6 puntos con qué se espera y qué sería un bug,
+> más las dos cosas que **no** son defectos de estos cortes. El build de `.output/chrome-mv3/` ya
+> es el de la rama del corte 2 (los dos juntos): recargar, no rebuildear.
 >
 > **Ya no hay un segundo repo.** El backend Bun vive en **`backend/`**, acá adentro, con su
 > historia. Se arranca con `backend/iniciar.bat` y necesita Bun instalado; `npm install` no hace
@@ -38,10 +54,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 >   `docs/escaneo-api-anatomy-diseno.md`, cuyo banner tiene la tabla y los cuatro arreglos que
 >   costó bajar el primer PDF.
 > - **Backlog**: la deuda 🔴 de la identidad quedó cerrada (ADR-0014). Lo único abierto es el copy
->   genérico que nombra a Ramón Net —**9 textos en 17 sitios**, re-medido el 2026-08-11; el "6
->   strings de `popup.js`" era corto—, que no está **bloqueado** sino **postergado** por decisión
->   de prioridad del dueño → estado en `docs/TECHNICAL_DEBT.md` §🔴 Abierto, inventario y cómo en
->   `docs/copy-generico-diseno.md`.
+>   genérico que nombra a Ramón Net —eran **9 textos en 17 sitios**, re-medido el 2026-08-11; el
+>   "6 strings de `popup.js`" era corto; el rename a Course Downloader se llevó 4 de arrastre—, y
+>   **desde el 2026-08-12 está construido y en revisión**, en las dos ramas del banner de arriba.
+>   Dejó de estar postergado el día que se ejecutó → estado en `docs/TECHNICAL_DEBT.md` §🔴
+>   Abierto, inventario, decisiones y checklist en `docs/copy-generico-diseno.md`.
 >
 > ### Lo que este proyecto cobra caro, y conviene saber antes de tocar nada
 >
