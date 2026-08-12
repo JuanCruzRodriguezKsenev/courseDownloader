@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdir, unlink } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { VERSION, CARPETA_RAIZ_VIDEOS, MAX_CHUNK_BYTES, CONFIG_USER_FILE, establecerRutaRaiz } from "./config.js";
 import { log } from "./logger.js";

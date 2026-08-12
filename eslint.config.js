@@ -111,6 +111,23 @@ module.exports = [
   // bucle a core/cola/ en la Fase 6b, y el primero pasó a entrar por parámetro en la 7a.
   // El SW ya no lee un solo global.)
 
+  // El backend Bun (`backend/`), que entró al repo con la fusión (ADR-0015). Es OTRO RUNTIME:
+  // corre en Bun como proceso aparte y habla con la extensión sólo por HTTP en loopback
+  // (contrato en docs/deployment.md). No comparte una línea de código, así que sus globals no
+  // son los del navegador sino los de Node + `Bun`. Este bloque va DESPUÉS del base de `**/*.js`
+  // a propósito: en flat config el último gana, y el base le declara globals de browser.
+  //
+  // Ojo con lo que este bloque NO hace: no afloja ninguna regla. El backend queda bajo la misma
+  // red que la extensión —`no-undef`/`no-unused-vars`/`eqeqeq`— que es cobertura que antes no
+  // tenía, porque vivía en un repo sin lint.
+  {
+    files: ["backend/**/*.js"],
+    languageOptions: {
+      sourceType: "module",
+      globals: { ...globals.node, Bun: "readonly" },
+    },
+  },
+
   // El propio config de ESLint corre en Node (CommonJS).
   {
     files: ["eslint.config.js"],

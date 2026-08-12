@@ -21,7 +21,7 @@ if (existsSync(CONFIG_USER_FILE)) {
     if (parsed.rutaRaiz) {
       CARPETA_RAIZ_VIDEOS = parsed.rutaRaiz;
     }
-  } catch (e) {
+  } catch {
     // Si falla, se queda con la ruta por defecto
   }
 }

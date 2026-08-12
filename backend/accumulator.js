@@ -63,7 +63,7 @@ export async function alimentarSlidingWindow(claveVideo, index, totalChunks, chu
     sesion.pendingChunks.delete(sesion.nextExpectedIndex);
 
     await new Promise((resolve, reject) => {
-      const ok = sesion.writeStream.write(bloque, (err) => {
+      sesion.writeStream.write(bloque, (err) => {
         if (err) reject(err);
         else resolve();
       });
@@ -108,7 +108,7 @@ export async function flushVideoADisco(claveVideo, sesion) {
   try {
     const s = await stat(targetFile);
     finalSize = s.size;
-  } catch (e) {}
+  } catch {}
 
   acumuladorChunks.delete(claveVideo);
 
@@ -142,7 +142,7 @@ export async function abortarDescargaYLimpiar(claveVideo, sessionId) {
     try {
       sesion.writeStream.end();
       sesion.writeStream.destroy();
-    } catch (e) {}
+    } catch {}
   }
 
   // Borrar el archivo temporal .part de disco

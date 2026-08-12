@@ -23,7 +23,7 @@ async function cerrarServidor(señal) {
   for (const titulo of acumuladorChunks.keys()) {
     try {
       await abortarDescargaYLimpiar(titulo);
-    } catch (e) {}
+    } catch {}
   }
   acumuladorChunks.clear();
   console.log(`🔴 [BUN-CORE] Servidor detenido.\n`);
@@ -32,7 +32,7 @@ async function cerrarServidor(señal) {
 process.on('SIGINT',  () => cerrarServidor('SIGINT'));
 process.on('SIGTERM', () => cerrarServidor('SIGTERM'));
 
-const server = Bun.serve({
+Bun.serve({
   port: PORT,
   hostname: HOST,
   idleTimeout: 255, // Evita warnings de timeout si se tarda en elegir carpeta
