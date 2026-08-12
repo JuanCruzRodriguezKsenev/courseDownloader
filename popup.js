@@ -367,6 +367,27 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     let escaneoEnCurso = false;
     let generacionEscaneo = 0;
 
+    // [LOADERS — ítem 1e] Tercer motivo por el que una tarjeta de error puede estar ocupando
+    // `#ui-list`. Existe porque el bloqueo de las regiones se derivaba SÓLO del estado de
+    // conexión, y el watchdog del escaneo es una falla que no tiene nada que ver con la
+    // conexión: sin esto, la toolbar y la path-bar quedaban vivas sobre una lista que no está
+    // en pantalla — el mismo defecto que el corte del banner ya había arreglado, reentrando
+    // por una puerta nueva.
+    let escaneoMuertoPorTimeout = false;
+
+    /**
+     * ¿Hay una alerta ocupando `#ui-list`? Es la condición ÚNICA del bloqueo de regiones.
+     *
+     * Vive en una función y no repetida en cada call-site a propósito: cuando eran dos motivos
+     * la condición estaba escrita a mano en `conmutarPestañaA`, y al aparecer el tercero hubo
+     * que acordarse de ese sitio. Un cuarto motivo se agrega acá y funciona en todos lados.
+     */
+    function hayAlertaOcupandoLaRegion() {
+      return !!appState.fallaConexionActiva
+        || BannerConexion.get().visible
+        || escaneoMuertoPorTimeout;
+    }
+
     // [MULTISITIO CORTE 5] El portal de la pestaña que se está mirando.
     //
     // Hasta este corte el popup recibía UN sitio inyectado (`sitioAsumido`, el andamio del
@@ -659,6 +680,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           // El camino de "arrancó y el server contesta" también levanta el bloqueo: si no, un
           // popup que abre después de una caída podría quedarse con la toolbar inerte sin que
           // nadie la destrabe (la recuperación por daemon sólo corre si hubo TRANSICIÓN).
+          //
+          // [LOADERS — ítem 1e] Acá SÍ va `false` a secas y no la condición: el servidor acaba
+          // de contestar, así que no hay alerta de conexión que respetar, y un escaneo muerto
+          // por timeout no puede existir todavía —este punto es anterior al primer escaneo—.
+          // Es el único call-site donde el `false` literal es correcto.
           bloquearRegionesDeAlerta(false);
 
           nodos.btnExplore.title = `Carpeta raíz actual: ${ruta} (Click para cambiar)`;
@@ -921,7 +947,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       nodos.filtersBar.style.display = 'flex';
       // [BLOQUEO REAL] Las dos regiones siguen al mismo estado, por el mismo helper. Acá hacía
       // falta porque cambiar de pestaña volvía a habilitar lo que la alerta había bloqueado.
-      bloquearRegionesDeAlerta(!!appState.fallaConexionActiva || BannerConexion.get().visible);
+      // La condición estaba escrita a mano acá y ahora sale de `hayAlertaOcupandoLaRegion()`:
+      // el tercer motivo (el escaneo muerto por timeout) se olvidaba justo en este sitio.
+      bloquearRegionesDeAlerta(hayAlertaOcupandoLaRegion());
       nodos.btnStartQueue.style.display = appState.ráfagaEnCurso ? 'none' : qDisp;
     
       // Limpiar filtros activos y cerrar el menú
@@ -973,6 +1001,10 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         return false;
       }
       escaneoEnCurso = true;
+      // Arranca uno nuevo: la región deja de estar muerta. No se desbloquea todavía —eso lo
+      // hace el `finally` del payload cuando el escaneo TERMINA—, porque desbloquear ahora
+      // habilitaría la toolbar sobre la tarjeta de error que sigue en pantalla.
+      escaneoMuertoPorTimeout = false;
 
       // [LOADERS — ítem 1b] ABANDONO EXPLÍCITO. Cada corrida se lleva su número; el watchdog lo
       // incrementa al vencerse. Un callback que llegue después compara y se calla, en vez de
@@ -1023,6 +1055,17 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           generacionEscaneo++;
           escaneoEnCurso = false;
           nodos.loader.style.display = 'none';
+          // [ítem 1e] La tarjeta ocupa la región, así que la toolbar y la path-bar se bloquean
+          // — si no, quedan vivas sobre una lista que no está en pantalla: buscador, filtros,
+          // orden, "Todos", el input de materia y el badge de la faceta, todos operando sobre
+          // nada. Es el defecto que el corte del banner ya había cerrado para la alerta de
+          // conexión, y que este camino nuevo reabría.
+          //
+          // El botón de acción NO entra en el bloqueo (no está en la lista de `controles`), y
+          // eso es lo que hace que "Re-escanear 🔄" siga siendo clickeable — que es justo lo
+          // que la tarjeta le pide al usuario.
+          escaneoMuertoPorTimeout = true;
+          bloquearRegionesDeAlerta(true);
           // [ítem 1d] El mensaje va a la TARJETA de la lista, no al footer. En el footer convive
           // con el diagnóstico de conexión —que tiene otro dueño— y queda tapado o pisado; acá
           // ocupa la región y se ve. Nombra el portal porque a esta altura ya está resuelto.
@@ -1206,6 +1249,12 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
           } finally {
             nodos.loader.style.display = 'none';
+            // [LOADERS — ítem 1e] El escaneo terminó: si lo único que tenía bloqueada la región
+            // era un timeout anterior, se libera. Va por la condición completa y no por
+            // `bloquear(false)` a secas, porque si además hay una alerta de conexión viva, ésa
+            // manda y las regiones siguen bloqueadas. Liberar a ciegas acá desbloquearía la
+            // toolbar por debajo del banner de conexión.
+            bloquearRegionesDeAlerta(hayAlertaOcupandoLaRegion());
           }
         });
       });
