@@ -28,14 +28,11 @@ body {
    acordarse de ponerla, y la primera región que se olvidó (el panel del banco) apareció con la
    barra gorda del sistema al lado de la fina.
 
-   Lo que se pierde, para que sea decisión y no sorpresa: **las flechitas de subir y bajar**.
-   Personalizar `::-webkit-scrollbar` apaga los botones nativos, y volver a dibujarlos no vale
-   la pena — `background-image` en el botón no sigue el tema, y `mask` directamente no funciona
-   sobre `::-webkit-scrollbar-button`. Se probaron los dos. Si algún día se quieren las flechas,
-   el camino es borrar este bloque entero y quedarse con la nativa, no agregarle reglas. */
+   Las flechitas se redibujan más abajo: personalizar la barra apaga los botones nativos, así
+   que si no se declaran, desaparecen. */
 *::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 *::-webkit-scrollbar-track {
@@ -55,6 +52,48 @@ body {
    defecto del navegador, que es lo único blanco que sobrevive en el tema oscuro. */
 *::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* ── Las flechitas de subir y bajar ──────────────────────────────────────────────────────
+   `:single-button` es la clave: Chrome define DOS botones por extremo (uno por dirección) y
+   sin este pseudo-selector hay que apagar a mano el par que no corresponde, o aparecen
+   cuadrados huecos al principio y al final de la barra.
+
+   Van con `background-image`, NO con `mask`: el `mask` no se aplica sobre
+   `::-webkit-scrollbar-button` —el botón queda pintado del color de fondo, que se ve como un
+   cuadrado gris sólido— y se probó en esta misma sesión.
+
+   **El color va literal adentro del data URI y no puede ser un token**, que es la única
+   excepción a la regla de "ninguna hoja escribe un color literal" (`variables.css`): una
+   variable CSS no se interpola dentro de una `url()`. El `#888` elegido es a propósito el
+   punto medio entre los dos `--text-muted` del proyecto —#8E8E93 en claro y #7E8590 en
+   oscuro—, que están a un pelo uno del otro, así que un solo valor sirve en los dos temas y
+   evita duplicar estas reglas dentro del `@media`.
+
+   El `background-color: transparent` importa: si el SVG no cargara, el botón queda invisible
+   en vez de mostrarse como un bloque de color. */
+*::-webkit-scrollbar-button:single-button {
+  display: block;
+  height: 10px;
+  width: 10px;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 6px 6px;
+}
+
+*::-webkit-scrollbar-button:single-button:vertical:decrement {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath fill='%23888888' d='M5 2.8 9.2 8H0.8z'/%3E%3C/svg%3E");
+}
+
+*::-webkit-scrollbar-button:single-button:vertical:increment {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath fill='%23888888' d='M5 7.2.8 2h8.4z'/%3E%3C/svg%3E");
+}
+
+/* En el eje horizontal no hay flechas: ninguna región del popup scrollea de costado (todas
+   declaran `overflow-x: hidden`), así que serían dos controles muertos. */
+*::-webkit-scrollbar-button:horizontal {
+  display: none;
 }
 
 /* focus-visible accessibility best practices */

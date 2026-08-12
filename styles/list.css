@@ -12,11 +12,11 @@
   padding: 0;
   border-color: transparent;
   background-color: transparent;
-  /* [MISMA GEOMETRÍA EN LOS DOS ESTADOS] Esta clase NO apaga el `scrollbar-gutter` del wrapper:
-     el canal queda reservado también con una card en pantalla, así que el ancho útil **no
-     cambia nunca** y ninguna transición mueve nada.
-     Apagarlo acá fue un intento previo — arreglaba el parpadeo al aparecer un banner y dejaba
-     el simétrico al aparecer el listado, que es la misma transición al revés. */
+  /* Una card no scrollea nunca, así que el canal reservado del wrapper acá es puro margen
+     muerto: metía la card 8px hacia la izquierda y se veía descentrada dentro de su región.
+     El canal sigue reservado en el estado LISTA, que es donde evita que la barra
+     apareciendo/desapareciendo re-fluya las filas. */
+  scrollbar-gutter: auto;
 }
 
 /* Listado Wrapper */
