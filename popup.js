@@ -1,6 +1,40 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.18.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.20.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
+ * ==========================================================================
+ * CHANGELOG v5.20.0:
+ * - [BANNER OCUPA LISTA + TOOLBAR] Con la cola pausada, la card de error ocupaba #ui-list
+ *   pero la barra de filtros seguía viva ENCIMA de ella: buscador, filtros, orden y "Todos"
+ *   habilitados, operando sobre una lista que no estaba en pantalla. Ahora
+ *   `mostrarAlertDeConexionCaida` la oculta, y `conmutarPestañaA` dejó de re-mostrarla
+ *   incondicionalmente — que era el agujero por el que volvía al cambiar de pestaña. Las
+ *   PESTAÑAS no se ocultan: la cola tiene que seguir siendo consultable mientras está pausada.
+ * - [BANNER DUEÑO DEL DIAGNÓSTICO] El botón dejó de reescribir lo que dice la card. Los cuatro
+ *   textos de `actualizarContadoresBoton` ("Reintentar conexión con servidor", "Iniciar sesión
+ *   y reintentar", …) pasaron a uno solo, "Reintentar 🔄": el diagnóstico y el qué-hacer viven
+ *   en la card, el botón sólo ofrece la acción.
+ * - [ALERTA EN EL CONTENEDOR] La alerta de conexión dejó de vivir en un root hermano: la pinta
+ *   la isla de #ui-list, que ahora es dueña única de esa región. Se ve una sola cosa a la vez.
+ * - [BLOQUEAR, NO ESCONDER] La toolbar no desaparece: va `.bloqueada` (atenuada +
+ *   `pointer-events: none`). Esconderla movía todo de lugar en cada caída y en cada reconexión
+ *   del auto-heal, que pasa seguido. Las PESTAÑAS quedan operativas —con el servidor caído
+ *   sigue siendo legítimo mirar la cola— y el progreso, si hay una descarga, se queda en
+ *   pantalla bloqueado en vez de desaparecer.
+ * - [ALERTA ⇒ NINGUNA ACCIÓN] `actualizarContadoresBoton` mira la alerta ANTES que la pestaña.
+ *   Sin eso el footer lo decidía la pestaña: con el servidor caído, pasar a Fila mostraba
+ *   "Iniciar descarga masiva 🚀" y volver a Clases mostraba "Seleccioná clases". La función
+ *   conocía la cola pausada (`fallaConexionActiva`) y no la otra alerta, que es un estado
+ *   distinto y más grave. Los dos botones se apagan juntos, porque `btnStartQueue` lo enciende
+ *   `conmutarPestañaA` sin consultar nada.
+ * - [EL BOTÓN, SEGÚN HAYA ALGO QUE HACER] Sin label no se muestra, y `configurarBotonesUX` es
+ *   quien lo decide. Con la alerta de conexión no hay ninguna acción (la reconexión es
+ *   automática) → se va; con la cola pausada sí la hay → "Reintentar 🔄". La regla que queda:
+ *   **el botón dice lo que hace, la alerta dice qué pasa**.
+ * - [FIX de arrastre] `.path-bar.offline` sumó `pointer-events: none`. Sólo tenía `opacity`, y
+ *   el badge de la faceta es un `<span>` —no admite `disabled`—, así que se veía apagado y
+ *   seguía abriendo el modal de cátedra sobre una UI muerta.
+ * - NOTA de versiones: se salta la 5.19.0, que es el corte 1 del copy genérico (rama
+ *   `copy-generico-corte-1`) y se mergea antes que esto.
  * ==========================================================================
  * CHANGELOG v5.18.0:
  * - [FIX — el cartel mentiroso] Dos tarjetas nuevas para los tipos de pausa que agregó
@@ -435,6 +469,10 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       bannerConexion: BannerConexion,
       backend,
       configurarBotonesUX: (modo, txt, dis) => configurarBotonesUX(modo, txt, dis),
+      // [BLOQUEO REAL] El mismo bloqueo que usa la cola pausada, para que los dos estados de
+      // alerta no se comporten distinto. Va envuelto por la misma razón que el de arriba: la
+      // función se declara más abajo en este closure.
+      bloquearRegiones: (bloquear) => bloquearRegionesDeAlerta(bloquear),
       onReintentarCola: () => ejecutarReintentoDeCola(),
       onReescanearAula: () => ejecutarPaso1EscaneoRamonAutomatico()
     });
@@ -562,11 +600,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         const ruta = await backend.obtenerRutaServidor();
         if (ruta) {
           const tabsBar = document.querySelector(".tabs-bar");
-          if (tabsBar) tabsBar.style.display = "flex";
-
-          nodos.folder.disabled = false;
-          nodos.btnExplore.disabled = false;
-          document.querySelector('.path-bar')?.classList.remove('offline');
+          if (tabsBar) { tabsBar.style.display = "flex"; tabsBar.classList.remove('bloqueada'); }
+          // El camino de "arrancó y el server contesta" también levanta el bloqueo: si no, un
+          // popup que abre después de una caída podría quedarse con la toolbar inerte sin que
+          // nadie la destrabe (la recuperación por daemon sólo corre si hubo TRANSICIÓN).
+          bloquearRegionesDeAlerta(false);
 
           nodos.btnExplore.title = `Carpeta raíz actual: ${ruta} (Click para cambiar)`;
           RutaDisco.mostrar(ruta);
@@ -809,7 +847,13 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       appState.pestañaActiva = id;
       nodos.tabDisp.classList.toggle('active', id === "disponibles");
       nodos.tabCola.classList.toggle('active', id === "cola");
+      // [BANNER OCUPA LISTA + TOOLBAR] El display vuelve a ser incondicional —la barra siempre
+      // está—, pero el bloqueo sigue a la falla: con la cola pausada, cambiar de pestaña
+      // desbloqueaba la toolbar encima de la card. El estado de falla manda sobre la pestaña.
       nodos.filtersBar.style.display = 'flex';
+      // [BLOQUEO REAL] Las dos regiones siguen al mismo estado, por el mismo helper. Acá hacía
+      // falta porque cambiar de pestaña volvía a habilitar lo que la alerta había bloqueado.
+      bloquearRegionesDeAlerta(!!appState.fallaConexionActiva || BannerConexion.get().visible);
       nodos.btnStartQueue.style.display = appState.ráfagaEnCurso ? 'none' : qDisp;
     
       // Limpiar filtros activos y cerrar el menú
@@ -1046,6 +1090,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     async function ejecutarPaso2SincronizarDiscoVeloz() {
       configurarBotonesUX("sincronizar-disco", "", true);
       nodos.btnAction.innerHTML = `<span class="spinner-inline"></span> Sincronizando disco local...`;
+      // El "" de arriba significa "sin acción → botón oculto"; acá el label se escribe por
+      // innerHTML (lleva spinner), así que hay que volver a mostrarlo. Es la única excepción.
+      nodos.btnAction.style.display = 'block';
       ListaClases.setAtenuada(true); // atenúa la lista durante la sincronización (isla dueña de #ui-list)
 
       const subcarpetaFiltro = nodos.folder.value.trim().toLowerCase();
@@ -1665,23 +1712,46 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       ListaClases.setSelectionMode(activo);
     }
 
+    // Envoltorio: el cálculo no cambió, pero cualquiera de sus ~8 salidas puede haber movido
+    // `btnStartQueue` —que `configurarBotonesUX` no ve— así que el footer se re-mide DESPUÉS,
+    // una sola vez y sin depender de que cada rama se acuerde. Ver `sincronizarFooterVacio`.
     function actualizarContadoresBoton() {
+      calcularContadoresBoton();
+      sincronizarFooterVacio();
+    }
+
+    function calcularContadoresBoton() {
       actualizarMasterCheckState();
       actualizarModoSeleccion();
 
+      // [ALERTA ⇒ NINGUNA ACCIÓN] Va PRIMERO, antes que cualquier otra rama, porque manda sobre
+      // la pestaña y sobre la selección: con la alerta de conexión en pantalla no hay nada que
+      // el usuario pueda hacer desde el footer —no se puede iniciar una descarga contra un
+      // servidor que no está, ni encolar contra una lista que no se ve—.
+      //
+      // Sin esto, el estado del footer lo decidía la PESTAÑA: pasar a Fila mostraba "Iniciar
+      // descarga masiva 🚀" y volver a Clases mostraba "Seleccioná clases", los dos con el
+      // servidor caído. La función miraba `fallaConexionActiva` (la cola pausada) y no sabía
+      // que existe la otra alerta, que es un estado distinto y más grave.
+      //
+      // Los dos botones se van juntos: `btnStartQueue` lo enciende `conmutarPestañaA` sin
+      // consultar nada, así que apagarlo acá —que corre después— es lo que cierra el paso.
+      if (BannerConexion.get().visible) {
+        configurarBotonesUX("sincronizar-disco", "", true); // sin label ⇒ oculto
+        nodos.btnStartQueue.style.display = 'none';
+        nodos.masterCheck.disabled = true;
+        return;
+      }
+
       if (appState.fallaConexionActiva) {
-        let txt;
-        if (appState.fallaConexionActiva === "sesion") {
-          txt = "Iniciar sesión y reintentar 🔄";
-        } else if (appState.fallaConexionActiva === "internet") {
-          txt = "Reintentar conexión a internet 🔄";
-        } else if (appState.fallaConexionActiva === "bloqueo" || appState.fallaConexionActiva === "desconocido") {
-          // Los dos tipos que NO son de conexión: el botón no puede prometer reconectar nada.
-          txt = "Reintentar 🔄";
-        } else {
-          txt = "Reintentar conexión con servidor 🔄";
-        }
-        configurarBotonesUX("reintentar-cola", txt, reintentandoColaActivo);
+        // [BANNER DUEÑO DEL DIAGNÓSTICO] Un solo texto para los cinco tipos de pausa, y es un
+        // VERBO. Antes había cuatro variantes que le repetían al usuario lo que la card de
+        // arriba ya le estaba diciendo con más detalle ("Reintentar conexión con servidor" vs.
+        // "Servidor Desconectado", "Iniciar sesión y reintentar" vs. "Iniciá sesión … y tocá
+        // Reintentar"). Dos textos para un mismo hecho es un lugar de más donde envejecer:
+        // el diagnóstico y el qué-hacer viven en la card (renderizarListadoInterfaz), el
+        // botón sólo ofrece la acción.
+        configurarBotonesUX("reintentar-cola", "Reintentar 🔄", reintentandoColaActivo);
         nodos.btnAction.style.display = 'block';
         nodos.btnStartQueue.style.display = 'none';
         nodos.masterCheck.disabled = true;
@@ -1721,9 +1791,15 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       if (modoActual === 're-escanear') return; 
 
       if (!appState.sincronizacionDiscoCompletada) {
+        // `isOffline` equivale a "el banner de conexión está en pantalla": el input de carpeta
+        // sólo se deshabilita en activarEstadoOfflineUI y se rehabilita al reconectar.
         const isOffline = nodos.folder.disabled;
-        configurarBotonesUX("sincronizar-disco", isOffline ? "Buscando servidor... ⏳" : "Sincronizar carpeta local 📂", isOffline);
-        nodos.btnAction.style.display = 'block';
+        // [BOTÓN SEGÚN HAYA ALGO QUE HACER] Con el banner puesto no hay ninguna acción: no se
+        // puede sincronizar contra un servidor que no está, y la reconexión es automática. El
+        // label vacío lo saca de pantalla (ver `configurarBotonesUX`). Decía
+        // "Buscando servidor... ⏳", que además de ofrecer una acción inexistente era la
+        // tercera copia de lo que ya dicen la card y su pulso.
+        configurarBotonesUX("sincronizar-disco", isOffline ? "" : "Sincronizar carpeta local 📂", isOffline);
         nodos.masterCheck.disabled = true;
         return;
       }
@@ -1764,6 +1840,80 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       nodos.btnAction.className = `btn-action modo-${modo}`;
       nodos.btnAction.textContent = txt;
       nodos.btnAction.disabled = dis;
+      // [BOTÓN SEGÚN HAYA ALGO QUE HACER] Sin label no se muestra. Pasar "" es cómo se dice
+      // "en este estado no hay ninguna acción" — hoy, el banner de conexión: la reconexión la
+      // maneja el daemon solo. Con la cola pausada SÍ hay acción ("Reintentar 🔄") y el botón
+      // aparece. La regla vive ACÁ y no en los ~12 call-sites: si la visibilidad se decidiera
+      // afuera, basta que uno se olvide para dejar el botón escondido con una acción adentro,
+      // o vacío en pantalla. Excepción única y explícita: la sincronización de disco, que
+      // escribe su label con innerHTML por el spinner y restaura el display ahí mismo.
+      nodos.btnAction.style.display = txt ? 'block' : 'none';
+      sincronizarFooterVacio();
+    }
+
+    // [FOOTER VACÍO] Con el botón oculto (sin acción que ofrecer) y el texto de estado vacío
+    // —que se colapsa solo por `.status-text:empty`— el footer se queda sin contenido y lo
+    // único que se ve es su `border-top`: una línea divisoria que no divide nada y que se lee
+    // como un botón roto. No se puede resolver con `:empty` en CSS, porque los hijos siguen
+    // existiendo: están ocultos. Se mira cuál quedó visible y se marca el footer.
+    //
+    // Se llama desde los dos embudos por los que pasa cualquier cambio del footer
+    // (`configurarBotonesUX` y `actualizarContadoresBoton`) y no desde cada call-site, por el
+    // mismo motivo que la visibilidad del botón vive en el helper: uno olvidado deja la línea.
+    /**
+     * [BLOQUEO REAL] Bloquea o libera las dos regiones que quedan a la vista mientras una
+     * alerta ocupa el contenedor: la path-bar (📁 PC / 📚 Materia / faceta) y la toolbar. Más
+     * la caja de cancelar, que sigue en pantalla si hay una descarga a medias.
+     *
+     * **Nada se esconde**: se ven, apagadas, y no operan. Y el bloqueo es el ATRIBUTO
+     * `disabled`, no un `pointer-events: none` — que frena el mouse y deja pasar el teclado
+     * (se podía tabular al input de materia y escribir, o marcar "Todos" con Espacio).
+     * El único que no admite `disabled` es el badge de la faceta, que es un `<span>`: se le
+     * marca `aria-disabled` y `faceta.js` lo respeta en su listener.
+     *
+     * Existe como función y no como dos líneas en cada call-site porque los dos estados de
+     * alerta —el banner de conexión y la cola pausada— tenían distinto alcance: uno
+     * deshabilitaba seis controles y el otro ninguno, así que el mismo bloque bloqueado se
+     * comportaba distinto según qué hubiera fallado.
+     */
+    function bloquearRegionesDeAlerta(bloquear) {
+      const pathBar = document.querySelector('.path-bar');
+      [pathBar, nodos.filtersBar, nodos.cancelBox].forEach((n) => n && n.classList.toggle('bloqueada', bloquear));
+
+      const controles = [
+        nodos.folder, nodos.btnExplore,
+        nodos.search, nodos.btnFilterPills, nodos.btnSort, nodos.masterCheck, nodos.btnToggleSelect,
+        nodos.btnSoftCancel, nodos.btnHardCancel,
+      ];
+      // Lo que NO es un control de formulario no admite `disabled`, así que lleva
+      // `aria-disabled`: el badge de la faceta es un <span> y el "Todos" es un <label>. El CSS
+      // de `.bloqueada` los apaga con `pointer-events` a partir de ese atributo —única forma
+      // de matarles el `cursor: pointer` y el hover— y `faceta.js` lo respeta en su listener.
+      // Es el mismo bloqueo, expresado en la forma que cada elemento admite.
+      [nodos.facetaBadge, document.getElementById('ui-master-select-wrapper')]
+        .forEach((n) => n && n.setAttribute('aria-disabled', String(bloquear)));
+
+      if (bloquear) {
+        controles.forEach((c) => { if (c) c.disabled = true; });
+        return;
+      }
+
+      // Liberar NO es "habilitar todo": cada control tiene su propia condición y ponerlos en
+      // `false` a ciegas habilitaría el buscador sin lista o "Todos" sin sincronizar. Se
+      // delega en quien ya sabe — `desbanearFiltros` para la toolbar — y se restauran a mano
+      // sólo los que dependen del estado de conexión o de la ráfaga.
+      if (nodos.folder) nodos.folder.disabled = false;
+      if (nodos.btnExplore) nodos.btnExplore.disabled = false;
+      desbanearFiltros();
+      if (nodos.btnSoftCancel) nodos.btnSoftCancel.disabled = appState.banderaFrenadoSolicitado;
+      if (nodos.btnHardCancel) nodos.btnHardCancel.disabled = false;
+    }
+
+    function sincronizarFooterVacio() {
+      const footer = document.querySelector('.footer-panel');
+      if (!footer) return;
+      const hayAlgo = [...footer.children].some((el) => getComputedStyle(el).display !== 'none');
+      footer.classList.toggle('vacia', !hayAlgo);
     }
 
     function mostrarAlertDeConexionCaida(errorType, titulo) {
@@ -1775,7 +1925,23 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       nodos.btnStartQueue.style.display = 'none';
       nodos.progressCont.style.display = 'none';
       nodos.panelTel.style.display = 'none';
-    
+
+      // [BANNER OCUPA LISTA + TOOLBAR] La card de pausa se pinta DENTRO de #ui-list, así que
+      // sin esto la barra de filtros quedaba viva encima de ella: buscador, filtros, orden y
+      // "Todos" habilitados, operando sobre una lista que no está en pantalla.
+      //
+      // Se BLOQUEA, no se esconde: esconderla mueve todo de lugar en cada caída y en cada
+      // reconexión del auto-heal. Atenuada e inerte se lee como "ahora no". Las pestañas
+      // quedan operativas a propósito: la cola tiene que seguir siendo consultable mientras
+      // está pausada, que es justo lo que uno quiere mirar cuando algo falló.
+      //
+      // [UN SOLO BLOQUEO] La path-bar va junto con la toolbar y con la misma clase. Antes no
+      // entraba acá —sólo se bloqueaba con el banner de conexión, y con otro nombre
+      // (`.offline`)—, así que con la cola pausada quedaban dos comportamientos distintos para
+      // el mismo estado: los filtros inertes y, al lado, el input de materia y el badge de la
+      // faceta vivos sobre una lista que no está en pantalla.
+      bloquearRegionesDeAlerta(true);
+
       conectarEscuchadoresDelWorker();
     
       // Simplemente volver a renderizar y actualizar el botón en la pestaña activa sin redirigir

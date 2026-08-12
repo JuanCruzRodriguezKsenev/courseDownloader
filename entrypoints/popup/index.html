@@ -98,7 +98,9 @@
          features/bannerConexion.preact.js en su propio root (no dentro de #ui-list).
          Mientras el banner está visible, el vanilla oculta #ui-list. display:contents
          => la card (flex:1) participa del flex del .container como lo hacía la lista. -->
-    <div id="preact-banner" style="display:contents"></div>
+    <!-- [ALERTA EN EL CONTENEDOR] Acá vivía #preact-banner. La alerta de conexión se pinta
+         ahora DENTRO de #ui-list, como las cards de estado: un solo dueño de esa región. -->
+
 
     <footer class="footer-panel">
       <button id="ui-btn-action" class="btn-action" disabled>Conectando con el servidor... ⏳</button>
