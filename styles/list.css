@@ -9,21 +9,14 @@
    heredó el marco, y esto lo devuelve al lugar donde estaba. La clase la pone la isla, que es
    la que sabe qué está pintando. */
 .list-wrapper.sin-marco {
-  /* [MISMA GEOMETRÍA EN LOS DOS ESTADOS] El canal del scroll queda reservado también acá — es
-     decir, esta clase NO apaga el `scrollbar-gutter` de `.list-wrapper`— y el padding
-     izquierdo lo compensa, así que la card queda centrada y **el ancho útil no cambia nunca**.
-
-     El intento anterior sí lo apagaba (`overflow: hidden; scrollbar-gutter: auto`) para que la
-     card alineara con la path-bar, y con eso arregló el parpadeo al APARECER un banner… y
-     dejó el simétrico al aparecer el LISTADO, que es la misma transición al revés: se
-     devolvían de golpe los 12px del canal más el padding y el borde del marco.
-
-     Reservarlo en los dos estados cuesta que la card quede 12px más angosta que la path-bar, y
-     eso es deliberado: repartido en los dos lados se lee como aire, no como desalineación, y
-     ninguna transición mueve nada. */
-  padding: 0 0 0 var(--scroll-ancho);
+  padding: 0;
   border-color: transparent;
   background-color: transparent;
+  /* [MISMA GEOMETRÍA EN LOS DOS ESTADOS] Esta clase NO apaga el `scrollbar-gutter` del wrapper:
+     el canal queda reservado también con una card en pantalla, así que el ancho útil **no
+     cambia nunca** y ninguna transición mueve nada.
+     Apagarlo acá fue un intento previo — arreglaba el parpadeo al aparecer un banner y dejaba
+     el simétrico al aparecer el listado, que es la misma transición al revés. */
 }
 
 /* Listado Wrapper */
@@ -47,10 +40,11 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
-  /* La barra fina salió de acá a `.scroll-fino` (base.css) y este elemento la toma por clase,
-     desde `index.html`. Era la única región con scroll estilado del proyecto: la segunda que
-     apareciera —el panel del banco de pruebas fue la primera— traía la barra gorda del sistema
-     al lado de ésta. Una definición, N usuarios. */
+  /* La barra de scroll es la NATIVA de Chrome, a propósito. Acá hubo un bloque de
+     `::-webkit-scrollbar` que la dejaba de 6px, y sacarlo cerró tres problemas de una: la
+     nativa ya trae las flechas de subir y bajar (personalizarla es justamente lo que se las
+     come), ya sigue el tema del sistema, y ya es igual en toda región que scrollee sin que
+     haya que acordarse de ponerle una clase. */
 }
 
 /* Fila de video individual */

@@ -21,7 +21,7 @@
  *   cual el banco mentiría en silencio. El estático da la misma eliminación en frío **y** la
  *   garantía de orden. Detalle en el bloque de `main.js`.
  * - [PANTALLA COMPLETA] Ocupa el cuerpo entero del popup menos la cabecera, que es donde vive
- *   su botón. Un solo scroll (el del panel, con la utilitaria `.scroll-fino` del proyecto) y
+ *   su botón. Un solo scroll (el del panel, con la barra nativa como el resto del popup) y
  *   sin scroll horizontal.
  *
  * CHANGELOG v2.1.0 — dos bugs del propio banco:
@@ -95,8 +95,8 @@ const CSS_PANEL = `
      Antes había dos barras gordas: una del panel y otra del <pre> del registro, que tenía su
      propio max-height. Dos scrollbars anidadas en un popup de 390px de ancho es una de más y
      ninguna de las dos con el estilo del proyecto.
-     Ahora: el registro NO scrollea (crece), y lo que scrollea es el panel — con la utilitaria
-     scroll-fino de base.css, la misma barra del listado de clases.
+     Ahora: el registro NO scrollea (crece), y lo que scrollea es el panel, con la barra
+     NATIVA de Chrome — la misma que el listado de clases, porque ninguno de los dos la estila.
      overflow-x: hidden + el min-width: 0 de las secciones matan el scroll horizontal: sin
      eso, un ítem de flex/grid no baja del ancho de su contenido y un token largo del registro
      ensancha el panel entero.
@@ -341,11 +341,6 @@ export function activarModoVerificacion({ sitios, montarOnboarding, conexion, ap
 
   const panel = document.createElement("section");
   panel.id = "mv-panel";
-  // La MISMA barra de scroll que el listado de clases: utilitaria `.scroll-fino` de
-  // `styles/base.css`. El banco fue la segunda región con scroll del proyecto y traía la barra
-  // gorda del sistema al lado de la fina de la lista — dos widgets de proyectos distintos en
-  // la misma pantalla. La utilitaria salió de ahí.
-  panel.className = "scroll-fino";
   panel.innerHTML = `
     <div class="mv-seccion">
       <div class="mv-titulo">🔎 Escaneo</div>
