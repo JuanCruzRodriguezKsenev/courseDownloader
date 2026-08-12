@@ -126,5 +126,25 @@ input[type="checkbox"] {
 .bloqueada [aria-disabled="true"],
 .bloqueada [aria-disabled="true"] * {
   pointer-events: none;
-  cursor: not-allowed;
+}
+
+/* Y el cursor lo decide la REGIÓN, no cada control.
+
+   No hay componentes genéricos en esta hoja de estilos: cada control define su propio
+   `:disabled`, y de ahí sale el desparejo. `.pill-filter-btn` (filters.css), `.btn-sort`
+   (idem), `.input-path` (path-bar.css) y la casilla (más arriba en este archivo) declaran
+   `cursor: not-allowed`; `.btn-explore` no declara nada, así que se queda con la flecha. Con
+   media docena de definiciones sueltas, la mitad de los controles bloqueados mostraba el
+   ícono de prohibido y la otra mitad no.
+
+   `!important` porque cada uno de ésos gana por especificidad: los suyos son reglas anidadas
+   (`.filter-bar .pill-filter-btn:disabled`, 0-3-0) contra esta utilitaria (0-2-0). Es
+   exactamente el caso en que corresponde: adentro de una región bloqueada el aspecto lo fija
+   la región, y hacerlo componente por componente vuelve a dejarlo desparejo el día que se
+   agregue el próximo control. */
+.bloqueada :disabled,
+.bloqueada [aria-disabled="true"],
+.bloqueada [aria-disabled="true"] *,
+.bloqueada label {
+  cursor: default !important;
 }
