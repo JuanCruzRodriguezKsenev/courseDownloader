@@ -2,27 +2,43 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> ## 🔎 Estado al 2026-08-12 — hay DOS RAMAS ESPERANDO VERIFICACIÓN EN NAVEGADOR
+> ## 🔎 Estado al 2026-08-12 — hay CINCO RAMAS ESPERANDO VERIFICACIÓN EN NAVEGADOR
 >
 > **`main` está al día y verificado**; lo que está en revisión vive fuera de él. El **segundo
 > portal** (Anatomy by Chris) y el **escaneo por API** cerraron el 2026-08-07; la **fusión del
 > backend** (ADR-0015) el 2026-08-12.
 >
-> **Lo que quedó a mitad de camino, y es lo primero que hay que resolver:**
+> **Lo que quedó a mitad de camino, en el orden en que se mergea:**
 >
-> - `copy-generico-corte-1` — la UI genérica deja de hablar el vocabulario de Ramón Net
->   (6 textos, 11 sitios + 2 `console.log`).
-> - `copy-generico-corte-2` — **apilada sobre la anterior**, no sobre `main`: las dos tocan
->   `onboarding.preact.js`. Suma `instruccionEscaneo` a `PuertoSitio` (11 → **12 miembros**).
+> | # | Rama | Sale de | Qué trae |
+> |---|---|---|---|
+> | 1 | `copy-generico-corte-1` | `main` | La UI genérica deja de hablar el vocabulario de Ramón Net (6 textos, 11 sitios + 2 `console.log`) |
+> | 2 | `copy-generico-corte-2` | la 1 | `instruccionEscaneo` en `PuertoSitio` (11 → **12 miembros**) |
+> | 3 | `banner-ocupa-lista-y-toolbar` | `main` | El banner deja de reescribirse en el botón y en el footer; la toolbar se bloquea en vez de esconderse |
+> | 4 | `banner-en-el-contenedor` | la 3 | **La alerta comparte contenedor con las listas** + el bloqueo real (`disabled`) + 4 arreglos de layout |
+> | 5 | `seleccion-sigue-a-los-filtros` | `main` | Lo que se filtra, se deselecciona |
 >
-> Las dos tienen **la compuerta en verde** (la del corte 2 con 2 tests nuevos, 578 → 580) y
-> **ninguna está verificada en Chrome**, que acá es la única verificación que ve algo: casi todo
-> cae en `popup.js`, sin tests por ADR-0005. **Se mergean en orden: 1 y después 2.**
+> Las cinco tienen **la compuerta en verde**; juntas dan **591 tests** (la cuenta y su desglose,
+> en `docs/testing.md` §Baseline). **Ninguna está verificada en Chrome**, que acá es la única
+> verificación que ve algo: casi todo cae en `popup.js` y en el CSS, sin tests por ADR-0005. Las
+> 1↔2 y 3↔4 están apiladas; las tres cabeceras se van a pisar en `popup.js` y en
+> `serverConnection.js` — son conflictos de contexto, no de lógica.
 >
-> **La checklist para correrla está escrita, no hay que reconstruirla** →
-> `docs/copy-generico-diseno.md` §7 «EN REVISIÓN»: 6 puntos con qué se espera y qué sería un bug,
-> más las dos cosas que **no** son defectos de estos cortes. El build de `.output/chrome-mv3/` ya
-> es el de la rama del corte 2 (los dos juntos): recargar, no rebuildear.
+> **Hay una sexta rama que NO se mergea**: `copy-generico-verificacion` junta las cinco **más un
+> banco de pruebas** (🧪 en la cabecera del popup, o **F9**) que fuerza las caídas de servidor e
+> internet, la cola pausada en sus 5 tipos, el escaneo vacío/colgado, y **graba los carteles que
+> duran milisegundos**. El build de `.output/chrome-mv3/` es el de esa rama: **recargar, no
+> rebuildear**. Después de la pasada, la rama se descarta entera.
+>
+> **Las dos checklists están escritas, no hay que reconstruirlas** →
+> `docs/copy-generico-diseno.md` §7 «EN REVISIÓN» (6 puntos, con qué se espera y qué sería un
+> bug) y `docs/alertas-y-bloqueo-diseno.md` §5 (qué mirar del frente de alertas).
+>
+> **⚠️ Y el frente de alertas dejó CINCO ítems abiertos que no se arreglaron** (auditoría de los
+> loaders y los estados de carga): el peor es que **el timeout del escaneo salta siempre en
+> Anatomy** —6 s de tope contra ~11 s de escaneo— y muestra un error falso que después se borra
+> solo. Estado en `docs/TECHNICAL_DEBT.md` §🔴 Abierto; el detalle técnico de los cinco, en
+> `docs/alertas-y-bloqueo-diseno.md` §6.
 >
 > **Ya no hay un segundo repo.** El backend Bun vive en **`backend/`**, acá adentro, con su
 > historia. Se arranca con `backend/iniciar.bat` y necesita Bun instalado; `npm install` no hace
@@ -53,12 +69,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > - **Escaneo por API** (5 cortes: identidad, escaneo, override de carpeta, 720p, PDF) →
 >   `docs/escaneo-api-anatomy-diseno.md`, cuyo banner tiene la tabla y los cuatro arreglos que
 >   costó bajar el primer PDF.
-> - **Backlog**: la deuda 🔴 de la identidad quedó cerrada (ADR-0014). Lo único abierto es el copy
->   genérico que nombra a Ramón Net —eran **9 textos en 17 sitios**, re-medido el 2026-08-11; el
->   "6 strings de `popup.js`" era corto; el rename a Course Downloader se llevó 4 de arrastre—, y
->   **desde el 2026-08-12 está construido y en revisión**, en las dos ramas del banner de arriba.
->   Dejó de estar postergado el día que se ejecutó → estado en `docs/TECHNICAL_DEBT.md` §🔴
->   Abierto, inventario, decisiones y checklist en `docs/copy-generico-diseno.md`.
+> - **Alertas, bloqueo y footer** (la alerta de conexión comparte contenedor con las listas; qué
+>   se bloquea y cómo; qué botón se muestra y cuándo): construido en las ramas 3, 4 y 5 →
+>   `docs/alertas-y-bloqueo-diseno.md`, cuyo §6 es **el informe de la auditoría de loaders y
+>   estados de carga, con los cinco ítems que quedaron abiertos**.
+> - **Backlog**: la deuda 🔴 de la identidad quedó cerrada (ADR-0014). Hoy hay **seis ítems
+>   abiertos**: el copy genérico que nombra a Ramón Net —eran **9 textos en 17 sitios**, re-medido
+>   el 2026-08-11; el "6 strings de `popup.js`" era corto; el rename a Course Downloader se llevó
+>   4 de arrastre—, **construido y en revisión desde el 2026-08-12**; más los **cinco** que dejó
+>   la auditoría de los loaders, ninguno arreglado. Estado en `docs/TECHNICAL_DEBT.md` §🔴
+>   Abierto; el inventario y la checklist del copy, en `docs/copy-generico-diseno.md`.
 >
 > ### Lo que este proyecto cobra caro, y conviene saber antes de tocar nada
 >
@@ -118,6 +138,7 @@ Start at **`docs/architecture.md`**. Full map:
 - `docs/escaneo-api-anatomy-diseno.md` — **construido y verificado en navegador el 2026-08-07, ya en `main`**: el escaneo del segundo portal pasa de leer el DOM a pedirle el árbol a la API del club. Trae el diagnóstico de los tres síntomas con su línea de código, la medición de `/v1/navigation` (11 módulos, 114 clases, `hasPlayerMedia` como discriminador video/texto), **cinco cortes** con su verificación en navegador y el registro de riesgos. Los cortes **4 (la calidad, tope 720p) y 5 (los PDF adentro)** entraron después, revirtiendo decisiones del propio doc, y cada uno arranca con la medición que lo dio vuelta — es el lugar donde mirar antes de reabrir cualquiera de las dos. Su §El bloqueante documenta las 7 colisiones de identidad que rompían datos y que el corte 1 cerró (ADR-0014). Leelo entero antes de tocar el escaneo o la cola.
 - `docs/fusion-monorepo-diseno.md` — **hecho, verificado en navegador y mergeado a `main` el 2026-08-12**: el backend Bun se mudó a `backend/`, dentro de este repo, con su historia (`git subtree`), y la extensión pasó a llamarse **Course Downloader**. Decisión → **ADR-0015**. **El motivo no era prolijidad**: el cambio de `x-file-name` fueron dos commits en dos repos sin vínculo (`a91ffe7` acá, `8797ec6`+`79726a9` allá) y una extensión nueva contra un backend viejo **no falla, guarda `Atlas.pdf.mp4`**. Lo que hay que saber ahora que está hecho: el backend **sigue siendo otro runtime** (proceso Bun aparte, `backend/package.json` con `"type": "module"` porque el raíz no declara `type`, y su propio bloque de ESLint con globals de Node+Bun — entró al lint por primera vez y destapó 16 errores + 7 warnings de higiene); **`srcDir: '.'` hace que la raíz *sea* el dir de fuentes**, así que si tocás el build hay que confirmar que WXT sigue sin empaquetar `backend/` (se verifica leyendo la lista de archivos emitidos); y **R3, el riesgo que no se ve venir**: la ruta de descargas vive sólo en `backend/config_usuario.json` (gitignoreado) y la extensión la **lee**, no la manda, así que mover el backend te baja a otro lado *y* el "ya descargado" da el curso entero por no bajado. Su §5 tiene las 4 comprobaciones en navegador que se corrieron —la del PDF es la que cierra el contrato— y su §7, lo que no se toca.
 - `docs/copy-generico-diseno.md` — **el inventario y el cómo** (medido el 2026-08-11, re-verificado el 2026-08-12): dónde la UI genérica sigue nombrando a Ramón Net. **Son 7 textos en 12 sitios y dos de los tres cortes**; el tercero —§5.2, la marca— cerró solo, porque el rename a Course Downloader (`ee32c0c`) se llevó puestos los 4 sitios desde otro frente, que es el ejemplo de por qué el *estado* vive en `TECHNICAL_DEBT.md` y no en el doc del cómo. **Acá no leas el estado**: el del ítem está en `TECHNICAL_DEBT.md` §🔴 Abierto y el de las ramas en el banner de arriba — este bullet describía el doc como "sin ejecutar" tres líneas después de que el banner dijera lo contrario. Re-mide el ítem del backlog —que decía "6 strings en `popup.js`"— y encuentra **9 textos en 17 sitios**, porque la medición vieja buscó el *nombre* del portal y no *su jerga* (la familia `"aula virtual"`, 7 sitios, nunca se había contado). Lo que hay que leer antes de ejecutarlo son dos secciones: **§3, la regla de decisión — son tres casos y no dos** (copy de la pestaña activa → nombra el portal; copy de un ítem de la cola → **no** lo nombra, ADR-0010; copy previa a resolver el portal → genérica obligatoria), y **§4, la trampa**: el arreglo obvio de `popup.js:853` interpola `sitioActivo` **17 líneas antes de que el portal se resuelva**, o sea que anuncia el portal equivocado justo al cambiar de portal — la misma familia de los cortes 4 y 8 del multi-sitio. Su §6 lista lo que no hay que tocar (el id del portal legado es dato, no copy; `catedra` como campo trae migración). El *estado* del ítem sigue en `TECHNICAL_DEBT.md`; esto es el cómo.
+- `docs/alertas-y-bloqueo-diseno.md` — **construido en tres ramas el 2026-08-12, sin verificar en navegador**: cómo se comporta la UI cuando algo falló. Trae cuatro reglas que conviene leer antes de tocar el popup, porque cada una salió de un defecto real: **una región, un dueño** (la alerta de conexión, las tarjetas de estado y las listas comparten `#ui-list` y un `if` decide — antes se repartían el DOM con un root hermano y la lista terminaba visible **debajo** del banner); **el contrato del bloqueo** (`disabled` para controles de formulario, `aria-disabled` para lo que no lo admite, y `.bloqueada` normalizando opacidad, puntero y cursor — `pointer-events` sobre el contenedor **no** es un bloqueo: deja pasar el teclado); **el botón dice lo que hace, la alerta dice qué pasa** (y sin label no se muestra); y **la selección sigue al filtro**. Su §5 es la checklist de navegador y describe el banco de pruebas; **su §6 es el informe de la auditoría de loaders y estados de carga**, con los cinco ítems que quedaron abiertos —el timeout del escaneo que salta siempre en Anatomy es el que se ve todos los días—.
 - `docs/notificaciones-fallos-diseno.md` — execution design/record for the failure-notifications feature (native OS notification + persistent bell Preact island `campanita`, backed by the `historialFallos` storage key + the `core/historial/historialFallos.ts` module). Implemented (2026-07-20); the canonical detail lives in `data-model.md`/`security.md`/`patterns.md`/`preact-migration.md`, this is the "how"/rationale record.
 
 Security rule (operational summary — full policy and rationale in `docs/security.md`): scraped/third-party text must never be interpolated into `.innerHTML` unescaped. Since Preact island #4 the live list renders through `<TarjetaEstado>`/`<FilaClase>` (`listaClases.preact.js`), so escape at the `window.ListaClases` view-model boundary that feeds them. The original `popup.js` XSS is fixed (2026-07-16).

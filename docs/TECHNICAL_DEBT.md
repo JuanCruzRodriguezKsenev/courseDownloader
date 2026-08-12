@@ -27,6 +27,71 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 > ítem pasó de **bloqueado** a **postergado**, que no es lo mismo y conviene no confundirlo: no
 > hay nada esperando, es una decisión de prioridad del dueño (2026-08-07). Ver el §Fix propuesto
 > de esa entrada, que ahora dice qué mirar cuando se retome.
+>
+> **Al 2026-08-12 se suman CINCO entradas nuevas**, salidas de auditar los loaders, los estados
+> de carga y los banners. Ninguna se arregló; el detalle técnico de las cinco vive en
+> `docs/alertas-y-bloqueo-diseno.md` §6 y acá está sólo el estado. La primera es la única que el
+> usuario ve todos los días.
+
+### 🔴 El timeout del escaneo salta SIEMPRE en Anatomy, y el mensaje miente
+
+- **Estado**: 🔴 abierto (hallado el 2026-08-12, auditando los loaders). **Pasa hoy, en cada
+  escaneo de ese portal.**
+- **Qué pasa**: el `safetyTimeout` de `popup.js` es de **6 s** y el escaneo de Anatomy mide
+  **~11 s** (`/v1/navigation` ~4,0 s + el pool de 114 materiales 7,1 s, los dos medidos en
+  `escaneo-api-anatomy-diseno.md`). A los 6 s escribe *"⚠️ Timeout de carga del DOM."* —que
+  además nombra un mecanismo que ese portal no usa, es vocabulario de la era del scraper— y
+  ~5 s después llega el escaneo real y pinta la lista encima. El error se borra solo, sin que
+  nadie lo haya resuelto.
+- **Lo que agrava**: durante esa ventana el botón vuelve a "Re-escanear 🔄" y **no hay guarda de
+  reentrada**, así que un click lanza un segundo escaneo concurrente sobre el primero.
+- **Lo que NO es**: no es una detección de fallo, es un temporizador ciego. No cancela el
+  escaneo, no registra en la campanita (eso es `historialFallos` y **sólo lo escribe el SW**), no
+  notifica y no bloquea el reintento.
+- **Fix propuesto** (4 puntos, en `alertas-y-bloqueo-diseno.md` §6.1): el tope sale del
+  descriptor del portal —requerido, como `instruccionEscaneo`—, abandono explícito para que un
+  callback tardío no pinte sobre un estado ya dado por muerto, el mensaje en la tarjeta de la
+  lista y no en el footer, y guarda de reentrada.
+
+### 🟠 El loader del escaneo inicial no se ve nunca
+
+- **Estado**: 🔴 abierto (2026-08-12).
+- **Qué pasa**: `conectarYArrancar` llama al escaneo y apaga el loader en su `finally`, **en el
+  mismo tick** — el escaneo no es `async`—, así que el navegador nunca pinta entre las dos. En el
+  arranque automático "Escaneando la pestaña…" es código muerto en pantalla.
+- **Por qué importa más de lo que parece**: el cartel del cambio de portal, que es lo que hay que
+  mirar al verificar la copy genérica, **no se puede observar abriendo el popup**. Hay que
+  forzarlo con "Re-escanear".
+
+### 🟠 La lista puede quedar atenuada al 50% indefinidamente
+
+- **Estado**: 🔴 abierto (2026-08-12).
+- **Qué pasa**: `setAtenuada(true)` se pone al sincronizar y se apaga en un solo lugar (el
+  `finally` de `resolverMapeoEnUI`). Si `escanearDisco` falla por red, el `catch` externo va a
+  `activarEstadoOfflineUI()` y ese `finally` nunca corrió; `atenuada` y `oculta` son flags
+  independientes, así que al reconectar la lista vuelve **al 50%**. Se auto-cura sólo si el
+  re-escaneo posterior termina en una sincronización exitosa.
+
+### 🟠 `escanearDisco` y `seleccionarCarpeta` no tienen timeout
+
+- **Estado**: 🔴 abierto (2026-08-12).
+- **Qué pasa**: el cliente es asimétrico — `obtenerRutaServidor` tiene 4 s y
+  `enviarFragmentoStream` 30 s, con el comentario que explica por qué (en Windows
+  `localhost:3001` **cuelga** en vez de rechazar). Esos dos no tienen ninguno. El de
+  `seleccionarCarpeta` es defendible (del otro lado hay un diálogo nativo esperando a una
+  persona), pero deja el loader sin techo; el de `escanearDisco` cuelga el botón en
+  "Sincronizando disco local..." con la lista atenuada por el ítem de arriba, sin salida ni
+  mensaje.
+
+### ⚪ El onboarding recibe siempre el portal legado
+
+- **Estado**: 🔴 abierto (2026-08-12).
+- **Qué pasa**: `entrypoints/popup/main.js` monta la isla con `sitios.obtener(undefined)` sin
+  mirar la pestaña, así que la slide 3 muestra **la frase de Ramón Net también en Anatomy**. El
+  corte 2 del copy genérico movió ese texto al descriptor (correcto y necesario), pero el defecto
+  que venía a cerrar **sigue en pantalla**. El comentario de ese archivo dice "cuando exista un
+  segundo" portal, y existe desde el 2026-08-07.
+- **Fix**: resolver el portal por pestaña y pasárselo a la isla. Corte chico y aislado.
 
 ### ✅ La identidad (portal, título) colisiona dentro de un portal de dos niveles
 
