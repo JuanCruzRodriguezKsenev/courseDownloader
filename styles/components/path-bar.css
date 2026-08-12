@@ -11,8 +11,14 @@
   flex-shrink: 0;
   box-shadow: var(--shadow-bar);
 
+  /* [BANNER] Atenuada Y inerte. El `opacity` solo era lo peor de los dos mundos: el input y el
+     botón 📂 sí quedaban `disabled` por JS, pero el badge de la faceta es un <span> —no admite
+     `disabled`— así que se veía apagado y seguía abriendo el modal de cátedra sobre una UI
+     muerta. `pointer-events` cubre a los tres sin que haya que acordarse de cada uno, y se
+     revierte solo con la clase, al reconectar. */
   &.offline {
     opacity: 0.5;
+    pointer-events: none;
   }
 }
 

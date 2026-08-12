@@ -170,14 +170,16 @@ const ServerConnectionFeature = {
       }
       // El diagnóstico es de la card, no del footer: acá se LIMPIA en vez de duplicarlo.
       nodos.txtEstado.textContent = "";
-      // El botón queda sin texto y deshabilitado; quien lo saca de pantalla es
-      // `actualizarContadoresBoton` (rama isOffline). Se sigue llamando para que el `data-modo`
-      // no quede apuntando a una acción que ya no está.
-      configurarBotonesUX("sincronizar-disco", "", true);
+      // El botón dice su propia acción y queda deshabilitado. No dice qué pasa (eso es de la
+      // card) ni desaparece (eso mueve el footer en cada caída y en cada reconexión).
+      configurarBotonesUX("sincronizar-disco", "Sincronizar carpeta local 📂", true);
 
+      // Bloqueadas, no escondidas: el layout no salta y se lee como "ahora no". Las pestañas
+      // entran al bloqueo —a diferencia de la cola pausada— porque acá no hay nada que
+      // consultar: la lista está oculta detrás del banner en las dos.
       const tabsBar = document.querySelector(".tabs-bar");
-      if (tabsBar) tabsBar.style.display = "none";
-      nodos.filtersBar.style.display = "none";
+      if (tabsBar) tabsBar.classList.add("bloqueada");
+      nodos.filtersBar.classList.add("bloqueada");
 
       // (el estado del servidor en el onboarding lo deriva la isla Preact del daemon)
 
@@ -239,9 +241,12 @@ const ServerConnectionFeature = {
 
           nodos.txtEstado.textContent = "Analizando aula virtual...";
 
+          // Se levanta el bloqueo. El `display` ya no se toca acá: la barra nunca se escondió,
+          // así que no hay que reconstruir cuál correspondía según la pestaña —que era, además,
+          // de donde salía que al reconectar en la Fila la toolbar quedaba distinta.
           const tabsBar = document.querySelector(".tabs-bar");
-          if (tabsBar) tabsBar.style.display = "flex";
-          nodos.filtersBar.style.display = appState.pestañaActiva === "disponibles" ? "flex" : "none";
+          if (tabsBar) tabsBar.classList.remove("bloqueada");
+          nodos.filtersBar.classList.remove("bloqueada");
 
           cargarRutaServidorSilencioso(); // restaura el path mostrado (PC: ...)
           onReescanearAula();

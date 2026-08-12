@@ -30,18 +30,18 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `npm test` | 34 archivos, 580 tests, todo en verde |
+| `npm test` | 34 archivos, 582 tests, todo en verde |
 | `npm run lint` | **0 errores, 0 warnings** |
 | `npx tsc --noEmit` | sin salida (limpio) |
 | `npm run build` | compila a `.output/chrome-mv3/` |
 
-**Ojo con el 580 si venís de otra rama** (2026-08-12): son los 578 de siempre **+2** de
-`serverConnection.test.js`, que fijan que el banner de conexión no duplique su diagnóstico en el
-footer ni en el botón. Las dos ramas del copy genérico suman **otros 2** por su lado
-(`onboarding.preact.test.js`) y también dan 580 — o sea que los dos frentes coinciden en el
-número por casualidad y **una vez mergeados los tres el baseline es 582**. Es exactamente el tipo
-de cuenta que este archivo existe para que no se adivine: al mergear, re-medir con `npm test` en
-vez de sumar de memoria.
+**Ojo con el 582 si venís de otra rama** (2026-08-12): son los 578 de siempre **+4** de
+`serverConnection.test.js`, que fijan la propiedad del banner —que no duplique su diagnóstico en
+el footer ni en el botón, y que la toolbar y las pestañas se **bloqueen y no se escondan**, con su
+bloqueo levantándose al reconectar. Las dos ramas del copy genérico suman **otros 2** por su lado
+(`onboarding.preact.test.js`), así que **una vez mergeados los tres frentes el baseline es 584**.
+Es exactamente el tipo de cuenta que este archivo existe para que no se adivine: al mergear,
+re-medir con `npm test` en vez de sumar de memoria.
 
 **El alcance del lint creció el 2026-08-12** sin que los números cambien: la fusión del backend
 (ADR-0015) metió `backend/` en el repo, y `npm run lint` corre `eslint .`, así que **el servidor Bun

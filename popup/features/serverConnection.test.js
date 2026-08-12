@@ -145,9 +145,28 @@ describe('ServerConnectionFeature.crear', () => {
     expect(nodos.txtEstado.textContent).toBe('');
   });
 
-  it('activarEstadoOfflineUI deja el botón sin label: en este estado no hay acción que ofrecer', () => {
+  it('activarEstadoOfflineUI deja el botón con SU acción y deshabilitado, no con el diagnóstico', () => {
     api.activarEstadoOfflineUI('internet');
-    expect(ctx.configurarBotonesUX).toHaveBeenCalledWith('sincronizar-disco', '', true);
+    // Decía "Esperando internet... ⏳" / "Buscando servidor... ⏳": el qué-pasa es de la card.
+    expect(ctx.configurarBotonesUX).toHaveBeenCalledWith('sincronizar-disco', 'Sincronizar carpeta local 📂', true);
+  });
+
+  // [BANNER] Bloquear, no esconder: esconder mueve el layout en cada caída y en cada
+  // reconexión del auto-heal. La clase se revierte sola al reconectar.
+  it('activarEstadoOfflineUI BLOQUEA la toolbar y las pestañas en vez de ocultarlas', () => {
+    api.activarEstadoOfflineUI();
+    expect(nodos.filtersBar.classList.contains('bloqueada')).toBe(true);
+    expect(document.querySelector('.tabs-bar').classList.contains('bloqueada')).toBe(true);
+    expect(nodos.filtersBar.style.display).not.toBe('none');
+  });
+
+  it('al reconectar levanta el bloqueo de la toolbar y las pestañas', () => {
+    api.iniciarDetectorEstado();
+    emitir({ servidor: false });
+    expect(nodos.filtersBar.classList.contains('bloqueada')).toBe(true);
+    emitir({ servidor: true, internet: true });
+    expect(nodos.filtersBar.classList.contains('bloqueada')).toBe(false);
+    expect(document.querySelector('.tabs-bar').classList.contains('bloqueada')).toBe(false);
   });
 
   it('iniciarDetectorEstado se suscribe al daemon y lo arranca una sola vez (idempotente)', () => {

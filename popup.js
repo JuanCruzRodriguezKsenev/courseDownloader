@@ -13,11 +13,14 @@
  *   textos de `actualizarContadoresBoton` ("Reintentar conexión con servidor", "Iniciar sesión
  *   y reintentar", …) pasaron a uno solo, "Reintentar 🔄": el diagnóstico y el qué-hacer viven
  *   en la card, el botón sólo ofrece la acción.
- * - [REGLA NUEVA en configurarBotonesUX] Un botón sin texto no se muestra. Pasar "" es cómo se
- *   dice "acá no hay acción" (el estado offline, donde la reconexión es automática). La regla
- *   vive en el helper y no en los ~12 call-sites, para que ninguno pueda dejarlo escondido con
- *   una acción adentro. Excepción explícita: la sincronización de disco, que escribe su label
- *   con innerHTML por el spinner y restaura el display ahí mismo.
+ * - [BLOQUEAR, NO ESCONDER] Ni la toolbar ni el botón desaparecen: la barra va `.bloqueada`
+ *   (atenuada + `pointer-events: none`) y el botón queda deshabilitado con SU PROPIA acción de
+ *   label. Esconder movía todo de lugar en cada caída y en cada reconexión del auto-heal, que
+ *   pasa seguido. La regla que queda: **el botón dice lo que hace, el banner dice qué pasa, y
+ *   `disabled` dice "ahora no"**.
+ * - [FIX de arrastre] `.path-bar.offline` sumó `pointer-events: none`. Sólo tenía `opacity`, y
+ *   el badge de la faceta es un `<span>` —no admite `disabled`—, así que se veía apagado y
+ *   seguía abriendo el modal de cátedra sobre una UI muerta.
  * - NOTA de versiones: se salta la 5.19.0, que es el corte 1 del copy genérico (rama
  *   `copy-generico-corte-1`) y se mergea antes que esto.
  * ==========================================================================
@@ -581,7 +584,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         const ruta = await backend.obtenerRutaServidor();
         if (ruta) {
           const tabsBar = document.querySelector(".tabs-bar");
-          if (tabsBar) tabsBar.style.display = "flex";
+          if (tabsBar) { tabsBar.style.display = "flex"; tabsBar.classList.remove('bloqueada'); }
+          // El camino de "arrancó y el server contesta" también levanta el bloqueo: si no, un
+          // popup que abre después de una caída podría quedarse con la toolbar inerte sin que
+          // nadie la destrabe (la recuperación por daemon sólo corre si hubo TRANSICIÓN).
+          nodos.filtersBar.classList.remove('bloqueada');
 
           nodos.folder.disabled = false;
           nodos.btnExplore.disabled = false;
@@ -828,10 +835,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       appState.pestañaActiva = id;
       nodos.tabDisp.classList.toggle('active', id === "disponibles");
       nodos.tabCola.classList.toggle('active', id === "cola");
-      // [BANNER OCUPA LISTA + TOOLBAR] Incondicional era el agujero: con la cola pausada, la
-      // card ocupa #ui-list y cambiar de pestaña volvía a mostrar la toolbar encima de ella.
-      // El estado de falla manda sobre la pestaña.
-      nodos.filtersBar.style.display = appState.fallaConexionActiva ? 'none' : 'flex';
+      // [BANNER OCUPA LISTA + TOOLBAR] El display vuelve a ser incondicional —la barra siempre
+      // está—, pero el bloqueo sigue a la falla: con la cola pausada, cambiar de pestaña
+      // desbloqueaba la toolbar encima de la card. El estado de falla manda sobre la pestaña.
+      nodos.filtersBar.style.display = 'flex';
+      nodos.filtersBar.classList.toggle('bloqueada', !!appState.fallaConexionActiva);
       nodos.btnStartQueue.style.display = appState.ráfagaEnCurso ? 'none' : qDisp;
     
       // Limpiar filtros activos y cerrar el menú
@@ -1068,10 +1076,6 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     async function ejecutarPaso2SincronizarDiscoVeloz() {
       configurarBotonesUX("sincronizar-disco", "", true);
       nodos.btnAction.innerHTML = `<span class="spinner-inline"></span> Sincronizando disco local...`;
-      // El "" de arriba pasó a significar "sin acción → botón oculto" (ver configurarBotonesUX).
-      // Acá el label se escribe por innerHTML porque lleva el spinner, así que hay que volver a
-      // mostrarlo: este SÍ es un estado con contenido, no un estado vacío.
-      nodos.btnAction.style.display = 'block';
       ListaClases.setAtenuada(true); // atenúa la lista durante la sincronización (isla dueña de #ui-list)
 
       const subcarpetaFiltro = nodos.folder.value.trim().toLowerCase();
@@ -1746,13 +1750,12 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         // `isOffline` equivale a "el banner de conexión está en pantalla": el input de carpeta
         // sólo se deshabilita en activarEstadoOfflineUI y se rehabilita al reconectar.
         const isOffline = nodos.folder.disabled;
-        // [BANNER DUEÑO DEL DIAGNÓSTICO] Con el banner puesto no hay acción que ofrecer —la
-        // reconexión es automática y la card ya lo dice con su pulso— así que el botón se va
-        // en vez de repetirlo ("Buscando servidor... ⏳" era la tercera copia del mismo hecho,
-        // después de la card y del texto de estado). Se sigue llamando a configurarBotonesUX
-        // para no dejar el modo del botón desincronizado con lo que hay en pantalla.
-        configurarBotonesUX("sincronizar-disco", isOffline ? "" : "Sincronizar carpeta local 📂", isOffline);
-        nodos.btnAction.style.display = isOffline ? 'none' : 'block';
+        // [BANNER DUEÑO DEL DIAGNÓSTICO] El botón dice SU ACCIÓN, el banner dice qué pasa, y
+        // `disabled` dice "ahora no". Por eso el label no cambia cuando hay banner: decía
+        // "Buscando servidor... ⏳", que era la tercera copia del mismo hecho (card + pulso +
+        // footer). Y tampoco desaparece: esconderlo mueve el footer en cada caída.
+        configurarBotonesUX("sincronizar-disco", "Sincronizar carpeta local 📂", isOffline);
+        nodos.btnAction.style.display = 'block';
         nodos.masterCheck.disabled = true;
         return;
       }
@@ -1793,14 +1796,6 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       nodos.btnAction.className = `btn-action modo-${modo}`;
       nodos.btnAction.textContent = txt;
       nodos.btnAction.disabled = dis;
-      // [BANNER DUEÑO DEL DIAGNÓSTICO] Un botón sin texto no se muestra: pasar "" es la forma
-      // de decir "en este estado no hay acción que ofrecer" (hoy: el banner de conexión, donde
-      // la reconexión es automática). La regla vive ACÁ y no en cada call-site porque el
-      // botón se re-configura desde ~12 lugares: si la visibilidad se decidiera afuera, basta
-      // que uno solo se olvide para dejarlo escondido con una acción real adentro — o vacío
-      // en pantalla. El único que escribe el label por fuera es la sincronización de disco,
-      // que pone su spinner con innerHTML y restaura el display ahí mismo.
-      nodos.btnAction.style.display = txt ? 'block' : 'none';
     }
 
     function mostrarAlertDeConexionCaida(errorType, titulo) {
@@ -1815,11 +1810,13 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
       // [BANNER OCUPA LISTA + TOOLBAR] La card de pausa se pinta DENTRO de #ui-list, así que
       // sin esto la barra de filtros quedaba viva encima de ella: buscador, filtros, orden y
-      // "Todos" habilitados, operando sobre una lista que no está en pantalla. El banner de
-      // conexión ya hacía esto (serverConnection.js) — acá faltaba. Las pestañas NO se ocultan
-      // a propósito: la cola sigue siendo consultable mientras está pausada, que es
-      // justamente lo que el usuario quiere mirar cuando algo falló.
-      nodos.filtersBar.style.display = 'none';
+      // "Todos" habilitados, operando sobre una lista que no está en pantalla.
+      //
+      // Se BLOQUEA, no se esconde: esconderla mueve todo de lugar en cada caída y en cada
+      // reconexión del auto-heal. Atenuada e inerte se lee como "ahora no". Las pestañas
+      // quedan operativas a propósito: la cola tiene que seguir siendo consultable mientras
+      // está pausada, que es justo lo que uno quiere mirar cuando algo falló.
+      nodos.filtersBar.classList.add('bloqueada');
 
       conectarEscuchadoresDelWorker();
     
