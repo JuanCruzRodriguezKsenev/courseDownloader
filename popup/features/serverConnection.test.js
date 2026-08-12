@@ -122,10 +122,13 @@ describe('ServerConnectionFeature.crear', () => {
     expect(typeof api.reaccionarAConexion).toBe('function');
   });
 
-  it('activarEstadoOfflineUI muestra el banner (store), oculta la lista y deshabilita los controles', () => {
+  it('activarEstadoOfflineUI muestra la alerta (store) y deshabilita los controles', () => {
     api.activarEstadoOfflineUI();
     expect(banner.get()).toEqual({ visible: true, tipo: 'servidor' });
-    expect(lista.setOculta).toHaveBeenCalledWith(true);
+    // [ALERTA EN EL CONTENEDOR] Ya NO oculta la lista: comparten contenedor y la alerta gana en
+    // el render de la isla. Ocultarla acá era la mitad frágil del arreglo viejo — dos dueños de
+    // la misma región puestos de acuerdo a mano.
+    expect(lista.setOculta).not.toHaveBeenCalled();
     expect(nodos.folder.disabled).toBe(true);
     expect(nodos.btnExplore.disabled).toBe(true);
     expect(nodos.search.disabled).toBe(true);
@@ -145,28 +148,30 @@ describe('ServerConnectionFeature.crear', () => {
     expect(nodos.txtEstado.textContent).toBe('');
   });
 
-  it('activarEstadoOfflineUI deja el botón con SU acción y deshabilitado, no con el diagnóstico', () => {
+  it('activarEstadoOfflineUI deja el botón SIN label: acá no hay ninguna acción que ofrecer', () => {
     api.activarEstadoOfflineUI('internet');
-    // Decía "Esperando internet... ⏳" / "Buscando servidor... ⏳": el qué-pasa es de la card.
-    expect(ctx.configurarBotonesUX).toHaveBeenCalledWith('sincronizar-disco', 'Sincronizar carpeta local 📂', true);
+    // Decía "Esperando internet... ⏳": ofrecía una acción inexistente y encima repetía la card.
+    // El label vacío es lo que lo saca de pantalla (configurarBotonesUX, popup.js).
+    expect(ctx.configurarBotonesUX).toHaveBeenCalledWith('sincronizar-disco', '', true);
   });
 
-  // [BANNER] Bloquear, no esconder: esconder mueve el layout en cada caída y en cada
-  // reconexión del auto-heal. La clase se revierte sola al reconectar.
-  it('activarEstadoOfflineUI BLOQUEA la toolbar y las pestañas en vez de ocultarlas', () => {
+  // Bloquear, no esconder: esconder mueve el layout en cada caída y en cada reconexión del
+  // auto-heal. La clase se revierte sola al reconectar.
+  it('BLOQUEA la toolbar pero deja las PESTAÑAS operativas', () => {
     api.activarEstadoOfflineUI();
     expect(nodos.filtersBar.classList.contains('bloqueada')).toBe(true);
-    expect(document.querySelector('.tabs-bar').classList.contains('bloqueada')).toBe(true);
     expect(nodos.filtersBar.style.display).not.toBe('none');
+    // Cambiar de Clases a Fila sigue siendo legítimo con el servidor caído: la alerta se pinta
+    // igual en las dos, y bloquearlas dejaba al usuario sin poder ni mirar su cola.
+    expect(document.querySelector('.tabs-bar').classList.contains('bloqueada')).toBe(false);
   });
 
-  it('al reconectar levanta el bloqueo de la toolbar y las pestañas', () => {
+  it('al reconectar levanta el bloqueo de la toolbar', () => {
     api.iniciarDetectorEstado();
     emitir({ servidor: false });
     expect(nodos.filtersBar.classList.contains('bloqueada')).toBe(true);
     emitir({ servidor: true, internet: true });
     expect(nodos.filtersBar.classList.contains('bloqueada')).toBe(false);
-    expect(document.querySelector('.tabs-bar').classList.contains('bloqueada')).toBe(false);
   });
 
   it('iniciarDetectorEstado se suscribe al daemon y lo arranca una sola vez (idempotente)', () => {
@@ -217,14 +222,16 @@ describe('ServerConnectionFeature.crear', () => {
     expect(banner.mostrar).not.toHaveBeenCalled();
   });
 
-  it('al reconectar con el banner visible: lo oculta, restaura la lista y re-escanea una sola vez', () => {
-    api.activarEstadoOfflineUI(); // muestra el banner y se suscribe
+  it('al reconectar con la alerta visible: la oculta y re-escanea una sola vez', () => {
+    api.activarEstadoOfflineUI(); // muestra la alerta y se suscribe
     emitir({ servidor: false });  // confirma offline
     emitir({ servidor: true });   // reconecta
     emitir({ servidor: true });   // no vuelve a disparar
     expect(banner.ocultar).toHaveBeenCalledTimes(1);
     expect(banner.get().visible).toBe(false);
-    expect(lista.setOculta).toHaveBeenCalledWith(false);
+    // [ALERTA EN EL CONTENEDOR] Sacar la alerta ALCANZA para que vuelva la lista: comparten
+    // contenedor. Antes hacía falta acordarse del `setOculta(false)` de la otra mitad.
+    expect(lista.setOculta).not.toHaveBeenCalled();
     expect(ctx.onReescanearAula).toHaveBeenCalledTimes(1);
   });
 

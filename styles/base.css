@@ -81,3 +81,23 @@ input[type="checkbox"] {
 }
 
 
+
+/* [ALERTA EN EL CONTENEDOR] Utilitaria: región viva en pantalla pero inerte.
+   Se usa mientras una alerta ocupa el contenedor de las listas — la barra de filtros y la
+   caja de cancelar quedan a la vista y sin operar.
+
+   Por qué bloquear y no esconder: esconder mueve todo de lugar en cada caída y en cada
+   reconexión del auto-heal, que pasa seguido; atenuado e inerte se lee como "ahora no".
+
+   Por qué `pointer-events` y no sólo `opacity`: atenuar sin bloquear es lo peor de los dos
+   mundos. La `.path-bar.offline` tenía sólo opacity, y como el badge de la faceta es un
+   <span> —no admite `disabled`— se veía apagado y seguía abriendo el modal de cátedra sobre
+   una UI muerta. Esto cubre a cualquier hijo sin que haya que acordarse de cada uno.
+
+   Vive acá y no en la hoja de un componente porque la usan varios (filtros, cancelar) y una
+   hoja nueva necesitaría su @import en popup/globals.css — olvidarlo no da error, sólo no se
+   empaqueta. */
+.bloqueada {
+  opacity: 0.5;
+  pointer-events: none;
+}

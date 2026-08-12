@@ -30,16 +30,18 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `npm test` | 34 archivos, 582 tests, todo en verde |
+| `npm test` | 34 archivos, 585 tests, todo en verde |
 | `npm run lint` | **0 errores, 0 warnings** |
 | `npx tsc --noEmit` | sin salida (limpio) |
 | `npm run build` | compila a `.output/chrome-mv3/` |
 
-**Ojo con el 582 si venís de otra rama** (2026-08-12): son los 578 de siempre **+4** de
-`serverConnection.test.js`, que fijan la propiedad del banner —que no duplique su diagnóstico en
-el footer ni en el botón, y que la toolbar y las pestañas se **bloqueen y no se escondan**, con su
-bloqueo levantándose al reconectar. Las dos ramas del copy genérico suman **otros 2** por su lado
-(`onboarding.preact.test.js`), así que **una vez mergeados los tres frentes el baseline es 584**.
+**Ojo con el 585 si venís de otra rama** (2026-08-12): son los 578 de siempre **+7** del frente
+de la alerta de conexión — 4 en `serverConnection.test.js` (que no duplique el diagnóstico en el
+footer ni en el botón; que la toolbar se **bloquee y no se esconda**, con las pestañas quedando
+operativas; que el bloqueo se levante al reconectar) y **3 en `listaClases.preact.test.js`**, que
+son los que importan: fijan que la alerta y las listas **comparten contenedor**, así que no puede
+volver a verse la lista debajo del banner. Las dos ramas del copy genérico suman **otros 2** por
+su lado (`onboarding.preact.test.js`), así que **mergeado todo el baseline es 587**.
 Es exactamente el tipo de cuenta que este archivo existe para que no se adivine: al mergear,
 re-medir con `npm test` en vez de sumar de memoria.
 

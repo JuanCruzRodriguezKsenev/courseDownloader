@@ -1,15 +1,4 @@
 /* Barra de Filtros */
-/* [BANNER] Barra BLOQUEADA, no escondida. Mientras un banner ocupa la lista, sus controles no
-   operan sobre nada — pero esconderla mueve todo de lugar en cada caída y en cada reconexión
-   del auto-heal, que pasa seguido. Atenuada + inerte se lee como "ahora no" y el layout no
-   salta. `pointer-events` no es decorativo: sin él, atenuar deja controles que PARECEN
-   apagados y funcionan, que es lo que pasaba con el badge de la faceta en la path-bar. */
-.filter-bar.bloqueada,
-.tabs-bar.bloqueada {
-  opacity: 0.5;
-  pointer-events: none;
-}
-
 .filter-bar {
   display: flex;
   align-items: center;

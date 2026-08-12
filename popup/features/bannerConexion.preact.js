@@ -1,5 +1,11 @@
 /**
- * ISLA PREACT #2 — el banner de conexión caída (V1.0.0)
+ * ISLA PREACT #2 — la alerta de conexión caída: store + vista (V1.1.0)
+ * ==========================================================================
+ * CHANGELOG v1.1.0:
+ * - [ALERTA EN EL CONTENEDOR] Perdió su root propio (#preact-banner) y con él el auto-montaje.
+ *   La alerta se pinta ahora DENTRO de #ui-list, junto a las listas, porque tener dos dueños de
+ *   la misma región coordinados a mano terminaba con la lista visible abajo del banner.
+ *   Quedan las dos cosas que sí eran suyas: el STORE y la VISTA, que importa la isla #4.
  * ==========================================================================
  * Isla de la migración incremental del popup a Preact (ver ADR-0006,
  * docs/preact-migration.md). Es DUEÑA exclusiva del banner de "conexión caída"
@@ -92,7 +98,10 @@ export function __resetStore() {
 // FASE 8: el puente se exporta en vez de publicarse como global.
 export default _store;
 
-// Auto-montaje en el popup real (no corre en los tests, que importan los componentes).
-if (typeof document !== 'undefined') {
-  montar(document.getElementById('preact-banner'));
-}
+// [ALERTA EN EL CONTENEDOR] Acá había un auto-montaje sobre #preact-banner, y ese root ya no
+// existe: la alerta se pinta DENTRO de #ui-list, junto a las listas, porque tener dos dueños de
+// la misma región coordinados a mano terminaba con la lista visible abajo del banner.
+//
+// De esta isla sobreviven las dos cosas que sí eran suyas: el STORE (quién decide que hay
+// alerta y de qué tipo) y la VISTA. `montar` se conserva exportado porque los tests montan el
+// componente en un root propio para ejercitarlo aislado.

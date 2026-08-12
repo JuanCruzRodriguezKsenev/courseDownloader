@@ -13,11 +13,17 @@
  *   textos de `actualizarContadoresBoton` ("Reintentar conexión con servidor", "Iniciar sesión
  *   y reintentar", …) pasaron a uno solo, "Reintentar 🔄": el diagnóstico y el qué-hacer viven
  *   en la card, el botón sólo ofrece la acción.
- * - [BLOQUEAR, NO ESCONDER] Ni la toolbar ni el botón desaparecen: la barra va `.bloqueada`
- *   (atenuada + `pointer-events: none`) y el botón queda deshabilitado con SU PROPIA acción de
- *   label. Esconder movía todo de lugar en cada caída y en cada reconexión del auto-heal, que
- *   pasa seguido. La regla que queda: **el botón dice lo que hace, el banner dice qué pasa, y
- *   `disabled` dice "ahora no"**.
+ * - [ALERTA EN EL CONTENEDOR] La alerta de conexión dejó de vivir en un root hermano: la pinta
+ *   la isla de #ui-list, que ahora es dueña única de esa región. Se ve una sola cosa a la vez.
+ * - [BLOQUEAR, NO ESCONDER] La toolbar no desaparece: va `.bloqueada` (atenuada +
+ *   `pointer-events: none`). Esconderla movía todo de lugar en cada caída y en cada reconexión
+ *   del auto-heal, que pasa seguido. Las PESTAÑAS quedan operativas —con el servidor caído
+ *   sigue siendo legítimo mirar la cola— y el progreso, si hay una descarga, se queda en
+ *   pantalla bloqueado en vez de desaparecer.
+ * - [EL BOTÓN, SEGÚN HAYA ALGO QUE HACER] Sin label no se muestra, y `configurarBotonesUX` es
+ *   quien lo decide. Con la alerta de conexión no hay ninguna acción (la reconexión es
+ *   automática) → se va; con la cola pausada sí la hay → "Reintentar 🔄". La regla que queda:
+ *   **el botón dice lo que hace, la alerta dice qué pasa**.
  * - [FIX de arrastre] `.path-bar.offline` sumó `pointer-events: none`. Sólo tenía `opacity`, y
  *   el badge de la faceta es un `<span>` —no admite `disabled`—, así que se veía apagado y
  *   seguía abriendo el modal de cátedra sobre una UI muerta.
@@ -1076,6 +1082,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     async function ejecutarPaso2SincronizarDiscoVeloz() {
       configurarBotonesUX("sincronizar-disco", "", true);
       nodos.btnAction.innerHTML = `<span class="spinner-inline"></span> Sincronizando disco local...`;
+      // El "" de arriba significa "sin acción → botón oculto"; acá el label se escribe por
+      // innerHTML (lleva spinner), así que hay que volver a mostrarlo. Es la única excepción.
+      nodos.btnAction.style.display = 'block';
       ListaClases.setAtenuada(true); // atenúa la lista durante la sincronización (isla dueña de #ui-list)
 
       const subcarpetaFiltro = nodos.folder.value.trim().toLowerCase();
@@ -1750,12 +1759,12 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         // `isOffline` equivale a "el banner de conexión está en pantalla": el input de carpeta
         // sólo se deshabilita en activarEstadoOfflineUI y se rehabilita al reconectar.
         const isOffline = nodos.folder.disabled;
-        // [BANNER DUEÑO DEL DIAGNÓSTICO] El botón dice SU ACCIÓN, el banner dice qué pasa, y
-        // `disabled` dice "ahora no". Por eso el label no cambia cuando hay banner: decía
-        // "Buscando servidor... ⏳", que era la tercera copia del mismo hecho (card + pulso +
-        // footer). Y tampoco desaparece: esconderlo mueve el footer en cada caída.
-        configurarBotonesUX("sincronizar-disco", "Sincronizar carpeta local 📂", isOffline);
-        nodos.btnAction.style.display = 'block';
+        // [BOTÓN SEGÚN HAYA ALGO QUE HACER] Con el banner puesto no hay ninguna acción: no se
+        // puede sincronizar contra un servidor que no está, y la reconexión es automática. El
+        // label vacío lo saca de pantalla (ver `configurarBotonesUX`). Decía
+        // "Buscando servidor... ⏳", que además de ofrecer una acción inexistente era la
+        // tercera copia de lo que ya dicen la card y su pulso.
+        configurarBotonesUX("sincronizar-disco", isOffline ? "" : "Sincronizar carpeta local 📂", isOffline);
         nodos.masterCheck.disabled = true;
         return;
       }
@@ -1796,6 +1805,14 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       nodos.btnAction.className = `btn-action modo-${modo}`;
       nodos.btnAction.textContent = txt;
       nodos.btnAction.disabled = dis;
+      // [BOTÓN SEGÚN HAYA ALGO QUE HACER] Sin label no se muestra. Pasar "" es cómo se dice
+      // "en este estado no hay ninguna acción" — hoy, el banner de conexión: la reconexión la
+      // maneja el daemon solo. Con la cola pausada SÍ hay acción ("Reintentar 🔄") y el botón
+      // aparece. La regla vive ACÁ y no en los ~12 call-sites: si la visibilidad se decidiera
+      // afuera, basta que uno se olvide para dejar el botón escondido con una acción adentro,
+      // o vacío en pantalla. Excepción única y explícita: la sincronización de disco, que
+      // escribe su label con innerHTML por el spinner y restaura el display ahí mismo.
+      nodos.btnAction.style.display = txt ? 'block' : 'none';
     }
 
     function mostrarAlertDeConexionCaida(errorType, titulo) {

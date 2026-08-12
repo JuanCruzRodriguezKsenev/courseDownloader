@@ -101,7 +101,10 @@ const ServerConnectionFeature = {
       conexion,
       // FASE 8: los puentes de las islas entran por ctx y no por window. Van por acá y no
       // por un import directo a propósito: los tests inyectan dobles de los tres.
-      listaClases,
+      // [ALERTA EN EL CONTENEDOR] `listaClases` salió de acá: esta feature ya no apaga ni
+      // enciende la lista para hacerle lugar al banner. Muestra la alerta en su store y la
+      // región se resuelve sola. Sigue llegando por ctx (popup.js) y los tests lo inyectan
+      // para poder afirmar justamente que NO se lo toca.
       rutaDisco,
       bannerConexion,
       backend,
@@ -160,7 +163,11 @@ const ServerConnectionFeature = {
       // al reconectar, en reaccionarAConexion). Ocultar/vaciar lo hace la propia isla
       // #4 vía setOculta (devuelve null → Preact quita los hijos), NO un innerHTML="" +
       // display:none externo que desincronizaría su vdom. mostrar() es idempotente.
-      listaClases.setOculta(true);
+      // [ALERTA EN EL CONTENEDOR] Ya no hay que ocultar la lista para hacerle lugar al banner:
+      // la alerta se pinta DENTRO de #ui-list y gana sobre la lista en el propio render de la
+      // isla. El `setOculta(true)` que había acá era la mitad frágil del arreglo viejo — dos
+      // dueños de la misma región puestos de acuerdo a mano, y alcanzaba con que algo tocara el
+      // host (una sincronización, un cambio de pestaña) para que la lista volviera abajo.
       bannerConexion.mostrar(tipo);
       nodos.loader.style.display = 'none';
 
@@ -170,16 +177,21 @@ const ServerConnectionFeature = {
       }
       // El diagnóstico es de la card, no del footer: acá se LIMPIA en vez de duplicarlo.
       nodos.txtEstado.textContent = "";
-      // El botón dice su propia acción y queda deshabilitado. No dice qué pasa (eso es de la
-      // card) ni desaparece (eso mueve el footer en cada caída y en cada reconexión).
-      configurarBotonesUX("sincronizar-disco", "Sincronizar carpeta local 📂", true);
+      // El botón se va: sin label no se muestra (ver `configurarBotonesUX`). Acá NO hay nada
+      // que hacer —la reconexión la maneja el daemon solo, y la card lo dice con su pulso—, y
+      // un botón deshabilitado en pantalla es una acción que se ofrece y no existe.
+      configurarBotonesUX("sincronizar-disco", "", true);
 
-      // Bloqueadas, no escondidas: el layout no salta y se lee como "ahora no". Las pestañas
-      // entran al bloqueo —a diferencia de la cola pausada— porque acá no hay nada que
-      // consultar: la lista está oculta detrás del banner en las dos.
-      const tabsBar = document.querySelector(".tabs-bar");
-      if (tabsBar) tabsBar.classList.add("bloqueada");
+      // La toolbar se BLOQUEA, no se esconde: sus controles no operan sobre nada, pero
+      // esconderla mueve todo de lugar en cada caída y en cada reconexión del auto-heal.
+      // Las PESTAÑAS quedan activas: cambiar de Clases a Fila sigue siendo legítimo con el
+      // servidor caído —la alerta se pinta igual en las dos— y bloquearlas dejaba al usuario
+      // sin poder ni mirar su cola.
       nodos.filtersBar.classList.add("bloqueada");
+      // El progreso, si hay una descarga en curso, se queda EN PANTALLA y se bloquea: taparlo
+      // borraría la única referencia de cuánto se hizo. Lo que no puede quedar vivo son sus
+      // botones de cancelar.
+      nodos.cancelBox?.classList.add("bloqueada");
 
       // (el estado del servidor en el onboarding lo deriva la isla Preact del daemon)
 
@@ -232,8 +244,9 @@ const ServerConnectionFeature = {
       // Ambas conexiones OK y veníamos de un banner offline: re-habilitar y re-escanear.
       if (completaAntes !== true) {
         if (bannerConexion.get().visible) {
+          // Sacar la alerta ALCANZA: la lista vuelve sola, porque comparten contenedor y es el
+          // render de la isla el que elige. Antes había que acordarse de un `setOculta(false)`.
           bannerConexion.ocultar();
-          listaClases.setOculta(false); // restaura la lista (la repuebla el re-escaneo).
 
           nodos.folder.disabled = false;
           nodos.btnExplore.disabled = false;
@@ -244,9 +257,8 @@ const ServerConnectionFeature = {
           // Se levanta el bloqueo. El `display` ya no se toca acá: la barra nunca se escondió,
           // así que no hay que reconstruir cuál correspondía según la pestaña —que era, además,
           // de donde salía que al reconectar en la Fila la toolbar quedaba distinta.
-          const tabsBar = document.querySelector(".tabs-bar");
-          if (tabsBar) tabsBar.classList.remove("bloqueada");
           nodos.filtersBar.classList.remove("bloqueada");
+          nodos.cancelBox?.classList.remove("bloqueada");
 
           cargarRutaServidorSilencioso(); // restaura el path mostrado (PC: ...)
           onReescanearAula();
