@@ -13,7 +13,17 @@
      con `:empty`. Lo marca `sincronizarFooterVacio()` en popup.js, que mira si algún hijo
      quedó visible — no se puede resolver con `:empty` porque los hijos existen, están
      ocultos. */
+  /* Y sale del flujo, no sólo se queda sin borde: `.container` reparte `gap: 0.75rem` entre
+     TODOS sus hijos, tenga alto o no, así que un footer vacío seguía comiéndose un gap. El
+     resultado era una franja de ~24px abajo de la card contra los 12px de los laterales — el
+     desbalance que se ve al mirar el borde punteado. Con `display: none` el único aire de
+     abajo vuelve a ser el padding del contenedor, igual que a los costados.
+
+     Esto NO es "esconder un control": el footer vacío no tiene nada adentro que mostrar. El
+     `sincronizarFooterVacio()` de popup.js lo devuelve apenas algún hijo vuelve a ser visible,
+     y corre en los dos embudos por los que pasa cualquier cambio del footer. */
   &.vacia {
+    display: none;
     border-top: 0;
     padding-top: 0;
   }
