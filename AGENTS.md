@@ -10,9 +10,10 @@ edit here, never there.
 > **Este archivo no lleva estado.** Tres punteros, y el estado vive en el doc de cada uno —
 > que es lo que hace que no haya que editar acá cada vez que algo se mergea (ADR-0007):
 >
-> - **Trabajo en revisión, fuera de `main`** → `docs/ramas-en-revision.md`. **Hay ramas
->   esperando verificación en Chrome**; ese doc dice cuáles, en qué orden se mergean, y cuál es
->   el build que está cargado hoy en `.output/chrome-mv3/`.
+> - **Trabajo en revisión, fuera de `main`** → `docs/ramas-en-revision.md`. **Suele haber algo
+>   esperando verificación en Chrome**; ese doc dice qué, qué hay que mirar, cuál es el build
+>   cargado en `.output/chrome-mv3/` y cómo aislarlo si algo falla. Leelo antes de empezar: si
+>   `main` no es lo último, trabajar sobre `main` duplica trabajo ya hecho.
 > - **Backlog** → `docs/TECHNICAL_DEBT.md` §🔴 Abierto, que es el backlog entero.
 > - **Estado por fase de la re-arquitectura** → `docs/rearquitectura-diseno.md` §Estado de
 >   avance, y su §Cómo retomar esto en una sesión nueva.
