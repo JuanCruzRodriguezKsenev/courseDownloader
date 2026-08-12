@@ -1,6 +1,17 @@
 # Copy genérica: sacar el vocabulario de Ramón Net de las capas genéricas
 
-**Estado (2026-08-12): 🔵 RELEVADO Y PROPUESTO — con una excepción: §5.2, la marca, YA ESTÁ HECHA.**
+**Estado (2026-08-12): 🟡 CORTE 1 CONSTRUIDO, SIN VERIFICAR EN NAVEGADOR.** §5.2 (la marca) ya
+estaba hecha; el corte 2 sigue sin empezar.
+
+> **Las cuatro decisiones se tomaron el 2026-08-12** y están abajo en cada sección:
+> §3 se acordó tal cual estaba; §4 salió por la **salida 1** (texto genérico); §5.3 va con
+> **miembro nuevo en `PuertoSitio`**, en su propia rama; el tono de la copy genérica es
+> **pelado** ("Re-escanear 🔄", "Analizando…"), el criterio de que no pueda mentir en ningún
+> portal. El alcance de las ramas es el de §7.
+>
+> **El corte 1 está en la rama `copy-generico-corte-1`, con la compuerta en verde y la
+> verificación en navegador PENDIENTE** — que es la única que ve algo acá, porque casi todo cae
+> en `popup.js` (ADR-0005). Los 4 puntos a mirar están en §7.
 
 Esto no es un plan aprobado ni un corte en curso: es el **inventario medido** de dónde la UI
 genérica nombra a Ramón Net, más una propuesta de cómo arreglarlo, escrita para poder discutirse
@@ -138,8 +149,19 @@ Detalles que cambian el arreglo:
   incoherente según por dónde entre el usuario (`serverConnection.js:233` es el camino de
   *recuperación tras caída del server*).
 - **El #4 aparece 5 veces** y una (`:874`) es la rama sin portal — ver §4.
-- **El #5 no necesita diseño**: copiar el patrón de `onboarding.preact.js:116`, que ya dice esa
-  misma frase bien.
+- **El #5 SÍ necesitaba diseño, y la propuesta de la tabla estaba mal.** Decía copiar el patrón de
+  `onboarding.preact.js:116` (`${(sitio.faceta?.etiqueta || 'categoría').toLowerCase()}`). Medido
+  al ejecutarlo: **en Anatomy eso imprime "por materia y sin clasificación"**, porque su faceta es
+  inerte pero **no está vacía** — `etiqueta: "Sin clasificación"`
+  (`sitio/anatomy-by-chris/config.ts:176`). El fallback `|| 'categoría'` nunca se dispara, así que
+  el modal pasaría de nombrar un eje ajeno a nombrar uno inexistente. Y no hay predicado genérico
+  para "faceta inerte" que se pueda consultar acá: la UI **no** detecta ese caso con una bandera,
+  emerge de que `valoresPresentes()` filtre todo lo igual a `valorComun`, que es una propiedad de
+  la lista escaneada y no del descriptor. **Se resolvió por el tono elegido**: la frase dejó de
+  enumerar niveles ("creará y organizará automáticamente las subcarpetas dentro de ella"), que es
+  cierto en los dos portales y no consulta nada. El árbol real difiere entre portales — Ramón Net
+  abre un nivel por cátedra, Anatomy no— y ésa es justamente la razón por la que la copy genérica
+  no puede describirlo.
 - **Los 2 `console.log`** (`popup.js:531` y `:546`, "Pestaña Ramón Net actualizada/enfocada") no los
   ve el usuario. Van de arrastre en el mismo corte o no van; da igual.
 
@@ -201,8 +223,8 @@ corte 3 se ejecutó por su cuenta el 2026-08-12 (§5.2).
 
 | Corte | Qué entra | Cómo se verifica |
 |---|---|---|
-| **1 — Los baratos** | §5.1 ítems 1–6, y de arrastre los 2 `console.log` | **Sólo navegador.** Casi todo cae en `popup.js`, el único archivo sin tests (ADR-0005). |
-| **2 — La instrucción de escaneo** | §5.3: miembro nuevo en `PuertoSitio` + los dos `config.ts` + `architecture.md` | `tsc` cubre que los dos portales lo implementen; el texto, navegador. |
+| **1 — Los baratos** 🟡 | §5.1 ítems 1–6, y de arrastre los 2 `console.log` | **Sólo navegador.** Casi todo cae en `popup.js`, el único archivo sin tests (ADR-0005). **Construido el 2026-08-12 en `copy-generico-corte-1`; compuerta verde; falta el navegador.** |
+| **2 — La instrucción de escaneo** | §5.3: miembro nuevo en `PuertoSitio` + los dos `config.ts` + `architecture.md` | `tsc` cubre que los dos portales lo implementen; el texto, navegador. **Decidido que va; sin empezar.** |
 | ~~**3 — La marca**~~ | ~~§5.2~~ | ✅ **hecho** en `ee32c0c`, con el rename a Course Downloader. El `alt` del logo se fue con él, así que **salió del corte 1**. |
 
 **Verificación en navegador del corte 1** (los cuatro carteles, **en los dos portales**):
@@ -248,6 +270,11 @@ pendiente, no por ejecutarlo):
   dos: es **una** línea con **dos** frases a cambiar (el ejemplo `'RamonNet'` y "por materia y
   cátedra"). No se corrigió el número viejo hacia atrás —el conteo de §1 documenta la medición de
   esa fecha— pero conviene saberlo antes de citarlo como si fuera exacto.
+- **Una de las 7 propuestas de §5.1 estaba mal, y sólo se vio al ejecutarla** (el #5: interpolar
+  `faceta.etiqueta` imprime "sin clasificación" en Anatomy — detalle en §5.1). El relevamiento
+  midió **dónde** estaba cada texto sin abrir el descriptor del otro portal para ver **qué valor
+  tomaría el reemplazo**. Para la próxima: una propuesta que interpola algo del descriptor no está
+  medida hasta que se leyó ese campo **en los dos portales**.
 - **Un frente ajeno cerró parte de este doc sin que el doc se enterara** (§5.2, vía la fusión). Es
   el argumento a favor de que el *estado* viva en `TECHNICAL_DEBT.md` y no acá: si el número de
   pendientes viviera en este archivo, hoy estaría mintiendo en dos lugares en vez de uno.

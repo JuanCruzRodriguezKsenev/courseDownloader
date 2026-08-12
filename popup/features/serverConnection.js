@@ -1,6 +1,12 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: CONEXIÓN AL SERVIDOR BUN (V1.10.0)
+ * CLON DOWNLOADHELPER - FEATURE: CONEXIÓN AL SERVIDOR BUN (V1.11.0)
  * ==========================================================================
+ * CHANGELOG v1.11.0:
+ * - [COPY GENÉRICA — corte 1] "Analizando aula virtual…" → "Analizando…". El texto era
+ *   idéntico al de popup.js:573 y este archivo es el camino de RECUPERACIÓN TRAS CAÍDA
+ *   DEL SERVER: si se arreglaba uno solo, el usuario veía una copy u otra según por
+ *   dónde entrara. Los dos van siempre juntos → docs/copy-generico-diseno.md §5.1.
+ *
  * CHANGELOG v1.10.0:
  * - [ISLA #4 · Etapa 2] Dejó de tocar el DOM de #ui-list directo (innerHTML="" +
  *   style.display) para ocultar/restaurar la lista mientras el banner ocupa su lugar.
@@ -230,7 +236,7 @@ const ServerConnectionFeature = {
           nodos.btnExplore.disabled = false;
           document.querySelector('.path-bar')?.classList.remove('offline');
 
-          nodos.txtEstado.textContent = "Analizando aula virtual...";
+          nodos.txtEstado.textContent = "Analizando...";
 
           const tabsBar = document.querySelector(".tabs-bar");
           if (tabsBar) tabsBar.style.display = "flex";
