@@ -10,7 +10,7 @@ Qué se usa, por qué, y qué alternativas se consideraron y se descartaron. Par
 | Empaquetado | **WXT** (Vite) → `.output/chrome-mv3/`; el manifest lo genera `wxt.config.ts` | Vite + CRXJS, Plasmo, ninguno |
 | Descarga/streaming | `fetch` + WebCrypto (`crypto.subtle`) nativos del navegador | librería HLS.js (descartada — no la necesitás para descargar+desencriptar, solo para reproducir) |
 | Persistencia local (extensión) | `chrome.storage.local` + `chrome.storage.session` | IndexedDB (más potente pero innecesario para el volumen de datos que maneja esta extensión) |
-| Escritura de video a disco | Backend local en Bun (`ramonnet-bun-backend`, repo separado) vía streaming HTTP | `chrome.downloads` + blob en memoria (ver Turbo Mode más abajo) |
+| Escritura de video a disco | Backend local en Bun (`backend/`, en este mismo repo desde ADR-0015) vía streaming HTTP | `chrome.downloads` + blob en memoria (ver Turbo Mode más abajo) |
 | Testing (ver `docs/testing.md`) | Vitest + jsdom (el tamaño de la suite vive en la tabla de baseline de `docs/testing.md`, hogar canónico — acá no se copia) | Jest (Vitest es más rápido y no requiere config de Babel/TS aparte) |
 
 > **Actualizado el 2026-08-02**: las dos primeras filas cambiaron. La sección de abajo

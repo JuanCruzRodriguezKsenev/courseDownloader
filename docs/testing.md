@@ -35,6 +35,13 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 | `npx tsc --noEmit` | sin salida (limpio) |
 | `npm run build` | compila a `.output/chrome-mv3/` |
 
+**El alcance del lint creció el 2026-08-12** sin que los números cambien: la fusión del backend
+(ADR-0015) metió `backend/` en el repo, y `npm run lint` corre `eslint .`, así que **el servidor Bun
+entró bajo la misma red que la extensión** — tiene su bloque en `eslint.config.js` con globals de
+Node + `Bun`, y no se le aflojó ninguna regla. Al entrar destapó 16 errores (`process`/`Bun` sin
+declarar) y 7 warnings, todos de higiene y todos limpiados en el mismo corte con el criterio de
+abajo. La suite y `tsc` **no** lo alcanzan: el backend no tiene tests y no está en el `include`.
+
 Desde el 2026-08-03 el lint está **limpio del todo**: un error *y también* un warning nuevo son
 una regresión. Los 6 warnings que había (4 `catch (e)` con el binding sin usar, 2 argumentos sin
 usar) se limpiaron con `catch {}` y prefijo `_`, sin tocar comportamiento.

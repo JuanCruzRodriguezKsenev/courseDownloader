@@ -1,4 +1,4 @@
-# RamonNet Video Downloader (Turbo Edition) 🚀
+# Course Downloader (Turbo Edition) 🚀
 
 Extensión de Chrome/Brave de alto rendimiento diseñada para descargar clases grabadas de forma masiva, organizada y veloz directamente a tu PC, superando las limitaciones habituales del navegador.
 
@@ -31,25 +31,26 @@ Cada portal tiene su color en la lista, su propia carpeta en disco y su propio m
 ## 🛠️ Requisitos del Sistema
 
 Para realizar las descargas físicas en tu disco, la extensión se conecta con un backend local ultraliviano programado en **Bun**.
-* Tener la carpeta del backend local (`ramonnet-bun-backend`) en tu PC.
-* Tener instalado [Bun](https://bun.sh/) (o utilizar el ejecutable empaquetado).
-
-> ⚠️ **El backend y la extensión se actualizan juntos.** Si actualizás la extensión pero dejás un backend viejo, todo *parece* andar y los PDF se guardan con el nombre equivocado (`Atlas.pdf.mp4`): el nombre del archivo lo manda la extensión y el backend tiene que respetarlo. Asegurate de tener también al día la carpeta del backend.
+* **El backend viene incluido**, en la carpeta `backend/`. No hay nada que descargar aparte.
+* Tener instalado [Bun](https://bun.sh/) (o utilizar el ejecutable empaquetado). `iniciar.bat` te avisa si falta.
+* Tener instalado [Node.js](https://nodejs.org/) para compilar la extensión.
 
 ---
 
 ## 🚀 Instalación y Puesta en Marcha
 
 ### 1. Levantar el Servidor Local
-1. Dirigite a la carpeta del backend en tu PC.
+1. Entrá a la carpeta **`backend/`** del repo.
 2. Ejecutá el archivo **`iniciar.bat`**.
 3. Verás una ventana de consola esperando conexiones en el puerto `3001`. *Podés minimizar la consola y dejarla corriendo en segundo plano*.
 
-### 2. Compilar e Instalar la Extensión en el Navegador
-> La extensión ahora se **compila** (antes se cargaba el repo tal cual). Hace falta [Node.js](https://nodejs.org/).
+> **Si es una PC nueva**, la primera vez el servidor arranca con su carpeta por defecto (`Downloads/RamonNet_Turbo`). Elegí tu carpeta real desde el popup (botón 📂) antes de bajar nada: si no, los videos van a otro lado *y* la extensión te va a mostrar como pendientes clases que ya tenías bajadas.
 
-1. En la carpeta del repo: `npm install` (sólo la primera vez) y después `npm run build`.
-   Eso genera la carpeta **`.output/chrome-mv3/`**.
+### 2. Compilar e Instalar la Extensión en el Navegador
+> La extensión se **compila** (antes se cargaba el repo tal cual).
+
+1. En la raíz del repo: `npm install` (sólo la primera vez) y después `npm run build`.
+   Eso genera la carpeta **`.output/chrome-mv3/`**. *No afecta a `backend/`, que no usa npm ni tiene dependencias.*
 2. Abrí Chrome o Brave y navegá a `chrome://extensions/`.
 3. Activá el **Modo de desarrollador** (esquina superior derecha).
 4. Hacé clic en **Cargar descomprimida** (Load unpacked) y seleccioná **`.output/chrome-mv3/`**
@@ -106,4 +107,5 @@ El circuito es el mismo en los dos portales — **escanear → seleccionar → e
 * **`sitio/`**: Un adaptador por portal — `ramonnet/` y `anatomy-by-chris/`, cada uno con su escaneo, su parser de títulos, su resolución del `.m3u8` y su descriptor (`config.ts`); más `registro.ts`, que decide qué portal está activo. Agregar un portal nuevo se hace acá y **no toca el núcleo ni la UI** (paso a paso en `docs/multisitio-diseno.md`).
 * **`public/`**: Archivos que se copian tal cual al build (iconos, el documento *offscreen* del camino legacy y **un ruleset `declarativeNetRequest` por portal**).
 * **`styles/`**: Sistema de tokens de diseño visual (Colores OLED, radios, espaciados, tipografías y pulso ECG animado) más un archivo por componente en `components/`.
+* **`backend/`**: El **servidor Bun** que escribe los archivos en disco — otro proceso, otro runtime, arrancado con su propio `iniciar.bat`. Vive acá desde el 2026-08-12 (ADR-0015) para que un cambio del contrato HTTP sea un solo commit y no dos en repos distintos. ⚠️ **No confundir con `core/backend/`**, que es el *cliente* que le habla desde la extensión: uno pide, el otro escribe.
 * **`docs/`**: Documentación técnica mantenida como código — arranca por `docs/architecture.md`.

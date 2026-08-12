@@ -12,17 +12,19 @@ desde la Fase 3 la extensión se compila con WXT y lo que se carga es `.output/c
 
 **No se publica en la Chrome Web Store — y no está planeado hacerlo.** Es una extensión de uso **personal**: se carga descomprimida, para un solo usuario. Esto no es un "todavía no", es una restricción de diseño confirmada (2026-08-02), y **cambia el signo de varias decisiones técnicas**: no se ponderan la review de la Store, la optics de pedir permisos amplios ante usuarios desconocidos, ni el empaquetado/firma. El primer caso concreto fue la selección de sitio de la re-arquitectura multi-portal: descartar "una build por portal" a favor del registro en runtime (ver `docs/adr/0009-registro-de-sitios-en-runtime.md`). Lo que **sí** sigue valiendo con todo el peso: la seguridad real frente a contenido scrapeado (`docs/security.md`) y que la extensión se usa a diario y no puede quedar rota.
 
-## El backend Bun (`ramonnet-bun-backend`)
+## El backend Bun (`backend/`)
 
-Repositorio separado, no incluido en este monorepo. Requisitos documentados en el `README.md` raíz:
+**Vive en este mismo repo desde el 2026-08-12** (ADR-0015; el cómo, en `docs/fusion-monorepo-diseno.md`). Antes era un repo aparte llamado `ramonnet-bun-backend`, y separarlos tenía un costo concreto: un cambio de contrato quedaba partido en dos commits sin vínculo, y una extensión nueva contra un backend viejo **no falla — guarda `Atlas.pdf.mp4`**. Ahora ese cambio es un solo commit.
 
-- Tener la carpeta del backend en la máquina del usuario.
+- Está en `backend/`, no hay nada que clonar aparte.
 - Tener [Bun](https://bun.sh/) instalado, o usar el ejecutable empaquetado.
-- Arrancar con `iniciar.bat`, que expone el servidor en `http://localhost:3001`.
+- Arrancar con `backend/iniciar.bat`, que expone el servidor en `http://localhost:3001`.
 
 La extensión depende de que este servidor esté corriendo para cualquier operación de descarga real (Turbo Mode, ver `docs/tech-stack.md`) — sin él, `BunClient` falla en el primer `fetch` y la cola se pausa automáticamente vía el circuit breaker ad-hoc (`docs/patterns.md`).
 
-**Fuera de alcance de este documento**: el deployment/build del backend Bun en sí vive en su propio repo — este documento solo cubre el contrato de integración desde el lado de la extensión (puerto, endpoints esperados, ver `core/backend/bunClient.ts` y `docs/architecture.md`).
+**Sigue siendo otro runtime, y eso no cambió con la fusión**: corre en Bun como proceso aparte, no comparte una línea de código con la extensión y el único acoplamiento es el contrato de acá abajo. Tiene su propio `backend/package.json` (`"type": "module"`) porque el de la raíz no declara `type` y el backend es ESM. Lo que sí ganó al entrar es el lint del repo — `eslint.config.js` tiene un bloque para `backend/**` con globals de Node + Bun.
+
+⚠️ **La ruta raíz de descargas vive del lado del backend**, en `backend/config_usuario.json` (gitignoreado, se escribe al elegir carpeta). La extensión la **lee**, no la manda. Si movés o reinstalás el backend, ese archivo no viaja y el servidor cae a su default (`Downloads/RamonNet_Turbo`): las descargas van a otra carpeta **y** el escaneo de "ya descargado" mira la raíz nueva y te da todo por no bajado. Copialo, o volvé a elegir la carpeta desde el popup.
 
 ### Contrato de endpoints (lado extensión)
 
@@ -98,7 +100,8 @@ Dos cosas que conviene no hacer, y que se descartaron acá:
   de N— y sumar un segundo camino de escritura duplicaría el `.part`, la idempotencia por
   `x-session-id` y el acumulador.
 
-**Ya está del lado del backend** (`ramonnet-bun-backend`, commits `8797ec6` + `79726a9`), y con él
+**Ya está del lado del backend** (commits `8797ec6` + `79726a9`, hoy en `backend/` — fueron dos
+commits en otro repo, y es **el caso que motivó ADR-0015**), y con él
 vinieron otros dos cambios que el mismo corte destapó:
 
 - **`escanear-disco` dejó de filtrar sólo `.mp4`.** Era un fallo silencioso: un PDF ya bajado nunca

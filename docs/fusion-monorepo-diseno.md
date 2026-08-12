@@ -1,6 +1,14 @@
 # Fusionar el backend y la extensión en un solo repo — diseño de ejecución
 
-**Estado (2026-08-12): 🔵 PROPUESTO, NO EJECUTADO. Nada tocado.**
+**Estado (2026-08-12): ✅ TERMINADO, VERIFICADO EN NAVEGADOR Y MERGEADO A `main`.**
+
+Las 4 fases se ejecutaron el 2026-08-12. Automáticas: compuerta en el baseline de `docs/testing.md`
+y el build emitiendo **exactamente** los mismos 13 archivos y 222.51 kB que antes de la fusión
+(chequeo de R1). En navegador, con el backend levantado desde `backend/`: **la raíz de descargas
+quedó en la correcta** (R3 despejado), bajó **un video** de Ramón Net y **un PDF** de Anatomy
+—`Testimonios anatobychris.pdf`, con su nombre bien, sin `.pdf.mp4`—, que es el que prueba el
+contrato `x-file-name` y por lo tanto el motivo entero de esta fusión.
+La decisión quedó en **ADR-0015**. El nombre elegido fue **Course Downloader** / `backend/`.
 
 Plan para que `ramonnet-bun-backend` deje de ser un repo aparte y pase a vivir en `backend/`,
 dentro de este mismo repo, **conservando su historia**. Incluye el rename de los dos proyectos,
@@ -87,9 +95,15 @@ git checkout -b fusion-monorepo
 
 ```bash
 git subtree add --prefix=backend ../ramonnet-bun-backend master
-git log --oneline -- backend | tail -5      # tienen que estar los 4 commits originales
+git log --oneline --graph -6                # los 4 commits, como rama mergeada
 git check-ignore backend/config_usuario.json
 ```
+
+⚠️ **Corrección de este mismo plan, encontrada al ejecutarlo**: la verificación decía
+`git log --oneline -- backend`, y **eso no muestra nada** — los commits originales tienen rutas
+*sin* el prefijo `backend/`, así que el filtro por ruta no los matchea y parece que la historia se
+perdió. Se ve con `--graph` (o `git log <sha-original>`), que los muestra como rama mergeada al
+commit `Add 'backend/' from commit …`.
 
 **`subtree`, no copiar la carpeta**: dos de esos 4 commits son el contrato de los PDF, y **su
 mensaje es la única documentación de por qué existe** el header `x-file-name`.

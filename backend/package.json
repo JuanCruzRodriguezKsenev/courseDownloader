@@ -1,0 +1,6 @@
+{
+  "name": "backend",
+  "private": true,
+  "type": "module",
+  "description": "Backend Bun del courseDownloader. Proceso aparte: se arranca con iniciar.bat y escucha en 127.0.0.1:3001. El contrato con la extensión vive en docs/deployment.md."
+}

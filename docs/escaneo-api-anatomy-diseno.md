@@ -30,7 +30,9 @@
 >    salvó el diagnóstico fue que el error **volcara el cuerpo recibido**.
 > 3. **`Atlas.pdf.mp4`** (riesgo R9, el único punto que no se podía cerrar desde este repo) — el
 >    backend le pegaba `.mp4` a todo. Se resolvió con un header nuevo, `x-file-name`, y **tres
->    líneas en `ramonnet-bun-backend`**; el contrato está en `docs/deployment.md`.
+>    líneas en el backend** (entonces un repo aparte, `ramonnet-bun-backend`; hoy `backend/`, ver
+>    ADR-0015 — este corte fue justamente el caso que la motivó); el contrato está en
+>    `docs/deployment.md`.
 > 4. **La clase en curso se marcaba descargada a mitad de la descarga** — regresión del propio
 >    arreglo anterior: al abrir el escaneo de disco del backend para que entraran los PDF,
 >    volvieron a entrar los `.part`. `endsWith(".mp4")` estaba filtrando **dos** cosas —el tipo de
