@@ -1,6 +1,15 @@
 /**
- * PUERTO DE SITIO (V1.1.0)
+ * PUERTO DE SITIO (V1.2.0)
  * ==========================================================================
+ * CHANGELOG v1.2.0:
+ * - [LOADERS — ítem 1] Miembro nuevo `topeEscaneoMs` (el puerto pasa de 12 a 13). El
+ *   `safetyTimeout` del escaneo era 6000 fijo en popup.js contra ~11 s reales de Anatomy
+ *   (/v1/navigation ~4,0 s + el pool de 114 materiales 7,1 s), así que ese portal mostraba
+ *   SIEMPRE un error falso que después se borraba solo. Un tope global no existe: es una
+ *   propiedad medida de cada portal.
+ * - Requerido, por el mismo motivo que `instruccionEscaneo`: un portal nuevo que lo olvide
+ *   tiene que no compilar, no heredar un número ajeno.
+ *
  * CHANGELOG v1.1.0:
  * - [COPY GENÉRICA — corte 2] Miembro nuevo `instruccionEscaneo` (el puerto pasa de 11 a
  *   12 miembros). Es el único texto del onboarding que describe un FLUJO y no un hecho, y
@@ -221,6 +230,27 @@ export interface PuertoSitio {
    * que recibe. Un `<strong>` acá se vería literal en pantalla.
    */
   readonly instruccionEscaneo: string;
+
+  /**
+   * Techo en milisegundos para un escaneo de este portal, antes de darlo por colgado.
+   *
+   * **Es una medición, no una preferencia.** Estaba hardcodeado en 6000 dentro de
+   * `popup.js` cuando el único portal escaneaba el DOM y tardaba menos de un segundo. Con el
+   * escaneo por API de Anatomy —`/v1/navigation` ~4,0 s más un pool de 114 materiales que
+   * mide 7,1 s— el tope quedó por debajo del caso normal, así que el watchdog saltaba en
+   * **todos** los escaneos de ese portal: pintaba «⚠️ Timeout de carga del DOM» y ~5 s
+   * después llegaba el escaneo de verdad y le pintaba encima. Un error que se borra solo es
+   * peor que ninguno: enseña a ignorar los errores.
+   *
+   * Poné el tope con holgura sobre el peor caso **medido** de ese portal, no sobre el típico.
+   * Un tope que salta en operación normal no es una guarda: es ruido.
+   *
+   * **No sirve para cancelar el escaneo** — nadie sabe abortar `chrome.scripting` a mitad de
+   * camino. Lo que hace al vencerse es *abandonar* el escaneo: suelta la UI y marca esa
+   * corrida como muerta, para que si el callback llega tarde no pinte sobre lo que el usuario
+   * esté mirando.
+   */
+  readonly topeEscaneoMs: number;
 
   /**
    * URL de la página de la clase → URL del manifiesto `.m3u8`. Tira si no la encuentra.

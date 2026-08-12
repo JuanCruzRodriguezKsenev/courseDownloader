@@ -118,6 +118,11 @@ const SitioRamonNet: SitioRamonNetDescriptor = {
   instruccionEscaneo:
     "Verás en pantalla las clases de la materia que elijas en el selector y presiones 👁️ mostrar.",
 
+  // Escanea el DOM de la pestaña: no sale a la red, así que termina en menos de un segundo.
+  // Los 6 s de siempre le sobran con holgura y se conservan tal cual — este portal nunca fue
+  // el que rompía el tope. Ver el docblock del miembro en core/puertos/sitio.ts.
+  topeEscaneoMs: 6000,
+
   // --- CDN de video (Bunny) -----------------------------------------------------
   cdn: {
     hostsIframe: ["b-cdn.net", "mediadelivery.net"],

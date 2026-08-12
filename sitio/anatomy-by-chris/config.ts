@@ -140,6 +140,13 @@ const SitioAnatomyByChris: SitioAnatomyDescriptor = {
   instruccionEscaneo:
     "Un solo escaneo trae todos los módulos del curso con sus clases y sus PDF: no hay que elegir materia ni apretar nada más.",
 
+  // 30 s contra los ~11 s medidos (/v1/navigation ~4,0 s + el pool de 114 materiales 7,1 s,
+  // los dos en docs/escaneo-api-anatomy-diseno.md). El margen es deliberado: el pool sale a
+  // la red 114 veces y una conexión lenta lo estira sin que eso sea una falla. Los 6 s que
+  // había fijos en popup.js quedaban DEBAJO del caso normal, así que este portal mostraba un
+  // error falso en cada escaneo.
+  topeEscaneoMs: 30000,
+
   // --- Puertas al resto del adaptador -------------------------------------------------
   // Se referencian perezosamente (arrow / getter) para no depender del orden de evaluación
   // de los imports del entrypoint.

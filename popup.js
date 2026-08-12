@@ -1,7 +1,24 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.20.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.21.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.21.0:
+ * - [LOADERS — ítem 1] El watchdog del escaneo dejó de saltar SIEMPRE en Anatomy. Eran 6000 ms
+ *   fijos contra ~11 s reales de ese portal, así que en cada escaneo escribía "⚠️ Timeout de
+ *   carga del DOM" —vocabulario de la era del scraper, que ese portal ya no usa— y ~5 s después
+ *   el resultado real le pintaba encima. Un error que se borra solo enseña a ignorar los
+ *   errores. Cuatro partes:
+ *   (a) el tope sale del descriptor (`PuertoSitio.topeEscaneoMs`, requerido; 6 s Ramón Net,
+ *       30 s Anatomy) y el watchdog se arma DESPUÉS de resolver el portal, porque antes el
+ *       portal no se sabe — la misma trampa que el cartel de `ejecutarPaso1...`;
+ *   (b) abandono explícito por generación: al vencerse, el watchdog invalida la corrida y el
+ *       callback tardío se descarta en vez de pintar;
+ *   (c) guarda de reentrada: el botón volvía a "Re-escanear 🔄" durante la ventana y un click
+ *       lanzaba un segundo escaneo concurrente sobre el primero;
+ *   (d) el mensaje va a la TARJETA de la lista, no al footer, donde convivía con el
+ *       diagnóstico de conexión —que tiene otro dueño— y quedaba pisado.
+ *   Estado del ítem → docs/TECHNICAL_DEBT.md; detalle → docs/alertas-y-bloqueo-diseno.md §6.1.
+ *
  * CHANGELOG v5.20.0:
  * - [BANNER OCUPA LISTA + TOOLBAR] Con la cola pausada, la card de error ocupaba #ui-list
  *   pero la barra de filtros seguía viva ENCIMA de ella: buscador, filtros, orden y "Todos"
@@ -326,6 +343,15 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     // que acá se guarda eso: desengancharlo es llamarla.
     let desengancharOyenteWorker = null;
     let modoSeleccionFilaActivo = false;
+
+    // [LOADERS — ítem 1] Estado del escaneo. Son dos cosas distintas y conviene no unificarlas:
+    //  - `escaneoEnCurso` es la guarda de REENTRADA: impide lanzar un segundo escaneo encima
+    //    del primero mientras el botón dice "Re-escanear 🔄".
+    //  - `generacionEscaneo` es el ABANDONO: cada corrida se lleva su número y el watchdog lo
+    //    incrementa al vencerse, así un callback tardío sabe que su corrida ya está muerta y no
+    //    pinta. Un booleano no alcanzaría — con dos corridas en vuelo no distingue cuál llegó.
+    let escaneoEnCurso = false;
+    let generacionEscaneo = 0;
 
     // [MULTISITIO CORTE 5] El portal de la pestaña que se está mirando.
     //
@@ -911,6 +937,24 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     }
 
     function ejecutarPaso1EscaneoRamonAutomatico() {
+      // [LOADERS — ítem 1c] GUARDA DE REENTRADA. Mientras el watchdog corría, el botón volvía a
+      // "Re-escanear 🔄" y un click lanzaba un SEGUNDO escaneo encima del primero: dos
+      // `executeScript` concurrentes sobre la misma pestaña, resolviendo en cualquier orden.
+      // El que llega último gana, y no es necesariamente el último que se pidió.
+      if (escaneoEnCurso) {
+        console.warn("⏳ [ESCANEO] Ya hay uno en curso; se ignora el pedido nuevo.");
+        return;
+      }
+      escaneoEnCurso = true;
+
+      // [LOADERS — ítem 1b] ABANDONO EXPLÍCITO. Cada corrida se lleva su número; el watchdog lo
+      // incrementa al vencerse. Un callback que llegue después compara y se calla, en vez de
+      // pintar sobre lo que el usuario esté mirando — que es justo lo que hacía el escaneo de
+      // Anatomy al llegar ~5 s DESPUÉS de que el timeout escribiera el error falso.
+      const miGeneracion = ++generacionEscaneo;
+      const fueAbandonado = () => miGeneracion !== generacionEscaneo;
+      const terminarEscaneo = () => { if (!fueAbandonado()) escaneoEnCurso = false; };
+
       // Genérica OBLIGATORIA: acá `sitioActivo` es todavía el portal ANTERIOR (o el legado por
       // defecto). El portal de este escaneo se resuelve recién ~17 líneas abajo, así que
       // interpolarlo acá anunciaría el portal equivocado justo al cambiar de portal.
@@ -920,11 +964,12 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // Ocultar badge de cátedra al iniciar un nuevo escaneo para evitar estados inconsistentes
       nodos.facetaBadge.style.display = "none";
 
-      const safetyTimeout = setTimeout(() => {
-        nodos.loader.style.display = 'none';
-        nodos.txtEstado.textContent = "⚠️ Timeout de carga del DOM.";
-        configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
-      }, 6000);
+      // [LOADERS — ítem 1a] El watchdog se arma DESPUÉS de resolver el portal, no acá. Su tope
+      // sale del descriptor (`topeEscaneoMs`) y acá arriba el portal todavía no se sabe — es la
+      // misma trampa que el cartel de dos líneas más arriba. Lo que queda sin cubrir entre este
+      // punto y el armado es `chrome.tabs.query`, que no sale a la red; lo que el watchdog
+      // existe para vigilar es el escaneo, que sí.
+      let safetyTimeout = null;
 
       chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
         // [MULTISITIO CORTE 5] Acá es donde el portal se decide de verdad: el escaneo corre
@@ -935,12 +980,33 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         const portal = tab && adoptarPortalDePestaña(tab.url);
         if (!portal) {
           clearTimeout(safetyTimeout);
+          terminarEscaneo();
           nodos.txtEstado.textContent = "⚠️ No estás en un portal reconocido.";
           configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
           if (appState.listadoClasesGlobal.length > 0) { desbanearFiltros(); aplicarFiltrosCruzados(); }
           nodos.loader.style.display = 'none';
           return;
         }
+
+        // [LOADERS — ítem 1a] Recién acá se conoce el portal, y con él su tope medido. Antes
+        // eran 6000 fijos para todos: en Anatomy el escaneo mide ~11 s, así que el watchdog
+        // saltaba SIEMPRE y el error se borraba solo al llegar el resultado real.
+        safetyTimeout = setTimeout(() => {
+          // [ítem 1b] Abandonar: subir la generación invalida el callback que llegue después.
+          generacionEscaneo++;
+          escaneoEnCurso = false;
+          nodos.loader.style.display = 'none';
+          // [ítem 1d] El mensaje va a la TARJETA de la lista, no al footer. En el footer convive
+          // con el diagnóstico de conexión —que tiene otro dueño— y queda tapado o pisado; acá
+          // ocupa la región y se ve. Nombra el portal porque a esta altura ya está resuelto.
+          ListaClases.render({ modo: 'card', card: {
+            tipo: 'error',
+            titulo: 'El escaneo tardó demasiado',
+            descripcion: `Pasaron ${Math.round(portal.topeEscaneoMs / 1000)} s sin respuesta de ${utils.escaparHtml(portal.nombre)}.<br>Puede ser la conexión o que el portal haya cambiado.<br>Probá <strong>Re-escanear</strong>.`,
+            icono: '⏱️'
+          }});
+          configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
+        }, portal.topeEscaneoMs);
 
         // Preservar en memoria los elementos que están en la cola de descarga activa
         const itemsEnCola = appState.listadoClasesGlobal.filter(c => c.estado === 'process');
@@ -951,6 +1017,17 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           func: portal.escanearListado
         }, async (resultados) => {
           clearTimeout(safetyTimeout);
+
+          // [LOADERS — ítem 1b] Si el watchdog ya dio esta corrida por muerta, este callback NO
+          // pinta. Es el arreglo del síntoma que se veía todos los días: el escaneo de Anatomy
+          // llegaba ~5 s después del error falso y le pintaba la lista encima, así que el
+          // usuario veía un error que se resolvía solo sin que nadie lo hubiera resuelto.
+          // Ojo con `escaneoEnCurso`: no se toca acá, ya lo soltó el watchdog.
+          if (fueAbandonado()) {
+            console.warn("🕰️ [ESCANEO] Llegó un resultado de una corrida ya abandonada; se descarta.");
+            return;
+          }
+          terminarEscaneo();
 
           // Controlar de forma resiliente si ocurrió un error de inyección (ej: permisos de host o página de sistema)
           // lastError de chrome.scripting (la inyección), no de IPC — ver la nota de arriba.
