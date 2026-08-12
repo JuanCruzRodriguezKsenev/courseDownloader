@@ -80,6 +80,10 @@ import { montar as montarStatusDot } from '../../popup/features/conexionHeader.p
 import { montar as montarOnboarding } from '../../popup/features/onboarding.preact.js';
 import { montar as montarCampanita } from '../../popup/features/campanita.preact.js';
 
+// Banco de pruebas. El import es incondicional; lo que decide si corre es la bandera del final
+// de este archivo. Ver el bloque de allá abajo: dice por qué es estático y qué cuesta.
+import { activarModoVerificacion } from '../../verificacion/modoVerificacion.js';
+
 montarStatusDot(document.getElementById('preact-status-dot'), { conexion: Conexion });
 montarCampanita(document.getElementById('preact-campanita'), { historial: HistorialFallos });
 
@@ -106,3 +110,45 @@ chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
     sitio: portalDeLaPestaña || sitios.obtener(undefined),
   });
 });
+
+// ─── BANCO DE PRUEBAS ────────────────────────────────────────────────────────────────────
+//
+// ⬇⬇⬇  PONÉ `true` ACÁ PARA ACTIVARLO, Y `npm run build`.  ⬇⬇⬇
+const BANCO_DE_PRUEBAS = false;
+// ⬆⬆⬆  Es la única línea que hay que tocar.  ⬆⬆⬆
+//
+// Qué es: un panel (🧪 en la cabecera, o **F9**) que graba los carteles que duran
+// milisegundos, demora el escaneo para poder leerlos, y fuerza los estados que a mano no se
+// alcanzan — caída de servidor y de internet, la cola pausada en sus cinco tipos, el escaneo
+// vacío o colgado, y el onboarding con el descriptor de cada portal. Detalle y limitaciones,
+// en la cabecera de `verificacion/modoVerificacion.js`.
+//
+// **POR QUÉ VIVE ACÁ Y NO EN UNA RAMA.** Vivió en una rama descartable (`copy-generico-
+// verificacion`) y el resultado fue que se perdió dos veces: la primera quedó con un build
+// viejo mientras `main` avanzaba —cargarla verificaba una versión anterior—, y la segunda
+// hubo que rearmarla a mano con siete cherry-picks. Una herramienta que hay que reconstruir
+// cada vez que se usa es una herramienta que no se usa. Acá se mantiene sola con el resto.
+//
+// **Apagado NO cuesta nada, y está medido**: la bandera es una `const` literal, así que el
+// `if` es código muerto y Vite se lleva el módulo entero en el tree-shaking. Comprobado
+// comparando los dos builds — en `false`: 225,71 kB y **cero** ocurrencias de `mv-panel` en el
+// bundle; en `true`: 243,21 kB. Por eso la bandera es una `const` y no una variable, un
+// `let`, ni algo leído de storage: cualquiera de esas tres lo dejaría adentro para siempre.
+//
+// Y por eso el import es **estático** y no un `import()` dinámico, que sería el reflejo obvio:
+// el banco **envuelve `fetch`, `chrome.tabs.query` y `chrome.runtime.sendMessage`**, y tiene
+// que hacerlo antes de que corra el init del popup. Un import dinámico resuelve en un tick
+// posterior y puede llegar después de `DOMContentLoaded`, o sea con `iniciarPopup` ya
+// arrancado: los envoltorios quedarían puestos tarde y el banco mentiría en silencio. El
+// estático da la misma eliminación en frío y además la garantía de orden.
+//
+// Va ÚLTIMO a propósito: envuelve esas APIs **después** de que el popup quedó cableado, así
+// nada de lo que se está verificando cambia de orden por su culpa.
+if (BANCO_DE_PRUEBAS) {
+  activarModoVerificacion({
+    sitios,
+    montarOnboarding,
+    conexion: Conexion,
+    appState: AppState,
+  });
+}

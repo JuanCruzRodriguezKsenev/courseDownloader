@@ -14,98 +14,55 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ---
 
-## Estado al 2026-08-12 (tarde)
+## Nada en revisión (al 2026-08-12)
 
-Hay **una sola rama**: `integracion-alertas`, que sale de `main` y junta todo lo de abajo.
-`main` sigue siendo la referencia **verificada**; esta rama es lo construido y **sin verificar en
-navegador**.
+**`main` está al día y verificado en navegador.** No hay ramas en vuelo.
 
-**La compuerta está entera en verde**: 610 tests, lint 0/0, `tsc` limpio, build OK, y el build
-sigue sin empaquetar `backend/`. Los números y su desglose → `docs/testing.md` §Baseline.
+La tanda del 2026-08-12 —copy genérico, frente de alertas, la selección que sigue al filtro y
+los cinco ítems de la auditoría de loaders— se verificó en Chrome y se mergeó. Qué trae, en
+`docs/ROADMAP.md` §Fase 7; el estado del backlog, en `docs/TECHNICAL_DEBT.md`.
 
-### Qué trae, en el orden en que se construyó
+### Lo que dejó esa tanda, y conviene no volver a aprender
 
-| # | Commit | Qué trae |
-|---|---|---|
-| 1 | merge | **Frente de alertas** (ex-ramas 3 y 4): la alerta comparte contenedor con las listas, bloqueo real con `disabled`, 4 arreglos de layout |
-| 2 | merge | **La selección sigue al filtro** (ex-rama 5) |
-| 3 | merge | **Copy genérico** (ex-ramas 1 y 2): la UI deja de hablar como Ramón Net + `instruccionEscaneo` en `PuertoSitio` |
-| 4 | `2e2eac8` | **El tope del escaneo sale del descriptor** — ítem 🔴 de la auditoría, el que se veía a diario |
-| 5 | `928b436` | **Los otros cuatro loaders**: el que no se ve, la lista atenuada, los dos `fetch` sin techo, el onboarding con el portal legado |
+- **Verificar en el navegador encontró seis defectos que la compuerta no vio**, todos en el
+  mismo corte y ninguno alcanzable por un test: el bloqueo que no se aplicaba, la tarjeta que
+  perdía la región al conmutar de pestaña, el botón que no aparecía, la toolbar viva sobre una
+  cola vacía, y dos de scroll. Es el argumento de ADR-0005 en vivo: lo que cae en el núcleo de
+  `popup.js` y en el CSS **sólo lo ve un humano abriendo el popup**.
+- **Tres de esos seis los introdujo el arreglo anterior.** Un corte sobre el popup no se da por
+  cerrado hasta verlo; "la compuerta está en verde" no es una señal sobre esta parte del código.
+- **El patrón que se repitió tres veces**: un estado pintado UNA VEZ (la tarjeta, el botón) en
+  vez de derivado en cada repintado. Si se puede desincronizar de su bandera, se desincroniza.
+  Todo lo que ocupa `#ui-list` o el footer se deriva en `renderizarListadoInterfaz` /
+  `calcularContadoresBoton`; no se pinta suelto.
 
-Las cinco ramas viejas **ya no hacen falta**: están todas adentro.
+### El banco de pruebas ya no es una rama
 
-### ⚠️ Y hay una segunda rama, que es la que se carga en Chrome
+**Vive en el código**, en `verificacion/modoVerificacion.js`, y se enciende con **una línea**:
+`BANCO_DE_PRUEBAS = true` al final de `entrypoints/popup/main.js` + `npm run build`.
 
-**`verificacion-integracion`** sale de ésta y le agrega **sólo el banco de pruebas** (🧪 al lado
-del ❓ en la cabecera, o **F9**): 7 commits y un módulo, `verificacion/modoVerificacion.js`.
+Vivió en una rama descartable y **se perdió dos veces**: primero quedó con un build viejo
+mientras el trabajo avanzaba —cargarla verificaba una versión anterior sin que nada avisara— y
+después hubo que rearmarla con siete cherry-picks. Una herramienta que hay que reconstruir cada
+vez que se usa es una herramienta que no se usa.
 
-- **Buildeá y cargá esa, no ésta.** El banco es lo que permite forzar las caídas de servidor e
-  internet, la cola pausada en sus 5 tipos, el escaneo vacío o colgado, y **grabar los carteles
-  que duran milisegundos**. Sin él, media checklist de alertas no se mira: se deduce.
-- **Es un andamio: no se mergea nunca y se descarta entera después de la pasada.** Suma ~15 KB
-  al bundle del popup, que es exactamente el motivo. Lo único que vuelve de ahí son los defectos
-  que encuentre.
-- Reemplaza a `copy-generico-verificacion`, la rama original del banco, que **quedó obsoleta**
-  —su build no tiene los cortes 4 y 5— y se puede borrar.
-
-Este bloque vive acá, en la rama que **sí** sobrevive, y no sólo en la descartable: si el puntero
-viviera únicamente en el andamio, al borrarlo nadie sabría que el banco existió. Ya pasó una vez
-en esta misma sesión.
-
-### Los conflictos que hubo, y por qué no eran de lógica
-
-Cuatro, los cuatro de contexto: **tres cabeceras de versión** (`popup.js` ×2,
-`serverConnection.js`) y **uno en la tabla de baseline** de `docs/testing.md`. Las ramas se
-habían escrito cada una asumiendo que se mergeaba primero, así que las dos saltaban su número de
-versión "porque la otra va antes". Resueltos conservando los dos changelogs en orden.
-
-El de la baseline es el que vale contar: una rama decía 587 y la otra 580, y la suma correcta
-—591— **no era ninguna de las dos**. Se midió con `npm test` en vez de resolverlo a ojo.
+Apagado no cuesta nada, y está medido: la bandera es una `const` literal, así que Vite se lleva
+el módulo entero en el tree-shaking (`false` → 225,71 kB y **cero** ocurrencias de `mv-panel` en
+el bundle; `true` → 243,21 kB).
 
 ---
 
-## Cómo verificarlo en Chrome
+## Cómo usar este doc la próxima vez
 
-```bash
-git checkout verificacion-integracion   # la del banco, NO integracion-alertas
-npm run build
-```
+Cuando haya trabajo fuera de `main`, acá va: qué rama, qué trae, qué mirar en Chrome y cómo
+aislar si algo falla. Cuando se mergea, esta sección vuelve a decir «nada en revisión».
 
-Y recargar en `chrome://extensions/`. **El build actual de `.output/chrome-mv3/` ya es el de esa
-rama.** Necesitás el backend corriendo (`backend/iniciar.bat`) para todo lo que toque disco.
+Lo que la última tanda enseñó sobre el proceso:
 
-El banco se abre con **F9** o con el 🧪 de la cabecera. F9 anda aunque la barra de pestañas esté
-oculta —que es justo el estado en el que hace falta volver—, así que si te quedás sin UI, F9 sale.
-
-Las checklists detalladas ya están escritas y no hay que reconstruirlas:
-
-- `docs/copy-generico-diseno.md` §7 — los 6 puntos del copy, con qué se espera y qué sería un bug.
-- `docs/alertas-y-bloqueo-diseno.md` §5 — el frente de alertas y el bloqueo.
-
-Lo que **suma esta tanda**, y no está en ninguna de las dos:
-
-1. **El timeout de Anatomy dejó de saltar.** Escaneá Anatomy y esperá los ~11 s completos. Antes,
-   a los 6 s aparecía «⚠️ Timeout de carga del DOM» y después se borraba solo. Ahora **no tiene
-   que aparecer nada**: la lista llega y listo.
-2. **El loader del escaneo ahora se ve.** Abrí el popup en una pestaña de portal. Tiene que verse
-   «Escaneando la pestaña…» — antes era código muerto en pantalla, no se pintaba nunca.
-   **Esto es precondición del punto siguiente.**
-3. **El cartel del cambio de portal**, que es lo que pedía la checklist del copy y hasta ahora
-   había que forzar con «Re-escanear»: ahora se observa abriendo el popup.
-4. **El onboarding en Anatomy.** Abrí el tour (❓) **estando en una pestaña de Anatomy** y mirá la
-   slide 3: tiene que describir el escaneo de un solo paso, **no** el selector de materia de
-   Ramón Net. Abrí el mismo tour fuera de todo portal → cae al legado, que es correcto.
-5. **La lista no queda al 50%.** Apagá el backend a mitad de una sincronización y volvé a
-   prenderlo. Al reconectar la lista tiene que volver **opaca**, no atenuada.
-6. **`backend/iniciar.bat`.** Con el server apagado, el banner y el onboarding tienen que nombrar
-   la ruta **con la carpeta**. Decían `iniciar.bat` a secas desde la fusión, y ese archivo ya no
-   está en la raíz.
-
-### Si algo falla
-
-Cada corte es un commit propio, así que `git revert` sobre el commit alcanza para aislar. Los
-dos primeros son merges de ramas que **todavía existen**; los dos últimos, commits normales.
-
-Si falla algo del frente de alertas o del copy, la rama vieja sigue disponible para mirarla en
-aislamiento. Si falla algo de los loaders, es `2e2eac8` o `928b436` y nada más.
+- **Una rama de integración deja `main` intacta** mientras se verifica, y si algo falla se
+  descarta entera. Salió barato y conviene repetirlo.
+- **Un commit por corte**, para que un `git revert` aísle. Los seis defectos encontrados se
+  ubicaron por commit sin buscar.
+- **Anotá también qué hace falta para poder MIRAR el resultado.** El loader invisible era
+  precondición de la verificación del copy genérico, y eso no aparecía en ninguna lista de
+  dependencias: las dos entradas se veían independientes.
