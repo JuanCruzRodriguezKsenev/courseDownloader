@@ -15,11 +15,8 @@ dentro de este mismo repo, **conservando su historia**. Incluye el rename de los
 porque toca los mismos archivos y hacerlo por separado significa editar los mismos 7 docs dos
 veces.
 
-**Falta un dato para ejecutarlo**: el nombre de producto de la Fase 3 (§Decisión abierta).
-
-**La decisión de fondo todavía no tiene ADR.** Si esto se ejecuta, nace **ADR-0015** en el mismo
-cambio — unificar repos es una decisión de arquitectura y `contributing.md` la pide documentada.
-Este doc es el *cómo*; el ADR sería el *qué y por qué*.
+Este doc es el *cómo*; el *qué y por qué* quedó en **ADR-0015**, nacido en el mismo cambio porque
+unificar repos es una decisión de arquitectura y `contributing.md` la pide documentada.
 
 ---
 
@@ -192,7 +189,12 @@ Todo vive en una rama: `git checkout main && git branch -D fusion-monorepo` y no
 La carpeta vieja del backend sigue en `Dev/` intacta — **conviene dejarla archivada una semana**
 después de la verificación, y recién ahí borrarla.
 
-## 9. Decisión abierta
+## 9. La decisión del nombre — ✅ cerrada el 2026-08-12
+
+**Salió la primera fila**: `courseDownloader` como nombre de proyecto (`package.json`), **Course
+Downloader** como nombre de producto, y el backend quedó como carpeta `backend/` en vez de
+`courseAssembler`, por la nota del final. Se conserva la deliberación porque los dos criterios de
+abajo valen para el próximo nombre que este proyecto tenga que elegir.
 
 **El nombre de producto.** Lo discutido, en el estilo inglés camelCase que ya usa la carpeta local:
 

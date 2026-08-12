@@ -1,4 +1,4 @@
-# Deuda técnica — RamonNet Video Downloader
+# Deuda técnica — Course Downloader
 
 Inventario vivo de problemas conocidos en el código actual, ordenados por severidad. Cada ítem indica ubicación exacta, impacto y la solución propuesta. Este documento se actualiza a medida que se resuelven o aparecen nuevos hallazgos — no es un snapshot histórico (para eso está el changelog de cada archivo y el historial de git).
 
