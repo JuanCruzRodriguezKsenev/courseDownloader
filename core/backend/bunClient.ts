@@ -1,6 +1,16 @@
 /**
- * NÚCLEO — CLIENTE DEL BACKEND BUN (V2.0.0)
+ * NÚCLEO — CLIENTE DEL BACKEND BUN (V2.1.0)
  * ==========================================================================
+ * CHANGELOG v2.1.0:
+ * - [LOADERS — ítem 4] `escanearDisco` y `seleccionarCarpeta` ganaron timeout. Eran los dos
+ *   únicos `fetch` del cliente sin techo, y la asimetría no era de diseño: sus vecinos lo
+ *   tienen con el motivo escrito —en Windows `localhost:3001` con el server apagado CUELGA en
+ *   vez de rechazar—. El síntoma no era un error sino el popup clavado en "Sincronizando disco
+ *   local…" con la lista atenuada, sin salida ni mensaje.
+ * - Los dos techos son deliberadamente distintos y no hay que "unificarlos": 15 s el escaneo
+ *   (el server lee disco de verdad) y 3 MINUTOS la selección de carpeta, porque del otro lado
+ *   de ese fetch no hay un servidor calculando sino una persona en un diálogo nativo.
+ *
  * CHANGELOG v2.0.0:
  * - [CAPA 1 + TS] Movido desde `shared/bunClient.js` a `core/backend/` y tipado. Es el
  *   primer archivo del núcleo genérico y el primero en TypeScript (Fase 4 de
@@ -120,14 +130,31 @@ export const BunClient = {
    * [MULTIPORTAL E] Sin `sitioId` mira el layout viejo (un solo nivel), que es lo que hace que
    * este cliente siga hablando con un backend anterior al cambio.
    */
-  async escanearDisco(subcarpeta: string, sitioId?: string): Promise<{ archivos?: string[] }> {
+  async escanearDisco(
+    subcarpeta: string,
+    sitioId?: string,
+    { timeoutMs = 15000 }: { timeoutMs?: number } = {}
+  ): Promise<{ archivos?: string[] }> {
     const sufijoSitio = sitioId ? `&sitio=${encodeURIComponent(sitioId)}` : "";
     const url = `${this.baseUrl}/api/escanear-disco?carpeta=${encodeURIComponent(subcarpeta)}${sufijoSitio}`;
-    const res = await fetch(url);
-    if (!res.ok) {
-      throw new Error("El servidor local Bun no respondió correctamente.");
+    // [LOADERS — ítem 4] Este fetch no tenía timeout y el cliente quedaba asimétrico contra sus
+    // vecinos, que sí lo tienen y por un motivo escrito: en Windows `localhost:3001` con el
+    // server apagado **cuelga la conexión** en vez de rechazarla. Sin abort, el popup se queda
+    // en "Sincronizando disco local..." con la lista atenuada, sin salida ni mensaje.
+    //
+    // 15 s y no 4 s como la sonda de vida: acá el server lee el disco de verdad, y una carpeta
+    // con muchos archivos tarda. El techo existe para el cuelgue, no para apurar al server.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { signal: controller.signal });
+      if (!res.ok) {
+        throw new Error("El servidor local Bun no respondió correctamente.");
+      }
+      return await res.json();
+    } finally {
+      clearTimeout(timeoutId);
     }
-    return await res.json();
   },
 
   /** Empuja el progreso a la consola gráfica del servidor. Best-effort: nunca lanza. */
@@ -215,13 +242,32 @@ export const BunClient = {
     }
   },
 
-  /** Pide al servidor que abra el diálogo nativo de selección de carpeta. */
-  async seleccionarCarpeta(): Promise<{ success?: boolean; ruta?: string }> {
-    const res = await fetch(`${this.baseUrl}/api/seleccionar-carpeta`);
-    if (!res.ok) {
-      throw new Error("El servidor local Bun no respondió correctamente.");
+  /**
+   * Pide al servidor que abra el diálogo nativo de selección de carpeta.
+   *
+   * [LOADERS — ítem 4] El timeout es de **3 minutos**, y la desproporción con los demás es el
+   * punto: del otro lado de este fetch no hay un servidor calculando, hay **una persona
+   * mirando un explorador de archivos**. Un techo de segundos le cancelaría el diálogo a un
+   * usuario que está eligiendo, que es peor que el cuelgue que viene a evitar.
+   *
+   * Pero sin ningún techo el loader del popup no tiene salida: si el server muere con el
+   * diálogo abierto, o el `fetch` se cuelga como se cuelga `localhost` en Windows, el botón se
+   * queda girando para siempre. 3 min es "nadie está eligiendo una carpeta hace tres minutos".
+   */
+  async seleccionarCarpeta(
+    { timeoutMs = 180000 }: { timeoutMs?: number } = {}
+  ): Promise<{ success?: boolean; ruta?: string }> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(`${this.baseUrl}/api/seleccionar-carpeta`, { signal: controller.signal });
+      if (!res.ok) {
+        throw new Error("El servidor local Bun no respondió correctamente.");
+      }
+      return await res.json();
+    } finally {
+      clearTimeout(timeoutId);
     }
-    return await res.json();
   },
 
   /**

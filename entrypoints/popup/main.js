@@ -81,13 +81,28 @@ import { montar as montarOnboarding } from '../../popup/features/onboarding.prea
 import { montar as montarCampanita } from '../../popup/features/campanita.preact.js';
 
 montarStatusDot(document.getElementById('preact-status-dot'), { conexion: Conexion });
-montarOnboarding(document.getElementById('preact-onboarding'), {
-  conexion: Conexion,
-  appState: AppState,
-  // [CORTE 5] El onboarding corre ANTES de que haya una pestaña escaneada, así que no hay
-  // portal "de la pestaña" que pasarle: se le da el legado, que es a donde el tour manda al
-  // usuario y lo que mostraba hasta ahora. Ofrecer elegir entre N portales es del corte 7,
-  // cuando exista un segundo.
-  sitio: sitios.obtener(undefined),
-});
 montarCampanita(document.getElementById('preact-campanita'), { historial: HistorialFallos });
+
+// [LOADERS — ítem 5] El onboarding se monta con el portal DE LA PESTAÑA, no con el legado.
+//
+// Hasta el 2026-08-12 esta llamada era `sitios.obtener(undefined)` —el portal legado, fijo— y
+// el comentario decía "cuando exista un segundo" portal. Existe desde el 2026-08-07, así que
+// la slide 3 mostraba la instrucción de escaneo de Ramón Net **también en Anatomy**: el corte 2
+// del copy genérico movió esa frase al descriptor (correcto y necesario) y el defecto que venía
+// a cerrar seguía en pantalla, porque la isla recibía el descriptor equivocado.
+//
+// Es asíncrono porque `chrome.tabs.query` lo es, y por eso el montaje va adentro del callback
+// en vez de arriba con los otros dos: la isla lee `sitio` como prop al montarse, no lo
+// re-consulta. Montar con el legado y "corregir" después haría parpadear la copy.
+//
+// El fallback al legado se queda para el caso en que la pestaña no sea de ningún portal
+// reconocido (el tour se abre desde cualquier lado): ahí no hay portal correcto que mostrar y
+// el legado es a donde el tour manda al usuario.
+chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+  const portalDeLaPestaña = tab && tab.url ? sitios.resolverPorUrl(tab.url) : null;
+  montarOnboarding(document.getElementById('preact-onboarding'), {
+    conexion: Conexion,
+    appState: AppState,
+    sitio: portalDeLaPestaña || sitios.obtener(undefined),
+  });
+});

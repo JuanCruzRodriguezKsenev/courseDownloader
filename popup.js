@@ -1,7 +1,21 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.21.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.22.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.22.0:
+ * - [LOADERS — ítem 2] El loader del escaneo inicial se ve. `conectarYArrancar` lo apagaba en
+ *   su `finally` incondicional, y el escaneo NO es `async` —vuelve apenas encola su
+ *   `chrome.tabs.query`—, así que las dos cosas pasaban en el MISMO tick y el navegador no
+ *   llegaba a pintar. "Escaneando la pestaña…" era código muerto en pantalla. Ahora
+ *   `ejecutarPaso1...` devuelve si tomó posesión del loader y el `finally` lo respeta.
+ *   Consecuencia que importa más que el cartel: el aviso del cambio de portal ya se puede
+ *   observar abriendo el popup, sin forzar un Re-escanear.
+ * - [LOADERS — ítem 3] La lista no queda atenuada al 50% para siempre. `setAtenuada(false)`
+ *   vivía en el `finally` de `resolverMapeoEnUI`, que es UN camino: si `escanearDisco` fallaba
+ *   por red, el `catch` externo se iba a `activarEstadoOfflineUI()` y ese `finally` nunca
+ *   corría. Como `atenuada` y `oculta` son flags independientes, al reconectar la lista volvía
+ *   visible pero al 50%. La apaga ahora quien la prendió.
+ *
  * CHANGELOG v5.21.0:
  * - [LOADERS — ítem 1] El watchdog del escaneo dejó de saltar SIEMPRE en Anatomy. Eran 6000 ms
  *   fijos contra ~11 s reales de ese portal, así que en cada escaneo escribía "⚠️ Timeout de
@@ -631,6 +645,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     // Se invoca al inicio si el tutorial ya estaba completo, o al cerrar el onboarding
     // de la primera vez (onComplete). Es dueña de su propio loader (mostrar/ocultar).
     async function conectarYArrancar() {
+      // [LOADERS — ítem 2] Quién apaga el loader al final. Por defecto lo apaga esta función;
+      // si el escaneo arranca, pasa a ser de él y esta función NO lo toca.
+      let elEscaneoTomoElLoader = false;
       try {
         nodos.loaderTxt.textContent = "Conectando con el servidor Bun...";
         nodos.loader.style.display = 'flex';
@@ -661,14 +678,22 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           }
 
           if (!appState.fallaConexionActiva) {
-            ejecutarPaso1EscaneoRamonAutomatico();
+            elEscaneoTomoElLoader = ejecutarPaso1EscaneoRamonAutomatico();
           }
         }
       } catch (errConexion) {
         console.warn("⚠️ Servidor Bun desconectado en inicio:", errConexion.message);
         activarEstadoOfflineUI();
       } finally {
-        nodos.loader.style.display = 'none';
+        // [LOADERS — ítem 2] Antes esto era incondicional, y ahí estaba el bug: el escaneo NO es
+        // `async` —vuelve apenas encola su `chrome.tabs.query`— así que este `finally` corría en
+        // el MISMO tick y el navegador no llegaba a pintar entre las dos. "Escaneando la
+        // pestaña…" era código muerto en pantalla: existía en el DOM y nadie lo veía nunca.
+        //
+        // Y no era sólo cosmético: el cartel del cambio de portal —lo que hay que mirar para
+        // verificar la copy genérica— no se podía observar abriendo el popup, había que forzarlo
+        // con Re-escanear. Un bug abierto era precondición para verificar otra cosa.
+        if (!elEscaneoTomoElLoader) nodos.loader.style.display = 'none';
       }
     }
 
@@ -943,7 +968,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // El que llega último gana, y no es necesariamente el último que se pidió.
       if (escaneoEnCurso) {
         console.warn("⏳ [ESCANEO] Ya hay uno en curso; se ignora el pedido nuevo.");
-        return;
+        // `false` = no tomé el loader. Lo lee `conectarYArrancar` para saber si le toca
+        // apagarlo él (ítem 2): si esta rama devolviera `true`, el loader quedaría girando.
+        return false;
       }
       escaneoEnCurso = true;
 
@@ -1182,6 +1209,13 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           }
         });
       });
+
+      // [LOADERS — ítem 2] `true` = a partir de acá el loader es MÍO. `chrome.tabs.query` es
+      // asíncrono, así que esta función vuelve enseguida y el trabajo real sigue en el
+      // callback: quien me llamó no puede apagar el loader al volver, porque el escaneo recién
+      // empieza. Todas mis salidas lo apagan (portal no reconocido, watchdog, error de
+      // inyección, y el `finally` del payload), así que devolver `true` es un compromiso.
+      return true;
     }
 
     // [REFACTORIZADO V5.4.1]: Motor de Sincronización Unificado e Híbrido (0% improvisación)
@@ -1262,9 +1296,12 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           actualizarContadoresBoton();
         } catch (err) {
           console.error("❌ Error en empaquetado de sincronización:", err);
-        } finally {
-          ListaClases.setAtenuada(false);
         }
+        // [LOADERS — ítem 3] Acá vivía el `finally` que apagaba la atenuación, y ése era el
+        // bug: es el ÚNICO camino que pasaba por este punto. Si `escanearDisco` fallaba por
+        // red, el `catch` externo se iba a `activarEstadoOfflineUI()` y esta función nunca
+        // corría, así que la lista quedaba al 50% para siempre. La apaga ahora quien la
+        // prendió — una región, un dueño (`docs/alertas-y-bloqueo-diseno.md`).
       };
 
       // ─── PIPELINE DE LECTURA DE DATOS (MULTIPLE O BUN SERVER DIRECTO) ────────
@@ -1316,6 +1353,13 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       } catch (errFetch) {
         console.error("❌ [UI-ERROR] Imposible conectar con el escáner de Bun:", errFetch.message);
         activarEstadoOfflineUI();
+      } finally {
+        // [LOADERS — ítem 3] La atenuación se apaga por los DOS caminos, y por eso vive acá y
+        // no adentro de `resolverMapeoEnUI`. `atenuada` y `oculta` son flags independientes de
+        // la isla, así que al reconectar la lista volvía visible pero al 50%, y sólo se curaba
+        // sola si más tarde había un re-escaneo que terminara bien. La prende esta función
+        // (arriba, antes del `await`); la apaga esta función.
+        ListaClases.setAtenuada(false);
       }
     }
 
