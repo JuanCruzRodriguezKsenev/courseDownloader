@@ -105,14 +105,15 @@ input[type="checkbox"] {
    Se aplica poniendo la clase, no heredando: una región con scroll declara `overflow` por su
    cuenta —cuál y en qué eje es asunto suyo— y esto sólo le da el aspecto.
 
-   `scrollbar-width`/`scrollbar-color` es el estándar (Firefox); `::-webkit-scrollbar` cubre
-   Chrome/Brave, que es donde corre esta extensión. Se declaran los dos porque el estándar ya
-   lo entiende Chrome moderno y va a sobrevivir al prefijo. */
-.scroll-fino {
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-color) transparent;
-}
-
+   **Sólo `::-webkit-scrollbar`, y es deliberado.** La primera versión de esta utilitaria
+   declaraba también el estándar (`scrollbar-width: thin` + `scrollbar-color`) "porque va a
+   sobrevivir al prefijo". Eso fue un error con síntoma inmediato: en Chrome, declarar
+   `scrollbar-color` **desactiva los `::-webkit-scrollbar`** y cambia de renderizador — el
+   estándar trae animación de desvanecido, así que la barra **tardaba en desaparecer** al
+   encogerse el contenido y se la veía flotando encima de un banner recién aparecido.
+   Esta extensión corre en Chrome/Brave y en ningún otro lado (`AGENTS.md`), así que el
+   estándar no compraba nada y costaba el comportamiento. Si algún día hay que soportar
+   Firefox, va detrás de un `@supports not selector(::-webkit-scrollbar)`, no al lado. */
 .scroll-fino::-webkit-scrollbar {
   width: 6px;
   height: 6px; /* el horizontal, para las regiones que scrollean en los dos ejes */

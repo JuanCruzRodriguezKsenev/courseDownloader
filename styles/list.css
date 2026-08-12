@@ -12,6 +12,13 @@
   padding: 0;
   border-color: transparent;
   background-color: transparent;
+  /* Una card NUNCA scrollea: es corta por construcción y llena la región de un ancho al otro.
+     Sin esto quedaba el canal del scroll reservado (ver `.list-wrapper`) metiéndole 6px por
+     derecha, que es justo la des-alineación con la path-bar que esta clase existe para evitar.
+     Y de paso mata la barra heredada del estado anterior: al pasar de una lista larga a un
+     banner, el navegador tenía que decidir que ya no hacía falta, y ese instante se veía. */
+  overflow: hidden;
+  scrollbar-gutter: auto;
 }
 
 /* Listado Wrapper */
@@ -22,6 +29,13 @@
   border-radius: var(--radius-md);
   overflow-y: auto;
   overflow-x: hidden;
+  /* [SIN SALTO AL APARECER/DESAPARECER LA BARRA] El canal del scroll queda reservado SIEMPRE,
+     haya o no barra. Sin esto, cualquier cosa que cambie el largo del contenido —filtrar,
+     encolar, que termine una descarga, y sobre todo un banner que reemplaza la lista— agrega o
+     quita 6px de ancho útil y re-fluye todas las filas de golpe. Se veía como un parpadeo cada
+     vez que aparecía o se iba un cartel.
+     La contracara es que en modo card el canal sobra: lo apaga `.sin-marco`, arriba. */
+  scrollbar-gutter: stable;
   padding: var(--space-sm);
   display: flex;
   flex-direction: column;
