@@ -469,6 +469,10 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       bannerConexion: BannerConexion,
       backend,
       configurarBotonesUX: (modo, txt, dis) => configurarBotonesUX(modo, txt, dis),
+      // [BLOQUEO REAL] El mismo bloqueo que usa la cola pausada, para que los dos estados de
+      // alerta no se comporten distinto. Va envuelto por la misma razón que el de arriba: la
+      // función se declara más abajo en este closure.
+      bloquearRegiones: (bloquear) => bloquearRegionesDeAlerta(bloquear),
       onReintentarCola: () => ejecutarReintentoDeCola(),
       onReescanearAula: () => ejecutarPaso1EscaneoRamonAutomatico()
     });
@@ -600,11 +604,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           // El camino de "arrancó y el server contesta" también levanta el bloqueo: si no, un
           // popup que abre después de una caída podría quedarse con la toolbar inerte sin que
           // nadie la destrabe (la recuperación por daemon sólo corre si hubo TRANSICIÓN).
-          nodos.filtersBar.classList.remove('bloqueada');
-
-          nodos.folder.disabled = false;
-          nodos.btnExplore.disabled = false;
-          document.querySelector('.path-bar')?.classList.remove('bloqueada');
+          bloquearRegionesDeAlerta(false);
 
           nodos.btnExplore.title = `Carpeta raíz actual: ${ruta} (Click para cambiar)`;
           RutaDisco.mostrar(ruta);
@@ -851,9 +851,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // está—, pero el bloqueo sigue a la falla: con la cola pausada, cambiar de pestaña
       // desbloqueaba la toolbar encima de la card. El estado de falla manda sobre la pestaña.
       nodos.filtersBar.style.display = 'flex';
-      // [UN SOLO BLOQUEO] Las dos regiones siguen al mismo estado y con la misma clase.
-      nodos.filtersBar.classList.toggle('bloqueada', !!appState.fallaConexionActiva);
-      document.querySelector('.path-bar')?.classList.toggle('bloqueada', !!appState.fallaConexionActiva);
+      // [BLOQUEO REAL] Las dos regiones siguen al mismo estado, por el mismo helper. Acá hacía
+      // falta porque cambiar de pestaña volvía a habilitar lo que la alerta había bloqueado.
+      bloquearRegionesDeAlerta(!!appState.fallaConexionActiva || BannerConexion.get().visible);
       nodos.btnStartQueue.style.display = appState.ráfagaEnCurso ? 'none' : qDisp;
     
       // Limpiar filtros activos y cerrar el menú
@@ -1860,6 +1860,49 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     // Se llama desde los dos embudos por los que pasa cualquier cambio del footer
     // (`configurarBotonesUX` y `actualizarContadoresBoton`) y no desde cada call-site, por el
     // mismo motivo que la visibilidad del botón vive en el helper: uno olvidado deja la línea.
+    /**
+     * [BLOQUEO REAL] Bloquea o libera las dos regiones que quedan a la vista mientras una
+     * alerta ocupa el contenedor: la path-bar (📁 PC / 📚 Materia / faceta) y la toolbar. Más
+     * la caja de cancelar, que sigue en pantalla si hay una descarga a medias.
+     *
+     * **Nada se esconde**: se ven, apagadas, y no operan. Y el bloqueo es el ATRIBUTO
+     * `disabled`, no un `pointer-events: none` — que frena el mouse y deja pasar el teclado
+     * (se podía tabular al input de materia y escribir, o marcar "Todos" con Espacio).
+     * El único que no admite `disabled` es el badge de la faceta, que es un `<span>`: se le
+     * marca `aria-disabled` y `faceta.js` lo respeta en su listener.
+     *
+     * Existe como función y no como dos líneas en cada call-site porque los dos estados de
+     * alerta —el banner de conexión y la cola pausada— tenían distinto alcance: uno
+     * deshabilitaba seis controles y el otro ninguno, así que el mismo bloque bloqueado se
+     * comportaba distinto según qué hubiera fallado.
+     */
+    function bloquearRegionesDeAlerta(bloquear) {
+      const pathBar = document.querySelector('.path-bar');
+      [pathBar, nodos.filtersBar, nodos.cancelBox].forEach((n) => n && n.classList.toggle('bloqueada', bloquear));
+
+      const controles = [
+        nodos.folder, nodos.btnExplore,
+        nodos.search, nodos.btnFilterPills, nodos.btnSort, nodos.masterCheck, nodos.btnToggleSelect,
+        nodos.btnSoftCancel, nodos.btnHardCancel,
+      ];
+      if (nodos.facetaBadge) nodos.facetaBadge.setAttribute('aria-disabled', String(bloquear));
+
+      if (bloquear) {
+        controles.forEach((c) => { if (c) c.disabled = true; });
+        return;
+      }
+
+      // Liberar NO es "habilitar todo": cada control tiene su propia condición y ponerlos en
+      // `false` a ciegas habilitaría el buscador sin lista o "Todos" sin sincronizar. Se
+      // delega en quien ya sabe — `desbanearFiltros` para la toolbar — y se restauran a mano
+      // sólo los que dependen del estado de conexión o de la ráfaga.
+      if (nodos.folder) nodos.folder.disabled = false;
+      if (nodos.btnExplore) nodos.btnExplore.disabled = false;
+      desbanearFiltros();
+      if (nodos.btnSoftCancel) nodos.btnSoftCancel.disabled = appState.banderaFrenadoSolicitado;
+      if (nodos.btnHardCancel) nodos.btnHardCancel.disabled = false;
+    }
+
     function sincronizarFooterVacio() {
       const footer = document.querySelector('.footer-panel');
       if (!footer) return;
@@ -1891,8 +1934,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // (`.offline`)—, así que con la cola pausada quedaban dos comportamientos distintos para
       // el mismo estado: los filtros inertes y, al lado, el input de materia y el badge de la
       // faceta vivos sobre una lista que no está en pantalla.
-      nodos.filtersBar.classList.add('bloqueada');
-      document.querySelector('.path-bar')?.classList.add('bloqueada');
+      bloquearRegionesDeAlerta(true);
 
       conectarEscuchadoresDelWorker();
     

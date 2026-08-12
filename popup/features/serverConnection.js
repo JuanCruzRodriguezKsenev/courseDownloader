@@ -95,6 +95,10 @@ const ServerConnectionFeature = {
     const {
       nodos,
       configurarBotonesUX,
+      // [BLOQUEO REAL] Bloquea/libera la path-bar, la toolbar y la caja de cancelar. Vive en
+      // popup.js —es dueño de `nodos` y de las condiciones de re-habilitación— y entra por ctx
+      // como `configurarBotonesUX`, para que los dos estados de alerta bloqueen IGUAL.
+      bloquearRegiones,
       onReintentarCola,
       onReescanearAula,
       appState,
@@ -148,15 +152,13 @@ const ServerConnectionFeature = {
     function activarEstadoOfflineUI(tipo = "servidor") {
       // (el puntito de estado lo maneja la isla Preact conexionHeader.preact.js)
 
-      nodos.folder.disabled = true;
-      nodos.btnExplore.disabled = true;
-      document.querySelector('.path-bar')?.classList.add('bloqueada');
-
-      nodos.search.disabled = true;
-      nodos.btnFilterPills.disabled = true;
-      nodos.masterCheck.disabled = true;
+      // [BLOQUEO REAL] Acá vivía la lista de `disabled` a mano —seis controles, y sólo los de
+      // este camino: el de la cola pausada no deshabilitaba ninguno—. Ahora las dos regiones se
+      // bloquean por el mismo helper de popup.js, así que el mismo bloque bloqueado se comporta
+      // igual haya fallado lo que haya fallado. Nada se esconde: quedan a la vista, apagados y
+      // sin operar, teclado incluido.
+      bloquearRegiones(true);
       nodos.masterCheck.checked = false;
-      if (nodos.btnSort) nodos.btnSort.disabled = true;
 
       // El banner lo pinta la isla Preact #2 (bannerConexion) en su propio root.
       // La lista (#ui-list) se oculta mientras el banner ocupa su lugar (se repuebla
@@ -187,11 +189,9 @@ const ServerConnectionFeature = {
       // Las PESTAÑAS quedan activas: cambiar de Clases a Fila sigue siendo legítimo con el
       // servidor caído —la alerta se pinta igual en las dos— y bloquearlas dejaba al usuario
       // sin poder ni mirar su cola.
-      nodos.filtersBar.classList.add("bloqueada");
-      // El progreso, si hay una descarga en curso, se queda EN PANTALLA y se bloquea: taparlo
-      // borraría la única referencia de cuánto se hizo. Lo que no puede quedar vivo son sus
-      // botones de cancelar.
-      nodos.cancelBox?.classList.add("bloqueada");
+
+      // El progreso, si hay una descarga en curso, se queda EN PANTALLA y bloqueado (lo hace el
+      // helper): taparlo borraría la única referencia de cuánto se hizo.
 
       // (el estado del servidor en el onboarding lo deriva la isla Preact del daemon)
 
@@ -248,17 +248,14 @@ const ServerConnectionFeature = {
           // render de la isla el que elige. Antes había que acordarse de un `setOculta(false)`.
           bannerConexion.ocultar();
 
-          nodos.folder.disabled = false;
-          nodos.btnExplore.disabled = false;
-          document.querySelector('.path-bar')?.classList.remove('bloqueada');
+          bloquearRegiones(false);
 
           nodos.txtEstado.textContent = "Analizando aula virtual...";
 
           // Se levanta el bloqueo. El `display` ya no se toca acá: la barra nunca se escondió,
           // así que no hay que reconstruir cuál correspondía según la pestaña —que era, además,
           // de donde salía que al reconectar en la Fila la toolbar quedaba distinta.
-          nodos.filtersBar.classList.remove("bloqueada");
-          nodos.cancelBox?.classList.remove("bloqueada");
+
 
           cargarRutaServidorSilencioso(); // restaura el path mostrado (PC: ...)
           onReescanearAula();

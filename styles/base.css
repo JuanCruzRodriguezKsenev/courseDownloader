@@ -98,6 +98,16 @@ input[type="checkbox"] {
    hoja nueva necesitaría su @import en popup/globals.css — olvidarlo no da error, sólo no se
    empaqueta. */
 .bloqueada {
-  opacity: 0.5;
-  pointer-events: none;
+  /* Un solo tinte, y más bajo que el .5 de antes: es un bloque apagado, no un bloque tenue. */
+  opacity: 0.35;
+}
+
+/* Que el tinte NO se multiplique. Cada control trae su propio `opacity: .5` cuando está
+   `disabled` (filters.css, path-bar.css, base.css), así que con el .5 del contenedor los
+   deshabilitados quedaban en 0,25 y el resto en 0,5: el mismo bloque con dos densidades, que
+   es lo que se veía como "unos bloqueados y otros no". Adentro de una región bloqueada el
+   tinte lo pone el contenedor y nada más. */
+.bloqueada :disabled,
+.bloqueada [aria-disabled="true"] {
+  opacity: 1;
 }

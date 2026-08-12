@@ -94,6 +94,16 @@ describe('ServerConnectionFeature.crear', () => {
     ctx = {
       nodos,
       configurarBotonesUX: vi.fn(),
+      // [BLOQUEO REAL] El bloqueo de la path-bar + toolbar + caja de cancelar vive en popup.js
+      // y entra por ctx. Acá se usa un doble con el comportamiento mínimo que estos tests
+      // afirman —la clase y el `disabled`— para poder seguir verificando el alcance sin
+      // arrastrar el helper entero.
+      bloquearRegiones: vi.fn((bloquear) => {
+        [document.querySelector('.path-bar'), nodos.filtersBar, nodos.cancelBox]
+          .forEach((n) => n && n.classList.toggle('bloqueada', bloquear));
+        [nodos.folder, nodos.btnExplore, nodos.search, nodos.btnFilterPills, nodos.masterCheck]
+          .forEach((c) => { if (c) c.disabled = bloquear; });
+      }),
       onReintentarCola: vi.fn(),
       onReescanearAula: vi.fn(),
     };
