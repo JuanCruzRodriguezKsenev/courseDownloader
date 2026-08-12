@@ -1,6 +1,11 @@
 /**
- * ADAPTADOR DE SITIO — RAMÓN NET: CONFIGURACIÓN (V2.0.0)
+ * ADAPTADOR DE SITIO — RAMÓN NET: CONFIGURACIÓN (V2.1.0)
  * ==========================================================================
+ * CHANGELOG v2.1.0:
+ * - [COPY GENÉRICA — corte 2] Declara `instruccionEscaneo`: la frase del onboarding sobre
+ *   el selector de materia y 👁️ mostrar, que estaba hardcodeada en la isla y describía
+ *   ESTE portal para todos. Ahora vive donde es cierta.
+ *
  * CHANGELOG v2.0.0:
  * - [FASE 5C] `config.js` → `config.ts`. El descriptor pasa a declararse como
  *   implementación de `PuertoSitio` (core/puertos/sitio.ts), así que ahora el
@@ -106,6 +111,17 @@ const SitioRamonNet: SitioRamonNetDescriptor = {
   // Página del listado de clases: la usa el onboarding para mandar al usuario al
   // lugar correcto del portal.
   get urlListado() { return `https://${this.host}/usuario/${this.marcaRutaClase}`; },
+
+  // Qué ve el usuario después de escanear, EN ESTE PORTAL: acá el listado se filtra por
+  // materia, así que hay un paso manual que en otros portales no existe. Texto plano: lo
+  // escapa la isla Preact del onboarding.
+  instruccionEscaneo:
+    "Verás en pantalla las clases de la materia que elijas en el selector y presiones 👁️ mostrar.",
+
+  // Escanea el DOM de la pestaña: no sale a la red, así que termina en menos de un segundo.
+  // Los 6 s de siempre le sobran con holgura y se conservan tal cual — este portal nunca fue
+  // el que rompía el tope. Ver el docblock del miembro en core/puertos/sitio.ts.
+  topeEscaneoMs: 6000,
 
   // --- CDN de video (Bunny) -----------------------------------------------------
   cdn: {

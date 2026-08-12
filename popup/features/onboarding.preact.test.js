@@ -11,6 +11,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import OnboardingFeature from './onboarding.preact.js';
 import { montar, __resetStore } from './onboarding.preact.js';
 import { SitioRamonNet as SitioActivo } from '../../sitio/ramonnet/config.ts';
+// El corte 2 del copy genérico compara los DOS portales reales: el miembro existe
+// justamente porque cada uno describe un flujo distinto.
+import { SitioAnatomyByChris as SitioAnatomy } from '../../sitio/anatomy-by-chris/config.ts';
 
 // Daemon Conexion falso: get() devuelve el estado actual; emit() lo cambia y notifica.
 function fakeConexion(inicial = { servidor: false, internet: true }) {
@@ -81,6 +84,40 @@ describe('Isla Preact: Onboarding', () => {
     expect(texto).not.toContain('Ramón Net');
     expect(texto).toContain('comisión'); // la etiqueta de la faceta, en minúscula
     expect(root.querySelector('.onboarding-link').getAttribute('href')).toBe('https://falso.test/listado');
+  });
+
+  // CORTE 2 de copy-generico-diseno.md: la slide "Clases y Videos" describía un FLUJO
+  // ("el selector", "👁️ mostrar") que sólo existe en Ramón Net — en Anatomy un escaneo trae
+  // el curso entero. Ahora sale de `PuertoSitio.instruccionEscaneo`. Lo que este test cuida
+  // es que NO vuelva a hardcodearse: si alguien reescribe la frase en el componente, el
+  // portal falso deja de verse y el test cae.
+  it('la instrucción de escaneo sale del descriptor, no del componente', async () => {
+    montar(root, {
+      conexion,
+      appState: window.AppState,
+      sitio: {
+        nombre: 'Portal Falso',
+        urlListado: 'https://falso.test/listado',
+        faceta: { etiqueta: 'Comisión' },
+        instruccionEscaneo: 'Acá no hay selector: un escaneo trae todo.',
+      },
+    });
+    const api = crear();
+    api.mostrarOnboarding();
+    await flush();
+
+    const texto = root.textContent;
+    expect(texto).toContain('Acá no hay selector: un escaneo trae todo.');
+    // La frase vieja, hardcodeada, describía el flujo de UN portal.
+    expect(texto).not.toContain('👁️ mostrar');
+    expect(texto).not.toContain('elijas en el selector');
+  });
+
+  // Los dos portales reales la traen, y dicen cosas distintas: es el punto del miembro.
+  it('los dos portales registrados declaran su propia instrucción de escaneo', () => {
+    expect(SitioActivo.instruccionEscaneo).toContain('selector');
+    expect(SitioAnatomy.instruccionEscaneo).not.toContain('selector');
+    expect(SitioAnatomy.instruccionEscaneo).not.toBe(SitioActivo.instruccionEscaneo);
   });
 
   it('el puente expone mostrarOnboarding y arranca oculto', async () => {

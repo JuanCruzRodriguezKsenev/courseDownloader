@@ -375,6 +375,17 @@ hermanos `.js`— y su `rules.json` en `public/sitio/<portal>/`.
 `PuertoSitio`, así que a un adaptador de portal al que le falte una pieza lo caza el compilador
 y no la lectura.
 
+**Un miembro del puerto puede ser copy, y desde el 2026-08-12 hay uno**: `instruccionEscaneo`
+(el puerto pasó a **12 miembros**). Es la frase del onboarding que explica qué va a ver el
+usuario después de escanear, y entró porque **describe un flujo, no un hecho**: Ramón Net filtra
+por materia con un selector y un botón 👁️ mostrar, Anatomy trae el curso entero de una sola
+llamada y no tiene ninguno de los dos controles. Estaba hardcodeada con el flujo del primer
+portal, así que el tour del segundo describía una UI inexistente. Va **requerido y no opcional**
+a propósito —con `?` el portal que la olvide compila igual y hereda un texto ajeno— y viaja como
+**texto plano**, porque la isla Preact que lo muestra escapa lo que recibe. Es la excepción
+razonada a la regla de abajo: no es una constante del portal que alguien lee, es copy genérica
+que el portal completa.
+
 **⚠️ Los globals de los tres hermanos llevan nombre por portal.** Los de Ramón Net son los que
 quedaron sin calificar por haber sido el primero (`Scraper`, `ParserTitulos`,
 `ResolverManifiesto`); los del segundo son `ScraperAnatomy`, `ParserTitulosAnatomy`,

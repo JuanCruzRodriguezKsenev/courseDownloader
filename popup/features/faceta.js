@@ -213,6 +213,10 @@ const FacetaFeature = {
 
     // Click en el badge: si hay varios valores presentes, reabre el modal de elección.
     badge.addEventListener("click", () => {
+      // [BLOQUEO REAL] El badge es un <span>: no admite `disabled`, así que el bloqueo se le
+      // marca con `aria-disabled` y se respeta acá. La alternativa era un `pointer-events:none`
+      // en el contenedor, y eso no es un bloqueo: frena el mouse y deja pasar el teclado.
+      if (badge.getAttribute("aria-disabled") === "true") return;
       const detectados = valoresPresentes();
       if (detectados.length > 1) {
         mostrarModal(detectados);

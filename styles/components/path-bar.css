@@ -11,9 +11,13 @@
   flex-shrink: 0;
   box-shadow: var(--shadow-bar);
 
-  &.offline {
-    opacity: 0.5;
-  }
+  /* [UN SOLO BLOQUEO] Acá vivía `&.offline` con su propio `opacity`, y era el segundo mecanismo
+     para la misma idea: la toolbar usaba `.bloqueada` y esta barra `.offline`, con distinta
+     definición, distinto dueño y —lo peor— distinto ALCANCE: `.offline` sólo se ponía con el
+     banner de conexión, así que con la cola pausada la toolbar quedaba bloqueada y esta barra
+     no. Ahora las dos usan la utilitaria `.bloqueada` de `base.css` y las dos siguen al mismo
+     estado. El `disabled` de sus controles se conserva: `pointer-events` no saca del orden de
+     tabulación, y el input de materia sí es focuseable con teclado. */
 }
 
 .meta-row {
@@ -30,7 +34,13 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   white-space: nowrap;
-  width: 42px; /* Ancho fijo para alinear columnas simétricamente */
+  /* Era `width: 42px` fijo "para alinear columnas simétricamente", y 42px no alcanzan para
+     "📚 MATERIA:": la etiqueta salía cortada. Con `min-width` se conserva lo que el ancho fijo
+     buscaba —las dos filas arrancan en la misma columna— sin recortar la más larga, y
+     `flex-shrink: 0` evita que el input o el badge de la faceta se la coman cuando la fila
+     queda justa (que es cuando se veía el defecto: con el badge de cátedra en pantalla). */
+  min-width: 78px;
+  flex-shrink: 0;
   display: inline-block;
 }
 

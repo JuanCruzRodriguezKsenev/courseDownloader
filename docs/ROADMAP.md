@@ -139,12 +139,20 @@ tipados.
 
 ---
 
-## Fase 6 (🟡 EN EJECUCIÓN desde 2026-08-02) — Re-arquitectura núcleo + adaptadores (+ TypeScript)
+## Fase 6 (✅ COMPLETA desde 2026-08-04) — Re-arquitectura núcleo + adaptadores (+ TypeScript)
 
 > **Ojo con la numeración**: la "Fase 6" de este ROADMAP es **toda** la re-arquitectura, que
-> internamente tiene su propia numeración de fases 0-8. **Ya no está diferida**: al 2026-08-04
-> van completas sus fases 0 a 6c y quedan la 7 y la 8. El avance por fase y el próximo paso
-> viven en **`docs/rearquitectura-diseno.md`** — este ROADMAP no los duplica.
+> internamente tiene su propia numeración de fases 0-8. El avance por fase vive en
+> **`docs/rearquitectura-diseno.md`** §Estado de avance — este ROADMAP no lo duplica.
+>
+> **Cerrada el 2026-08-04** (fases internas 0 a 8a). Lo único que queda de ella es la 8b, y es
+> una **decisión abierta, no una tarea pendiente**: nadie está esperando a nadie.
+>
+> **Los cuatro checkboxes de abajo estuvieron sin marcar hasta el 2026-08-12**, ocho días después
+> de que el trabajo terminara. Delegar el estado al doc de diseño era correcto por DRY; dejar los
+> `[ ]` puestos mientras tanto no, y es la forma más literal de mentir en Markdown: quien abría
+> este archivo veía cuatro capas pendientes. **Un checkbox es estado, así que o se mantiene o se
+> saca** — no vale delegarlo y dejarlo dibujado.
 
 **Objetivo**: convertir la extensión en un **template reutilizable** vía
 arquitectura de puertos y adaptadores (hexagonal), separando el código genérico del
@@ -156,23 +164,61 @@ sigue es el checklist de fases; el detalle de cada una está en ese doc.
 
 Tres capas (detalle completo + catálogo de qué migra en cada una → ADR-0008):
 
-- [ ] **Capa 1 — Núcleo genérico**: motor HLS (pool + AES), cola FIFO, daemon de
+- [x] **Capa 1 — Núcleo genérico**: motor HLS (pool + AES), cola FIFO, daemon de
   conexión, máquina de estado, UI/islas, `BunClient`. Invariante: no llama
-  `chrome.*` ni conoce Ramón Net.
-- [ ] **Capa 2 — Adaptador de sitio (`sitio/`)**: concentrar lo específico de Ramón
+  `chrome.*` ni conoce Ramón Net. ✅ 2026-08-04 — vive en `core/`.
+- [x] **Capa 2 — Adaptador de sitio (`sitio/`)**: concentrar lo específico de Ramón
   Net (scraper/selectores, parseo de títulos/cátedra, resolución M3U8/CDN, URL de
-  sondeo, reglas dNR, cátedra A-D) detrás de un puerto de sitio.
-- [ ] **Capa 3 — Adaptador de navegador (Chrome/MV3)**: abstraer los ~99 usos de
+  sondeo, reglas dNR, cátedra A-D) detrás de un puerto de sitio. ✅ 2026-08-03 —
+  y **la prueba real llegó el 2026-08-07**, cuando un segundo portal entró sin
+  tocar `core/`, `plataforma/` ni la UI (`docs/portal-anatomy-by-chris-diseno.md`).
+- [x] **Capa 3 — Adaptador de navegador (Chrome/MV3)**: abstraer los ~99 usos de
   `chrome.*` (storage, IPC, alarms, tabs, scripting, downloads, offscreen, dNR)
-  detrás de puertos.
-- [ ] **TypeScript + bundler (fusionado)**: TS-completo + bundler MV3 (Vite+CRXJS o
+  detrás de puertos. ✅ 2026-08-04 — con la salvedad de que **tres APIs se portaron
+  y el resto quedó fuera a propósito**: `notifications`/`tabs`/`windows`/`scripting`
+  y el camino legacy `downloads`/`offscreen` siguen hablando `chrome.*` directo, y
+  eso es decisión, no residuo. Inventario por API → `docs/architecture.md` §Las capas.
+- [x] **TypeScript + bundler (fusionado)**: TS-completo + bundler MV3 (Vite+CRXJS o
   WXT) como parte de la misma conversión a módulos ES. Payoff: puertos tipados +
-  `@types/chrome` + IPC con unión discriminada. Reemplaza a ADR-0001.
+  `@types/chrome` + IPC con unión discriminada. Reemplaza a ADR-0001. ✅ 2026-08-02
+  — se eligió **WXT** (ADR-0008). "TS-completo" quedó corto a propósito: `allowJs`
+  está en `false` y `popup.js`, `background.js`, `renderers.js`, las features y los
+  hermanos de cada adaptador siguen en JS. Cuál es cuál importa, porque es lo que
+  dimensiona cada migración → `AGENTS.md` §Project Overview.
 
 **Nota de secuencia**: es la fase más grande y transversal del roadmap; se ejecuta
 de forma incremental (lo más aislado primero), nunca big-bang. **No forma parte de
 la tanda de saldado de deuda técnica** — esa queda en JS (Fase 2 + fix del bug 400).
 Depende de tener las Fases 1-4 cerradas (red de tests + split + ESLint) como piso.
+
+---
+
+## Fase 7 (✅ COMPLETA el 2026-08-12, sin verificar en navegador) — Alertas, bloqueo y loaders
+
+**Objetivo**: cerrar lo que quedaba abierto en `docs/TECHNICAL_DEBT.md` §🔴 Abierto, que eran
+siete entradas y ahora es **una**.
+
+- [x] **Copy genérico**: la UI genérica deja de hablar el vocabulario de Ramón Net (2 cortes) →
+  `docs/copy-generico-diseno.md`.
+- [x] **Alertas y bloqueo**: la alerta de conexión comparte contenedor con las listas, el bloqueo
+  pasa a `disabled` de verdad, y la selección sigue al filtro (3 ramas) →
+  `docs/alertas-y-bloqueo-diseno.md`.
+- [x] **Los cinco loaders y estados de carga** que dejó la auditoría del mismo doc §6: el timeout
+  que saltaba siempre en Anatomy, el loader del escaneo inicial invisible, la lista atenuada al
+  50%, los dos `fetch` sin techo, y el onboarding con el portal legado.
+- [ ] **Popovers sin tests** — **lo único que queda abierto.** No entró por decisión: cubrirlo es
+  extraer una feature, no escribir un test. Ver su entrada en `TECHNICAL_DEBT.md`.
+
+**Nota de secuencia, y es la que más costó ver**: el loader invisible **era precondición de la
+verificación del copy genérico** — sin él, el cartel del cambio de portal no se puede observar
+abriendo el popup, hay que forzarlo con "Re-escanear". Un bug abierto bloqueando la verificación
+de otra cosa no aparece en ninguna lista de dependencias, porque las dos entradas se veían
+independientes. Al planificar una tanda, preguntá también **qué hace falta para poder mirar el
+resultado**.
+
+**Todo esto vive en `integracion-alertas` y NO está verificado en navegador**, que en este
+proyecto es la única verificación que ve la mayoría de estos cambios (caen en `popup.js` y en el
+CSS, sin tests por ADR-0005). Qué mirar → `docs/ramas-en-revision.md`.
 
 ---
 

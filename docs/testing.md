@@ -30,10 +30,48 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `npm test` | 34 archivos, 578 tests, todo en verde |
+| `npm test` | **35 archivos, 610 tests**, todo en verde |
 | `npm run lint` | **0 errores, 0 warnings** |
 | `npx tsc --noEmit` | sin salida (limpio) |
 | `npm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 610** (2026-08-12, medido en `integracion-alertas`). Primero el subtotal de
+las cinco ramas mergeadas, que da **591**, y después los **+19** de la tanda de loaders:
+
+- **+5** en `sitio/registro.test.ts` — el tope del escaneo por portal (`topeEscaneoMs`). Apuntan
+  al **valor**, no a que el campo exista: eso ya lo obliga `tsc`, y el defecto fue un tope que
+  existía y estaba mal (6 s contra ~11 s de escaneo real). Fijan un piso, el margen de Anatomy
+  sobre su medición, y que el orden entre los dos portales no se invierta por un copy-paste
+  entre configs — que es literalmente cómo se escribe un portal nuevo acá.
+- **+6** en `core/backend/bunClient.test.ts` — los dos `fetch` que no tenían techo. Uno de ellos
+  fija la desproporción entre los dos timeouts **contra el otro valor** y no contra una
+  constante, para que un "unifiquemos los timeouts" lo rompa en vez de pasar.
+- **+8** en **`plataforma/composicion.test.ts`, archivo nuevo** (de ahí 34 → 35 archivos). Es el
+  que más vale de los tres: el wrapper `sitios` es el export que comparten el SW y el popup
+  **precisamente para que la regla de resolución no pueda divergir**, y no tenía ni un test
+  propio. Lo cubierto era `sitio/registro.ts`, la capa de abajo, que **no** implementa la
+  migración del `sitioId` ausente. Ahora están los tres casos: ausente → legado;
+  presente-pero-no-registrado → huérfano; por URL → sin migración.
+
+Y el subtotal de las cinco ramas: son los 578 de `main` más
+**+9** del frente de la alerta de conexión — 4 en `serverConnection.test.js` (que no duplique el
+diagnóstico en el footer ni en el botón; que la toolbar se **bloquee y no se esconda**, con las
+pestañas quedando operativas; que el bloqueo se levante al reconectar) y **5 en
+`listaClases.preact.test.js`**, que son los que importan: fijan que la alerta y las listas
+**comparten contenedor** —así que no puede volver a verse la lista debajo del banner— y que el
+wrapper suelte su marco cuando la región la llena una card. **+2** más de la selección que sigue
+al filtro (`filters.test.js`).
+
+Y **+2** de las dos ramas del copy genérico (`onboarding.preact.test.js`): 578 + 9 + 2 + 2 = **591**,
+medido, no sumado.
+
+**La cuenta ya se equivocó una vez y conviene dejarlo escrito, porque es para lo que existe esta
+sección**: la rama del frente de alertas anotó que «mergeado todo el baseline es 589» sumando de
+memoria, y le faltaban justamente esos **+2** del copy. 589 era el subtotal de las ramas 3, 4 y 5.
+El merge además dejó **tres conflictos de cabecera de versión** (`popup.js`,
+`serverConnection.js`) y **uno en esta misma tabla**, los cuatro de contexto y ninguno de lógica:
+las dos ramas se habían escrito cada una asumiendo que se mergeaba primero. Al mergear se re-mide
+con `npm test`; la aritmética a mano ya falló acá y en el conteo de la deuda.
 
 **El alcance del lint creció el 2026-08-12** sin que los números cambien: la fusión del backend
 (ADR-0015) metió `backend/` en el repo, y `npm run lint` corre `eslint .`, así que **el servidor Bun

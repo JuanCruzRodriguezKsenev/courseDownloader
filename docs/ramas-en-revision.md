@@ -2,64 +2,67 @@
 
 **Hogar canónico del estado del trabajo en curso que todavía no está en `main`.**
 
-Este doc existe para que ese estado deje de vivir en `CLAUDE.md`. Es información con fecha de
-vencimiento: cambia con cada merge, y mientras vivió en el banner de `CLAUDE.md` lo hizo cambiar
-en 85 de los últimos 187 commits. Acá se edita sin tocar el archivo que se carga en cada sesión.
+Este doc existe para que ese estado deje de vivir en las reglas de agente (`AGENTS.md`). Es
+información con fecha de vencimiento: cambia con cada merge, y mientras vivió en el banner de
+`CLAUDE.md` lo hizo cambiar en 85 de 187 commits.
 
 **Lo que este doc NO es:**
 
 - No es el backlog. Los ítems abiertos viven en `docs/TECHNICAL_DEBT.md` §🔴 Abierto.
 - No es la baseline de la compuerta. Los números viven en `docs/testing.md` §Baseline.
-- No es el diseño de nada. Cada rama apunta al doc que explica lo que construye.
-
-Cuando la última rama se mergee o se descarte, este doc queda con la sección «Nada en revisión»
-y nada más. No hace falta borrarlo.
+- No es el diseño de nada. Cada corte apunta al doc que explica lo que construye.
 
 ---
 
-## Estado al 2026-08-12
+## Nada en revisión (al 2026-08-12)
 
-`main` está al día y verificado. El **segundo portal** (Anatomy by Chris) y el **escaneo por
-API** cerraron el 2026-08-07; la **fusión del backend** (ADR-0015) el 2026-08-12.
+**`main` está al día y verificado en navegador.** No hay ramas en vuelo.
 
-### Las cinco ramas que se mergean, en orden
+La tanda del 2026-08-12 —copy genérico, frente de alertas, la selección que sigue al filtro y
+los cinco ítems de la auditoría de loaders— se verificó en Chrome y se mergeó. Qué trae, en
+`docs/ROADMAP.md` §Fase 7; el estado del backlog, en `docs/TECHNICAL_DEBT.md`.
 
-| # | Rama | Sale de | Qué trae |
-|---|---|---|---|
-| 1 | `copy-generico-corte-1` | `main` | La UI genérica deja de hablar el vocabulario de Ramón Net (6 textos, 11 sitios + 2 `console.log`) |
-| 2 | `copy-generico-corte-2` | la 1 | `instruccionEscaneo` en `PuertoSitio` (11 → **12 miembros**) |
-| 3 | `banner-ocupa-lista-y-toolbar` | `main` | El banner deja de reescribirse en el botón y en el footer; la toolbar se bloquea en vez de esconderse |
-| 4 | `banner-en-el-contenedor` | la 3 | **La alerta comparte contenedor con las listas** + el bloqueo real (`disabled`) + 4 arreglos de layout |
-| 5 | `seleccion-sigue-a-los-filtros` | `main` | Lo que se filtra, se deselecciona |
+### Lo que dejó esa tanda, y conviene no volver a aprender
 
-- Las cinco tienen **la compuerta en verde**; el desglose de la cuenta combinada está en
-  `docs/testing.md` §Baseline.
-- **Ninguna está verificada en Chrome**, que acá es la única verificación que ve algo: casi todo
-  cae en `popup.js` y en el CSS, sin tests por ADR-0005.
-- Las 1↔2 y 3↔4 están apiladas. Las tres cabeceras se van a pisar en `popup.js` y en
-  `serverConnection.js` — son **conflictos de contexto, no de lógica**.
+- **Verificar en el navegador encontró seis defectos que la compuerta no vio**, todos en el
+  mismo corte y ninguno alcanzable por un test: el bloqueo que no se aplicaba, la tarjeta que
+  perdía la región al conmutar de pestaña, el botón que no aparecía, la toolbar viva sobre una
+  cola vacía, y dos de scroll. Es el argumento de ADR-0005 en vivo: lo que cae en el núcleo de
+  `popup.js` y en el CSS **sólo lo ve un humano abriendo el popup**.
+- **Tres de esos seis los introdujo el arreglo anterior.** Un corte sobre el popup no se da por
+  cerrado hasta verlo; "la compuerta está en verde" no es una señal sobre esta parte del código.
+- **El patrón que se repitió tres veces**: un estado pintado UNA VEZ (la tarjeta, el botón) en
+  vez de derivado en cada repintado. Si se puede desincronizar de su bandera, se desincroniza.
+  Todo lo que ocupa `#ui-list` o el footer se deriva en `renderizarListadoInterfaz` /
+  `calcularContadoresBoton`; no se pinta suelto.
 
-### La sexta rama, que NO se mergea
+### El banco de pruebas ya no es una rama
 
-`copy-generico-verificacion` junta las cinco **más un banco de pruebas** (🧪 en la cabecera del
-popup, o **F9**) que fuerza las caídas de servidor e internet, la cola pausada en sus 5 tipos, el
-escaneo vacío/colgado, y **graba los carteles que duran milisegundos**.
+**Vive en el código**, en `verificacion/modoVerificacion.js`, y se enciende con **una línea**:
+`BANCO_DE_PRUEBAS = true` al final de `entrypoints/popup/main.js` + `npm run build`.
 
-- El build de `.output/chrome-mv3/` es el de esa rama: **recargar, no rebuildear**.
-- Después de la pasada, la rama se descarta entera.
+Vivió en una rama descartable y **se perdió dos veces**: primero quedó con un build viejo
+mientras el trabajo avanzaba —cargarla verificaba una versión anterior sin que nada avisara— y
+después hubo que rearmarla con siete cherry-picks. Una herramienta que hay que reconstruir cada
+vez que se usa es una herramienta que no se usa.
 
-### Las checklists ya están escritas
+Apagado no cuesta nada, y está medido: la bandera es una `const` literal, así que Vite se lleva
+el módulo entero en el tree-shaking (`false` → 225,71 kB y **cero** ocurrencias de `mv-panel` en
+el bundle; `true` → 243,21 kB).
 
-No hay que reconstruirlas:
+---
 
-- `docs/copy-generico-diseno.md` §7 «EN REVISIÓN» — 6 puntos, con qué se espera y qué sería un bug.
-- `docs/alertas-y-bloqueo-diseno.md` §5 — qué mirar del frente de alertas, y el banco de pruebas.
+## Cómo usar este doc la próxima vez
 
-### Lo que el frente de alertas dejó abierto
+Cuando haya trabajo fuera de `main`, acá va: qué rama, qué trae, qué mirar en Chrome y cómo
+aislar si algo falla. Cuando se mergea, esta sección vuelve a decir «nada en revisión».
 
-La auditoría de los loaders y los estados de carga dejó **cinco ítems sin arreglar**. El estado
-está en `docs/TECHNICAL_DEBT.md` §🔴 Abierto y el detalle técnico en
-`docs/alertas-y-bloqueo-diseno.md` §6.
+Lo que la última tanda enseñó sobre el proceso:
 
-El que se ve todos los días: **el timeout del escaneo salta siempre en Anatomy** —6 s de tope
-contra ~11 s de escaneo— y muestra un error falso que después se borra solo.
+- **Una rama de integración deja `main` intacta** mientras se verifica, y si algo falla se
+  descarta entera. Salió barato y conviene repetirlo.
+- **Un commit por corte**, para que un `git revert` aísle. Los seis defectos encontrados se
+  ubicaron por commit sin buscar.
+- **Anotá también qué hace falta para poder MIRAR el resultado.** El loader invisible era
+  precondición de la verificación del copy genérico, y eso no aparecía en ninguna lista de
+  dependencias: las dos entradas se veían independientes.

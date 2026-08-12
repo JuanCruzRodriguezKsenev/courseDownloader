@@ -13,6 +13,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // afirma es la misma; lo que cambió es de dónde sale.
 import puente from './listaClases.preact.js';
 import { montar, __resetStore } from './listaClases.preact.js';
+// [ALERTA EN EL CONTENEDOR] La alerta de conexión se pinta DENTRO de esta región, no en un root
+// hermano: su store se importa acá para poder afirmarlo.
+import bannerStore from './bannerConexion.preact.js';
 
 async function flush() {
   for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 16));
@@ -406,5 +409,81 @@ describe('Isla Preact: ListaClases — ancla de la descarga en curso', () => {
     expect(items().length).toBe(0);
     expect(divisores().length).toBe(0);
     expect(root.querySelector('.info-card')).not.toBeNull();
+  });
+});
+
+// [ALERTA EN EL CONTENEDOR] Lo que estos tres fijan es la razón de ser del cambio: la alerta de
+// conexión y las listas COMPARTEN contenedor, así que no puede volver a pasar que se vean las
+// dos. Antes la alerta vivía en un root hermano (#preact-banner) y la lista se apagaba con
+// `setOculta` desde el vanilla: dos dueños de la misma región coordinados a mano, y alcanzaba
+// con que algo tocara el host para que la lista reapareciera abajo del banner.
+describe('Isla Preact: ListaClases — la alerta comparte contenedor', () => {
+  let root;
+
+  beforeEach(async () => {
+    __resetStore();
+    bannerStore.ocultar();
+    document.body.innerHTML = '<main id="root"></main>';
+    root = document.getElementById('root');
+    montar(root);
+    await flush();
+  });
+
+  it('con alerta visible pinta la alerta ADENTRO del contenedor', async () => {
+    bannerStore.mostrar('servidor');
+    await flush();
+    expect(root.querySelector('.server-error-card')).not.toBeNull();
+  });
+
+  it('la alerta gana sobre la lista y sobre la card de estado', async () => {
+    puente.render({ modo: 'lista', items: [{ id: 1, titulo: 'A', estado: 'pending', seleccionado: false }], ctx: ctxBase() });
+    await flush();
+    expect(root.querySelectorAll('.video-item').length).toBe(1);
+
+    bannerStore.mostrar('internet');
+    await flush();
+    expect(root.querySelectorAll('.video-item').length).toBe(0);
+    expect(root.querySelector('.server-error-card')).not.toBeNull();
+
+    // Y también sobre una card de estado, que es la otra cosa que ocupa esta región.
+    puente.render({ modo: 'card', card: { tipo: 'error', titulo: 'Pausada', descripcion: 'x', icono: '⚠️' } });
+    await flush();
+    expect(root.querySelector('.info-card')).toBeNull();
+    expect(root.querySelector('.server-error-card')).not.toBeNull();
+  });
+
+  // [MARCOS ANIDADOS] Una card trae su propia superficie: si el wrapper conserva la suya, la
+  // card queda metida hacia adentro por su padding+borde y sus laterales dejan de alinear con
+  // las barras de arriba, que cuelgan del padding del contenedor.
+  it('con una card llenando la región, el host suelta su marco', async () => {
+    puente.render({ modo: 'lista', items: [{ id: 1, titulo: 'A', estado: 'pending' }], ctx: ctxBase() });
+    await flush();
+    expect(root.classList.contains('sin-marco')).toBe(false);
+
+    bannerStore.mostrar('servidor');
+    await flush();
+    expect(root.classList.contains('sin-marco')).toBe(true);
+
+    bannerStore.ocultar();
+    await flush();
+    expect(root.classList.contains('sin-marco')).toBe(false);
+  });
+
+  it('lo mismo con una tarjeta de estado, que es la otra card que llena la región', async () => {
+    puente.render({ modo: 'card', card: { tipo: 'info', titulo: 'Fila vacía', descripcion: 'x', icono: '📥' } });
+    await flush();
+    expect(root.classList.contains('sin-marco')).toBe(true);
+  });
+
+  it('al ocultarla vuelve la lista sola, sin que nadie la restaure', async () => {
+    puente.render({ modo: 'lista', items: [{ id: 1, titulo: 'A', estado: 'pending', seleccionado: false }], ctx: ctxBase() });
+    bannerStore.mostrar('servidor');
+    await flush();
+    expect(root.querySelectorAll('.video-item').length).toBe(0);
+
+    bannerStore.ocultar();
+    await flush();
+    expect(root.querySelector('.server-error-card')).toBeNull();
+    expect(root.querySelectorAll('.video-item').length).toBe(1);
   });
 });

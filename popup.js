@@ -1,7 +1,84 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.18.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.22.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.22.0:
+ * - [LOADERS — ítem 2] El loader del escaneo inicial se ve. `conectarYArrancar` lo apagaba en
+ *   su `finally` incondicional, y el escaneo NO es `async` —vuelve apenas encola su
+ *   `chrome.tabs.query`—, así que las dos cosas pasaban en el MISMO tick y el navegador no
+ *   llegaba a pintar. "Escaneando la pestaña…" era código muerto en pantalla. Ahora
+ *   `ejecutarPaso1...` devuelve si tomó posesión del loader y el `finally` lo respeta.
+ *   Consecuencia que importa más que el cartel: el aviso del cambio de portal ya se puede
+ *   observar abriendo el popup, sin forzar un Re-escanear.
+ * - [LOADERS — ítem 3] La lista no queda atenuada al 50% para siempre. `setAtenuada(false)`
+ *   vivía en el `finally` de `resolverMapeoEnUI`, que es UN camino: si `escanearDisco` fallaba
+ *   por red, el `catch` externo se iba a `activarEstadoOfflineUI()` y ese `finally` nunca
+ *   corría. Como `atenuada` y `oculta` son flags independientes, al reconectar la lista volvía
+ *   visible pero al 50%. La apaga ahora quien la prendió.
+ *
+ * CHANGELOG v5.21.0:
+ * - [LOADERS — ítem 1] El watchdog del escaneo dejó de saltar SIEMPRE en Anatomy. Eran 6000 ms
+ *   fijos contra ~11 s reales de ese portal, así que en cada escaneo escribía "⚠️ Timeout de
+ *   carga del DOM" —vocabulario de la era del scraper, que ese portal ya no usa— y ~5 s después
+ *   el resultado real le pintaba encima. Un error que se borra solo enseña a ignorar los
+ *   errores. Cuatro partes:
+ *   (a) el tope sale del descriptor (`PuertoSitio.topeEscaneoMs`, requerido; 6 s Ramón Net,
+ *       30 s Anatomy) y el watchdog se arma DESPUÉS de resolver el portal, porque antes el
+ *       portal no se sabe — la misma trampa que el cartel de `ejecutarPaso1...`;
+ *   (b) abandono explícito por generación: al vencerse, el watchdog invalida la corrida y el
+ *       callback tardío se descarta en vez de pintar;
+ *   (c) guarda de reentrada: el botón volvía a "Re-escanear 🔄" durante la ventana y un click
+ *       lanzaba un segundo escaneo concurrente sobre el primero;
+ *   (d) el mensaje va a la TARJETA de la lista, no al footer, donde convivía con el
+ *       diagnóstico de conexión —que tiene otro dueño— y quedaba pisado.
+ *   Estado del ítem → docs/TECHNICAL_DEBT.md; detalle → docs/alertas-y-bloqueo-diseno.md §6.1.
+ *
+ * CHANGELOG v5.20.0:
+ * - [BANNER OCUPA LISTA + TOOLBAR] Con la cola pausada, la card de error ocupaba #ui-list
+ *   pero la barra de filtros seguía viva ENCIMA de ella: buscador, filtros, orden y "Todos"
+ *   habilitados, operando sobre una lista que no estaba en pantalla. Ahora
+ *   `mostrarAlertDeConexionCaida` la oculta, y `conmutarPestañaA` dejó de re-mostrarla
+ *   incondicionalmente — que era el agujero por el que volvía al cambiar de pestaña. Las
+ *   PESTAÑAS no se ocultan: la cola tiene que seguir siendo consultable mientras está pausada.
+ * - [BANNER DUEÑO DEL DIAGNÓSTICO] El botón dejó de reescribir lo que dice la card. Los cuatro
+ *   textos de `actualizarContadoresBoton` ("Reintentar conexión con servidor", "Iniciar sesión
+ *   y reintentar", …) pasaron a uno solo, "Reintentar 🔄": el diagnóstico y el qué-hacer viven
+ *   en la card, el botón sólo ofrece la acción.
+ * - [ALERTA EN EL CONTENEDOR] La alerta de conexión dejó de vivir en un root hermano: la pinta
+ *   la isla de #ui-list, que ahora es dueña única de esa región. Se ve una sola cosa a la vez.
+ * - [BLOQUEAR, NO ESCONDER] La toolbar no desaparece: va `.bloqueada` (atenuada +
+ *   `pointer-events: none`). Esconderla movía todo de lugar en cada caída y en cada reconexión
+ *   del auto-heal, que pasa seguido. Las PESTAÑAS quedan operativas —con el servidor caído
+ *   sigue siendo legítimo mirar la cola— y el progreso, si hay una descarga, se queda en
+ *   pantalla bloqueado en vez de desaparecer.
+ * - [ALERTA ⇒ NINGUNA ACCIÓN] `actualizarContadoresBoton` mira la alerta ANTES que la pestaña.
+ *   Sin eso el footer lo decidía la pestaña: con el servidor caído, pasar a Fila mostraba
+ *   "Iniciar descarga masiva 🚀" y volver a Clases mostraba "Seleccioná clases". La función
+ *   conocía la cola pausada (`fallaConexionActiva`) y no la otra alerta, que es un estado
+ *   distinto y más grave. Los dos botones se apagan juntos, porque `btnStartQueue` lo enciende
+ *   `conmutarPestañaA` sin consultar nada.
+ * - [EL BOTÓN, SEGÚN HAYA ALGO QUE HACER] Sin label no se muestra, y `configurarBotonesUX` es
+ *   quien lo decide. Con la alerta de conexión no hay ninguna acción (la reconexión es
+ *   automática) → se va; con la cola pausada sí la hay → "Reintentar 🔄". La regla que queda:
+ *   **el botón dice lo que hace, la alerta dice qué pasa**.
+ * - [FIX de arrastre] `.path-bar.offline` sumó `pointer-events: none`. Sólo tenía `opacity`, y
+ *   el badge de la faceta es un `<span>` —no admite `disabled`—, así que se veía apagado y
+ *   seguía abriendo el modal de cátedra sobre una UI muerta.
+ * - NOTA de versiones: la 5.19.0 (corte 1 del copy genérico) NO se salteó — está acá abajo.
+ *   Las dos ramas se mergearon juntas en `integracion-alertas` el 2026-08-12, así que los dos
+ *   changelogs conviven en orden. El conflicto fue de cabecera, no de lógica.
+ * ==========================================================================
+ * CHANGELOG v5.19.0:
+ * - [COPY GENÉRICA — corte 1] Esta UI dejó de hablar el vocabulario de Ramón Net, que
+ *   con dos portales era falso la mitad de las veces: "Analizando aula virtual…" (:573),
+ *   los cinco "Re-escanear aula virtual 🔄", el ejemplo de carpeta "'RamonNet'" (:671) y
+ *   el cartel de escaneo (:857) quedaron genéricos. Los dos console.log de la pestaña
+ *   fueron de arrastre. Inventario y regla de decisión → docs/copy-generico-diseno.md.
+ * - [OJO con el cartel de :857] Es genérico A PROPÓSITO, no por falta de ganas: ahí
+ *   `sitioActivo` todavía es el portal anterior. El comentario en el sitio lo explica.
+ * - [NO entró] La instrucción de escaneo del onboarding (necesita un miembro nuevo en
+ *   PuertoSitio) ni el rename de los identificadores internos. Cortes 2 y 3 del doc.
+ *
  * CHANGELOG v5.18.0:
  * - [FIX — el cartel mentiroso] Dos tarjetas nuevas para los tipos de pausa que agregó
  *   `core/cola/procesadorCola.ts` ("bloqueo" y "desconocido") y su texto de botón. Sin esto
@@ -281,6 +358,50 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     let desengancharOyenteWorker = null;
     let modoSeleccionFilaActivo = false;
 
+    // [LOADERS — ítem 1] Estado del escaneo. Son dos cosas distintas y conviene no unificarlas:
+    //  - `escaneoEnCurso` es la guarda de REENTRADA: impide lanzar un segundo escaneo encima
+    //    del primero mientras el botón dice "Re-escanear 🔄".
+    //  - `generacionEscaneo` es el ABANDONO: cada corrida se lleva su número y el watchdog lo
+    //    incrementa al vencerse, así un callback tardío sabe que su corrida ya está muerta y no
+    //    pinta. Un booleano no alcanzaría — con dos corridas en vuelo no distingue cuál llegó.
+    let escaneoEnCurso = false;
+    let generacionEscaneo = 0;
+
+    // [LOADERS — ítem 1e/1f] Tercer motivo por el que una tarjeta de error puede estar ocupando
+    // `#ui-list`. Existe porque el bloqueo de las regiones se derivaba SÓLO del estado de
+    // conexión, y el watchdog del escaneo es una falla que no tiene nada que ver con la
+    // conexión: sin esto, la toolbar y la path-bar quedaban vivas sobre una lista que no está
+    // en pantalla — el mismo defecto que el corte del banner ya había arreglado, reentrando
+    // por una puerta nueva.
+    //
+    // **Es un objeto y no un booleano a propósito**: guarda lo que la tarjeta necesita decir
+    // (`{ portal, segundos }`), porque quien la pinta es `renderizarListadoInterfaz` cada vez
+    // que repinta —igual que las cards de `fallaConexionActiva`— y no el watchdog una sola vez.
+    // Pintarla una vez fue el bug de la primera versión: conmutar de pestaña repintaba la
+    // lista encima y quedaba visible PERO bloqueada, ni tarjeta ni toolbar usable.
+    //
+    // Regla, que es la del §1 de alertas-y-bloqueo-diseno.md: **la tarjeta y el bloqueo son el
+    // mismo estado**. Si se pueden desincronizar, se van a desincronizar.
+    let escaneoMuertoPorTimeout = null;
+
+    /**
+     * El timeout del escaneo ocupa la región **sólo en Disponibles**, y esto no es un detalle.
+     *
+     * Las otras dos alertas valen en las dos pestañas porque rompen las dos: con la cola
+     * pausada o el servidor caído, la Fila tampoco sirve. Un escaneo que tardó demasiado, en
+     * cambio, **no le hace nada a la cola** — puede haber descargas corriendo ahí mismo.
+     * Taparla con "el escaneo tardó demasiado" sería esconder algo sano detrás del error de
+     * otra cosa.
+     *
+     * Y va junto con el bloqueo por el mismo motivo por el que existe esta función: si la
+     * tarjeta se acotara a una pestaña y el bloqueo no, en Fila quedaría la cola visible con
+     * la toolbar muerta — que es exactamente el síntoma que se está arreglando, movido de
+     * lugar. **La tarjeta y el bloqueo se acotan igual o no se acotan.**
+     */
+    function escaneoMuertoDominaLaPestaña() {
+      return !!escaneoMuertoPorTimeout && appState.pestañaActiva === "disponibles";
+    }
+
     // [MULTISITIO CORTE 5] El portal de la pestaña que se está mirando.
     //
     // Hasta este corte el popup recibía UN sitio inyectado (`sitioAsumido`, el andamio del
@@ -435,6 +556,17 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       bannerConexion: BannerConexion,
       backend,
       configurarBotonesUX: (modo, txt, dis) => configurarBotonesUX(modo, txt, dis),
+      // [BLOQUEO REAL] El mismo bloqueo que usa la cola pausada, para que los dos estados de
+      // alerta no se comporten distinto. Va envuelto por la misma razón que el de arriba: la
+      // función se declara más abajo en este closure.
+      // [LOADERS — ítem 1h] La feature manda su propia condición (sabe del servidor, no del
+      // escaneo), pero al DESBLOQUEAR no puede pisar un bloqueo que no es suyo: si el servidor
+      // vuelve y el escaneo sigue muerto, la materia y la faceta tienen que quedarse
+      // bloqueadas. De ahí los dos `||`.
+      bloquearRegiones: (bloquear) => {
+        bloquearRegionesDeAlerta(bloquear || escaneoMuertoDominaLaPestaña());
+        bloquearFilaDePortal(bloquear || !!escaneoMuertoPorTimeout);
+      },
       onReintentarCola: () => ejecutarReintentoDeCola(),
       onReescanearAula: () => ejecutarPaso1EscaneoRamonAutomatico()
     });
@@ -528,7 +660,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     // Forzar re-escaneo automático si la pestaña de Ramón Net cambia de dirección o se recarga
     chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       if (changeInfo.status === 'complete' && tab.active && adoptarPortalDePestaña(tab.url)) {
-        console.log("🔄 [POPUP] Pestaña Ramón Net actualizada. Re-escaneando...");
+        console.log("🔄 [POPUP] Pestaña del portal actualizada. Re-escaneando...");
         if (!appState.fallaConexionActiva) {
           ejecutarPaso1EscaneoRamonAutomatico();
         }
@@ -543,7 +675,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         // scripting, que esperan sus propios puertos.
         if (chrome.runtime.lastError || !tab) return;
         if (tab.active && adoptarPortalDePestaña(tab.url)) {
-          console.log("🔄 [POPUP] Pestaña Ramón Net enfocada. Re-escaneando...");
+          console.log("🔄 [POPUP] Pestaña del portal enfocada. Re-escaneando...");
           if (!appState.fallaConexionActiva) {
             ejecutarPaso1EscaneoRamonAutomatico();
           }
@@ -555,6 +687,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     // Se invoca al inicio si el tutorial ya estaba completo, o al cerrar el onboarding
     // de la primera vez (onComplete). Es dueña de su propio loader (mostrar/ocultar).
     async function conectarYArrancar() {
+      // [LOADERS — ítem 2] Quién apaga el loader al final. Por defecto lo apaga esta función;
+      // si el escaneo arranca, pasa a ser de él y esta función NO lo toca.
+      let elEscaneoTomoElLoader = false;
       try {
         nodos.loaderTxt.textContent = "Conectando con el servidor Bun...";
         nodos.loader.style.display = 'flex';
@@ -562,15 +697,21 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         const ruta = await backend.obtenerRutaServidor();
         if (ruta) {
           const tabsBar = document.querySelector(".tabs-bar");
-          if (tabsBar) tabsBar.style.display = "flex";
-
-          nodos.folder.disabled = false;
-          nodos.btnExplore.disabled = false;
-          document.querySelector('.path-bar')?.classList.remove('offline');
+          if (tabsBar) { tabsBar.style.display = "flex"; tabsBar.classList.remove('bloqueada'); }
+          // El camino de "arrancó y el server contesta" también levanta el bloqueo: si no, un
+          // popup que abre después de una caída podría quedarse con la toolbar inerte sin que
+          // nadie la destrabe (la recuperación por daemon sólo corre si hubo TRANSICIÓN).
+          //
+          // [LOADERS — ítem 1e] Acá SÍ va `false` a secas y no la condición: el servidor acaba
+          // de contestar, así que no hay alerta de conexión que respetar, y un escaneo muerto
+          // por timeout no puede existir todavía —este punto es anterior al primer escaneo—.
+          // Es el único call-site donde el `false` literal es correcto.
+          bloquearRegionesDeAlerta(false);
+          bloquearFilaDePortal(false);
 
           nodos.btnExplore.title = `Carpeta raíz actual: ${ruta} (Click para cambiar)`;
           RutaDisco.mostrar(ruta);
-          nodos.txtEstado.textContent = "Analizando aula virtual...";
+          nodos.txtEstado.textContent = "Analizando...";
           // (el puntito de estado y el estado del servidor en el onboarding los derivan
           //  las islas Preact del daemon Conexion — ya no se empujan imperativamente)
 
@@ -585,14 +726,22 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           }
 
           if (!appState.fallaConexionActiva) {
-            ejecutarPaso1EscaneoRamonAutomatico();
+            elEscaneoTomoElLoader = ejecutarPaso1EscaneoRamonAutomatico();
           }
         }
       } catch (errConexion) {
         console.warn("⚠️ Servidor Bun desconectado en inicio:", errConexion.message);
         activarEstadoOfflineUI();
       } finally {
-        nodos.loader.style.display = 'none';
+        // [LOADERS — ítem 2] Antes esto era incondicional, y ahí estaba el bug: el escaneo NO es
+        // `async` —vuelve apenas encola su `chrome.tabs.query`— así que este `finally` corría en
+        // el MISMO tick y el navegador no llegaba a pintar entre las dos. "Escaneando la
+        // pestaña…" era código muerto en pantalla: existía en el DOM y nadie lo veía nunca.
+        //
+        // Y no era sólo cosmético: el cartel del cambio de portal —lo que hay que mirar para
+        // verificar la copy genérica— no se podía observar abriendo el popup, había que forzarlo
+        // con Re-escanear. Un bug abierto era precondición para verificar otra cosa.
+        if (!elEscaneoTomoElLoader) nodos.loader.style.display = 'none';
       }
     }
 
@@ -668,7 +817,12 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
         mostrarModalAdvertencia({
           titulo: "Selección de Carpeta 📂",
-          cuerpo: "Por favor, seleccioná tu carpeta principal (ej: 'RamonNet').<br><br>El sistema creará y organizará automáticamente las subcarpetas por materia y cátedra dentro de ella.<br><br><strong>Nota:</strong> Evitá elegir directamente subcarpetas específicas de materias.",
+          // Copy genérica a propósito: no enumera los niveles de subcarpeta. El árbol real
+          // depende del portal —Ramón Net abre un nivel por cátedra, Anatomy no tiene eje de
+          // clasificación (`faceta.id: "ninguna"`)— y el descriptor no expone un nombre honesto
+          // para ese nivel cuando no existe: interpolar `faceta.etiqueta` acá imprimiría
+          // "por materia y sin clasificación" en Anatomy. Ver copy-generico-diseno.md §5.1.
+          cuerpo: "Por favor, seleccioná tu carpeta principal (ej: 'Clases').<br><br>El sistema creará y organizará automáticamente las subcarpetas dentro de ella.<br><br><strong>Nota:</strong> Evitá elegir directamente subcarpetas específicas de materias.",
           checkboxKey: "ocultarAdvExplorar",
           onConfirm: () => {
             lanzarSeleccionCarpetaFisica();
@@ -809,7 +963,15 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       appState.pestañaActiva = id;
       nodos.tabDisp.classList.toggle('active', id === "disponibles");
       nodos.tabCola.classList.toggle('active', id === "cola");
+      // [BANNER OCUPA LISTA + TOOLBAR] El display vuelve a ser incondicional —la barra siempre
+      // está—, pero el bloqueo sigue a la falla: con la cola pausada, cambiar de pestaña
+      // desbloqueaba la toolbar encima de la card. El estado de falla manda sobre la pestaña.
       nodos.filtersBar.style.display = 'flex';
+      // [BLOQUEO REAL] Las dos regiones siguen al mismo estado, por el mismo helper. Acá hacía
+      // falta porque cambiar de pestaña volvía a habilitar lo que la alerta había bloqueado.
+      // La condición estaba escrita a mano acá y ahora sale de `hayAlertaOcupandoLaRegion()`:
+      // el tercer motivo (el escaneo muerto por timeout) se olvidaba justo en este sitio.
+      sincronizarBloqueosDeAlerta();
       nodos.btnStartQueue.style.display = appState.ráfagaEnCurso ? 'none' : qDisp;
     
       // Limpiar filtros activos y cerrar el menú
@@ -850,16 +1012,45 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     }
 
     function ejecutarPaso1EscaneoRamonAutomatico() {
-      nodos.loaderTxt.textContent = "Escaneando entorno de Ramón Net...";
+      // [LOADERS — ítem 1c] GUARDA DE REENTRADA. Mientras el watchdog corría, el botón volvía a
+      // "Re-escanear 🔄" y un click lanzaba un SEGUNDO escaneo encima del primero: dos
+      // `executeScript` concurrentes sobre la misma pestaña, resolviendo en cualquier orden.
+      // El que llega último gana, y no es necesariamente el último que se pidió.
+      if (escaneoEnCurso) {
+        console.warn("⏳ [ESCANEO] Ya hay uno en curso; se ignora el pedido nuevo.");
+        // `false` = no tomé el loader. Lo lee `conectarYArrancar` para saber si le toca
+        // apagarlo él (ítem 2): si esta rama devolviera `true`, el loader quedaría girando.
+        return false;
+      }
+      escaneoEnCurso = true;
+      // Arranca uno nuevo: la región deja de estar muerta. No se desbloquea todavía —eso lo
+      // hace el `finally` del payload cuando el escaneo TERMINA—, porque desbloquear ahora
+      // habilitaría la toolbar sobre la tarjeta de error que sigue en pantalla.
+      escaneoMuertoPorTimeout = null;
+
+      // [LOADERS — ítem 1b] ABANDONO EXPLÍCITO. Cada corrida se lleva su número; el watchdog lo
+      // incrementa al vencerse. Un callback que llegue después compara y se calla, en vez de
+      // pintar sobre lo que el usuario esté mirando — que es justo lo que hacía el escaneo de
+      // Anatomy al llegar ~5 s DESPUÉS de que el timeout escribiera el error falso.
+      const miGeneracion = ++generacionEscaneo;
+      const fueAbandonado = () => miGeneracion !== generacionEscaneo;
+      const terminarEscaneo = () => { if (!fueAbandonado()) escaneoEnCurso = false; };
+
+      // Genérica OBLIGATORIA: acá `sitioActivo` es todavía el portal ANTERIOR (o el legado por
+      // defecto). El portal de este escaneo se resuelve recién ~17 líneas abajo, así que
+      // interpolarlo acá anunciaría el portal equivocado justo al cambiar de portal.
+      // Caso C de copy-generico-diseno.md §3; la trampa entera, en su §4.
+      nodos.loaderTxt.textContent = "Escaneando la pestaña...";
       nodos.loader.style.display = 'flex';
       // Ocultar badge de cátedra al iniciar un nuevo escaneo para evitar estados inconsistentes
       nodos.facetaBadge.style.display = "none";
 
-      const safetyTimeout = setTimeout(() => {
-        nodos.loader.style.display = 'none';
-        nodos.txtEstado.textContent = "⚠️ Timeout de carga del DOM.";
-        configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
-      }, 6000);
+      // [LOADERS — ítem 1a] El watchdog se arma DESPUÉS de resolver el portal, no acá. Su tope
+      // sale del descriptor (`topeEscaneoMs`) y acá arriba el portal todavía no se sabe — es la
+      // misma trampa que el cartel de dos líneas más arriba. Lo que queda sin cubrir entre este
+      // punto y el armado es `chrome.tabs.query`, que no sale a la red; lo que el watchdog
+      // existe para vigilar es el escaneo, que sí.
+      let safetyTimeout = null;
 
       chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
         // [MULTISITIO CORTE 5] Acá es donde el portal se decide de verdad: el escaneo corre
@@ -870,12 +1061,49 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         const portal = tab && adoptarPortalDePestaña(tab.url);
         if (!portal) {
           clearTimeout(safetyTimeout);
+          terminarEscaneo();
           nodos.txtEstado.textContent = "⚠️ No estás en un portal reconocido.";
-          configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
+          configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
           if (appState.listadoClasesGlobal.length > 0) { desbanearFiltros(); aplicarFiltrosCruzados(); }
           nodos.loader.style.display = 'none';
           return;
         }
+
+        // [LOADERS — ítem 1a] Recién acá se conoce el portal, y con él su tope medido. Antes
+        // eran 6000 fijos para todos: en Anatomy el escaneo mide ~11 s, así que el watchdog
+        // saltaba SIEMPRE y el error se borraba solo al llegar el resultado real.
+        safetyTimeout = setTimeout(() => {
+          // [ítem 1b] Abandonar: subir la generación invalida el callback que llegue después.
+          generacionEscaneo++;
+          escaneoEnCurso = false;
+          nodos.loader.style.display = 'none';
+          // [ítem 1e] La tarjeta ocupa la región, así que la toolbar y la path-bar se bloquean
+          // — si no, quedan vivas sobre una lista que no está en pantalla: buscador, filtros,
+          // orden, "Todos", el input de materia y el badge de la faceta, todos operando sobre
+          // nada. Es el defecto que el corte del banner ya había cerrado para la alerta de
+          // conexión, y que este camino nuevo reabría.
+          //
+          // El botón de acción NO entra en el bloqueo (no está en la lista de `controles`), y
+          // eso es lo que hace que "Re-escanear 🔄" siga siendo clickeable — que es justo lo
+          // que la tarjeta le pide al usuario.
+          // [ítem 1f] El watchdog NO pinta: registra el estado y pide el repintado. La tarjeta
+          // la arma `renderizarListadoInterfaz` a partir de esto, CADA VEZ que repinta, igual
+          // que las de `fallaConexionActiva`. Pintarla acá directo fue el primer intento y
+          // duraba hasta el próximo repintado: conmutar de pestaña la borraba y dejaba la lista
+          // visible **y bloqueada** — ni tarjeta que explique, ni toolbar con la que operar.
+          //
+          // El nombre del portal se escapa ACÁ, al guardarlo, porque la descripción de la card
+          // viaja por `dangerouslySetInnerHTML` (regla de docs/security.md).
+          escaneoMuertoPorTimeout = {
+            portal: utils.escaparHtml(portal.nombre),
+            segundos: Math.round(portal.topeEscaneoMs / 1000),
+          };
+          sincronizarBloqueosDeAlerta();
+          // [ítem 1d] El mensaje va a la TARJETA de la lista, no al footer, donde convive con el
+          // diagnóstico de conexión —que tiene otro dueño— y queda pisado.
+          renderizarListadoInterfaz();
+          configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
+        }, portal.topeEscaneoMs);
 
         // Preservar en memoria los elementos que están en la cola de descarga activa
         const itemsEnCola = appState.listadoClasesGlobal.filter(c => c.estado === 'process');
@@ -887,13 +1115,24 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         }, async (resultados) => {
           clearTimeout(safetyTimeout);
 
+          // [LOADERS — ítem 1b] Si el watchdog ya dio esta corrida por muerta, este callback NO
+          // pinta. Es el arreglo del síntoma que se veía todos los días: el escaneo de Anatomy
+          // llegaba ~5 s después del error falso y le pintaba la lista encima, así que el
+          // usuario veía un error que se resolvía solo sin que nadie lo hubiera resuelto.
+          // Ojo con `escaneoEnCurso`: no se toca acá, ya lo soltó el watchdog.
+          if (fueAbandonado()) {
+            console.warn("🕰️ [ESCANEO] Llegó un resultado de una corrida ya abandonada; se descarta.");
+            return;
+          }
+          terminarEscaneo();
+
           // Controlar de forma resiliente si ocurrió un error de inyección (ej: permisos de host o página de sistema)
           // lastError de chrome.scripting (la inyección), no de IPC — ver la nota de arriba.
           if (chrome.runtime.lastError) {
             console.error("❌ [POPUP-SCRIPT-ERROR] Falló inyección de script de escaneo:", chrome.runtime.lastError.message);
             nodos.txtEstado.textContent = `❌ Error de escaneo: ${chrome.runtime.lastError.message}`;
             nodos.loader.style.display = 'none';
-            configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
+            configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
           
             // Cargar el listado anterior del storage para evitar dejar la interfaz vacía
             appState.inicializarSincronizacionStorage().then(() => {
@@ -969,7 +1208,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
                 }});
               }
 
-              configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
+              configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
             } else {
               const nuevasClases = enlaces.map((item, idx) => {
                 // [ESCANEO-API CORTE 1] La base de la carpeta sale del MÓDULO de la clase si el
@@ -1034,18 +1273,34 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             }
           } catch (e) {
             console.error("❌ Error procesando payload de inyección:", e);
-            configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
+            configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
           } finally {
             nodos.loader.style.display = 'none';
+            // [LOADERS — ítem 1e] El escaneo terminó: si lo único que tenía bloqueada la región
+            // era un timeout anterior, se libera. Va por la condición completa y no por
+            // `bloquear(false)` a secas, porque si además hay una alerta de conexión viva, ésa
+            // manda y las regiones siguen bloqueadas. Liberar a ciegas acá desbloquearía la
+            // toolbar por debajo del banner de conexión.
+            sincronizarBloqueosDeAlerta();
           }
         });
       });
+
+      // [LOADERS — ítem 2] `true` = a partir de acá el loader es MÍO. `chrome.tabs.query` es
+      // asíncrono, así que esta función vuelve enseguida y el trabajo real sigue en el
+      // callback: quien me llamó no puede apagar el loader al volver, porque el escaneo recién
+      // empieza. Todas mis salidas lo apagan (portal no reconocido, watchdog, error de
+      // inyección, y el `finally` del payload), así que devolver `true` es un compromiso.
+      return true;
     }
 
     // [REFACTORIZADO V5.4.1]: Motor de Sincronización Unificado e Híbrido (0% improvisación)
     async function ejecutarPaso2SincronizarDiscoVeloz() {
       configurarBotonesUX("sincronizar-disco", "", true);
       nodos.btnAction.innerHTML = `<span class="spinner-inline"></span> Sincronizando disco local...`;
+      // El "" de arriba significa "sin acción → botón oculto"; acá el label se escribe por
+      // innerHTML (lleva spinner), así que hay que volver a mostrarlo. Es la única excepción.
+      nodos.btnAction.style.display = 'block';
       ListaClases.setAtenuada(true); // atenúa la lista durante la sincronización (isla dueña de #ui-list)
 
       const subcarpetaFiltro = nodos.folder.value.trim().toLowerCase();
@@ -1117,9 +1372,12 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           actualizarContadoresBoton();
         } catch (err) {
           console.error("❌ Error en empaquetado de sincronización:", err);
-        } finally {
-          ListaClases.setAtenuada(false);
         }
+        // [LOADERS — ítem 3] Acá vivía el `finally` que apagaba la atenuación, y ése era el
+        // bug: es el ÚNICO camino que pasaba por este punto. Si `escanearDisco` fallaba por
+        // red, el `catch` externo se iba a `activarEstadoOfflineUI()` y esta función nunca
+        // corría, así que la lista quedaba al 50% para siempre. La apaga ahora quien la
+        // prendió — una región, un dueño (`docs/alertas-y-bloqueo-diseno.md`).
       };
 
       // ─── PIPELINE DE LECTURA DE DATOS (MULTIPLE O BUN SERVER DIRECTO) ────────
@@ -1171,6 +1429,13 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       } catch (errFetch) {
         console.error("❌ [UI-ERROR] Imposible conectar con el escáner de Bun:", errFetch.message);
         activarEstadoOfflineUI();
+      } finally {
+        // [LOADERS — ítem 3] La atenuación se apaga por los DOS caminos, y por eso vive acá y
+        // no adentro de `resolverMapeoEnUI`. `atenuada` y `oculta` son flags independientes de
+        // la isla, así que al reconectar la lista volvía visible pero al 50%, y sólo se curaba
+        // sola si más tarde había un re-escaneo que terminara bien. La prende esta función
+        // (arriba, antes del `await`); la apaga esta función.
+        ListaClases.setAtenuada(false);
       }
     }
 
@@ -1263,7 +1528,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           ListaClases.render({ modo: 'card', card: {
             tipo: 'error',
             titulo: 'Servidor Desconectado',
-            descripcion: `El servidor local de Bun se desconectó.<br>Por favor, ejecutá <strong>iniciar.bat</strong> para reanudar.<br><br><strong>Pausado en:</strong> ${titulo}`,
+            descripcion: `El servidor local de Bun se desconectó.<br>Por favor, ejecutá <strong>backend/iniciar.bat</strong> para reanudar.<br><br><strong>Pausado en:</strong> ${titulo}`,
             icono: '🔌'
           }});
         } else {
@@ -1276,7 +1541,27 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         }
         return;
       }
-    
+
+      // [LOADERS — ítem 1f] El escaneo que murió por timeout se pinta ACÁ, derivado del estado,
+      // igual que las cards de arriba. Antes lo pintaba el propio watchdog de una sola vez, y
+      // ésa era la falla: cualquier repintado posterior le ganaba la región —conmutar de
+      // pestaña llama a `aplicarFiltrosCruzados`, que llega hasta el render de lista de más
+      // abajo— y quedaba la LISTA VISIBLE Y BLOQUEADA, que es el peor de los dos estados:
+      // ni la tarjeta que explica qué pasó, ni una toolbar con la que operar.
+      //
+      // Va DESPUÉS de `fallaConexionActiva` porque esa condición es más grave (la cola está
+      // pausada); si las dos son ciertas, gana la de arriba y ésta no se pinta. Y a diferencia
+      // de aquélla, ésta es SÓLO de Disponibles — ver `escaneoMuertoDominaLaPestaña`.
+      if (escaneoMuertoDominaLaPestaña()) {
+        ListaClases.render({ modo: 'card', card: {
+          tipo: 'error',
+          titulo: 'El escaneo tardó demasiado',
+          descripcion: `Pasaron ${escaneoMuertoPorTimeout.segundos} s sin respuesta de ${escaneoMuertoPorTimeout.portal}.<br>Puede ser la conexión o que el portal haya cambiado.<br>Probá <strong>Re-escanear</strong>.`,
+          icono: '⏱️'
+        }});
+        return;
+      }
+
       // Sincronizar el estado de disponibles con los elementos en la cola real
       const titulosEnCola = new Set(appState.colaDescargas.map(c => identidadClase.clave(c)));
       appState.listadoClasesGlobal.forEach(c => {
@@ -1305,6 +1590,17 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         filtrados = appState.colaDescargas.filter(
           clase => !esLaQueBaja(clase) && coincideConFiltrosCola(clase, busqueda)
         );
+
+        // [LA SELECCIÓN SIGUE AL FILTRO] Misma regla que en Disponibles, con el predicado de
+        // esta pestaña: lo que el filtro sacó, se deselecciona. Sin esto "Quitar N clases de la
+        // fila" contaba —y quitaba— ítems que no estaban en pantalla. Acá el filtrado no deja
+        // marca en el ítem (no hay `visible` en la cola), así que se resuelve contra el
+        // conjunto recién calculado. La que se está bajando queda fuera por el `esLaQueBaja` de
+        // arriba, y eso está bien: no se la puede quitar de la fila igual.
+        const visiblesEnCola = new Set(filtrados);
+        appState.colaDescargas.forEach((clase) => {
+          if (clase.seleccionado && !visiblesEnCola.has(clase)) clase.seleccionado = false;
+        });
 
         // [CORTE 6B] El comparador es de OrdenFeature: sabe de criterio, sentido y de resolver
         // la faceta/portal contra el descriptor de CADA ítem (la cola puede mezclar portales).
@@ -1665,23 +1961,73 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       ListaClases.setSelectionMode(activo);
     }
 
+    // Envoltorio: el cálculo no cambió, pero cualquiera de sus ~8 salidas puede haber movido
+    // `btnStartQueue` —que `configurarBotonesUX` no ve— así que el footer se re-mide DESPUÉS,
+    // una sola vez y sin depender de que cada rama se acuerde. Ver `sincronizarFooterVacio`.
     function actualizarContadoresBoton() {
+      calcularContadoresBoton();
+      sincronizarFooterVacio();
+      // [TOOLBAR SIN NADA QUE FILTRAR] Enganchado acá y no en cada mutación de la cola porque
+      // éste es el embudo por el que ya pasa todo cambio de estado que puede vaciarla o
+      // llenarla (encolar, quitar, el ítem que termina en el SW, conmutar de pestaña): son 12
+      // call-sites y ninguno tendría por qué acordarse de los bloqueos.
+      //
+      // Va ÚLTIMO, después de `calcularContadoresBoton`, para tener la palabra final sobre los
+      // controles de la toolbar. Y su rama de desbloqueo delega en `desbanearFiltros`, que ya
+      // sabe que "Todos" depende de la sincronización de disco — así que llegar acá no
+      // re-habilita nada que no corresponda.
+      sincronizarBloqueosDeAlerta();
+    }
+
+    function calcularContadoresBoton() {
       actualizarMasterCheckState();
       actualizarModoSeleccion();
 
+      // [ALERTA ⇒ NINGUNA ACCIÓN] Va PRIMERO, antes que cualquier otra rama, porque manda sobre
+      // la pestaña y sobre la selección: con la alerta de conexión en pantalla no hay nada que
+      // el usuario pueda hacer desde el footer —no se puede iniciar una descarga contra un
+      // servidor que no está, ni encolar contra una lista que no se ve—.
+      //
+      // Sin esto, el estado del footer lo decidía la PESTAÑA: pasar a Fila mostraba "Iniciar
+      // descarga masiva 🚀" y volver a Clases mostraba "Seleccioná clases", los dos con el
+      // servidor caído. La función miraba `fallaConexionActiva` (la cola pausada) y no sabía
+      // que existe la otra alerta, que es un estado distinto y más grave.
+      //
+      // Los dos botones se van juntos: `btnStartQueue` lo enciende `conmutarPestañaA` sin
+      // consultar nada, así que apagarlo acá —que corre después— es lo que cierra el paso.
+      if (BannerConexion.get().visible) {
+        configurarBotonesUX("sincronizar-disco", "", true); // sin label ⇒ oculto
+        nodos.btnStartQueue.style.display = 'none';
+        nodos.masterCheck.disabled = true;
+        return;
+      }
+
+      // [LOADERS — ítem 1g] El escaneo muerto por timeout también manda sobre la pestaña, y
+      // acá SÍ hay una acción que ofrecer —a diferencia del banner de conexión, que se
+      // recupera solo—: volver a escanear. Es lo que la tarjeta le pide al usuario.
+      //
+      // Estaba puesto a mano desde el watchdog (`configurarBotonesUX(...)` suelto) y por eso
+      // **el botón no aparecía**: cualquier `actualizarContadoresBoton()` posterior —y hay una
+      // docena de call-sites, incluido `conmutarPestañaA`— pasaba por acá, no encontraba
+      // ninguna rama para este estado y caía en la del final, que lo reescribe según la
+      // selección. Es el mismo error que la tarjeta: estado pintado una vez en vez de
+      // derivado. El footer se deriva ACÁ o no se sostiene.
+      if (escaneoMuertoDominaLaPestaña()) {
+        configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
+        nodos.btnStartQueue.style.display = 'none';
+        nodos.masterCheck.disabled = true;
+        return;
+      }
+
       if (appState.fallaConexionActiva) {
-        let txt;
-        if (appState.fallaConexionActiva === "sesion") {
-          txt = "Iniciar sesión y reintentar 🔄";
-        } else if (appState.fallaConexionActiva === "internet") {
-          txt = "Reintentar conexión a internet 🔄";
-        } else if (appState.fallaConexionActiva === "bloqueo" || appState.fallaConexionActiva === "desconocido") {
-          // Los dos tipos que NO son de conexión: el botón no puede prometer reconectar nada.
-          txt = "Reintentar 🔄";
-        } else {
-          txt = "Reintentar conexión con servidor 🔄";
-        }
-        configurarBotonesUX("reintentar-cola", txt, reintentandoColaActivo);
+        // [BANNER DUEÑO DEL DIAGNÓSTICO] Un solo texto para los cinco tipos de pausa, y es un
+        // VERBO. Antes había cuatro variantes que le repetían al usuario lo que la card de
+        // arriba ya le estaba diciendo con más detalle ("Reintentar conexión con servidor" vs.
+        // "Servidor Desconectado", "Iniciar sesión y reintentar" vs. "Iniciá sesión … y tocá
+        // Reintentar"). Dos textos para un mismo hecho es un lugar de más donde envejecer:
+        // el diagnóstico y el qué-hacer viven en la card (renderizarListadoInterfaz), el
+        // botón sólo ofrece la acción.
+        configurarBotonesUX("reintentar-cola", "Reintentar 🔄", reintentandoColaActivo);
         nodos.btnAction.style.display = 'block';
         nodos.btnStartQueue.style.display = 'none';
         nodos.masterCheck.disabled = true;
@@ -1721,9 +2067,15 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       if (modoActual === 're-escanear') return; 
 
       if (!appState.sincronizacionDiscoCompletada) {
+        // `isOffline` equivale a "el banner de conexión está en pantalla": el input de carpeta
+        // sólo se deshabilita en activarEstadoOfflineUI y se rehabilita al reconectar.
         const isOffline = nodos.folder.disabled;
-        configurarBotonesUX("sincronizar-disco", isOffline ? "Buscando servidor... ⏳" : "Sincronizar carpeta local 📂", isOffline);
-        nodos.btnAction.style.display = 'block';
+        // [BOTÓN SEGÚN HAYA ALGO QUE HACER] Con el banner puesto no hay ninguna acción: no se
+        // puede sincronizar contra un servidor que no está, y la reconexión es automática. El
+        // label vacío lo saca de pantalla (ver `configurarBotonesUX`). Decía
+        // "Buscando servidor... ⏳", que además de ofrecer una acción inexistente era la
+        // tercera copia de lo que ya dicen la card y su pulso.
+        configurarBotonesUX("sincronizar-disco", isOffline ? "" : "Sincronizar carpeta local 📂", isOffline);
         nodos.masterCheck.disabled = true;
         return;
       }
@@ -1764,6 +2116,165 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       nodos.btnAction.className = `btn-action modo-${modo}`;
       nodos.btnAction.textContent = txt;
       nodos.btnAction.disabled = dis;
+      // [BOTÓN SEGÚN HAYA ALGO QUE HACER] Sin label no se muestra. Pasar "" es cómo se dice
+      // "en este estado no hay ninguna acción" — hoy, el banner de conexión: la reconexión la
+      // maneja el daemon solo. Con la cola pausada SÍ hay acción ("Reintentar 🔄") y el botón
+      // aparece. La regla vive ACÁ y no en los ~12 call-sites: si la visibilidad se decidiera
+      // afuera, basta que uno se olvide para dejar el botón escondido con una acción adentro,
+      // o vacío en pantalla. Excepción única y explícita: la sincronización de disco, que
+      // escribe su label con innerHTML por el spinner y restaura el display ahí mismo.
+      nodos.btnAction.style.display = txt ? 'block' : 'none';
+      sincronizarFooterVacio();
+    }
+
+    // [FOOTER VACÍO] Con el botón oculto (sin acción que ofrecer) y el texto de estado vacío
+    // —que se colapsa solo por `.status-text:empty`— el footer se queda sin contenido y lo
+    // único que se ve es su `border-top`: una línea divisoria que no divide nada y que se lee
+    // como un botón roto. No se puede resolver con `:empty` en CSS, porque los hijos siguen
+    // existiendo: están ocultos. Se mira cuál quedó visible y se marca el footer.
+    //
+    // Se llama desde los dos embudos por los que pasa cualquier cambio del footer
+    // (`configurarBotonesUX` y `actualizarContadoresBoton`) y no desde cada call-site, por el
+    // mismo motivo que la visibilidad del botón vive en el helper: uno olvidado deja la línea.
+    /**
+     * [BLOQUEO REAL] Bloquea o libera las dos regiones que quedan a la vista mientras una
+     * alerta ocupa el contenedor: la path-bar (📁 PC / 📚 Materia / faceta) y la toolbar. Más
+     * la caja de cancelar, que sigue en pantalla si hay una descarga a medias.
+     *
+     * **Nada se esconde**: se ven, apagadas, y no operan. Y el bloqueo es el ATRIBUTO
+     * `disabled`, no un `pointer-events: none` — que frena el mouse y deja pasar el teclado
+     * (se podía tabular al input de materia y escribir, o marcar "Todos" con Espacio).
+     * El único que no admite `disabled` es el badge de la faceta, que es un `<span>`: se le
+     * marca `aria-disabled` y `faceta.js` lo respeta en su listener.
+     *
+     * Existe como función y no como dos líneas en cada call-site porque los dos estados de
+     * alerta —el banner de conexión y la cola pausada— tenían distinto alcance: uno
+     * deshabilitaba seis controles y el otro ninguno, así que el mismo bloque bloqueado se
+     * comportaba distinto según qué hubiera fallado.
+     */
+    /**
+     * [LOADERS — ítem 1h] El embudo del bloqueo. **Todo call-site pasa por acá.**
+     *
+     * Existe porque las regiones NO siguen todas a la misma condición, y tratarlas como si
+     * sí lo hicieran fue el defecto:
+     *
+     *   - **La toolbar y la lista** son de la pestaña que estás mirando. Si el escaneo murió
+     *     pero estás en Fila, la cola es real y operable: no se bloquean.
+     *   - **La fila de materia + faceta NO es de la pestaña, es del PORTAL ACTIVO.** La materia
+     *     es el destino en disco del próximo encolado y la faceta sale del listado escaneado.
+     *     Si el escaneo murió, esos dos no describen nada — mires la pestaña que mires. Que se
+     *     desbloquearan al pasar a Fila era ofrecer editar el destino de un escaneo que no
+     *     existe.
+     *
+     * La fila del disco (`.row-pc`: la ruta y 📂 Explorar) queda **fuera** del bloqueo por
+     * timeout a propósito: es configuración del backend, no del portal, y el backend está
+     * sano. Sí la bloquea la alerta de conexión, porque ahí el servidor no está.
+     *
+     * Acá vivía `hayAlertaOcupandoLaRegion()`, una condición única para todo. Se murió al
+     * descubrirse que **no hay una condición, hay dos**, y ése era justamente el defecto: con
+     * una sola, o se desbloqueaba de más (la materia editable con el escaneo muerto) o de
+     * menos (la cola inoperable por un escaneo que no la toca).
+     */
+    function sincronizarBloqueosDeAlerta() {
+      const alertaGlobal = !!appState.fallaConexionActiva || BannerConexion.get().visible;
+      // 1) Lo que sigue a la pestaña. Va primero: su rama de desbloqueo re-habilita controles
+      //    a los que el paso 2 les pone la palabra final.
+      bloquearRegionesDeAlerta(alertaGlobal || escaneoMuertoDominaLaPestaña());
+      // 2) Lo que sigue al portal, en las DOS pestañas.
+      bloquearFilaDePortal(alertaGlobal || !!escaneoMuertoPorTimeout);
+      // 3) Y la toolbar sola, que además se apaga cuando no hay NADA que filtrar. No es una
+      //    alerta: es que buscar, filtrar y ordenar sobre una colección vacía no hace nada, y
+      //    dejar los controles vivos ofrece una acción que no existe. Va al final porque el
+      //    paso 1 pudo haberlos re-habilitado al desbloquear.
+      bloquearToolbar(
+        alertaGlobal || escaneoMuertoDominaLaPestaña() || coleccionDeLaPestañaVacia()
+      );
+    }
+
+    /** La fila `📚 Materia` + el badge de la faceta. Ver `sincronizarBloqueosDeAlerta`. */
+    /**
+     * La toolbar sola (buscador, filtros, orden, "Todos", "Seleccionar"). NO toca la path-bar
+     * ni la caja de cancelar: existe para el caso en que no hay NADA que filtrar, que no es
+     * una alerta y no tiene por qué apagar el resto de la UI.
+     */
+    function bloquearToolbar(bloquear) {
+      if (nodos.filtersBar) nodos.filtersBar.classList.toggle('bloqueada', bloquear);
+      const wrapperTodos = document.getElementById('ui-master-select-wrapper');
+      if (wrapperTodos) wrapperTodos.setAttribute('aria-disabled', String(bloquear));
+      if (bloquear) {
+        [nodos.search, nodos.btnFilterPills, nodos.btnSort, nodos.masterCheck, nodos.btnToggleSelect]
+          .forEach((c) => { if (c) c.disabled = true; });
+      } else {
+        desbanearFiltros();
+        if (nodos.btnToggleSelect) nodos.btnToggleSelect.disabled = false;
+      }
+    }
+
+    /**
+     * ¿La pestaña que se está mirando no tiene NADA que filtrar?
+     *
+     * **Mira la colección, jamás el resultado filtrado**, y ésa es toda la sutileza. La tarjeta
+     * de "Fila de descarga vacía" se pinta con `filtrados.length === 0`, que es cierto en dos
+     * casos muy distintos: la cola está vacía de verdad, o tiene ítems y el filtro los escondió.
+     * Bloquear la toolbar en el segundo **encerraría al usuario**: no podría sacar el filtro
+     * que lo dejó sin resultados, porque el control para sacarlo estaría deshabilitado.
+     *
+     * (De paso queda anotado: el copy de esa tarjeta dice "No tenés clases agregadas en esta
+     * lista" también cuando sí las tenés y las filtraste. Es un defecto previo y separado.)
+     */
+    function coleccionDeLaPestañaVacia() {
+      return appState.pestañaActiva === "cola"
+        ? appState.colaDescargas.length === 0
+        : appState.listadoClasesGlobal.length === 0;
+    }
+
+    function bloquearFilaDePortal(bloquear) {
+      const fila = document.querySelector('.meta-row.row-aula');
+      if (fila) fila.classList.toggle('bloqueada', bloquear);
+      // El input admite `disabled`; el badge es un <span> y lleva `aria-disabled` — el mismo
+      // contrato de dos formas que documenta `styles/base.css`, no dos criterios.
+      if (nodos.folder) nodos.folder.disabled = bloquear;
+      if (nodos.facetaBadge) nodos.facetaBadge.setAttribute('aria-disabled', String(bloquear));
+    }
+
+    function bloquearRegionesDeAlerta(bloquear) {
+      const pathBar = document.querySelector('.path-bar');
+      [pathBar, nodos.filtersBar, nodos.cancelBox].forEach((n) => n && n.classList.toggle('bloqueada', bloquear));
+
+      const controles = [
+        nodos.folder, nodos.btnExplore,
+        nodos.search, nodos.btnFilterPills, nodos.btnSort, nodos.masterCheck, nodos.btnToggleSelect,
+        nodos.btnSoftCancel, nodos.btnHardCancel,
+      ];
+      // Lo que NO es un control de formulario no admite `disabled`, así que lleva
+      // `aria-disabled`: el badge de la faceta es un <span> y el "Todos" es un <label>. El CSS
+      // de `.bloqueada` los apaga con `pointer-events` a partir de ese atributo —única forma
+      // de matarles el `cursor: pointer` y el hover— y `faceta.js` lo respeta en su listener.
+      // Es el mismo bloqueo, expresado en la forma que cada elemento admite.
+      [nodos.facetaBadge, document.getElementById('ui-master-select-wrapper')]
+        .forEach((n) => n && n.setAttribute('aria-disabled', String(bloquear)));
+
+      if (bloquear) {
+        controles.forEach((c) => { if (c) c.disabled = true; });
+        return;
+      }
+
+      // Liberar NO es "habilitar todo": cada control tiene su propia condición y ponerlos en
+      // `false` a ciegas habilitaría el buscador sin lista o "Todos" sin sincronizar. Se
+      // delega en quien ya sabe — `desbanearFiltros` para la toolbar — y se restauran a mano
+      // sólo los que dependen del estado de conexión o de la ráfaga.
+      if (nodos.folder) nodos.folder.disabled = false;
+      if (nodos.btnExplore) nodos.btnExplore.disabled = false;
+      desbanearFiltros();
+      if (nodos.btnSoftCancel) nodos.btnSoftCancel.disabled = appState.banderaFrenadoSolicitado;
+      if (nodos.btnHardCancel) nodos.btnHardCancel.disabled = false;
+    }
+
+    function sincronizarFooterVacio() {
+      const footer = document.querySelector('.footer-panel');
+      if (!footer) return;
+      const hayAlgo = [...footer.children].some((el) => getComputedStyle(el).display !== 'none');
+      footer.classList.toggle('vacia', !hayAlgo);
     }
 
     function mostrarAlertDeConexionCaida(errorType, titulo) {
@@ -1775,7 +2286,23 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       nodos.btnStartQueue.style.display = 'none';
       nodos.progressCont.style.display = 'none';
       nodos.panelTel.style.display = 'none';
-    
+
+      // [BANNER OCUPA LISTA + TOOLBAR] La card de pausa se pinta DENTRO de #ui-list, así que
+      // sin esto la barra de filtros quedaba viva encima de ella: buscador, filtros, orden y
+      // "Todos" habilitados, operando sobre una lista que no está en pantalla.
+      //
+      // Se BLOQUEA, no se esconde: esconderla mueve todo de lugar en cada caída y en cada
+      // reconexión del auto-heal. Atenuada e inerte se lee como "ahora no". Las pestañas
+      // quedan operativas a propósito: la cola tiene que seguir siendo consultable mientras
+      // está pausada, que es justo lo que uno quiere mirar cuando algo falló.
+      //
+      // [UN SOLO BLOQUEO] La path-bar va junto con la toolbar y con la misma clase. Antes no
+      // entraba acá —sólo se bloqueaba con el banner de conexión, y con otro nombre
+      // (`.offline`)—, así que con la cola pausada quedaban dos comportamientos distintos para
+      // el mismo estado: los filtros inertes y, al lado, el input de materia y el badge de la
+      // faceta vivos sobre una lista que no está en pantalla.
+      sincronizarBloqueosDeAlerta();
+
       conectarEscuchadoresDelWorker();
     
       // Simplemente volver a renderizar y actualizar el botón en la pestaña activa sin redirigir

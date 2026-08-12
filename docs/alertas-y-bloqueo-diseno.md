@@ -194,10 +194,28 @@ servidor caído; y que al reconectar vuelva todo.
 
 ---
 
-## 6. El informe de la auditoría — lo que sigue ABIERTO
+## 6. El informe de la auditoría — **los cinco, ya cerrados**
 
-Lo de abajo salió de auditar los loaders y los estados de carga, y **no se arregló**. El estado
-formal de cada uno vive en `TECHNICAL_DEBT.md` §🔴 Abierto; acá está el detalle técnico.
+Lo de abajo salió de auditar los loaders y los estados de carga. **Los cinco se arreglaron el
+2026-08-12**, en `integracion-alertas`, y **ninguno está verificado en navegador**. El estado
+formal vive en `TECHNICAL_DEBT.md`; acá está el detalle técnico —el diagnóstico se conserva tal
+como se escribió, porque es lo que explica por qué el código quedó como quedó— y, en cada uno,
+**cómo se cerró**.
+
+> **Lo que enseñó la tanda, y no estaba en ninguno de los cinco ítems.**
+>
+> 1. **Cuatro de los cinco eran el mismo corte.** Comparten camino (`conectarYArrancar` →
+>    `escanearDisco` → `resolverMapeoEnUI`) y dos comparten causa raíz literal: *nadie apaga el
+>    indicador cuando la rama de error se lleva el control*. Listados como cinco entradas
+>    independientes se habrían priorizado de a uno, tocando cuatro veces el mismo archivo. **Al
+>    auditar, agrupá por camino de ejecución, no por síntoma.**
+> 2. **Uno era precondición de otra cosa.** El 6.2 (el loader invisible) es lo que hace
+>    observable el cartel del cambio de portal, o sea la verificación del copy genérico. Un bug
+>    abierto bloqueando la verificación de otro frente no aparece en ninguna lista de
+>    dependencias, porque las dos entradas se ven independientes.
+> 3. **El 6.1 quería tocar `PuertoSitio`, y otra rama ya lo estaba tocando** para meter
+>    `instruccionEscaneo`. Hacerlo después habría sido volver al mismo puerto dos veces en dos
+>    semanas por el mismo motivo. Entró junto: el puerto pasó de 11 a **13** de una vez.
 
 ### 6.1 🔴 El timeout del escaneo salta siempre en Anatomy, y miente
 
@@ -228,6 +246,36 @@ reintento.
    sola no comunica.
 4. **Guarda de reentrada**, o el botón deshabilitado mientras hay un escaneo vivo.
 
+> **✅ Cerrado (2026-08-12)**, los cuatro puntos. Con una corrección al plan que apareció al
+> ejecutarlo:
+>
+> **El punto 1 no se podía hacer donde decía.** El `safetyTimeout` se armaba **antes** de
+> resolver el portal, así que ahí no existe un `topeEscaneoMs` que leer — es exactamente la
+> trampa del §4 de `copy-generico-diseno.md`, la misma familia que ya se cobró los cortes 4 y 8
+> del multi-sitio, apareciendo por tercera vez en el mismo archivo. El watchdog **se arma después
+> de resolver el portal**. Lo que queda descubierto entre los dos puntos es `chrome.tabs.query`,
+> que no sale a la red; lo que el watchdog vigila es el escaneo, que sí.
+>
+> - **Tope**: `PuertoSitio.topeEscaneoMs`, **requerido** —mismo criterio que `instruccionEscaneo`:
+>   un portal nuevo que lo olvide tiene que no compilar, no heredar un número ajeno—. Ramón Net
+>   **6 s** (escanea el DOM), Anatomy **30 s** (margen deliberado sobre los ~11 s: el pool sale a
+>   la red 114 veces y una conexión lenta lo estira sin que eso sea una falla).
+> - **Abandono explícito**: por **generación**, no por booleano. Cada corrida lleva su número y el
+>   watchdog lo incrementa al vencerse; el callback tardío compara y se descarta. Un booleano no
+>   alcanza — con dos corridas en vuelo no distingue cuál llegó.
+> - **Mensaje** en la tarjeta de la lista, con el nombre del portal (a esa altura ya está
+>   resuelto) y sin la palabra "DOM".
+> - **Guarda de reentrada** que además devuelve si tomó el loader, que es lo que cierra el §6.2.
+>
+> **Tests**: +5 en `sitio/registro.test.ts`, y apuntan al **valor**, no a la existencia del campo
+> — que exista ya lo obliga `tsc`, y el defecto fue un tope que existía y estaba mal. Fijan un
+> piso de 5 s, el margen de Anatomy sobre sus 11 s medidos, que Ramón Net conserve los suyos, y
+> que el orden entre los dos no se invierta por un copy-paste entre configs, que es literalmente
+> cómo se escribe un portal nuevo acá.
+>
+> **Lo que ningún test ve, y por eso va a navegador**: el watchdog vive en el núcleo de
+> `popup.js` (ADR-0005).
+
 ### 6.2 🟠 El loader del escaneo inicial no se ve nunca
 
 `conectarYArrancar` llama al escaneo y **apaga el loader en su `finally`, en el mismo tick**: el
@@ -238,6 +286,16 @@ código muerto en pantalla. Sólo se ve por el botón "Re-escanear" o tras recon
 **Consecuencia para verificar copy**: el cartel del cambio de portal **no se puede observar
 abriendo el popup**; hay que forzarlo con "Re-escanear".
 
+> **✅ Cerrado (2026-08-12).** `ejecutarPaso1EscaneoRamonAutomatico` **devuelve si tomó posesión
+> del loader** y el `finally` de `conectarYArrancar` lo respeta. La guarda de reentrada del §6.1
+> devuelve `false` por eso mismo: si devolviera `true`, el loader quedaría girando sin nadie que
+> lo apague.
+>
+> **Lo que hace que sea seguro**: las cuatro salidas del escaneo apagan el loader (portal no
+> reconocido, watchdog, error de inyección, y el `finally` del payload), lo cual ya estaba
+> verificado en §6.7. Devolver `true` es un compromiso que el escaneo puede cumplir; si alguien
+> le agrega una quinta salida, tiene que apagarlo ahí también.
+
 ### 6.3 🟠 La lista puede quedar atenuada al 50% indefinidamente
 
 `ListaClases.setAtenuada(true)` se pone al empezar a sincronizar y se apaga **en un solo lugar**:
@@ -246,6 +304,15 @@ el `finally` de `resolverMapeoEnUI`. Si `escanearDisco` falla por red, el `catch
 independientes, así que al reconectar vuelve la lista **al 50%**. Se auto-cura sólo si el
 re-escaneo posterior termina en una sincronización exitosa; si vuelve vacío o sin portal, queda
 atenuada hasta cerrar el popup, sin ningún mensaje.
+
+> **✅ Cerrado (2026-08-12).** El `finally` que la apaga se movió de `resolverMapeoEnUI` —que es
+> **un** camino— a `ejecutarPaso2SincronizarDiscoVeloz`, que es **la función que la prendió** y
+> cubre los dos. Es la regla **una región, un dueño** del §1, aplicada al indicador en vez de al
+> DOM: el mismo error, en otra dimensión.
+>
+> **La generalización que vale para el próximo indicador**: si lo prendés antes de un `await`,
+> apagalo en el `finally` de **esa misma función**. Delegarlo a la que procesa el resultado
+> funciona hasta el primer camino de error, y ese camino siempre termina existiendo.
 
 ### 6.4 🟠 Dos llamadas al backend sin timeout
 
@@ -257,6 +324,20 @@ cuelga el botón en "Sincronizando disco local..." con la lista atenuada por §6
 sin mensaje. En Windows `localhost:3001` **cuelga** en vez de rechazar, que es justo el motivo
 por el que los otros dos tienen timeout.
 
+> **✅ Cerrado (2026-08-12), y es el único de los cinco con tests de verdad** — el cliente es
+> núcleo (`core/backend/bunClient.ts`), no popup. +6 en su test: que los dos aborten en vez de
+> colgarse, que el `signal` llegue al `fetch` (sin eso el timeout no aborta nada), que el camino
+> feliz no cambie, y la desproporción entre los dos techos.
+>
+> **Los dos techos son distintos a propósito y no hay que emparejarlos**: `escanearDisco` **15 s**
+> (el server lee disco de verdad y una carpeta grande tarda; el techo existe para el cuelgue, no
+> para apurarlo) y `seleccionarCarpeta` **3 minutos**, porque del otro lado de ese fetch no hay un
+> servidor calculando sino **una persona mirando un explorador de archivos**. Un techo de segundos
+> ahí le cancelaría el diálogo a alguien que está eligiendo — peor que el cuelgue que evita.
+>
+> Hay un test que fija esa desproporción **contra el otro valor**, no contra una constante, para
+> que un "unifiquemos los timeouts" lo rompa en vez de pasar.
+
 ### 6.5 ⚪ El onboarding recibe siempre el portal legado
 
 `entrypoints/popup/main.js` monta la isla con `sitios.obtener(undefined)`, sin mirar la pestaña.
@@ -266,10 +347,29 @@ cerrar sigue en pantalla. El comentario de ese archivo dice "ofrecer elegir entr
 del corte 7, cuando exista un segundo", y el segundo existe desde el 2026-08-07. Es un tercer
 corte chico: resolver el portal por pestaña y pasárselo.
 
+> **✅ Cerrado (2026-08-12).** Monta con `sitios.resolverPorUrl(tab.url)`, con **fallback al
+> legado** si la pestaña no es de ningún portal reconocido: el tour se abre desde cualquier lado
+> y ahí no hay portal correcto que mostrar. El montaje se movió adentro del callback de
+> `chrome.tabs.query` — montar con el legado y corregir después haría **parpadear la copy**.
+>
+> **Y destapó un agujero que valía más que el ítem**: el wrapper `sitios` de
+> `plataforma/composicion.ts` —el export que comparten el SW y el popup **precisamente para que
+> la regla de resolución no pueda divergir**— no tenía ni un test propio. Lo cubierto era
+> `sitio/registro.ts`, que es la capa de abajo y **no** implementa la migración del `sitioId`
+> ausente. Ahora existe `plataforma/composicion.test.ts` con los tres casos (ausente → legado;
+> presente-no-registrado → huérfano; por URL → sin migración).
+>
+> Es el patrón de siempre en este repo: **el ítem chico estaba apoyado en algo grande que nadie
+> miraba.**
+
 ### 6.6 Detalles menores, con archivo
 
-- **`iniciar.bat` quedó sin ruta** tras la fusión: `bannerConexion.preact.js` y `popup.js` dicen
-  "ejecutá **iniciar.bat**" y hoy el archivo es `backend/iniciar.bat`.
+- ~~**`iniciar.bat` quedó sin ruta** tras la fusión~~ → **✅ arreglado el 2026-08-12.** Eran
+  **cuatro** sitios, no dos: `popup.js:1455`, `bannerConexion.preact.js:37` y **dos** en
+  `onboarding.preact.js` (:124 y el `title` de :137, que la auditoría no había contado). Ahora
+  dicen `backend/iniciar.bat`. Es el residuo más típico de una mudanza: el código anda, la
+  **instrucción al usuario** manda a un archivo que ya no está ahí, y ninguna de las cuatro
+  verificaciones puede verlo.
 - **Rama muerta y silenciosa**: el `if (ruta)` de `conectarYArrancar` no tiene `else` — un backend
   que conteste 200 sin `ruta` deja el popup en blanco, sin banner ni estado. Hoy es inalcanzable
   (`backend/handlers.js` siempre manda `ruta`), pero es latente.

@@ -47,6 +47,89 @@ describe('obtenerRutaServidor()', () => {
   });
 });
 
+/**
+ * [LOADERS — ítem 4] Los dos fetch que no tenían techo.
+ *
+ * El cliente estaba asimétrico y no por diseño: `obtenerRutaServidor` (4 s) y
+ * `enviarFragmentoStream` (30 s) tenían timeout con el motivo escrito —en Windows
+ * `localhost:3001` con el server apagado **cuelga** en vez de rechazar— y estos dos no tenían
+ * ninguno. El síntoma no era un error: era el popup clavado en "Sincronizando disco local…"
+ * con la lista atenuada, sin salida ni mensaje.
+ *
+ * Los tests simulan el cuelgue igual que el de arriba: un `fetch` que sólo termina si alguien
+ * dispara el abort. Si el timeout no existiera, la promesa nunca resolvería y el test moriría
+ * por timeout de Vitest en vez de pasar — que es exactamente la diferencia que se quiere fijar.
+ */
+describe('los fetch que pueden colgar tienen techo', () => {
+  const fetchQueSeCuelga = () =>
+    vi.fn((_url, opts) => new Promise((_resolve, reject) => {
+      opts.signal.addEventListener('abort', () =>
+        reject(new DOMException('The operation was aborted.', 'AbortError'))
+      );
+    })) as unknown as typeof fetch;
+
+  it('escanearDisco() aborta en vez de colgarse para siempre', async () => {
+    globalThis.fetch = fetchQueSeCuelga();
+    await expect(BunClient.escanearDisco('anatomia', 'ramonnet', { timeoutMs: 20 })).rejects.toThrow();
+  });
+
+  it('escanearDisco() le pasa el signal al fetch (sin eso el timeout no aborta nada)', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ archivos: [] }) });
+    await BunClient.escanearDisco('anatomia', 'ramonnet');
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/escanear-disco'),
+      expect.objectContaining({ signal: expect.anything() })
+    );
+  });
+
+  it('escanearDisco() sigue devolviendo los archivos cuando el server contesta', async () => {
+    // El techo no puede cambiarle el comportamiento al camino feliz.
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ archivos: ['clase 1.mp4', 'clase 2.mp4'] })
+    });
+    const data = await BunClient.escanearDisco('anatomia', 'ramonnet');
+    expect(data.archivos).toEqual(['clase 1.mp4', 'clase 2.mp4']);
+  });
+
+  it('seleccionarCarpeta() aborta en vez de colgarse para siempre', async () => {
+    globalThis.fetch = fetchQueSeCuelga();
+    await expect(BunClient.seleccionarCarpeta({ timeoutMs: 20 })).rejects.toThrow();
+  });
+
+  it('seleccionarCarpeta() tiene un techo MUCHO más generoso: del otro lado hay una persona', async () => {
+    // La aserción es sobre el default, y es el punto del ítem: un techo de segundos acá le
+    // cancelaría el diálogo nativo a alguien que está eligiendo una carpeta. Se fija contra el
+    // techo del escaneo de disco para que nadie los "unifique" a un valor común.
+    vi.useFakeTimers();
+    try {
+      globalThis.fetch = fetchQueSeCuelga();
+      const promesa = BunClient.seleccionarCarpeta();
+      promesa.catch(() => {}); // el rechazo se afirma abajo; esto evita el unhandled rejection
+      // A los 30 s —techo del fragmento, y seis veces el del disco— todavía NO abortó.
+      await vi.advanceTimersByTimeAsync(30000);
+      let abortoTemprano = false;
+      promesa.catch(() => { abortoTemprano = true; });
+      await Promise.resolve();
+      expect(abortoTemprano).toBe(false);
+      // A los 3 min sí.
+      await vi.advanceTimersByTimeAsync(150001);
+      await expect(promesa).rejects.toThrow();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('seleccionarCarpeta() devuelve la ruta elegida cuando el diálogo se completa', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, ruta: 'D:/Cursos' })
+    });
+    const res = await BunClient.seleccionarCarpeta();
+    expect(res).toEqual({ success: true, ruta: 'D:/Cursos' });
+  });
+});
+
 describe('baseUrl configurable', () => {
   // El override por globalThis.RAMONNET_BUN_BASE_URL ocurre al cargar el módulo y no se
   // puede reejercitar sin reimportar; se cubre por inspección (el init usa el mismo
@@ -72,8 +155,13 @@ describe('baseUrl configurable', () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => [] });
     BunClient.configurarBaseUrl('http://host:9999');
     await BunClient.escanearDisco('x');
+    // El segundo argumento entró con el timeout del ítem 4 de la auditoría de loaders:
+    // `escanearDisco` pasó de `fetch(url)` a `fetch(url, { signal })`. Este test afirmaba la
+    // llamada con UN solo argumento, así que el cambio lo rompió — correctamente: es lo que
+    // hace un test de firma. Lo que le importa sigue siendo la URL.
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      expect.stringMatching(/^http:\/\/host:9999\/api\/escanear-disco/)
+      expect.stringMatching(/^http:\/\/host:9999\/api\/escanear-disco/),
+      expect.objectContaining({ signal: expect.anything() })
     );
   });
 });

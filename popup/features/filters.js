@@ -1,5 +1,14 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: FILTROS Y BÚSQUEDA (V2.3.0)
+ * CLON DOWNLOADHELPER - FEATURE: FILTROS Y BÚSQUEDA (V2.4.0)
+ * ==========================================================================
+ * CHANGELOG v2.4.0:
+ * - [LA SELECCIÓN SIGUE AL FILTRO] `aplicarFiltrosCruzados` deselecciona lo que deja de ser
+ *   visible. Antes la selección sobrevivía al filtro sin verse: marcar "Todos" sin filtro y
+ *   después filtrar dejaba el botón diciendo "Agregar 103 clases" con 12 en pantalla — y
+ *   encolaba las 103, porque el conteo y el encolado leen `seleccionado`, no `visible`.
+ *   Se arregla acá, en el único lugar que decide qué se ve, y no en los cuatro que cuentan.
+ *   Costo aceptado: no se puede seleccionar en varias tandas (buscar, marcar, borrar la
+ *   búsqueda, seguir marcando). La contrapartida es que lo que ves es lo que está marcado.
  * ==========================================================================
  * CHANGELOG v2.3.0:
  * - [MULTIPORTAL A] Disponibles filtra por el portal de la pestaña activa. `listadoClasesGlobal`
@@ -194,6 +203,20 @@ const FilterFeature = {
         }
 
         clase.visible = coincidePortal && coincideMateria && coincideTexto && coincideEstado && coincideFaceta && coincideTipo;
+
+        // [LA SELECCIÓN SIGUE AL FILTRO] Lo que se filtra, se deselecciona. Sin esto la
+        // selección era invisible y **operante**: marcabas "Todos" sin filtro (103 clases),
+        // filtrabas a 12 en pantalla, y el botón seguía diciendo "Agregar 103 clases" y
+        // encolaba las 103 — porque el conteo y el encolado leen `seleccionado` y no `visible`.
+        //
+        // Se arregla acá, en el único lugar que decide qué se ve, y no en los cuatro que
+        // cuentan: si se arreglara allá, cada consumidor nuevo tendría que acordarse del
+        // `&& visible`, y el estado seguiría mintiendo.
+        //
+        // El costo, y es deliberado: no se puede seleccionar en varias tandas (buscar
+        // "Miologia", marcar 3, borrar la búsqueda) — al cambiar el filtro esas 3 salen. Es lo
+        // que se pidió: que lo que ves sea lo que está seleccionado.
+        if (!clase.visible) clase.seleccionado = false;
       });
 
       renderizar();

@@ -80,14 +80,75 @@ import { montar as montarStatusDot } from '../../popup/features/conexionHeader.p
 import { montar as montarOnboarding } from '../../popup/features/onboarding.preact.js';
 import { montar as montarCampanita } from '../../popup/features/campanita.preact.js';
 
+// Banco de pruebas. El import es incondicional; lo que decide si corre es la bandera del final
+// de este archivo. Ver el bloque de allá abajo: dice por qué es estático y qué cuesta.
+import { activarModoVerificacion } from '../../verificacion/modoVerificacion.js';
+
 montarStatusDot(document.getElementById('preact-status-dot'), { conexion: Conexion });
-montarOnboarding(document.getElementById('preact-onboarding'), {
-  conexion: Conexion,
-  appState: AppState,
-  // [CORTE 5] El onboarding corre ANTES de que haya una pestaña escaneada, así que no hay
-  // portal "de la pestaña" que pasarle: se le da el legado, que es a donde el tour manda al
-  // usuario y lo que mostraba hasta ahora. Ofrecer elegir entre N portales es del corte 7,
-  // cuando exista un segundo.
-  sitio: sitios.obtener(undefined),
-});
 montarCampanita(document.getElementById('preact-campanita'), { historial: HistorialFallos });
+
+// [LOADERS — ítem 5] El onboarding se monta con el portal DE LA PESTAÑA, no con el legado.
+//
+// Hasta el 2026-08-12 esta llamada era `sitios.obtener(undefined)` —el portal legado, fijo— y
+// el comentario decía "cuando exista un segundo" portal. Existe desde el 2026-08-07, así que
+// la slide 3 mostraba la instrucción de escaneo de Ramón Net **también en Anatomy**: el corte 2
+// del copy genérico movió esa frase al descriptor (correcto y necesario) y el defecto que venía
+// a cerrar seguía en pantalla, porque la isla recibía el descriptor equivocado.
+//
+// Es asíncrono porque `chrome.tabs.query` lo es, y por eso el montaje va adentro del callback
+// en vez de arriba con los otros dos: la isla lee `sitio` como prop al montarse, no lo
+// re-consulta. Montar con el legado y "corregir" después haría parpadear la copy.
+//
+// El fallback al legado se queda para el caso en que la pestaña no sea de ningún portal
+// reconocido (el tour se abre desde cualquier lado): ahí no hay portal correcto que mostrar y
+// el legado es a donde el tour manda al usuario.
+chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+  const portalDeLaPestaña = tab && tab.url ? sitios.resolverPorUrl(tab.url) : null;
+  montarOnboarding(document.getElementById('preact-onboarding'), {
+    conexion: Conexion,
+    appState: AppState,
+    sitio: portalDeLaPestaña || sitios.obtener(undefined),
+  });
+});
+
+// ─── BANCO DE PRUEBAS ────────────────────────────────────────────────────────────────────
+//
+// ⬇⬇⬇  PONÉ `true` ACÁ PARA ACTIVARLO, Y `npm run build`.  ⬇⬇⬇
+const BANCO_DE_PRUEBAS = false;
+// ⬆⬆⬆  Es la única línea que hay que tocar.  ⬆⬆⬆
+//
+// Qué es: un panel (🧪 en la cabecera, o **F9**) que graba los carteles que duran
+// milisegundos, demora el escaneo para poder leerlos, y fuerza los estados que a mano no se
+// alcanzan — caída de servidor y de internet, la cola pausada en sus cinco tipos, el escaneo
+// vacío o colgado, y el onboarding con el descriptor de cada portal. Detalle y limitaciones,
+// en la cabecera de `verificacion/modoVerificacion.js`.
+//
+// **POR QUÉ VIVE ACÁ Y NO EN UNA RAMA.** Vivió en una rama descartable (`copy-generico-
+// verificacion`) y el resultado fue que se perdió dos veces: la primera quedó con un build
+// viejo mientras `main` avanzaba —cargarla verificaba una versión anterior—, y la segunda
+// hubo que rearmarla a mano con siete cherry-picks. Una herramienta que hay que reconstruir
+// cada vez que se usa es una herramienta que no se usa. Acá se mantiene sola con el resto.
+//
+// **Apagado NO cuesta nada, y está medido**: la bandera es una `const` literal, así que el
+// `if` es código muerto y Vite se lleva el módulo entero en el tree-shaking. Comprobado
+// comparando los dos builds — en `false`: 225,71 kB y **cero** ocurrencias de `mv-panel` en el
+// bundle; en `true`: 243,21 kB. Por eso la bandera es una `const` y no una variable, un
+// `let`, ni algo leído de storage: cualquiera de esas tres lo dejaría adentro para siempre.
+//
+// Y por eso el import es **estático** y no un `import()` dinámico, que sería el reflejo obvio:
+// el banco **envuelve `fetch`, `chrome.tabs.query` y `chrome.runtime.sendMessage`**, y tiene
+// que hacerlo antes de que corra el init del popup. Un import dinámico resuelve en un tick
+// posterior y puede llegar después de `DOMContentLoaded`, o sea con `iniciarPopup` ya
+// arrancado: los envoltorios quedarían puestos tarde y el banco mentiría en silencio. El
+// estático da la misma eliminación en frío y además la garantía de orden.
+//
+// Va ÚLTIMO a propósito: envuelve esas APIs **después** de que el popup quedó cableado, así
+// nada de lo que se está verificando cambia de orden por su culpa.
+if (BANCO_DE_PRUEBAS) {
+  activarModoVerificacion({
+    sitios,
+    montarOnboarding,
+    conexion: Conexion,
+    appState: AppState,
+  });
+}

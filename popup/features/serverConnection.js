@@ -1,6 +1,20 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: CONEXIÓN AL SERVIDOR BUN (V1.10.0)
+ * CLON DOWNLOADHELPER - FEATURE: CONEXIÓN AL SERVIDOR BUN (V1.12.0)
  * ==========================================================================
+ * CHANGELOG v1.12.0:
+ * - [BANNER DUEÑO DEL DIAGNÓSTICO] Murió el mapa ESTADO_OFFLINE: sus `estadoTxt`/`botonTxt`
+ *   eran la segunda y la tercera copia de lo que la card de la isla ya dice y explica. El
+ *   footer queda vacío y el botón sin label (y con eso, oculto — ver `configurarBotonesUX` en
+ *   popup.js): en este estado la reconexión es automática y NO hay acción que ofrecer.
+ * - La 1.11.0 NO se salteó: es el corte 1 del copy genérico y está acá abajo. Las dos ramas
+ *   se mergearon juntas en `integracion-alertas` el 2026-08-12.
+ * ==========================================================================
+ * CHANGELOG v1.11.0:
+ * - [COPY GENÉRICA — corte 1] "Analizando aula virtual…" → "Analizando…". El texto era
+ *   idéntico al de popup.js:573 y este archivo es el camino de RECUPERACIÓN TRAS CAÍDA
+ *   DEL SERVER: si se arreglaba uno solo, el usuario veía una copy u otra según por
+ *   dónde entrara. Los dos van siempre juntos → docs/copy-generico-diseno.md §5.1.
+ *
  * CHANGELOG v1.10.0:
  * - [ISLA #4 · Etapa 2] Dejó de tocar el DOM de #ui-list directo (innerHTML="" +
  *   style.display) para ocultar/restaurar la lista mientras el banner ocupa su lugar.
@@ -88,13 +102,20 @@ const ServerConnectionFeature = {
     const {
       nodos,
       configurarBotonesUX,
+      // [BLOQUEO REAL] Bloquea/libera la path-bar, la toolbar y la caja de cancelar. Vive en
+      // popup.js —es dueño de `nodos` y de las condiciones de re-habilitación— y entra por ctx
+      // como `configurarBotonesUX`, para que los dos estados de alerta bloqueen IGUAL.
+      bloquearRegiones,
       onReintentarCola,
       onReescanearAula,
       appState,
       conexion,
       // FASE 8: los puentes de las islas entran por ctx y no por window. Van por acá y no
       // por un import directo a propósito: los tests inyectan dobles de los tres.
-      listaClases,
+      // [ALERTA EN EL CONTENEDOR] `listaClases` salió de acá: esta feature ya no apaga ni
+      // enciende la lista para hacerle lugar al banner. Muestra la alerta en su store y la
+      // región se resuelve sola. Sigue llegando por ctx (popup.js) y los tests lo inyectan
+      // para poder afirmar justamente que NO se lo toca.
       rutaDisco,
       bannerConexion,
       backend,
@@ -123,41 +144,39 @@ const ServerConnectionFeature = {
       }
     }
 
-    // Texto de estado del footer + label del botón según el tipo de caída. El
-    // CONTENIDO de la tarjeta (icono/título/cuerpo/pulso) vive ahora en la isla
-    // Preact features/bannerConexion.preact.js; acá sólo queda lo que pinta el footer.
-    const ESTADO_OFFLINE = {
-      servidor: {
-        estadoTxt: '⚠️ <span style="color:var(--accent-error-visible)">Servidor Bun desconectado.</span>',
-        botonTxt: "Buscando servidor... ⏳"
-      },
-      internet: {
-        estadoTxt: '⚠️ <span style="color:var(--accent-error-visible)">Sin conexión a internet.</span>',
-        botonTxt: "Esperando internet... ⏳"
-      }
-    };
+    // [BANNER DUEÑO DEL DIAGNÓSTICO] Acá vivía un mapa `estadoTxt`/`botonTxt` por tipo de
+    // caída, y era la SEGUNDA Y TERCERA copia del mismo hecho: la card de la isla ya dice
+    // "Servidor Desconectado" / "Sin conexión a internet", explica qué hacer y late con
+    // "Esperando conexión en puerto 3001...". El footer repetía "⚠️ Servidor Bun
+    // desconectado." y el botón "Buscando servidor... ⏳".
+    //
+    // Ahora el banner es el único que diagnostica. El footer queda vacío y el botón se oculta
+    // (`actualizarContadoresBoton` hace lo propio con la rama `isOffline`), porque en este
+    // estado NO HAY ACCIÓN que ofrecer: la reconexión la maneja el daemon sola. Un botón
+    // deshabilitado que narra lo que ya se lee arriba es ruido, no información.
 
     // Muestra el banner de conexión caída. `tipo` = "servidor" | "internet".
     function activarEstadoOfflineUI(tipo = "servidor") {
-      const info = ESTADO_OFFLINE[tipo] || ESTADO_OFFLINE.servidor;
       // (el puntito de estado lo maneja la isla Preact conexionHeader.preact.js)
 
-      nodos.folder.disabled = true;
-      nodos.btnExplore.disabled = true;
-      document.querySelector('.path-bar')?.classList.add('offline');
-
-      nodos.search.disabled = true;
-      nodos.btnFilterPills.disabled = true;
-      nodos.masterCheck.disabled = true;
+      // [BLOQUEO REAL] Acá vivía la lista de `disabled` a mano —seis controles, y sólo los de
+      // este camino: el de la cola pausada no deshabilitaba ninguno—. Ahora las dos regiones se
+      // bloquean por el mismo helper de popup.js, así que el mismo bloque bloqueado se comporta
+      // igual haya fallado lo que haya fallado. Nada se esconde: quedan a la vista, apagados y
+      // sin operar, teclado incluido.
+      bloquearRegiones(true);
       nodos.masterCheck.checked = false;
-      if (nodos.btnSort) nodos.btnSort.disabled = true;
 
       // El banner lo pinta la isla Preact #2 (bannerConexion) en su propio root.
       // La lista (#ui-list) se oculta mientras el banner ocupa su lugar (se repuebla
       // al reconectar, en reaccionarAConexion). Ocultar/vaciar lo hace la propia isla
       // #4 vía setOculta (devuelve null → Preact quita los hijos), NO un innerHTML="" +
       // display:none externo que desincronizaría su vdom. mostrar() es idempotente.
-      listaClases.setOculta(true);
+      // [ALERTA EN EL CONTENEDOR] Ya no hay que ocultar la lista para hacerle lugar al banner:
+      // la alerta se pinta DENTRO de #ui-list y gana sobre la lista en el propio render de la
+      // isla. El `setOculta(true)` que había acá era la mitad frágil del arreglo viejo — dos
+      // dueños de la misma región puestos de acuerdo a mano, y alcanzaba con que algo tocara el
+      // host (una sincronización, un cambio de pestaña) para que la lista volviera abajo.
       bannerConexion.mostrar(tipo);
       nodos.loader.style.display = 'none';
 
@@ -165,12 +184,21 @@ const ServerConnectionFeature = {
       if (tipo === "servidor") {
         rutaDisco.mostrar("Desconectado", "Servidor desconectado");
       }
-      nodos.txtEstado.innerHTML = info.estadoTxt;
-      configurarBotonesUX("sincronizar-disco", info.botonTxt, true);
+      // El diagnóstico es de la card, no del footer: acá se LIMPIA en vez de duplicarlo.
+      nodos.txtEstado.textContent = "";
+      // El botón se va: sin label no se muestra (ver `configurarBotonesUX`). Acá NO hay nada
+      // que hacer —la reconexión la maneja el daemon solo, y la card lo dice con su pulso—, y
+      // un botón deshabilitado en pantalla es una acción que se ofrece y no existe.
+      configurarBotonesUX("sincronizar-disco", "", true);
 
-      const tabsBar = document.querySelector(".tabs-bar");
-      if (tabsBar) tabsBar.style.display = "none";
-      nodos.filtersBar.style.display = "none";
+      // La toolbar se BLOQUEA, no se esconde: sus controles no operan sobre nada, pero
+      // esconderla mueve todo de lugar en cada caída y en cada reconexión del auto-heal.
+      // Las PESTAÑAS quedan activas: cambiar de Clases a Fila sigue siendo legítimo con el
+      // servidor caído —la alerta se pinta igual en las dos— y bloquearlas dejaba al usuario
+      // sin poder ni mirar su cola.
+
+      // El progreso, si hay una descarga en curso, se queda EN PANTALLA y bloqueado (lo hace el
+      // helper): taparlo borraría la única referencia de cuánto se hizo.
 
       // (el estado del servidor en el onboarding lo deriva la isla Preact del daemon)
 
@@ -223,18 +251,18 @@ const ServerConnectionFeature = {
       // Ambas conexiones OK y veníamos de un banner offline: re-habilitar y re-escanear.
       if (completaAntes !== true) {
         if (bannerConexion.get().visible) {
+          // Sacar la alerta ALCANZA: la lista vuelve sola, porque comparten contenedor y es el
+          // render de la isla el que elige. Antes había que acordarse de un `setOculta(false)`.
           bannerConexion.ocultar();
-          listaClases.setOculta(false); // restaura la lista (la repuebla el re-escaneo).
 
-          nodos.folder.disabled = false;
-          nodos.btnExplore.disabled = false;
-          document.querySelector('.path-bar')?.classList.remove('offline');
+          bloquearRegiones(false);
 
-          nodos.txtEstado.textContent = "Analizando aula virtual...";
+          nodos.txtEstado.textContent = "Analizando...";
 
-          const tabsBar = document.querySelector(".tabs-bar");
-          if (tabsBar) tabsBar.style.display = "flex";
-          nodos.filtersBar.style.display = appState.pestañaActiva === "disponibles" ? "flex" : "none";
+          // Se levanta el bloqueo. El `display` ya no se toca acá: la barra nunca se escondió,
+          // así que no hay que reconstruir cuál correspondía según la pestaña —que era, además,
+          // de donde salía que al reconectar en la Fila la toolbar quedaba distinta.
+
 
           cargarRutaServidorSilencioso(); // restaura el path mostrado (PC: ...)
           onReescanearAula();

@@ -95,3 +95,53 @@ describe("Sitios.todos", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
+
+/**
+ * [LOADERS — ítem 1] El tope del escaneo.
+ *
+ * `tsc` ya obliga a que el miembro EXISTA (es requerido). Lo que no puede ver es que el
+ * número sirva, y ése fue exactamente el defecto: el tope existía —6000, hardcodeado en
+ * `popup.js`— y era **más chico que el escaneo normal** del segundo portal, así que el
+ * watchdog saltaba en cada corrida y mostraba un error que después se borraba solo.
+ *
+ * Por eso estos tests miran el VALOR contra las mediciones reales, y no que el campo esté.
+ */
+describe("topeEscaneoMs: el techo del escaneo es una medición, no un default", () => {
+  it("todos los portales registrados declaran un tope usable", () => {
+    for (const s of Sitios.todos()) {
+      expect(typeof s.topeEscaneoMs, `${s.id} no declara topeEscaneoMs numérico`).toBe("number");
+      expect(Number.isFinite(s.topeEscaneoMs)).toBe(true);
+      expect(s.topeEscaneoMs, `${s.id} tiene un tope no positivo`).toBeGreaterThan(0);
+    }
+  });
+
+  it("ningún tope queda por debajo de 5 s: era el defecto original", () => {
+    // Un portal que salga a la red no puede tener un techo de milisegundos. El piso es
+    // arbitrario a propósito — lo que NO es arbitrario es que exista un piso, porque el bug
+    // fue justamente un tope creíble (6 s) que quedó corto cuando el portal cambió de
+    // mecanismo de escaneo sin que nadie re-mirara el número.
+    for (const s of Sitios.todos()) {
+      expect(s.topeEscaneoMs, `${s.id} tiene un tope sospechosamente corto`).toBeGreaterThanOrEqual(5000);
+    }
+  });
+
+  it("Anatomy le deja margen real a sus ~11 s medidos", () => {
+    // /v1/navigation ~4,0 s + el pool de 114 materiales 7,1 s → ~11,1 s
+    // (docs/escaneo-api-anatomy-diseno.md). El tope tiene que estar por ENCIMA con holgura:
+    // si alguien lo baja a "11 s porque eso mide", vuelve el error falso en la primera
+    // conexión lenta.
+    expect(SitioAnatomyByChris.topeEscaneoMs).toBeGreaterThan(15000);
+  });
+
+  it("Ramón Net escanea el DOM y conserva su tope corto", () => {
+    // No sale a la red: 6 s le sobran. Este test fija que el corte NO le cambió el
+    // comportamiento al portal que nunca tuvo el problema.
+    expect(SitioRamonNet.topeEscaneoMs).toBe(6000);
+  });
+
+  it("el tope de Anatomy es mayor que el de Ramón Net, no al revés", () => {
+    // Suena obvio y es la aserción que atrapa un copy-paste entre configs, que es como se
+    // escribe un portal nuevo en este proyecto (§Cómo escribir un portal nuevo).
+    expect(SitioAnatomyByChris.topeEscaneoMs).toBeGreaterThan(SitioRamonNet.topeEscaneoMs);
+  });
+});

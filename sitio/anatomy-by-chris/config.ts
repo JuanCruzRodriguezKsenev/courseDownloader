@@ -1,6 +1,11 @@
 /**
- * ADAPTADOR DE SITIO — ANATOMY BY CHRIS (HOTMART CLUB): CONFIGURACIÓN (V1.0.0)
+ * ADAPTADOR DE SITIO — ANATOMY BY CHRIS (HOTMART CLUB): CONFIGURACIÓN (V1.1.0)
  * ==========================================================================
+ * CHANGELOG v1.1.0:
+ * - [COPY GENÉRICA — corte 2] Declara `instruccionEscaneo`. Es el portal por el que existe
+ *   el miembro: acá no hay selector de materia ni botón de mostrar, y el onboarding venía
+ *   describiéndole al usuario una UI que en este club no existe.
+ *
  * CHANGELOG v1.0.0:
  * - [CORTE 7] El segundo portal real. Es lo único que le faltaba al frente multiportal, y
  *   la prueba de que ADR-0009/0010 sirvieron: **este archivo y sus tres hermanos son todo lo
@@ -128,6 +133,19 @@ const SitioAnatomyByChris: SitioAnatomyDescriptor = {
   get urlListado() {
     return `https://hotmart.com/es/club/${this.slugCurso}/products/${this.productId}`;
   },
+
+  // Acá no hay selector de materia ni botón de mostrar: el escaneo le pide el árbol entero
+  // a la API del club y trae todos los módulos con sus clases de una. Ver
+  // docs/escaneo-api-anatomy-diseno.md. Texto plano: lo escapa la isla del onboarding.
+  instruccionEscaneo:
+    "Un solo escaneo trae todos los módulos del curso con sus clases y sus PDF: no hay que elegir materia ni apretar nada más.",
+
+  // 30 s contra los ~11 s medidos (/v1/navigation ~4,0 s + el pool de 114 materiales 7,1 s,
+  // los dos en docs/escaneo-api-anatomy-diseno.md). El margen es deliberado: el pool sale a
+  // la red 114 veces y una conexión lenta lo estira sin que eso sea una falla. Los 6 s que
+  // había fijos en popup.js quedaban DEBAJO del caso normal, así que este portal mostraba un
+  // error falso en cada escaneo.
+  topeEscaneoMs: 30000,
 
   // --- Puertas al resto del adaptador -------------------------------------------------
   // Se referencian perezosamente (arrow / getter) para no depender del orden de evaluación

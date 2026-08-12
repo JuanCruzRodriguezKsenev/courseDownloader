@@ -1,5 +1,16 @@
 /**
- * ISLA PREACT #4 (Etapa 2) — la lista de clases de #ui-list (V1.1.1)
+ * ISLA PREACT #4 (Etapa 2) — la región #ui-list: listas y alerta (V1.2.0)
+ * ==========================================================================
+ * CHANGELOG v1.2.0:
+ * - [ALERTA EN EL CONTENEDOR] Esta isla pasa a pintar también la ALERTA de conexión, que hasta
+ *   ahora vivía en un root hermano (#preact-banner, isla #2). Los dos se repartían la misma
+ *   región de pantalla coordinándose a mano —el vanilla apagaba la lista con `setOculta` al
+ *   mostrar el banner— y alcanzaba con que algo tocara el host (una sincronización, un cambio
+ *   de pestaña) para que la lista reapareciera DEBAJO del banner. Con un solo dueño eso no se
+ *   puede dar: o hay alerta, o hay card de estado, o hay lista, y lo decide un `if`.
+ * - De la isla #2 sobreviven su store (quién decide que hay alerta y de qué tipo) y su vista;
+ *   lo que murió es su lugar en el DOM. Esta isla se suscribe a ese store además del propio:
+ *   un dueño del DOM, dos fuentes de estado.
  * ==========================================================================
  * CHANGELOG v1.1.1:
  * - [FIX] badgeCls cae a 'pending' para cualquier estado que no sea downloaded/process
@@ -47,6 +58,10 @@
  * ==========================================================================
  */
 import { html, render, useState, useEffect } from '../vendor/htm-preact-standalone.module.js';
+// [ALERTA EN EL CONTENEDOR] La alerta de conexión es un COMPONENTE que se pinta dentro de esta
+// región, no una isla hermana con root propio. De la #2 sobreviven su store (quién decide que
+// hay alerta y de qué tipo) y su vista; lo que murió es su lugar en el DOM.
+import BannerConexionStore, { BannerConexion } from './bannerConexion.preact.js';
 
 const VM_INICIAL = { modo: 'card', card: null };
 const HOST_INICIAL = { selectionMode: false, atenuada: false, oculta: false };
@@ -179,18 +194,39 @@ export function FilaClase({ clase, ctx }) {
 export function ListaClases() {
   const { vm, host } = useListaClases();
 
+  // [ALERTA EN EL CONTENEDOR] Ver el `if` de abajo. Se lee acá arriba porque el efecto de host
+  // también lo necesita: una card ocupando la región cambia cómo se enmarca esa región.
+  const alerta = BannerConexionStore.get();
+  // Una CARD llena la región y trae su propia superficie (fondo, borde punteado, radio). El
+  // marco del wrapper, entonces, es un segundo marco adentro del primero: la card queda
+  // metida hacia adentro por el `padding` + `border` de `.list-wrapper` y sus laterales dejan
+  // de alinear con la path-bar, las pestañas y la barra de filtros, que sí cuelgan del padding
+  // del `.container`. No se veía antes porque la alerta vivía en un root hermano con
+  // `display: contents`, o sea colgando del contenedor y no de la lista.
+  const cardLlenaLaRegion = alerta.visible || !!(vm && vm.modo === 'card' && vm.card);
+
   // Reflejar los atributos de host sobre el nodo real #ui-list (sin tocar el CSS,
   // que sigue keyeando sobre .list-wrapper.selection-mode). Se ejecuta aunque el
   // render devuelva null (el componente sigue montado).
   useEffect(() => {
     if (!_host) return;
     _host.classList.toggle('selection-mode', host.selectionMode);
+    _host.classList.toggle('sin-marco', cardLlenaLaRegion);
     _host.style.opacity = host.atenuada ? '0.5' : '';
     _host.style.display = host.oculta ? 'none' : '';
-  }, [host.selectionMode, host.atenuada, host.oculta]);
+  }, [host.selectionMode, host.atenuada, host.oculta, cardLlenaLaRegion]);
 
-  // Oculta (banner de conexión ocupando el lugar de la lista): sin hijos. Preact
-  // los quita él mismo → nadie borra el DOM por fuera (evita el desync de vdom).
+  // [ALERTA EN EL CONTENEDOR] El banner de conexión se pinta ACÁ ADENTRO, no en un root
+  // hermano. Antes vivía en #preact-banner y la lista se ocultaba con `setOculta` para hacerle
+  // lugar: dos dueños de la misma región de pantalla, coordinados a mano, y cualquiera que
+  // tocara el host —una sincronización, un cambio de pestaña— devolvía la lista debajo del
+  // banner. Con un solo contenedor eso no se puede dar: o hay alerta o hay lista.
+  //
+  // Gana sobre TODO lo demás, incluidas las cards de cola pausada: es la condición más grave.
+  if (alerta.visible) return html`<${BannerConexion} />`;
+
+  // `oculta` sobrevive para lo que no es una alerta (hoy: nada lo usa desde que el banner se
+  // mudó acá, pero es el mecanismo por el que el vanilla puede vaciar la región sin tocar DOM).
   if (host.oculta) return null;
 
   if (!vm || vm.modo === 'card') {
@@ -217,6 +253,9 @@ export function ListaClases() {
 export function montar(root) {
   if (root) {
     _host = root;
+    // La región se re-pinta también cuando cambia la ALERTA, que vive en otro store. Es la
+    // contrapartida de compartir contenedor: un solo dueño del DOM, dos fuentes de estado.
+    BannerConexionStore.suscribir(() => _store._emit());
     render(html`<${ListaClases} />`, root);
   }
 }
