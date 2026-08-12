@@ -252,18 +252,43 @@ corte 3 se ejecutó por su cuenta el 2026-08-12 (§5.2).
 | **2 — La instrucción de escaneo** ✅🟡 | §5.3: miembro nuevo en `PuertoSitio` + los dos `config.ts` + `architecture.md` | `tsc` cubre que los dos portales lo implementen; el texto, navegador. **Construido el 2026-08-12 en `copy-generico-corte-2`, apilado sobre el corte 1; compuerta verde + 2 tests nuevos; falta el navegador.** |
 | ~~**3 — La marca**~~ | ~~§5.2~~ | ✅ **hecho** en `ee32c0c`, con el rename a Course Downloader. El `alt` del logo se fue con él, así que **salió del corte 1**. |
 
-**Verificación en navegador del corte 1** (los cuatro carteles, **en los dos portales**):
+### 🔎 EN REVISIÓN — la checklist de navegador, para correr tal cual
 
-1. Abrir el popup con la pestaña en **Ramón Net** y con la pestaña en **Anatomy**: el loader
-   inicial y el de escaneo no deben nombrar un portal que no es.
-2. El botón "Re-escanear" en sus 5 estados (timeout de DOM, sin portal reconocido, sin clases
-   detectadas, escaneo OK, y tras caída del server).
-3. El modal de la carpeta (click en 📂) en los dos portales: en Anatomy la palabra "cátedra" no
-   debe aparecer — su faceta es inerte (`sitio/anatomy-by-chris/config.ts`, `id: "ninguna"`).
-4. El onboarding (botón ❓) en los dos portales, slides 2 y 5.
+**Estado al 2026-08-12, fin del día: los dos cortes están construidos y esperando esta pasada.**
+El build que hay en `.output/chrome-mv3/` es el de `copy-generico-corte-2`, o sea **los dos
+cortes juntos**: no hay que rebuildear, sí recargar la extensión en `chrome://extensions/`.
 
-**Riesgo del corte 1**: bajo y reversible — son strings, ninguno cambia lógica. El único que puede
-morder es el #2 si se elige la salida 2 de §4 (mover el cartel), porque ahí sí se toca el flujo.
+**Antes de empezar**: levantar el backend con `backend/iniciar.bat` y **confirmar en la consola
+del server que la raíz de descargas sea la de siempre**, no `Downloads/RamonNet_Turbo` (riesgo R3
+de `fusion-monorepo-diseno.md`: si salió el default, el "ya descargado" da el curso entero por no
+bajado). Tener a mano una pestaña de cada portal.
+
+| # | Qué mirar | Esperado | Sería un bug |
+|---|---|---|---|
+| 1 | **Cambio de portal**: abrir el popup en Ramón Net, cerrarlo, pasar a Anatomy y reabrirlo | "Leyendo la pestaña…" y "Escaneando la pestaña…" | Que aparezca **cualquier** nombre de portal. Es el momento exacto en que `sitioActivo` es todavía el anterior (§4) |
+| 2 | **Botón "Re-escanear 🔄"** | El label sin "aula virtual" en los 5 estados | Que sobreviva un "aula virtual" |
+| 3 | **Modal de carpeta (📂)**, en los dos | "(ej: 'Clases')" + "las subcarpetas dentro de ella" | En Anatomy, que aparezca **"cátedra"** o **"sin clasificación"** (ver §5.1 ítem 5) |
+| 4 | **Onboarding (❓) slide 2**, en los dos | "Ir al listado de clases 🌐", al listado del portal activo | Que linkee al portal equivocado |
+| 5 | **Onboarding slide 3** — la del corte 2 | En Ramón Net, la frase del selector y 👁️ mostrar; en Anatomy, la del escaneo único | La frase del selector en Anatomy, o etiquetas HTML literales en pantalla |
+| 6 | **Consola del popup**, cambiando de pestaña | "Pestaña del portal actualizada/enfocada" | — |
+
+**Del punto 2, tres estados salen fáciles y dos no**: escaneo OK (el normal), portal no
+reconocido (abrir el popup en cualquier otra página) y tras caída del server (matar la ventana
+del Bun, abrir el popup, volver a levantarlo — ese es el camino de `serverConnection.js:233`).
+**Timeout de DOM y "no devolvió clases" son difíciles de forzar a mano**: en los cinco el cambio
+es el mismo string, así que los tres primeros alcanzan.
+
+**Dos cosas que NO son defectos de estos cortes, para no perder tiempo mañana**:
+
+- En la **slide 3 de Ramón Net el "👁️ mostrar" ya no va en negrita**. Es deliberado: el
+  descriptor trae texto plano porque la isla escapa lo que recibe (§5.3).
+- La **slide 5 sigue diciendo "por materia y cátedra"** en Ramón Net y **"por materia y sin
+  clasificación"** en Anatomy. Eso ya estaba así, vive en la isla y **no entró en ninguno de los
+  dos cortes** — es el mismo defecto que el modal de carpeta, en el otro lado de la UI. Si
+  molesta, es un tercer cambio chico y aislado.
+
+**Riesgo**: bajo y reversible — son strings y un miembro de puerto; ninguno cambia lógica. La
+salida 2 de §4 (mover el cartel), que sí tocaba el flujo, **no se eligió**.
 
 ## 8. Registro de lo que la medición erró
 
