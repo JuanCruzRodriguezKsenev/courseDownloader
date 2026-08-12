@@ -17,7 +17,7 @@ export default defineConfig({
   publicDir: 'public',
 
   manifest: {
-    name: 'Ramonnet Video Downloader',
+    name: 'Course Downloader',
     version: '5.2.0',
     description:
       'Extractor masivo, transcodificación nativa en paralelo y persistencia de estado por interceptación de red. [MODO TURBO BUN HABILITADO]',
