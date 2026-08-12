@@ -26,23 +26,10 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
-
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: var(--radius-md);
-
-    &:hover {
-      background: var(--text-muted);
-    }
-  }
+  /* La barra fina salió de acá a `.scroll-fino` (base.css) y este elemento la toma por clase,
+     desde `index.html`. Era la única región con scroll estilado del proyecto: la segunda que
+     apareciera —el panel del banco de pruebas fue la primera— traía la barra gorda del sistema
+     al lado de ésta. Una definición, N usuarios. */
 }
 
 /* Fila de video individual */

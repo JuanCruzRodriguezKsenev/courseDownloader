@@ -97,6 +97,40 @@ input[type="checkbox"] {
    Vive acá y no en la hoja de un componente porque la usan varios (filtros, cancelar) y una
    hoja nueva necesitaría su @import en popup/globals.css — olvidarlo no da error, sólo no se
    empaqueta. */
+/* ── Scroll fino ────────────────────────────────────────────────────────────────────────
+   La barra de scroll del proyecto. Vivía adentro de `.list-wrapper` (list.css) y era la única
+   región con scroll estilado: cualquier otra que apareciera traía la barra gorda del sistema
+   al lado de la fina, y se veían como dos widgets de proyectos distintos.
+
+   Se aplica poniendo la clase, no heredando: una región con scroll declara `overflow` por su
+   cuenta —cuál y en qué eje es asunto suyo— y esto sólo le da el aspecto.
+
+   `scrollbar-width`/`scrollbar-color` es el estándar (Firefox); `::-webkit-scrollbar` cubre
+   Chrome/Brave, que es donde corre esta extensión. Se declaran los dos porque el estándar ya
+   lo entiende Chrome moderno y va a sobrevivir al prefijo. */
+.scroll-fino {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
+
+.scroll-fino::-webkit-scrollbar {
+  width: 6px;
+  height: 6px; /* el horizontal, para las regiones que scrollean en los dos ejes */
+}
+
+.scroll-fino::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroll-fino::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.scroll-fino::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
 .bloqueada {
   /* Un solo tinte, y más bajo que el .5 de antes: es un bloque apagado, no un bloque tenue. */
   opacity: 0.35;
