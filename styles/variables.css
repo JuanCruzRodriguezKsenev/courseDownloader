@@ -6,6 +6,13 @@
   --text-muted: #8E8E93;
   --border-color: #E5E5EA;
 
+  /* Ancho de la barra de scroll (utilitaria `.scroll-fino`, base.css). Es un token y no un
+     número suelto porque lo leen TRES lugares que tienen que coincidir o se ve el salto: la
+     barra en sí, el canal reservado del listado (`scrollbar-gutter`) y el padding con el que
+     `.sin-marco` compensa ese canal para que una card quede centrada. Cambiarlo en uno solo
+     descentra las tarjetas o devuelve el parpadeo. */
+  --scroll-ancho: 12px;
+
   /* ACCENTS & GENERAL */
   --accent-orange: #FF5E00;
   --accent-orange-hover: #E04D00;

@@ -115,8 +115,8 @@ input[type="checkbox"] {
    estándar no compraba nada y costaba el comportamiento. Si algún día hay que soportar
    Firefox, va detrás de un `@supports not selector(::-webkit-scrollbar)`, no al lado. */
 .scroll-fino::-webkit-scrollbar {
-  width: 6px;
-  height: 6px; /* el horizontal, para las regiones que scrollean en los dos ejes */
+  width: var(--scroll-ancho);
+  height: var(--scroll-ancho); /* el horizontal, para las regiones que scrollean en los dos ejes */
 }
 
 .scroll-fino::-webkit-scrollbar-track {
@@ -126,10 +126,61 @@ input[type="checkbox"] {
 .scroll-fino::-webkit-scrollbar-thumb {
   background: var(--border-color);
   border-radius: var(--radius-md);
+  /* El borde transparente adelgaza el pulgar sin adelgazar la barra: la barra tiene que medir
+     lo que miden las flechas, pero el pulgar se ve fino como antes. `background-clip: content`
+     hace que el fondo no pinte debajo del borde. */
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
 
 .scroll-fino::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
+  background-clip: content-box;
+}
+
+/* ── Las flechitas de subir y bajar ──────────────────────────────────────────────────────
+   Personalizar `::-webkit-scrollbar` apaga los botones nativos: si no se los declara, la barra
+   queda sin flechas. Se dibujan con `mask` y NO con `background-image`, y eso es lo que
+   importa: un SVG en `background-image` lleva el color adentro del data URI, donde no entra
+   una variable CSS, así que quedaría del mismo color en claro y en oscuro. Con `mask` el color
+   lo pone `background-color` desde el token, y el tema lo resuelve solo.
+
+   Las cuatro combinaciones (`:start`/`:end` × `:decrement`/`:increment`) existen porque Chrome
+   define dos botones por extremo; los que no corresponden se apagan abajo, o aparecen huecos
+   al principio y al final de la barra. */
+.scroll-fino::-webkit-scrollbar-button:vertical:decrement,
+.scroll-fino::-webkit-scrollbar-button:vertical:increment {
+  display: block;
+  height: var(--scroll-ancho);
+  background-color: var(--text-muted);
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: 7px 7px;
+}
+
+.scroll-fino::-webkit-scrollbar-button:vertical:decrement {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M5 2.5 9.5 8h-9z'/%3E%3C/svg%3E");
+}
+
+.scroll-fino::-webkit-scrollbar-button:vertical:increment {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M5 7.5.5 2h9z'/%3E%3C/svg%3E");
+}
+
+.scroll-fino::-webkit-scrollbar-button:vertical:hover {
+  background-color: var(--text-main);
+}
+
+/* Chrome pone DOS botones en cada extremo (uno de cada dirección). Sin esto, el par que no
+   corresponde se renderiza como un cuadrado vacío arriba y abajo de la barra. */
+.scroll-fino::-webkit-scrollbar-button:vertical:start:increment,
+.scroll-fino::-webkit-scrollbar-button:vertical:end:decrement {
+  display: none;
+}
+
+/* La barra horizontal no lleva flechas: hoy ninguna región scrollea en ese eje (las dos que
+   existen declaran `overflow-x: hidden`), así que serían dos controles muertos. */
+.scroll-fino::-webkit-scrollbar-button:horizontal {
+  display: none;
 }
 
 .bloqueada {

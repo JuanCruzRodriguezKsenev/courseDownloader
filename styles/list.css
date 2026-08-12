@@ -9,16 +9,21 @@
    heredó el marco, y esto lo devuelve al lugar donde estaba. La clase la pone la isla, que es
    la que sabe qué está pintando. */
 .list-wrapper.sin-marco {
-  padding: 0;
+  /* [MISMA GEOMETRÍA EN LOS DOS ESTADOS] El canal del scroll queda reservado también acá — es
+     decir, esta clase NO apaga el `scrollbar-gutter` de `.list-wrapper`— y el padding
+     izquierdo lo compensa, así que la card queda centrada y **el ancho útil no cambia nunca**.
+
+     El intento anterior sí lo apagaba (`overflow: hidden; scrollbar-gutter: auto`) para que la
+     card alineara con la path-bar, y con eso arregló el parpadeo al APARECER un banner… y
+     dejó el simétrico al aparecer el LISTADO, que es la misma transición al revés: se
+     devolvían de golpe los 12px del canal más el padding y el borde del marco.
+
+     Reservarlo en los dos estados cuesta que la card quede 12px más angosta que la path-bar, y
+     eso es deliberado: repartido en los dos lados se lee como aire, no como desalineación, y
+     ninguna transición mueve nada. */
+  padding: 0 0 0 var(--scroll-ancho);
   border-color: transparent;
   background-color: transparent;
-  /* Una card NUNCA scrollea: es corta por construcción y llena la región de un ancho al otro.
-     Sin esto quedaba el canal del scroll reservado (ver `.list-wrapper`) metiéndole 6px por
-     derecha, que es justo la des-alineación con la path-bar que esta clase existe para evitar.
-     Y de paso mata la barra heredada del estado anterior: al pasar de una lista larga a un
-     banner, el navegador tenía que decidir que ya no hacía falta, y ese instante se veía. */
-  overflow: hidden;
-  scrollbar-gutter: auto;
 }
 
 /* Listado Wrapper */
@@ -32,9 +37,11 @@
   /* [SIN SALTO AL APARECER/DESAPARECER LA BARRA] El canal del scroll queda reservado SIEMPRE,
      haya o no barra. Sin esto, cualquier cosa que cambie el largo del contenido —filtrar,
      encolar, que termine una descarga, y sobre todo un banner que reemplaza la lista— agrega o
-     quita 6px de ancho útil y re-fluye todas las filas de golpe. Se veía como un parpadeo cada
+     quita el ancho de la barra y re-fluye todas las filas de golpe. Se veía como un parpadeo cada
      vez que aparecía o se iba un cartel.
-     La contracara es que en modo card el canal sobra: lo apaga `.sin-marco`, arriba. */
+     Y se reserva TAMBIÉN en modo card (`.sin-marco` no lo apaga, lo compensa con padding): si
+     se apagara ahí, la transición al revés —el listado volviendo— devolvería el canal de golpe
+     y el parpadeo cambiaría de lado en vez de irse. */
   scrollbar-gutter: stable;
   padding: var(--space-sm);
   display: flex;
