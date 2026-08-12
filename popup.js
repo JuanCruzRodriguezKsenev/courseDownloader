@@ -1353,6 +1353,17 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           clase => !esLaQueBaja(clase) && coincideConFiltrosCola(clase, busqueda)
         );
 
+        // [LA SELECCIÓN SIGUE AL FILTRO] Misma regla que en Disponibles, con el predicado de
+        // esta pestaña: lo que el filtro sacó, se deselecciona. Sin esto "Quitar N clases de la
+        // fila" contaba —y quitaba— ítems que no estaban en pantalla. Acá el filtrado no deja
+        // marca en el ítem (no hay `visible` en la cola), así que se resuelve contra el
+        // conjunto recién calculado. La que se está bajando queda fuera por el `esLaQueBaja` de
+        // arriba, y eso está bien: no se la puede quitar de la fila igual.
+        const visiblesEnCola = new Set(filtrados);
+        appState.colaDescargas.forEach((clase) => {
+          if (clase.seleccionado && !visiblesEnCola.has(clase)) clase.seleccionado = false;
+        });
+
         // [CORTE 6B] El comparador es de OrdenFeature: sabe de criterio, sentido y de resolver
         // la faceta/portal contra el descriptor de CADA ítem (la cola puede mezclar portales).
         filtrados.sort(_orden.comparador());

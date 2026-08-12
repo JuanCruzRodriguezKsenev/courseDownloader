@@ -30,21 +30,25 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `npm test` | 34 archivos, 587 tests, todo en verde |
+| `npm test` | 34 archivos, 589 tests, todo en verde |
 | `npm run lint` | **0 errores, 0 warnings** |
 | `npx tsc --noEmit` | sin salida (limpio) |
 | `npm run build` | compila a `.output/chrome-mv3/` |
 
-**Ojo con el 587 si venís de otra rama** (2026-08-12): son los 578 de siempre **+9** del frente
-de la alerta de conexión — 4 en `serverConnection.test.js` (que no duplique el diagnóstico en el
-footer ni en el botón; que la toolbar se **bloquee y no se esconda**, con las pestañas quedando
-operativas; que el bloqueo se levante al reconectar) y **5 en `listaClases.preact.test.js`**, que
-son los que importan: fijan que la alerta y las listas **comparten contenedor** —así que no puede
-volver a verse la lista debajo del banner— y que el wrapper suelte su marco cuando la región la
-llena una card. Las dos ramas del copy genérico suman **otros 2** por
-su lado (`onboarding.preact.test.js`), así que **mergeado todo el baseline es 589**.
-Es exactamente el tipo de cuenta que este archivo existe para que no se adivine: al mergear,
-re-medir con `npm test` en vez de sumar de memoria.
+**De dónde sale el 589** (2026-08-12, medido en `integracion-alertas`): son los 578 de `main`
+**+9** del frente de la alerta de conexión — 4 en `serverConnection.test.js` (que no duplique el
+diagnóstico en el footer ni en el botón; que la toolbar se **bloquee y no se esconda**, con las
+pestañas quedando operativas; que el bloqueo se levante al reconectar) y **5 en
+`listaClases.preact.test.js`**, que son los que importan: fijan que la alerta y las listas
+**comparten contenedor** —así que no puede volver a verse la lista debajo del banner— y que el
+wrapper suelte su marco cuando la región la llena una card. **+2** más de la selección que sigue
+al filtro (`filters.test.js`).
+
+**Y acá la cuenta ya se equivocó una vez, que es para lo que existe esta sección**: la rama del
+frente de alertas anotó que «mergeado todo el baseline es 589» sumando de memoria, y le faltaban
+los **+2** de las dos ramas del copy genérico (`onboarding.preact.test.js`). 589 es el subtotal
+de las ramas 3, 4 y 5; **mergeado todo son 591**. Al mergear se re-mide con `npm test`, no se
+suma de memoria — la aritmética a mano ya falló acá y en el conteo de la deuda.
 
 **El alcance del lint creció el 2026-08-12** sin que los números cambien: la fusión del backend
 (ADR-0015) metió `backend/` en el repo, y `npm run lint` corre `eslint .`, así que **el servidor Bun
