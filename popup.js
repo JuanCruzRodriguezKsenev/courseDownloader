@@ -1967,6 +1967,16 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     function actualizarContadoresBoton() {
       calcularContadoresBoton();
       sincronizarFooterVacio();
+      // [TOOLBAR SIN NADA QUE FILTRAR] Enganchado acá y no en cada mutación de la cola porque
+      // éste es el embudo por el que ya pasa todo cambio de estado que puede vaciarla o
+      // llenarla (encolar, quitar, el ítem que termina en el SW, conmutar de pestaña): son 12
+      // call-sites y ninguno tendría por qué acordarse de los bloqueos.
+      //
+      // Va ÚLTIMO, después de `calcularContadoresBoton`, para tener la palabra final sobre los
+      // controles de la toolbar. Y su rama de desbloqueo delega en `desbanearFiltros`, que ya
+      // sabe que "Todos" depende de la sincronización de disco — así que llegar acá no
+      // re-habilita nada que no corresponda.
+      sincronizarBloqueosDeAlerta();
     }
 
     function calcularContadoresBoton() {
@@ -2172,9 +2182,52 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       bloquearRegionesDeAlerta(alertaGlobal || escaneoMuertoDominaLaPestaña());
       // 2) Lo que sigue al portal, en las DOS pestañas.
       bloquearFilaDePortal(alertaGlobal || !!escaneoMuertoPorTimeout);
+      // 3) Y la toolbar sola, que además se apaga cuando no hay NADA que filtrar. No es una
+      //    alerta: es que buscar, filtrar y ordenar sobre una colección vacía no hace nada, y
+      //    dejar los controles vivos ofrece una acción que no existe. Va al final porque el
+      //    paso 1 pudo haberlos re-habilitado al desbloquear.
+      bloquearToolbar(
+        alertaGlobal || escaneoMuertoDominaLaPestaña() || coleccionDeLaPestañaVacia()
+      );
     }
 
     /** La fila `📚 Materia` + el badge de la faceta. Ver `sincronizarBloqueosDeAlerta`. */
+    /**
+     * La toolbar sola (buscador, filtros, orden, "Todos", "Seleccionar"). NO toca la path-bar
+     * ni la caja de cancelar: existe para el caso en que no hay NADA que filtrar, que no es
+     * una alerta y no tiene por qué apagar el resto de la UI.
+     */
+    function bloquearToolbar(bloquear) {
+      if (nodos.filtersBar) nodos.filtersBar.classList.toggle('bloqueada', bloquear);
+      const wrapperTodos = document.getElementById('ui-master-select-wrapper');
+      if (wrapperTodos) wrapperTodos.setAttribute('aria-disabled', String(bloquear));
+      if (bloquear) {
+        [nodos.search, nodos.btnFilterPills, nodos.btnSort, nodos.masterCheck, nodos.btnToggleSelect]
+          .forEach((c) => { if (c) c.disabled = true; });
+      } else {
+        desbanearFiltros();
+        if (nodos.btnToggleSelect) nodos.btnToggleSelect.disabled = false;
+      }
+    }
+
+    /**
+     * ¿La pestaña que se está mirando no tiene NADA que filtrar?
+     *
+     * **Mira la colección, jamás el resultado filtrado**, y ésa es toda la sutileza. La tarjeta
+     * de "Fila de descarga vacía" se pinta con `filtrados.length === 0`, que es cierto en dos
+     * casos muy distintos: la cola está vacía de verdad, o tiene ítems y el filtro los escondió.
+     * Bloquear la toolbar en el segundo **encerraría al usuario**: no podría sacar el filtro
+     * que lo dejó sin resultados, porque el control para sacarlo estaría deshabilitado.
+     *
+     * (De paso queda anotado: el copy de esa tarjeta dice "No tenés clases agregadas en esta
+     * lista" también cuando sí las tenés y las filtraste. Es un defecto previo y separado.)
+     */
+    function coleccionDeLaPestañaVacia() {
+      return appState.pestañaActiva === "cola"
+        ? appState.colaDescargas.length === 0
+        : appState.listadoClasesGlobal.length === 0;
+    }
+
     function bloquearFilaDePortal(bloquear) {
       const fila = document.querySelector('.meta-row.row-aula');
       if (fila) fila.classList.toggle('bloqueada', bloquear);
