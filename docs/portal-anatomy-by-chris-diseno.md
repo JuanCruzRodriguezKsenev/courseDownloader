@@ -475,7 +475,8 @@ que **no sirve como atajo** para evitar el scraping del DOM: el contenido llega 
 
 ## El mapeo a `PuertoSitio`
 
-`core/puertos/sitio.ts` es el hogar canónico del contrato (11 miembros + `DescriptorFaceta` de 11).
+`core/puertos/sitio.ts` es el hogar canónico del contrato (**12 miembros** desde el 2026-08-12, cuando
+el corte 2 del copy genérico sumó `instruccionEscaneo`; eran 11 al escribirse esto + `DescriptorFaceta` de 11).
 Acá va sólo qué pone este portal en cada uno.
 
 ### El desajuste estructural, y cómo se resuelve

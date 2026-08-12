@@ -1,6 +1,11 @@
 /**
- * ISLA PREACT #3 — el onboarding (welcome tour) (V1.1.0)
+ * ISLA PREACT #3 — el onboarding (welcome tour) (V1.2.0)
  * ==========================================================================
+ * CHANGELOG v1.2.0:
+ * - [COPY GENÉRICA — corte 2] La slide "Clases y Videos" dejó de hardcodear el flujo de
+ *   Ramón Net: sale de `sitio.instruccionEscaneo` (PuertoSitio). Se perdió el <strong> del
+ *   "👁️ mostrar" a propósito — el descriptor trae texto plano y esta isla lo escapa.
+ *
  * CHANGELOG v1.1.0:
  * - [COPY GENÉRICA — corte 1] "Ir a Clases Grabadas 🌐" → "Ir al listado de clases 🌐":
  *   "Clases Grabadas" es el nombre de la sección EN RAMÓN NET. El destino ya sale del
@@ -111,7 +116,7 @@ export function Onboarding({ conexion, appState, sitio: sitioInyectado }) {
             <div class="onboarding-slide">
               <div class="onboarding-icon">🔍</div>
               <h3>Clases y Videos</h3>
-              <p>Verás en pantalla las clases de la materia que elijas en el selector y presiones <strong>👁️ mostrar</strong>.</p>
+              <p>${sitio.instruccionEscaneo}</p>
             </div>
             <div class="onboarding-slide">
               <div class="onboarding-icon">🔌</div>

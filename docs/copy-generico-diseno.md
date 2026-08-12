@@ -1,29 +1,28 @@
 # Copy genérica: sacar el vocabulario de Ramón Net de las capas genéricas
 
-**Estado (2026-08-12): 🟡 CORTE 1 CONSTRUIDO, SIN VERIFICAR EN NAVEGADOR.** §5.2 (la marca) ya
-estaba hecha; el corte 2 sigue sin empezar.
+**Estado (2026-08-12): 🟡 LOS TRES CORTES ESTÁN HECHOS; FALTA LA VERIFICACIÓN EN NAVEGADOR DE DOS.**
 
-> **Las cuatro decisiones se tomaron el 2026-08-12** y están abajo en cada sección:
-> §3 se acordó tal cual estaba; §4 salió por la **salida 1** (texto genérico); §5.3 va con
-> **miembro nuevo en `PuertoSitio`**, en su propia rama; el tono de la copy genérica es
-> **pelado** ("Re-escanear 🔄", "Analizando…"), el criterio de que no pueda mentir en ningún
-> portal. El alcance de las ramas es el de §7.
+> - **Corte 3 (§5.2, la marca)** — ✅ cerrado y verificado, pero **no por este frente**: se lo
+>   llevó puesto `ee32c0c`, el rename a Course Downloader de la Fase 3 de la fusión.
+> - **Corte 1 (§5.1, los swaps)** — construido en la rama `copy-generico-corte-1`. Compuerta
+>   verde, **navegador pendiente**.
+> - **Corte 2 (§5.3, la instrucción de escaneo)** — construido en `copy-generico-corte-2`,
+>   **apilado sobre el corte 1** porque los dos tocan `onboarding.preact.js`. Compuerta verde
+>   + 2 tests nuevos, **navegador pendiente**. Se mergean en orden: 1 y después 2.
 >
-> **El corte 1 está en la rama `copy-generico-corte-1`, con la compuerta en verde y la
-> verificación en navegador PENDIENTE** — que es la única que ve algo acá, porque casi todo cae
-> en `popup.js` (ADR-0005). Los 4 puntos a mirar están en §7.
+> **Las cuatro decisiones se tomaron el 2026-08-12** y están en cada sección: §3 se acordó tal
+> cual estaba; §4 salió por la **salida 1** (texto genérico); §5.3 va con **miembro nuevo en
+> `PuertoSitio`** —y se ejecutó **requerido**, no opcional, ver ahí por qué—; el tono de la copy
+> genérica es **pelado** ("Re-escanear 🔄", "Analizando…"), con el criterio de que no pueda
+> mentir en ningún portal.
+>
+> **La verificación en navegador es la única que ve algo acá** (casi todo cae en `popup.js`,
+> ADR-0005). Los puntos a mirar están en §7.
 
-Esto no es un plan aprobado ni un corte en curso: es el **inventario medido** de dónde la UI
-genérica nombra a Ramón Net, más una propuesta de cómo arreglarlo, escrita para poder discutirse
-en otra sesión sin volver a medir. Si venís a ejecutarlo, lo primero es acordar §3 y §6; lo
-segundo es leer §4, que es donde está la trampa.
-
-**Lo que cambió el 2026-08-12**: la Fase 3 de la fusión (`ee32c0c`) renombró la extensión a
-**Course Downloader** y con eso cerró **§5.2 entera, incluido el `alt` del logo** — sin que este
-doc participara, porque ese corte venía de `fusion-monorepo-diseno.md`. O sea que el corte 3 de §7
-está hecho y **quedan dos**. El resto —§5.1 ítems 1 a 7 y §5.3— sigue **intacto en el código**,
-re-verificado línea por línea el 2026-08-12: **7 textos en 12 sitios** que el usuario lee, más los
-2 `console.log` que no ve nadie.
+Esto nació como el **inventario medido** de dónde la UI genérica nombra a Ramón Net, más una
+propuesta de cómo arreglarlo, escrita para poder discutirse en otra sesión sin volver a medir.
+Hoy es además el registro de cómo se ejecutó. Si venís a retomarlo, lo que importa es §7 (qué
+falta verificar) y §8 (qué erró la medición).
 
 **Dónde vive el estado del backlog**: en `TECHNICAL_DEBT.md` §🔴 Abierto, y ahí sigue —ese doc es
 el hogar canónico de *qué está abierto y por qué* (ADR-0007). Este doc es el **cómo**, igual que
@@ -188,7 +187,33 @@ del portal.
 **Que esto se cerrara solo es el dato útil de esta sección**: era el único grupo del doc
 independiente de §5.1, y por eso pudo entrar por otra puerta sin romper nada.
 
-### 5.3 El único que no es un swap de string
+### 5.3 El único que no es un swap de string — ✅ CONSTRUIDO el 2026-08-12 (corte 2)
+
+**Hecho como decía el plan, con un cambio deliberado: el miembro va REQUERIDO, no opcional.**
+El plan de abajo decía "opcional", y eso contradecía su propio motivo — si el objetivo era que
+`tsc` obligue a los dos portales a implementarlo, un `?` deja compilar al portal que lo olvide y
+lo manda a heredar un texto ajeno o vacío, que es el defecto original. Requerido, el compilador
+lo caza. Lo demás salió como estaba escrito:
+
+- `core/puertos/sitio.ts` — `instruccionEscaneo: string`, **el puerto pasa de 11 a 12 miembros**.
+  Los seis lugares que citaban "11 miembros" se actualizaron en el mismo cambio.
+- `sitio/ramonnet/config.ts` y `sitio/anatomy-by-chris/config.ts` — cada uno su frase.
+- `popup/features/onboarding.preact.js` — la slide consume el descriptor.
+- `docs/architecture.md` — su párrafo, con por qué un miembro del puerto puede ser copy.
+- **Dos tests nuevos**: que la frase salga del descriptor y no vuelva a hardcodearse, y que los
+  dos portales reales declaren instrucciones distintas.
+
+**Lo que se perdió, y es a propósito**: el `<strong>` del "👁️ mostrar". El descriptor trae texto
+plano porque la isla Preact escapa lo que recibe; meter markup ahí lo mostraría literal. Cambiar
+eso significaría abrir un camino a `innerHTML` en la isla, que es justo lo que `docs/security.md`
+no quiere.
+
+**Falta la verificación en navegador** (slide 3 del tour, en los dos portales).
+
+---
+
+*Lo que sigue es el análisis original, y se conserva porque explica por qué este ítem no era un
+swap de string:*
 
 `onboarding.preact.js:106` no dice un nombre equivocado: **describe un flujo que en Anatomy no
 existe**. No hay selector de materia ni botón 👁️ mostrar — ahí un solo escaneo trae los 11 módulos
@@ -224,7 +249,7 @@ corte 3 se ejecutó por su cuenta el 2026-08-12 (§5.2).
 | Corte | Qué entra | Cómo se verifica |
 |---|---|---|
 | **1 — Los baratos** 🟡 | §5.1 ítems 1–6, y de arrastre los 2 `console.log` | **Sólo navegador.** Casi todo cae en `popup.js`, el único archivo sin tests (ADR-0005). **Construido el 2026-08-12 en `copy-generico-corte-1`; compuerta verde; falta el navegador.** |
-| **2 — La instrucción de escaneo** | §5.3: miembro nuevo en `PuertoSitio` + los dos `config.ts` + `architecture.md` | `tsc` cubre que los dos portales lo implementen; el texto, navegador. **Decidido que va; sin empezar.** |
+| **2 — La instrucción de escaneo** ✅🟡 | §5.3: miembro nuevo en `PuertoSitio` + los dos `config.ts` + `architecture.md` | `tsc` cubre que los dos portales lo implementen; el texto, navegador. **Construido el 2026-08-12 en `copy-generico-corte-2`, apilado sobre el corte 1; compuerta verde + 2 tests nuevos; falta el navegador.** |
 | ~~**3 — La marca**~~ | ~~§5.2~~ | ✅ **hecho** en `ee32c0c`, con el rename a Course Downloader. El `alt` del logo se fue con él, así que **salió del corte 1**. |
 
 **Verificación en navegador del corte 1** (los cuatro carteles, **en los dos portales**):

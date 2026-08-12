@@ -1,6 +1,14 @@
 /**
- * PUERTO DE SITIO (V1.0.0)
+ * PUERTO DE SITIO (V1.1.0)
  * ==========================================================================
+ * CHANGELOG v1.1.0:
+ * - [COPY GENÉRICA — corte 2] Miembro nuevo `instruccionEscaneo` (el puerto pasa de 11 a
+ *   12 miembros). Es el único texto del onboarding que describe un FLUJO y no un hecho, y
+ *   el flujo difiere entre portales: Ramón Net filtra por materia con un selector, Anatomy
+ *   trae el curso entero de un escaneo. Estaba hardcodeado con el de Ramón Net.
+ * - Va REQUERIDO, no opcional: el motivo de meterlo al puerto era que `tsc` obligue a cada
+ *   portal nuevo a escribir la suya. Detalle en el docblock del miembro.
+ *
  * CHANGELOG v1.0.0:
  * - [FASE 5C] Primer puerto de la Capa 2. Nace al pasar `sitio/ramonnet/config.js`
  *   a TypeScript: hasta ahora el "contrato" del adaptador de sitio era una
@@ -193,6 +201,26 @@ export interface PuertoSitio {
   readonly patronPestañas: string;
   /** Página del listado de clases, a donde el onboarding manda al usuario. */
   readonly urlListado: string;
+
+  /**
+   * [COPY GENÉRICA CORTE 2] Cómo se le explica al usuario, en el onboarding, qué va a ver
+   * después de escanear. **Es lo único del tour que describe un FLUJO y no un hecho**, y por
+   * eso no se puede escribir una vez para todos: en Ramón Net el usuario elige la materia en
+   * un selector y aprieta 👁️ mostrar; en Anatomy un solo escaneo trae el curso entero y no
+   * existe ninguno de los dos controles. Hasta el 2026-08-12 la frase estaba hardcodeada con
+   * el flujo de Ramón Net, así que el onboarding del segundo portal describía una UI que ahí
+   * no existe.
+   *
+   * **Obligatorio a propósito, no opcional.** El diseño (`copy-generico-diseno.md` §5.3) lo
+   * proponía opcional; se ejecutó como requerido porque el motivo entero de meterlo al puerto
+   * era que `tsc` obligue a cada portal nuevo a escribir la suya. Con `?` el portal que la
+   * olvide compila igual y hereda un texto ajeno o vacío — que es exactamente el defecto que
+   * este miembro viene a cerrar.
+   *
+   * **Texto plano, sin markup**: se interpola en la isla Preact del onboarding, que escapa lo
+   * que recibe. Un `<strong>` acá se vería literal en pantalla.
+   */
+  readonly instruccionEscaneo: string;
 
   /**
    * URL de la página de la clase → URL del manifiesto `.m3u8`. Tira si no la encuentra.
