@@ -2,26 +2,26 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> ## 🔶 Estado al 2026-08-12 — hay UNA rama esperando verificación en navegador
+> ## ✅ Estado al 2026-08-12 — no hay trabajo a medio terminar
 >
-> **`main` está al día y verificado**: el **segundo portal** (Anatomy by Chris, corte 7) y el
-> **escaneo por API** con sus cinco cortes cerraron el 2026-08-07, y `origin/main` == `main`.
+> **`main` está al día y verificado en navegador.** El **segundo portal** (Anatomy by Chris) y el
+> **escaneo por API** cerraron el 2026-08-07; la **fusión del backend** (ADR-0015) el 2026-08-12.
+> No queda ninguna rama con trabajo pendiente.
 >
-> **Lo que está abierto es la rama `fusion-monorepo`** (ADR-0015): el backend Bun se mudó **adentro
-> de este repo**, a `backend/`, con su historia, y la extensión pasó a llamarse **Course
-> Downloader**. Las 4 verificaciones automáticas pasan y el build emite lo mismo que antes; **falta
-> la verificación en navegador**, que es la que este proyecto no puede saltear. Los pasos exactos →
-> `docs/fusion-monorepo-diseno.md` §Verificación. **No mergear sin eso.**
+> **Ya no hay un segundo repo.** El backend Bun vive en **`backend/`**, acá adentro, con su
+> historia. Se arranca con `backend/iniciar.bat` y necesita Bun instalado; `npm install` no hace
+> nada por él (no tiene dependencias). Sigue siendo **otro runtime y otro proceso** — el único
+> acoplamiento es el contrato HTTP de `docs/deployment.md`.
 >
-> **⚠️ Lo primero al levantar el backend desde su ubicación nueva**: la raíz de descargas vive en
-> `backend/config_usuario.json`, que está gitignoreado y **no viajó**. Si el servidor arranca
-> diciendo `Downloads/RamonNet_Turbo` en vez de tu carpeta real, restaurala (hay backup en
-> `C:\Users\jcrod\config_usuario.backup.json`) o reelegila desde el popup — si no, bajás a otro
-> lado *y* el "ya descargado" te da el curso entero por no bajado.
+> **⚠️ Si levantás el backend en una máquina nueva**: la raíz de descargas vive en
+> `backend/config_usuario.json`, **gitignoreada**, así que no viaja con el clon. La extensión la
+> **lee**, no la manda. Si el servidor arranca diciendo `Downloads/RamonNet_Turbo` en vez de tu
+> carpeta real, reelegila desde el popup (📂) — si no, bajás a otro lado *y* el "ya descargado" te
+> da el curso entero por no bajado.
 >
 > *(Acá vivía un ⚠️ sobre "el otro repo que va con éste" y los dos commits que hacían falta para
-> los PDF. **Ya no hace falta y ése era el punto de ADR-0015**: extensión y backend se mueven
-> juntos porque están en el mismo repo, no porque alguien se acuerde de leer un banner.)*
+> los PDF. **Se borró, y ése era el punto de ADR-0015**: extensión y backend se mueven juntos
+> porque están en el mismo repo, no porque alguien se acuerde de leer un banner.)*
 >
 > **Por dónde empezar**: `docs/architecture.md`, y `docs/rearquitectura-diseno.md` §Cómo retomar
 > esto en una sesión nueva para el estado por fase y las 4 verificaciones del gate.

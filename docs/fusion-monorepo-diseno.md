@@ -1,10 +1,13 @@
 # Fusionar el backend y la extensión en un solo repo — diseño de ejecución
 
-**Estado (2026-08-12): 🔶 EJECUTADO en la rama `fusion-monorepo`, SIN VERIFICAR EN NAVEGADOR.**
+**Estado (2026-08-12): ✅ TERMINADO, VERIFICADO EN NAVEGADOR Y MERGEADO A `main`.**
 
-Las 4 fases están hechas y las verificaciones automáticas pasan (compuerta en el baseline de
-`docs/testing.md`, y el build emite **exactamente** los mismos 13 archivos y 222.51 kB que antes de
-la fusión, que era el chequeo de R1). **Falta §5 en navegador, y sin eso no se mergea.**
+Las 4 fases se ejecutaron el 2026-08-12. Automáticas: compuerta en el baseline de `docs/testing.md`
+y el build emitiendo **exactamente** los mismos 13 archivos y 222.51 kB que antes de la fusión
+(chequeo de R1). En navegador, con el backend levantado desde `backend/`: **la raíz de descargas
+quedó en la correcta** (R3 despejado), bajó **un video** de Ramón Net y **un PDF** de Anatomy
+—`Testimonios anatobychris.pdf`, con su nombre bien, sin `.pdf.mp4`—, que es el que prueba el
+contrato `x-file-name` y por lo tanto el motivo entero de esta fusión.
 La decisión quedó en **ADR-0015**. El nombre elegido fue **Course Downloader** / `backend/`.
 
 Plan para que `ramonnet-bun-backend` deje de ser un repo aparte y pase a vivir en `backend/`,
