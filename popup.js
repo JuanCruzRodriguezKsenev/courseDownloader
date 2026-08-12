@@ -367,13 +367,22 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     let escaneoEnCurso = false;
     let generacionEscaneo = 0;
 
-    // [LOADERS — ítem 1e] Tercer motivo por el que una tarjeta de error puede estar ocupando
+    // [LOADERS — ítem 1e/1f] Tercer motivo por el que una tarjeta de error puede estar ocupando
     // `#ui-list`. Existe porque el bloqueo de las regiones se derivaba SÓLO del estado de
     // conexión, y el watchdog del escaneo es una falla que no tiene nada que ver con la
     // conexión: sin esto, la toolbar y la path-bar quedaban vivas sobre una lista que no está
     // en pantalla — el mismo defecto que el corte del banner ya había arreglado, reentrando
     // por una puerta nueva.
-    let escaneoMuertoPorTimeout = false;
+    //
+    // **Es un objeto y no un booleano a propósito**: guarda lo que la tarjeta necesita decir
+    // (`{ portal, segundos }`), porque quien la pinta es `renderizarListadoInterfaz` cada vez
+    // que repinta —igual que las cards de `fallaConexionActiva`— y no el watchdog una sola vez.
+    // Pintarla una vez fue el bug de la primera versión: conmutar de pestaña repintaba la
+    // lista encima y quedaba visible PERO bloqueada, ni tarjeta ni toolbar usable.
+    //
+    // Regla, que es la del §1 de alertas-y-bloqueo-diseno.md: **la tarjeta y el bloqueo son el
+    // mismo estado**. Si se pueden desincronizar, se van a desincronizar.
+    let escaneoMuertoPorTimeout = null;
 
     /**
      * ¿Hay una alerta ocupando `#ui-list`? Es la condición ÚNICA del bloqueo de regiones.
@@ -385,7 +394,25 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     function hayAlertaOcupandoLaRegion() {
       return !!appState.fallaConexionActiva
         || BannerConexion.get().visible
-        || escaneoMuertoPorTimeout;
+        || escaneoMuertoDominaLaPestaña();
+    }
+
+    /**
+     * El timeout del escaneo ocupa la región **sólo en Disponibles**, y esto no es un detalle.
+     *
+     * Las otras dos alertas valen en las dos pestañas porque rompen las dos: con la cola
+     * pausada o el servidor caído, la Fila tampoco sirve. Un escaneo que tardó demasiado, en
+     * cambio, **no le hace nada a la cola** — puede haber descargas corriendo ahí mismo.
+     * Taparla con "el escaneo tardó demasiado" sería esconder algo sano detrás del error de
+     * otra cosa.
+     *
+     * Y va junto con el bloqueo por el mismo motivo por el que existe esta función: si la
+     * tarjeta se acotara a una pestaña y el bloqueo no, en Fila quedaría la cola visible con
+     * la toolbar muerta — que es exactamente el síntoma que se está arreglando, movido de
+     * lugar. **La tarjeta y el bloqueo se acotan igual o no se acotan.**
+     */
+    function escaneoMuertoDominaLaPestaña() {
+      return !!escaneoMuertoPorTimeout && appState.pestañaActiva === "disponibles";
     }
 
     // [MULTISITIO CORTE 5] El portal de la pestaña que se está mirando.
@@ -1004,7 +1031,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // Arranca uno nuevo: la región deja de estar muerta. No se desbloquea todavía —eso lo
       // hace el `finally` del payload cuando el escaneo TERMINA—, porque desbloquear ahora
       // habilitaría la toolbar sobre la tarjeta de error que sigue en pantalla.
-      escaneoMuertoPorTimeout = false;
+      escaneoMuertoPorTimeout = null;
 
       // [LOADERS — ítem 1b] ABANDONO EXPLÍCITO. Cada corrida se lleva su número; el watchdog lo
       // incrementa al vencerse. Un callback que llegue después compara y se calla, en vez de
@@ -1064,17 +1091,22 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           // El botón de acción NO entra en el bloqueo (no está en la lista de `controles`), y
           // eso es lo que hace que "Re-escanear 🔄" siga siendo clickeable — que es justo lo
           // que la tarjeta le pide al usuario.
-          escaneoMuertoPorTimeout = true;
+          // [ítem 1f] El watchdog NO pinta: registra el estado y pide el repintado. La tarjeta
+          // la arma `renderizarListadoInterfaz` a partir de esto, CADA VEZ que repinta, igual
+          // que las de `fallaConexionActiva`. Pintarla acá directo fue el primer intento y
+          // duraba hasta el próximo repintado: conmutar de pestaña la borraba y dejaba la lista
+          // visible **y bloqueada** — ni tarjeta que explique, ni toolbar con la que operar.
+          //
+          // El nombre del portal se escapa ACÁ, al guardarlo, porque la descripción de la card
+          // viaja por `dangerouslySetInnerHTML` (regla de docs/security.md).
+          escaneoMuertoPorTimeout = {
+            portal: utils.escaparHtml(portal.nombre),
+            segundos: Math.round(portal.topeEscaneoMs / 1000),
+          };
           bloquearRegionesDeAlerta(true);
-          // [ítem 1d] El mensaje va a la TARJETA de la lista, no al footer. En el footer convive
-          // con el diagnóstico de conexión —que tiene otro dueño— y queda tapado o pisado; acá
-          // ocupa la región y se ve. Nombra el portal porque a esta altura ya está resuelto.
-          ListaClases.render({ modo: 'card', card: {
-            tipo: 'error',
-            titulo: 'El escaneo tardó demasiado',
-            descripcion: `Pasaron ${Math.round(portal.topeEscaneoMs / 1000)} s sin respuesta de ${utils.escaparHtml(portal.nombre)}.<br>Puede ser la conexión o que el portal haya cambiado.<br>Probá <strong>Re-escanear</strong>.`,
-            icono: '⏱️'
-          }});
+          // [ítem 1d] El mensaje va a la TARJETA de la lista, no al footer, donde convive con el
+          // diagnóstico de conexión —que tiene otro dueño— y queda pisado.
+          renderizarListadoInterfaz();
           configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
         }, portal.topeEscaneoMs);
 
@@ -1514,7 +1546,27 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         }
         return;
       }
-    
+
+      // [LOADERS — ítem 1f] El escaneo que murió por timeout se pinta ACÁ, derivado del estado,
+      // igual que las cards de arriba. Antes lo pintaba el propio watchdog de una sola vez, y
+      // ésa era la falla: cualquier repintado posterior le ganaba la región —conmutar de
+      // pestaña llama a `aplicarFiltrosCruzados`, que llega hasta el render de lista de más
+      // abajo— y quedaba la LISTA VISIBLE Y BLOQUEADA, que es el peor de los dos estados:
+      // ni la tarjeta que explica qué pasó, ni una toolbar con la que operar.
+      //
+      // Va DESPUÉS de `fallaConexionActiva` porque esa condición es más grave (la cola está
+      // pausada); si las dos son ciertas, gana la de arriba y ésta no se pinta. Y a diferencia
+      // de aquélla, ésta es SÓLO de Disponibles — ver `escaneoMuertoDominaLaPestaña`.
+      if (escaneoMuertoDominaLaPestaña()) {
+        ListaClases.render({ modo: 'card', card: {
+          tipo: 'error',
+          titulo: 'El escaneo tardó demasiado',
+          descripcion: `Pasaron ${escaneoMuertoPorTimeout.segundos} s sin respuesta de ${escaneoMuertoPorTimeout.portal}.<br>Puede ser la conexión o que el portal haya cambiado.<br>Probá <strong>Re-escanear</strong>.`,
+          icono: '⏱️'
+        }});
+        return;
+      }
+
       // Sincronizar el estado de disponibles con los elementos en la cola real
       const titulosEnCola = new Set(appState.colaDescargas.map(c => identidadClase.clave(c)));
       appState.listadoClasesGlobal.forEach(c => {
