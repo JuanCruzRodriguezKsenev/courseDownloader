@@ -5,7 +5,7 @@ Configuración de entorno local y flujo de trabajo para desarrollar sobre esta e
 ## Requisitos
 
 - Chrome o Brave con "Modo de desarrollador" habilitable en `chrome://extensions/`.
-- El backend local en Bun (`ramonnet-bun-backend`, repo separado) corriendo en `http://localhost:3001` para poder probar descargas de punta a punta — ver `docs/deployment.md`.
+- El backend local en Bun corriendo en `http://localhost:3001` para poder probar descargas de punta a punta. **Está en `backend/`, dentro de este repo** desde el 2026-08-12 (ADR-0015); se arranca con `backend/iniciar.bat` — ver `docs/deployment.md`.
 - **Node.js es obligatorio**: desde la Fase 3 de la re-arquitectura la extensión se **compila** (WXT). Ya no se carga la raíz del repo — el navegador lee `.output/chrome-mv3/`, que produce `npm run build`. Node también corre la suite (`npm test`, Vitest + jsdom) y el linter (`npm run lint`).
 
 ## Cargar la extensión en modo desarrollo

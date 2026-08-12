@@ -4,7 +4,7 @@ Punto de partida recomendado para entender el sistema. Para el detalle de *por q
 
 ## Vista general
 
-RamonNet Video Downloader es una extensión Manifest V3 para Chrome/Brave que automatiza la descarga masiva de clases grabadas (streaming HLS) de la plataforma Ramón Net. No es una app aislada: depende de un **backend local complementario en Bun** (`ramonnet-bun-backend`, repo separado) que corre en `http://localhost:3001` y es quien efectivamente escribe los archivos de video en disco.
+Course Downloader es una extensión Manifest V3 para Chrome/Brave que automatiza la descarga masiva de clases grabadas (streaming HLS) y sus adjuntos, hoy de dos portales. No es una app aislada: depende de un **backend local complementario en Bun** que corre en `http://localhost:3001` y es quien efectivamente escribe los archivos en disco. Ese backend vive en **`backend/`, dentro de este mismo repo**, desde el 2026-08-12 (ADR-0015) — no confundirlo con `core/backend/`, que es el *cliente* que le habla.
 
 ```
 ┌─────────────────────┐        chrome.scripting          ┌──────────────────────┐
