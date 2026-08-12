@@ -28,7 +28,7 @@ Course Downloader es una extensión Manifest V3 para Chrome/Brave que automatiza
                                                           ┌──────────────────────┐
                                                           │  Backend Bun local     │
                                                           │  localhost:3001        │
-                                                          │  (repo separado)       │
+                                                          │  backend/ en este repo │
                                                           └──────────┬───────────┘
                                                                      │
                                                                      ▼

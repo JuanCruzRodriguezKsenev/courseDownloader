@@ -167,8 +167,9 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 - **Re-medido el 2026-08-11, y el "6" era corto: son 9 textos en 17 sitios.** El inventario
   completo, la regla de decisión y el corte propuesto viven ahora en su propio doc →
-  **`docs/copy-generico-diseno.md`** (relevamiento y propuesta; **nada decidido ni construido**).
-  No se copian acá: este ítem es el hogar del *estado*, ese doc el del *cómo* (ADR-0007).
+  **`docs/copy-generico-diseno.md`** (el *cómo*: inventario, regla de decisión y corte propuesto).
+  No se copian acá: este ítem es el hogar del *estado*, ese doc el del *cómo* (ADR-0007) — y por
+  eso el estado de este ítem se lee **abajo**, en las entradas fechadas, no en esa línea.
   Lo que sí corresponde corregir acá es el conteo y su causa, porque es la tercera vez que
   envejece **y siempre a la baja por el mismo motivo**: se buscó el *nombre* del portal y no
   *su jerga*. La familia `"aula virtual"` —7 sitios, entre ellos el label del botón
@@ -181,9 +182,16 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 - **Al 2026-08-12 quedan 7 textos en 12 sitios**, no 9 en 17: el rename de la extensión a
   **Course Downloader** (`ee32c0c`, Fase 3 de la fusión) cerró de arrastre los 4 sitios de la
   marca —`index.html:5` y `:26`, `wxt.config.ts:20`, y el `alt="Logo de Ramón Net"` del logo, que
-  era el único defecto real del grupo—. **El ítem sigue abierto y postergado**: lo que se cerró
-  era la parte independiente. Con eso, de los tres cortes propuestos **quedan dos**
+  era el único defecto real del grupo—. **El ítem sigue abierto**: lo que se cerró era la parte
+  independiente. Con eso, de los tres cortes propuestos **quedan dos**
   (`copy-generico-diseno.md` §7). Lo demás está intacto y re-verificado línea por línea ese día.
+
+- **🔎 EN REVISIÓN desde el 2026-08-12 — el ítem dejó de estar postergado.** Los dos cortes que
+  quedaban están **construidos y con la compuerta en verde**, en dos ramas apiladas
+  (`copy-generico-corte-1` y `copy-generico-corte-2`, que se mergean en ese orden porque las dos
+  tocan `onboarding.preact.js`). **Falta la verificación en navegador**, que es la única que ve
+  algo acá —casi todo cae en `popup.js`, sin tests por ADR-0005—, y hasta que pase el ítem **no se
+  marca resuelto**. La checklist para correrla está escrita en `copy-generico-diseno.md` §7.
 
 #### Sub-ítem: el click en la notificación de fallo enfoca el portal equivocado
 
