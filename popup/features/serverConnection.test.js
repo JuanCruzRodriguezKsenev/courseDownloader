@@ -136,6 +136,20 @@ describe('ServerConnectionFeature.crear', () => {
     expect(ctx.configurarBotonesUX).toHaveBeenCalledWith('sincronizar-disco', expect.any(String), true);
   });
 
+  // [BANNER DUEÑO DEL DIAGNÓSTICO] Los dos de abajo fijan que el footer NO repita lo que la
+  // card ya dice. Antes escribían "⚠️ Servidor Bun desconectado." y "Buscando servidor... ⏳",
+  // que eran la segunda y la tercera copia del mismo hecho.
+  it('activarEstadoOfflineUI no duplica el diagnóstico en el texto de estado', () => {
+    nodos.txtEstado.textContent = 'algo previo';
+    api.activarEstadoOfflineUI();
+    expect(nodos.txtEstado.textContent).toBe('');
+  });
+
+  it('activarEstadoOfflineUI deja el botón sin label: en este estado no hay acción que ofrecer', () => {
+    api.activarEstadoOfflineUI('internet');
+    expect(ctx.configurarBotonesUX).toHaveBeenCalledWith('sincronizar-disco', '', true);
+  });
+
   it('iniciarDetectorEstado se suscribe al daemon y lo arranca una sola vez (idempotente)', () => {
     api.iniciarDetectorEstado();
     api.iniciarDetectorEstado();

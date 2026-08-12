@@ -1,5 +1,12 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: CONEXIÓN AL SERVIDOR BUN (V1.10.0)
+ * CLON DOWNLOADHELPER - FEATURE: CONEXIÓN AL SERVIDOR BUN (V1.12.0)
+ * ==========================================================================
+ * CHANGELOG v1.12.0:
+ * - [BANNER DUEÑO DEL DIAGNÓSTICO] Murió el mapa ESTADO_OFFLINE: sus `estadoTxt`/`botonTxt`
+ *   eran la segunda y la tercera copia de lo que la card de la isla ya dice y explica. El
+ *   footer queda vacío y el botón sin label (y con eso, oculto — ver `configurarBotonesUX` en
+ *   popup.js): en este estado la reconexión es automática y NO hay acción que ofrecer.
+ * - Se salta la 1.11.0: es el corte 1 del copy genérico, que se mergea antes.
  * ==========================================================================
  * CHANGELOG v1.10.0:
  * - [ISLA #4 · Etapa 2] Dejó de tocar el DOM de #ui-list directo (innerHTML="" +
@@ -123,23 +130,19 @@ const ServerConnectionFeature = {
       }
     }
 
-    // Texto de estado del footer + label del botón según el tipo de caída. El
-    // CONTENIDO de la tarjeta (icono/título/cuerpo/pulso) vive ahora en la isla
-    // Preact features/bannerConexion.preact.js; acá sólo queda lo que pinta el footer.
-    const ESTADO_OFFLINE = {
-      servidor: {
-        estadoTxt: '⚠️ <span style="color:var(--accent-error-visible)">Servidor Bun desconectado.</span>',
-        botonTxt: "Buscando servidor... ⏳"
-      },
-      internet: {
-        estadoTxt: '⚠️ <span style="color:var(--accent-error-visible)">Sin conexión a internet.</span>',
-        botonTxt: "Esperando internet... ⏳"
-      }
-    };
+    // [BANNER DUEÑO DEL DIAGNÓSTICO] Acá vivía un mapa `estadoTxt`/`botonTxt` por tipo de
+    // caída, y era la SEGUNDA Y TERCERA copia del mismo hecho: la card de la isla ya dice
+    // "Servidor Desconectado" / "Sin conexión a internet", explica qué hacer y late con
+    // "Esperando conexión en puerto 3001...". El footer repetía "⚠️ Servidor Bun
+    // desconectado." y el botón "Buscando servidor... ⏳".
+    //
+    // Ahora el banner es el único que diagnostica. El footer queda vacío y el botón se oculta
+    // (`actualizarContadoresBoton` hace lo propio con la rama `isOffline`), porque en este
+    // estado NO HAY ACCIÓN que ofrecer: la reconexión la maneja el daemon sola. Un botón
+    // deshabilitado que narra lo que ya se lee arriba es ruido, no información.
 
     // Muestra el banner de conexión caída. `tipo` = "servidor" | "internet".
     function activarEstadoOfflineUI(tipo = "servidor") {
-      const info = ESTADO_OFFLINE[tipo] || ESTADO_OFFLINE.servidor;
       // (el puntito de estado lo maneja la isla Preact conexionHeader.preact.js)
 
       nodos.folder.disabled = true;
@@ -165,8 +168,12 @@ const ServerConnectionFeature = {
       if (tipo === "servidor") {
         rutaDisco.mostrar("Desconectado", "Servidor desconectado");
       }
-      nodos.txtEstado.innerHTML = info.estadoTxt;
-      configurarBotonesUX("sincronizar-disco", info.botonTxt, true);
+      // El diagnóstico es de la card, no del footer: acá se LIMPIA en vez de duplicarlo.
+      nodos.txtEstado.textContent = "";
+      // El botón queda sin texto y deshabilitado; quien lo saca de pantalla es
+      // `actualizarContadoresBoton` (rama isOffline). Se sigue llamando para que el `data-modo`
+      // no quede apuntando a una acción que ya no está.
+      configurarBotonesUX("sincronizar-disco", "", true);
 
       const tabsBar = document.querySelector(".tabs-bar");
       if (tabsBar) tabsBar.style.display = "none";

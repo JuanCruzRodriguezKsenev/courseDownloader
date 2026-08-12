@@ -1,6 +1,25 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.18.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.20.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
+ * ==========================================================================
+ * CHANGELOG v5.20.0:
+ * - [BANNER OCUPA LISTA + TOOLBAR] Con la cola pausada, la card de error ocupaba #ui-list
+ *   pero la barra de filtros seguía viva ENCIMA de ella: buscador, filtros, orden y "Todos"
+ *   habilitados, operando sobre una lista que no estaba en pantalla. Ahora
+ *   `mostrarAlertDeConexionCaida` la oculta, y `conmutarPestañaA` dejó de re-mostrarla
+ *   incondicionalmente — que era el agujero por el que volvía al cambiar de pestaña. Las
+ *   PESTAÑAS no se ocultan: la cola tiene que seguir siendo consultable mientras está pausada.
+ * - [BANNER DUEÑO DEL DIAGNÓSTICO] El botón dejó de reescribir lo que dice la card. Los cuatro
+ *   textos de `actualizarContadoresBoton` ("Reintentar conexión con servidor", "Iniciar sesión
+ *   y reintentar", …) pasaron a uno solo, "Reintentar 🔄": el diagnóstico y el qué-hacer viven
+ *   en la card, el botón sólo ofrece la acción.
+ * - [REGLA NUEVA en configurarBotonesUX] Un botón sin texto no se muestra. Pasar "" es cómo se
+ *   dice "acá no hay acción" (el estado offline, donde la reconexión es automática). La regla
+ *   vive en el helper y no en los ~12 call-sites, para que ninguno pueda dejarlo escondido con
+ *   una acción adentro. Excepción explícita: la sincronización de disco, que escribe su label
+ *   con innerHTML por el spinner y restaura el display ahí mismo.
+ * - NOTA de versiones: se salta la 5.19.0, que es el corte 1 del copy genérico (rama
+ *   `copy-generico-corte-1`) y se mergea antes que esto.
  * ==========================================================================
  * CHANGELOG v5.18.0:
  * - [FIX — el cartel mentiroso] Dos tarjetas nuevas para los tipos de pausa que agregó
@@ -809,7 +828,10 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       appState.pestañaActiva = id;
       nodos.tabDisp.classList.toggle('active', id === "disponibles");
       nodos.tabCola.classList.toggle('active', id === "cola");
-      nodos.filtersBar.style.display = 'flex';
+      // [BANNER OCUPA LISTA + TOOLBAR] Incondicional era el agujero: con la cola pausada, la
+      // card ocupa #ui-list y cambiar de pestaña volvía a mostrar la toolbar encima de ella.
+      // El estado de falla manda sobre la pestaña.
+      nodos.filtersBar.style.display = appState.fallaConexionActiva ? 'none' : 'flex';
       nodos.btnStartQueue.style.display = appState.ráfagaEnCurso ? 'none' : qDisp;
     
       // Limpiar filtros activos y cerrar el menú
@@ -1046,6 +1068,10 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     async function ejecutarPaso2SincronizarDiscoVeloz() {
       configurarBotonesUX("sincronizar-disco", "", true);
       nodos.btnAction.innerHTML = `<span class="spinner-inline"></span> Sincronizando disco local...`;
+      // El "" de arriba pasó a significar "sin acción → botón oculto" (ver configurarBotonesUX).
+      // Acá el label se escribe por innerHTML porque lleva el spinner, así que hay que volver a
+      // mostrarlo: este SÍ es un estado con contenido, no un estado vacío.
+      nodos.btnAction.style.display = 'block';
       ListaClases.setAtenuada(true); // atenúa la lista durante la sincronización (isla dueña de #ui-list)
 
       const subcarpetaFiltro = nodos.folder.value.trim().toLowerCase();
@@ -1670,18 +1696,14 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       actualizarModoSeleccion();
 
       if (appState.fallaConexionActiva) {
-        let txt;
-        if (appState.fallaConexionActiva === "sesion") {
-          txt = "Iniciar sesión y reintentar 🔄";
-        } else if (appState.fallaConexionActiva === "internet") {
-          txt = "Reintentar conexión a internet 🔄";
-        } else if (appState.fallaConexionActiva === "bloqueo" || appState.fallaConexionActiva === "desconocido") {
-          // Los dos tipos que NO son de conexión: el botón no puede prometer reconectar nada.
-          txt = "Reintentar 🔄";
-        } else {
-          txt = "Reintentar conexión con servidor 🔄";
-        }
-        configurarBotonesUX("reintentar-cola", txt, reintentandoColaActivo);
+        // [BANNER DUEÑO DEL DIAGNÓSTICO] Un solo texto para los cinco tipos de pausa, y es un
+        // VERBO. Antes había cuatro variantes que le repetían al usuario lo que la card de
+        // arriba ya le estaba diciendo con más detalle ("Reintentar conexión con servidor" vs.
+        // "Servidor Desconectado", "Iniciar sesión y reintentar" vs. "Iniciá sesión … y tocá
+        // Reintentar"). Dos textos para un mismo hecho es un lugar de más donde envejecer:
+        // el diagnóstico y el qué-hacer viven en la card (renderizarListadoInterfaz), el
+        // botón sólo ofrece la acción.
+        configurarBotonesUX("reintentar-cola", "Reintentar 🔄", reintentandoColaActivo);
         nodos.btnAction.style.display = 'block';
         nodos.btnStartQueue.style.display = 'none';
         nodos.masterCheck.disabled = true;
@@ -1721,9 +1743,16 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       if (modoActual === 're-escanear') return; 
 
       if (!appState.sincronizacionDiscoCompletada) {
+        // `isOffline` equivale a "el banner de conexión está en pantalla": el input de carpeta
+        // sólo se deshabilita en activarEstadoOfflineUI y se rehabilita al reconectar.
         const isOffline = nodos.folder.disabled;
-        configurarBotonesUX("sincronizar-disco", isOffline ? "Buscando servidor... ⏳" : "Sincronizar carpeta local 📂", isOffline);
-        nodos.btnAction.style.display = 'block';
+        // [BANNER DUEÑO DEL DIAGNÓSTICO] Con el banner puesto no hay acción que ofrecer —la
+        // reconexión es automática y la card ya lo dice con su pulso— así que el botón se va
+        // en vez de repetirlo ("Buscando servidor... ⏳" era la tercera copia del mismo hecho,
+        // después de la card y del texto de estado). Se sigue llamando a configurarBotonesUX
+        // para no dejar el modo del botón desincronizado con lo que hay en pantalla.
+        configurarBotonesUX("sincronizar-disco", isOffline ? "" : "Sincronizar carpeta local 📂", isOffline);
+        nodos.btnAction.style.display = isOffline ? 'none' : 'block';
         nodos.masterCheck.disabled = true;
         return;
       }
@@ -1764,6 +1793,14 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       nodos.btnAction.className = `btn-action modo-${modo}`;
       nodos.btnAction.textContent = txt;
       nodos.btnAction.disabled = dis;
+      // [BANNER DUEÑO DEL DIAGNÓSTICO] Un botón sin texto no se muestra: pasar "" es la forma
+      // de decir "en este estado no hay acción que ofrecer" (hoy: el banner de conexión, donde
+      // la reconexión es automática). La regla vive ACÁ y no en cada call-site porque el
+      // botón se re-configura desde ~12 lugares: si la visibilidad se decidiera afuera, basta
+      // que uno solo se olvide para dejarlo escondido con una acción real adentro — o vacío
+      // en pantalla. El único que escribe el label por fuera es la sincronización de disco,
+      // que pone su spinner con innerHTML y restaura el display ahí mismo.
+      nodos.btnAction.style.display = txt ? 'block' : 'none';
     }
 
     function mostrarAlertDeConexionCaida(errorType, titulo) {
@@ -1775,7 +1812,15 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       nodos.btnStartQueue.style.display = 'none';
       nodos.progressCont.style.display = 'none';
       nodos.panelTel.style.display = 'none';
-    
+
+      // [BANNER OCUPA LISTA + TOOLBAR] La card de pausa se pinta DENTRO de #ui-list, así que
+      // sin esto la barra de filtros quedaba viva encima de ella: buscador, filtros, orden y
+      // "Todos" habilitados, operando sobre una lista que no está en pantalla. El banner de
+      // conexión ya hacía esto (serverConnection.js) — acá faltaba. Las pestañas NO se ocultan
+      // a propósito: la cola sigue siendo consultable mientras está pausada, que es
+      // justamente lo que el usuario quiere mirar cuando algo falló.
+      nodos.filtersBar.style.display = 'none';
+
       conectarEscuchadoresDelWorker();
     
       // Simplemente volver a renderizar y actualizar el botón en la pestaña activa sin redirigir
