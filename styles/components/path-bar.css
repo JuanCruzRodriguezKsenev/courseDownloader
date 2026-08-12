@@ -36,7 +36,13 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   white-space: nowrap;
-  width: 42px; /* Ancho fijo para alinear columnas simétricamente */
+  /* Era `width: 42px` fijo "para alinear columnas simétricamente", y 42px no alcanzan para
+     "📚 MATERIA:": la etiqueta salía cortada. Con `min-width` se conserva lo que el ancho fijo
+     buscaba —las dos filas arrancan en la misma columna— sin recortar la más larga, y
+     `flex-shrink: 0` evita que el input o el badge de la faceta se la coman cuando la fila
+     queda justa (que es cuando se veía el defecto: con el badge de cátedra en pantalla). */
+  min-width: 78px;
+  flex-shrink: 0;
   display: inline-block;
 }
 

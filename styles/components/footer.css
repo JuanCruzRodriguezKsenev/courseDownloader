@@ -7,6 +7,17 @@
   padding-top: var(--space-sm);
   flex-shrink: 0;
 
+  /* [FOOTER VACÍO] Si adentro no quedó nada visible, el borde superior es una línea divisoria
+     que no divide nada: se lee como un botón que se rompió. Pasa desde que el botón se oculta
+     cuando no hay ninguna acción (la alerta de conexión) y el texto de estado se colapsa solo
+     con `:empty`. Lo marca `sincronizarFooterVacio()` en popup.js, que mira si algún hijo
+     quedó visible — no se puede resolver con `:empty` porque los hijos existen, están
+     ocultos. */
+  &.vacia {
+    border-top: 0;
+    padding-top: 0;
+  }
+
   .status-text {
     font-size: var(--text-base);
     font-weight: var(--font-semibold);

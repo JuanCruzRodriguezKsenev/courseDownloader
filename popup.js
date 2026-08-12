@@ -1704,7 +1704,15 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       ListaClases.setSelectionMode(activo);
     }
 
+    // Envoltorio: el cálculo no cambió, pero cualquiera de sus ~8 salidas puede haber movido
+    // `btnStartQueue` —que `configurarBotonesUX` no ve— así que el footer se re-mide DESPUÉS,
+    // una sola vez y sin depender de que cada rama se acuerde. Ver `sincronizarFooterVacio`.
     function actualizarContadoresBoton() {
+      calcularContadoresBoton();
+      sincronizarFooterVacio();
+    }
+
+    function calcularContadoresBoton() {
       actualizarMasterCheckState();
       actualizarModoSeleccion();
 
@@ -1813,6 +1821,23 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // o vacío en pantalla. Excepción única y explícita: la sincronización de disco, que
       // escribe su label con innerHTML por el spinner y restaura el display ahí mismo.
       nodos.btnAction.style.display = txt ? 'block' : 'none';
+      sincronizarFooterVacio();
+    }
+
+    // [FOOTER VACÍO] Con el botón oculto (sin acción que ofrecer) y el texto de estado vacío
+    // —que se colapsa solo por `.status-text:empty`— el footer se queda sin contenido y lo
+    // único que se ve es su `border-top`: una línea divisoria que no divide nada y que se lee
+    // como un botón roto. No se puede resolver con `:empty` en CSS, porque los hijos siguen
+    // existiendo: están ocultos. Se mira cuál quedó visible y se marca el footer.
+    //
+    // Se llama desde los dos embudos por los que pasa cualquier cambio del footer
+    // (`configurarBotonesUX` y `actualizarContadoresBoton`) y no desde cada call-site, por el
+    // mismo motivo que la visibilidad del botón vive en el helper: uno olvidado deja la línea.
+    function sincronizarFooterVacio() {
+      const footer = document.querySelector('.footer-panel');
+      if (!footer) return;
+      const hayAlgo = [...footer.children].some((el) => getComputedStyle(el).display !== 'none');
+      footer.classList.toggle('vacia', !hayAlgo);
     }
 
     function mostrarAlertDeConexionCaida(errorType, titulo) {
