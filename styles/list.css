@@ -251,7 +251,11 @@
   min-height: 0;
   box-sizing: border-box;
   overflow: hidden;
-  animation: fadeIn 0.25s ease-out;
+  /* [SIN ENTRADA ANIMADA] Acá había `animation: fadeIn 0.25s ease-out`, y era el "tarda en
+     desaparecer y parpadea": la card ocupa la región entera (`flex: 1`) y entraba entre
+     transparente y deslizándose 4px durante un cuarto de segundo, justo mientras el marco de
+     la región cambiaba de estado. Se lee como un parpadeo, no como una entrada.
+     Un cartel de error no gana nada apareciendo despacio; lo que se quiere es que ya esté. */
 
   .server-error-icon {
     font-size: 1.8rem;
@@ -303,10 +307,10 @@
   0%, 100% { transform: scale(1); opacity: 0.4; }
   50% { transform: scale(1.3); opacity: 1; }
 }
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+/* `@keyframes fadeIn` se borró con sus dos usos: era la entrada de las cards de la región y
+   lo que se leía como parpadeo. No confundirlo con `fadeIn-modal`, que sigue vivo y es de los
+   modales (advertencia, faceta, onboarding) — ahí la entrada sí tiene sentido, porque el modal
+   aparece ENCIMA de algo que se queda. */
 
 /* Tarjeta de Estado/Información en el Listado */
 .info-card {
@@ -323,7 +327,11 @@
   flex: 1;
   min-height: 0;
   box-sizing: border-box;
-  animation: fadeIn 0.25s ease-out;
+  /* [SIN ENTRADA ANIMADA] Acá había `animation: fadeIn 0.25s ease-out`, y era el "tarda en
+     desaparecer y parpadea": la card ocupa la región entera (`flex: 1`) y entraba entre
+     transparente y deslizándose 4px durante un cuarto de segundo, justo mientras el marco de
+     la región cambiaba de estado. Se lee como un parpadeo, no como una entrada.
+     Un cartel de error no gana nada apareciendo despacio; lo que se quiere es que ya esté. */
 
   .info-card-icon {
     font-size: 1.8rem;
