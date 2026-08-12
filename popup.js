@@ -1885,7 +1885,13 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         nodos.search, nodos.btnFilterPills, nodos.btnSort, nodos.masterCheck, nodos.btnToggleSelect,
         nodos.btnSoftCancel, nodos.btnHardCancel,
       ];
-      if (nodos.facetaBadge) nodos.facetaBadge.setAttribute('aria-disabled', String(bloquear));
+      // Lo que NO es un control de formulario no admite `disabled`, así que lleva
+      // `aria-disabled`: el badge de la faceta es un <span> y el "Todos" es un <label>. El CSS
+      // de `.bloqueada` los apaga con `pointer-events` a partir de ese atributo —única forma
+      // de matarles el `cursor: pointer` y el hover— y `faceta.js` lo respeta en su listener.
+      // Es el mismo bloqueo, expresado en la forma que cada elemento admite.
+      [nodos.facetaBadge, document.getElementById('ui-master-select-wrapper')]
+        .forEach((n) => n && n.setAttribute('aria-disabled', String(bloquear)));
 
       if (bloquear) {
         controles.forEach((c) => { if (c) c.disabled = true; });

@@ -111,3 +111,20 @@ input[type="checkbox"] {
 .bloqueada [aria-disabled="true"] {
   opacity: 1;
 }
+
+/* El contrato del bloqueo, en dos formas y una sola idea:
+
+     - lo que ES un control de formulario se bloquea con `disabled` (mouse, teclado y
+       semántica), y su `:hover:not(:disabled)` ya se apaga solo;
+     - lo que NO lo es se marca con `aria-disabled="true"` — hoy el badge de la faceta, que es
+       un <span>, y el "Todos", que es un <label>—. Ésos no admiten `disabled`, así que el
+       bloqueo es `pointer-events`, y acá SÍ alcanza: no se los alcanza con teclado.
+
+   Sin esta regla quedaban a mitad de camino: inertes al click por su listener, pero con
+   `cursor: pointer` y su hover intacto (`faceta.css`, `filters.css`), o sea con aspecto de
+   clickeables al lado de un buscador que sí se ve apagado. Es la inconsistencia que se veía. */
+.bloqueada [aria-disabled="true"],
+.bloqueada [aria-disabled="true"] * {
+  pointer-events: none;
+  cursor: not-allowed;
+}
