@@ -452,6 +452,29 @@ describe('Isla Preact: ListaClases — la alerta comparte contenedor', () => {
     expect(root.querySelector('.server-error-card')).not.toBeNull();
   });
 
+  // [MARCOS ANIDADOS] Una card trae su propia superficie: si el wrapper conserva la suya, la
+  // card queda metida hacia adentro por su padding+borde y sus laterales dejan de alinear con
+  // las barras de arriba, que cuelgan del padding del contenedor.
+  it('con una card llenando la región, el host suelta su marco', async () => {
+    puente.render({ modo: 'lista', items: [{ id: 1, titulo: 'A', estado: 'pending' }], ctx: ctxBase() });
+    await flush();
+    expect(root.classList.contains('sin-marco')).toBe(false);
+
+    bannerStore.mostrar('servidor');
+    await flush();
+    expect(root.classList.contains('sin-marco')).toBe(true);
+
+    bannerStore.ocultar();
+    await flush();
+    expect(root.classList.contains('sin-marco')).toBe(false);
+  });
+
+  it('lo mismo con una tarjeta de estado, que es la otra card que llena la región', async () => {
+    puente.render({ modo: 'card', card: { tipo: 'info', titulo: 'Fila vacía', descripcion: 'x', icono: '📥' } });
+    await flush();
+    expect(root.classList.contains('sin-marco')).toBe(true);
+  });
+
   it('al ocultarla vuelve la lista sola, sin que nadie la restaure', async () => {
     puente.render({ modo: 'lista', items: [{ id: 1, titulo: 'A', estado: 'pending', seleccionado: false }], ctx: ctxBase() });
     bannerStore.mostrar('servidor');

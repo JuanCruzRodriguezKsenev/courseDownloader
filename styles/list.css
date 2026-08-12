@@ -1,3 +1,19 @@
+/* [MARCOS ANIDADOS] Cuando la región la llena una CARD —la alerta de conexión o una tarjeta de
+   estado— el wrapper suelta su marco: la card ya trae fondo, borde y radio propios, así que el
+   del wrapper era un segundo marco alrededor del primero, y su `padding` + `border` metían la
+   card 9px hacia adentro de cada lado. Con eso sus laterales no alineaban con la path-bar, las
+   pestañas ni la barra de filtros, que cuelgan del padding del `.container`.
+
+   No pasaba antes porque la alerta vivía en un root hermano con `display: contents`, o sea
+   colgada del contenedor y no de la lista. Al mudarla adentro (un solo dueño de la región) se
+   heredó el marco, y esto lo devuelve al lugar donde estaba. La clase la pone la isla, que es
+   la que sabe qué está pintando. */
+.list-wrapper.sin-marco {
+  padding: 0;
+  border-color: transparent;
+  background-color: transparent;
+}
+
 /* Listado Wrapper */
 .list-wrapper {
   flex: 1;

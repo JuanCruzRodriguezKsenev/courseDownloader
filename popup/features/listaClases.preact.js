@@ -194,15 +194,27 @@ export function FilaClase({ clase, ctx }) {
 export function ListaClases() {
   const { vm, host } = useListaClases();
 
+  // [ALERTA EN EL CONTENEDOR] Ver el `if` de abajo. Se lee acá arriba porque el efecto de host
+  // también lo necesita: una card ocupando la región cambia cómo se enmarca esa región.
+  const alerta = BannerConexionStore.get();
+  // Una CARD llena la región y trae su propia superficie (fondo, borde punteado, radio). El
+  // marco del wrapper, entonces, es un segundo marco adentro del primero: la card queda
+  // metida hacia adentro por el `padding` + `border` de `.list-wrapper` y sus laterales dejan
+  // de alinear con la path-bar, las pestañas y la barra de filtros, que sí cuelgan del padding
+  // del `.container`. No se veía antes porque la alerta vivía en un root hermano con
+  // `display: contents`, o sea colgando del contenedor y no de la lista.
+  const cardLlenaLaRegion = alerta.visible || !!(vm && vm.modo === 'card' && vm.card);
+
   // Reflejar los atributos de host sobre el nodo real #ui-list (sin tocar el CSS,
   // que sigue keyeando sobre .list-wrapper.selection-mode). Se ejecuta aunque el
   // render devuelva null (el componente sigue montado).
   useEffect(() => {
     if (!_host) return;
     _host.classList.toggle('selection-mode', host.selectionMode);
+    _host.classList.toggle('sin-marco', cardLlenaLaRegion);
     _host.style.opacity = host.atenuada ? '0.5' : '';
     _host.style.display = host.oculta ? 'none' : '';
-  }, [host.selectionMode, host.atenuada, host.oculta]);
+  }, [host.selectionMode, host.atenuada, host.oculta, cardLlenaLaRegion]);
 
   // [ALERTA EN EL CONTENEDOR] El banner de conexión se pinta ACÁ ADENTRO, no en un root
   // hermano. Antes vivía en #preact-banner y la lista se ocultaba con `setOculta` para hacerle
@@ -211,7 +223,6 @@ export function ListaClases() {
   // banner. Con un solo contenedor eso no se puede dar: o hay alerta o hay lista.
   //
   // Gana sobre TODO lo demás, incluidas las cards de cola pausada: es la condición más grave.
-  const alerta = BannerConexionStore.get();
   if (alerta.visible) return html`<${BannerConexion} />`;
 
   // `oculta` sobrevive para lo que no es una alerta (hoy: nada lo usa desde que el banner se
