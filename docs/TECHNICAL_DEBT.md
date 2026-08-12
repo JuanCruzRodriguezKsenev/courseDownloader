@@ -17,9 +17,11 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 > ## Estado al 2026-08-12 (tarde): queda **UNA** entrada abierta
 >
 > **La única abierta es el mecanismo de popovers sin tests** (última entrada de esta sección).
-> Todo lo demás está construido, en la rama `integracion-alertas`, **a la espera de la
-> verificación en navegador** — que en este proyecto es la única verificación que ve estas
-> cosas. Qué mirar y en qué orden → `docs/ramas-en-revision.md`.
+> Todo lo demás está construido, **verificado en navegador y mergeado a `main`**.
+>
+> La verificación encontró **ocho defectos más**, ninguno alcanzable por la compuerta y cuatro
+> introducidos por el arreglo del anterior; se cerraron en la misma pasada. Tabla y lecciones →
+> `docs/alertas-y-bloqueo-diseno.md` §5.1.
 >
 > **Y acá hubo un error de conteo que conviene dejar escrito, porque duró cinco días.** Este
 > mismo encabezado decía, desde el 2026-08-07, que «lo único abierto es el copy genérico», y

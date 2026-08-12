@@ -24,17 +24,12 @@ los cinco ítems de la auditoría de loaders— se verificó en Chrome y se merg
 
 ### Lo que dejó esa tanda, y conviene no volver a aprender
 
-- **Verificar en el navegador encontró seis defectos que la compuerta no vio**, todos en el
-  mismo corte y ninguno alcanzable por un test: el bloqueo que no se aplicaba, la tarjeta que
-  perdía la región al conmutar de pestaña, el botón que no aparecía, la toolbar viva sobre una
-  cola vacía, y dos de scroll. Es el argumento de ADR-0005 en vivo: lo que cae en el núcleo de
-  `popup.js` y en el CSS **sólo lo ve un humano abriendo el popup**.
-- **Tres de esos seis los introdujo el arreglo anterior.** Un corte sobre el popup no se da por
-  cerrado hasta verlo; "la compuerta está en verde" no es una señal sobre esta parte del código.
-- **El patrón que se repitió tres veces**: un estado pintado UNA VEZ (la tarjeta, el botón) en
-  vez de derivado en cada repintado. Si se puede desincronizar de su bandera, se desincroniza.
-  Todo lo que ocupa `#ui-list` o el footer se deriva en `renderizarListadoInterfaz` /
-  `calcularContadoresBoton`; no se pinta suelto.
+- **Verificar en el navegador encontró OCHO defectos que la compuerta no vio**, y **cuatro los
+  introdujo el arreglo del anterior**. La tabla completa y las lecciones están en
+  `docs/alertas-y-bloqueo-diseno.md` §5.1 — es el hogar canónico de ese registro y vale leerlo
+  antes de la próxima tanda sobre el popup.
+- El resumen en una línea: lo que cae en el núcleo de `popup.js` y en el CSS **sólo lo ve un
+  humano abriendo el popup**, y "la compuerta está en verde" no dice nada sobre esa zona.
 
 ### El banco de pruebas ya no es una rama
 

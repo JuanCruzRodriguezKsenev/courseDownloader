@@ -104,13 +104,35 @@ Las de los componentes son reglas anidadas (0-3-0) contra la utilitaria (0-2-0),
 por especificidad. **Adentro de una región bloqueada el aspecto lo fija la región**; hacerlo
 componente por componente lo vuelve a desparejar con el próximo control que se agregue.
 
-### 2.2 Qué NO se bloquea
+### 2.2 No hay UNA condición de bloqueo: hay TRES granularidades
+
+Es lo que más costó de la verificación en navegador, y salió de que el arreglo de una la rompía
+en otra. Todo call-site pasa por un solo embudo, `sincronizarBloqueosDeAlerta()` en `popup.js`:
+
+| Región | Sigue a | Por qué |
+|---|---|---|
+| **La toolbar** (buscar, filtros, orden, «Todos», «Seleccionar») | La **pestaña** que estás mirando, más «¿hay algo que filtrar?» | Opera sobre la lista de esa pestaña. Si el escaneo murió pero estás en Fila, la cola es real y operable. Y con la colección vacía no hay nada que buscar ni ordenar. |
+| **La fila de `📚 Materia` + el badge de faceta** (`.row-aula`) | El **portal activo**, en las DOS pestañas | La materia es el destino en disco del próximo encolado y la faceta sale del listado escaneado. Con el escaneo muerto no describen nada, mires donde mires. |
+| **La path-bar entera + la caja de cancelar** | Sólo las alertas de **conexión** | Ahí el servidor no está. Un escaneo lento no le hace nada al backend: 📂 Explorar sigue sirviendo. |
+
+**Dos trampas que ya se cobraron:**
+
+- **La tarjeta y el bloqueo se acotan IGUAL, o no se acotan.** Acotar la tarjeta a una pestaña y
+  el bloqueo no dejaba la cola visible con la toolbar muerta: el mismo síntoma, mudado de lugar.
+- **El bloqueo por «colección vacía» mira la COLECCIÓN, jamás el resultado filtrado.** La tarjeta
+  de «Fila de descarga vacía» se pinta con `filtrados.length === 0`, que también es cierto cuando
+  hay ítems y el filtro los escondió. Bloquear por eso **encierra al usuario**: no puede sacar el
+  filtro que lo dejó sin resultados, porque el control para sacarlo estaría deshabilitado.
+
+### 2.3 Qué NO se bloquea
 
 - **Las pestañas.** Con el servidor caído sigue siendo legítimo mirar la cola, y la alerta se
   pinta igual en las dos. Bloquearlas dejaba al usuario sin poder ni consultar su fila.
 - **El progreso de descarga**, si hay una en curso: **queda en pantalla y bloqueado**. Taparlo
   borraría la única referencia de cuánto se hizo; lo que no puede quedar vivo son sus botones de
   cancelar.
+- **El botón de acción del footer**, cuando la alerta ofrece una salida. Con el escaneo muerto
+  dice «Re-escanear 🔄» y tiene que poder tocarse: es lo que la propia tarjeta le pide al usuario.
 
 ---
 
@@ -173,9 +195,13 @@ marcado**.
 
 ## 5. Cómo verificarlo, y con qué
 
-Todo esto cae en `popup.js` y en el CSS, o sea **fuera del alcance de la suite** (ADR-0005). La
-rama `copy-generico-verificacion` junta las cinco ramas **más un banco de pruebas**
-(`verificacion/modoVerificacion.js`, 🧪 en la cabecera, o **F9**) que existe para esto:
+> **✅ Verificado en navegador el 2026-08-12 y mergeado a `main`.** Lo que la pasada encontró
+> está en §5.1, y es la parte de esta sección que conviene leer: **ocho defectos, ninguno
+> alcanzable por un test, y cuatro de ellos introducidos por el arreglo del defecto anterior.**
+
+Todo esto cae en `popup.js` y en el CSS, o sea **fuera del alcance de la suite** (ADR-0005). El
+**banco de pruebas** (`verificacion/modoVerificacion.js`, 🧪 en la cabecera o **F9**, encendido
+con `BANCO_DE_PRUEBAS = true` en `entrypoints/popup/main.js`) existe para esto:
 
 - **fuerza las caídas** de servidor e internet envolviendo `fetch` por origen, así el banner
   entra por el camino real y destildar reproduce la reconexión entera;
@@ -185,12 +211,52 @@ rama `copy-generico-verificacion` junta las cinco ramas **más un banco de prueb
 - **graba** todo texto que pasa por el loader, el estado y el botón, con hora — que es lo que
   permite leer carteles que duran milisegundos.
 
-**El banco es un andamio y NO se mergea.** Su rama se descarta entera después de la pasada.
+**El banco vive en el código desde el 2026-08-12**, apagado por bandera. Antes vivía en una rama
+descartable y **se perdió dos veces** — una quedó con un build viejo mientras `main` avanzaba, y
+otra hubo que rearmarla con siete cherry-picks. Apagado no cuesta nada: la bandera es una `const`
+literal y Vite se lleva el módulo en el tree-shaking.
 
 **Qué mirar**: que no se vean la lista y la alerta juntas; los laterales de la card contra las
 barras de arriba; el footer sin línea fantasma; el bloqueo parejo (mismo tinte, sin cursor de
 prohibido, sin hover en el badge ni en "Todos"); los botones al cambiar de pestaña con el
 servidor caído; y que al reconectar vuelva todo.
+
+### 5.1 Lo que encontró la pasada, y por qué vale más que la lista de arriba
+
+**Ocho defectos, cero detectables por la compuerta, y cuatro introducidos por el arreglo del
+anterior.** Ése es el dato: no es que la verificación en navegador *complemente* a los tests en
+esta zona — es que acá es lo único que ve.
+
+| # | Qué se veía | Qué era |
+|---|---|---|
+| 1 | El timeout del escaneo no bloqueaba la toolbar ni la path-bar | El bloqueo se derivaba del estado de CONEXIÓN, no de quién ocupa la región |
+| 2 | Ir a Fila y volver dejaba **la lista visible y bloqueada** | La tarjeta se pintaba una vez; cualquier repintado le ganaba la región y la bandera del bloqueo quedaba puesta |
+| 3 | «Re-escanear» no aparecía | Mismo error: botón seteado a mano en vez de derivado en `calcularContadoresBoton` |
+| 4 | La toolbar viva con la Fila vacía | Faltaba la tercera granularidad de bloqueo (§2.2) |
+| 5 | El banco: dos scrollbars, registro arriba, scroll horizontal | Un `grid-row` mío reordenó el panel; y tres causas distintas de ancho mínimo |
+| 6 | La barra de scroll «tardaba en desaparecer» | Al estilarla le agregué `scrollbar-color`, que en Chrome **desactiva** `::-webkit-scrollbar` y cambia de renderizador |
+| 7 | La barra achicaba el contenedor | `scrollbar-gutter: stable` reservando canal donde no hay barra |
+| 8 | **Y la de verdad**: el banner parpadeaba | `animation: fadeIn 0.25s` sobre `.info-card` y `.server-error-card`, declarada en `list.css` |
+
+**Las tres lecciones, en orden de lo que costaron:**
+
+1. **Lo declarado, antes que la teoría.** El 8 se persiguió cinco commits por el CSS del scroll
+   porque el síntoma se manifestaba sobre la barra. Era una animación de 250 ms escrita en la
+   misma hoja. **Si algo dura, `grep animation\|transition` va primero**; un frame no se percibe
+   como demora.
+2. **Estado derivado, nunca pintado una vez.** Los defectos 2 y 3 son el mismo: algo que ocupa
+   `#ui-list` o el footer se calcula en `renderizarListadoInterfaz` / `calcularContadoresBoton`
+   en **cada** repintado. Si una tarjeta y su bandera de bloqueo se pueden desincronizar, se
+   desincronizan — pasó tres veces en la misma tanda.
+3. **Arreglar en la capa equivocada mueve el síntoma, no lo saca.** Los defectos 6 y 7 son
+   parches míos al 8: cada cambio de `scrollbar-gutter` mudaba el parpadeo de la aparición del
+   banner a la del listado y de vuelta. Cuando un arreglo cambia el síntoma de lugar en vez de
+   cerrarlo, la causa está en otra capa.
+
+**Y una cuarta, de proceso**: la barra de scroll nativa de Chrome **ya trae las flechitas y ya
+sigue el tema**; personalizarla es lo que se las lleva. Toda la saga arrancó por adoptar una
+barra fina en una región nueva sin preguntarse por qué la otra región tenía una fina. Lo que
+quedó (`base.css`, selector universal) es deliberado y tiene escrito lo que cuesta.
 
 ---
 

@@ -44,6 +44,12 @@ edit here, never there.
 > 3. **Un predicado que filtra por extensión filtra más de una cosa.** Aflojar `endsWith(".mp4")`
 >    para que entraran los PDF dejó entrar también los `.part`, y eso marcaba como descargada la
 >    clase que se estaba bajando.
+> 4. **Ante un síntoma visual, buscá lo DECLARADO antes de teorizar.** Un "parpadea" o un "tarda
+>    en desaparecer" se persiguió durante cinco commits por el CSS del scroll —ancho de la barra,
+>    renderizador, canal reservado— y era `animation: fadeIn 0.25s` puesta sobre las tarjetas de
+>    esa misma región, a la vista en `styles/list.css`. **250 ms es tiempo, no un frame**: si algo
+>    dura, `grep -rn "animation\|transition"` sobre las hojas involucradas va PRIMERO. El síntoma
+>    se manifestaba sobre la barra de scroll y la causa no la tocaba.
 >
 > **Lo que la suite no puede ver**: el empaquetado, el orden de carga de los globals, el núcleo de
 > `popup.js` y cualquier efecto cuyo destino no sea el popup. Los 7 puntos a mirar →

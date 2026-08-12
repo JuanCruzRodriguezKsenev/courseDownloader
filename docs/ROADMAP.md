@@ -193,7 +193,7 @@ Depende de tener las Fases 1-4 cerradas (red de tests + split + ESLint) como pis
 
 ---
 
-## Fase 7 (✅ COMPLETA el 2026-08-12, sin verificar en navegador) — Alertas, bloqueo y loaders
+## Fase 7 (✅ COMPLETA y VERIFICADA EN NAVEGADOR el 2026-08-12) — Alertas, bloqueo y loaders
 
 **Objetivo**: cerrar lo que quedaba abierto en `docs/TECHNICAL_DEBT.md` §🔴 Abierto, que eran
 siete entradas y ahora es **una**.
@@ -216,9 +216,14 @@ de otra cosa no aparece en ninguna lista de dependencias, porque las dos entrada
 independientes. Al planificar una tanda, preguntá también **qué hace falta para poder mirar el
 resultado**.
 
-**Todo esto vive en `integracion-alertas` y NO está verificado en navegador**, que en este
-proyecto es la única verificación que ve la mayoría de estos cambios (caen en `popup.js` y en el
-CSS, sin tests por ADR-0005). Qué mirar → `docs/ramas-en-revision.md`.
+**Verificado en navegador y mergeado a `main`.** La pasada encontró **ocho defectos más**,
+ninguno alcanzable por la compuerta y **cuatro introducidos por el arreglo del anterior** — el
+detalle, con la tabla y las lecciones, en `docs/alertas-y-bloqueo-diseno.md` §5.1. Es la
+evidencia más fuerte que tiene el proyecto de por qué ADR-0005 exige navegador para esta zona.
+
+El último de esos ocho vale solo: el parpadeo del banner se persiguió cinco commits por el CSS
+del scroll y era una `animation: fadeIn 0.25s` declarada sobre las tarjetas de esa misma región.
+**Ante un síntoma que DURA, buscar lo declarado antes de teorizar.**
 
 ---
 

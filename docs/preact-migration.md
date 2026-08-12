@@ -48,6 +48,30 @@ el **mapa de avance**: qué isla está hecha, cuál sigue, y cómo agregar una n
 6. **Tests** (`<algo>.preact.test.js`, `@vitest-environment jsdom`): render según estado + reactividad. Para flushear los `useEffect` de Preact (que se agendan vía rAF), esperá varios ciclos: `for (i<6) await new Promise(r=>setTimeout(r,16))`.
 7. Actualizá la tabla de arriba y, si aplica, `docs/architecture.md` / `docs/patterns.md`.
 
+## `useEffect` vs `useLayoutEffect`: la regla es la GEOMETRÍA
+
+**Un efecto que cambia el tamaño, el marco o el `display` de una región va en `useLayoutEffect`.
+Nunca en `useEffect`.** Los que sólo se suscriben a un store o disparan trabajo asíncrono se
+quedan en `useEffect`.
+
+En Preact `useEffect` se agenda por `requestAnimationFrame`, o sea que corre **después del
+paint**. Si el efecto es el que le pone la clase al nodo host —como hace `listaClases` con
+`sin-marco`, la opacidad y el `display` sobre `#ui-list`— el navegador pinta un frame con el
+contenido nuevo adentro del marco viejo.
+
+**Cómo se vio cuando pasó** (2026-08-12): al reemplazar la lista por una tarjeta, ese frame
+intermedio mostraba la card ya puesta pero `#ui-list` con la geometría de la lista —su padding,
+su borde y **la barra de scroll de la lista larga**—. Se leyó como "la barra tarda en
+desaparecer", y mandó a buscar el problema al CSS del scroll, que no tenía nada que ver.
+
+`useLayoutEffect` corre en el commit, antes de pintar: el contenido y el marco de su región
+entran juntos.
+
+**Y el corolario para los tests**: el paso 6 de la receta dice que hay que flushear los
+`useEffect` esperando varios ciclos de rAF. Los `useLayoutEffect` **no** necesitan eso —ya
+corrieron cuando `render()` volvió—, así que un test que sólo mira atributos del host puede
+afirmar sincrónicamente.
+
 ## Referencias
 
 - Decisión y trade-offs: `docs/adr/0006-adopt-preact-islands-in-popup.md`.
