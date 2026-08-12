@@ -40,11 +40,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
-  /* La barra de scroll es la NATIVA de Chrome, a propósito. Acá hubo un bloque de
-     `::-webkit-scrollbar` que la dejaba de 6px, y sacarlo cerró tres problemas de una: la
-     nativa ya trae las flechas de subir y bajar (personalizarla es justamente lo que se las
-     come), ya sigue el tema del sistema, y ya es igual en toda región que scrollee sin que
-     haya que acordarse de ponerle una clase. */
+  /* La barra fina no se declara acá: está en `base.css` con el selector universal, así que
+     esta región y cualquier otra que scrollee la tienen sin pedirla. */
 }
 
 /* Fila de video individual */

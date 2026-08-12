@@ -39,6 +39,11 @@
 
   /* PIEZAS SUELTAS CON COLOR PROPIO */
   --spinner-track: rgba(120, 120, 120, 0.35);  /* gris neutro del spinner inline */
+  /* Pulgar de la barra de scroll. Gris translúcido y NO `--border-color`, que es el que estaba
+     antes: en oscuro ese token es #1E222A sobre un fondo #111318 y la barra no se veía. Un gris
+     con alfa se apoya en lo que tenga detrás y sirve en los dos temas sin override. */
+  --scroll-thumb: rgba(128, 128, 128, 0.35);
+  --scroll-thumb-hover: rgba(128, 128, 128, 0.6);
 
   /* BORDER RADIUS TOKENS */
   --radius-xs: 4px;

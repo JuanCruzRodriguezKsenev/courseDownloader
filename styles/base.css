@@ -22,6 +22,41 @@ body {
   background-color: var(--bg-main);
 }
 
+/* ── Barra de scroll ────────────────────────────────────────────────────────────────────
+   Fina, sin fondo y sin botones. Va con el selector universal a propósito: toda región que
+   scrollee en este popup la quiere igual, y hacerlo por clase ya se probó — había que
+   acordarse de ponerla, y la primera región que se olvidó (el panel del banco) apareció con la
+   barra gorda del sistema al lado de la fina.
+
+   Lo que se pierde, para que sea decisión y no sorpresa: **las flechitas de subir y bajar**.
+   Personalizar `::-webkit-scrollbar` apaga los botones nativos, y volver a dibujarlos no vale
+   la pena — `background-image` en el botón no sigue el tema, y `mask` directamente no funciona
+   sobre `::-webkit-scrollbar-button`. Se probaron los dos. Si algún día se quieren las flechas,
+   el camino es borrar este bloque entero y quedarse con la nativa, no agregarle reglas. */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: var(--radius-full);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+}
+
+/* Las esquinas donde se cruzarían las dos barras: sin esto queda un cuadrado del color por
+   defecto del navegador, que es lo único blanco que sobrevive en el tema oscuro. */
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* focus-visible accessibility best practices */
 :focus-visible {
   outline: 2px solid var(--accent-orange);
