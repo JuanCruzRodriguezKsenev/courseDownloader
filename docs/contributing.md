@@ -39,9 +39,11 @@ La documentación sigue el mismo principio de *single source of truth* que el c�
 - Elección de tecnologías y Turbo Mode → `docs/tech-stack.md`.
 - Política de seguridad (regla XSS, permisos) → `docs/security.md`.
 - Estado de la migración a islas Preact → `docs/preact-migration.md`.
-- Qué contiene cada archivo/módulo y qué regla respeta al tocarlo → `docs/architecture.md` §Qué hace cada archivo. `CLAUDE.md` guarda **sólo** el resumen de reglas que se pueden violar sin leer los docs, y apunta acá.
+- Qué contiene cada archivo/módulo y qué regla respeta al tocarlo → `docs/architecture.md` §Qué hace cada archivo. `AGENTS.md` guarda **sólo** el resumen de reglas que se pueden violar sin leer los docs, y apunta acá.
+- Las reglas para agentes (cómo responder, la compuerta, los gotchas que fallan en silencio) → **`AGENTS.md`, en la raíz**. `CLAUDE.md` es un puntero a ese archivo y no tiene contenido propio: se unificaron ahí el 2026-08-12 porque `AGENTS.md` es la convención que leen todos los agentes, no sólo Claude Code. **No agregues reglas a `CLAUDE.md`** — divergen sin que nada lo detecte.
 - Baseline de las 4 verificaciones (cantidad de tests, warnings tolerados) y narrativa de cobertura → `docs/testing.md` §Baseline de las verificaciones. Ningún otro doc repite esos números.
 - Estado de la re-arquitectura por fases, qué sigue y con qué riesgo → `docs/rearquitectura-diseno.md`. Es también el hogar de la *historia* de cada corte: qué se migró cuándo y por qué un archivo sigue donde está.
+- Qué hay construido fuera de `main` y sin verificar en Chrome (ramas en vuelo, en qué orden se mergean, cuál es el build cargado) → `docs/ramas-en-revision.md`. **Vivía en el banner de las reglas (entonces `CLAUDE.md`) y se mudó acá**: es estado con fecha de vencimiento, y tenerlo en el archivo que se carga en cada sesión hacía que el 45% de los commits lo editaran. `AGENTS.md` guarda sólo el puntero.
 
 Un overview que orienta y apunta (una frase + link) **no** es duplicación; re-especificar el mismo mecanismo/valores/rationale en dos lugares **sí** lo es. Si al escribir un doc te encontrás re-explicando algo que ya vive en otro, dejá el resumen y linkéalo.
 

@@ -26,7 +26,7 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 ## Baseline de las verificaciones
 
-**Este doc es el hogar canónico de estos números** (convención DRY, ver `docs/adr/0007-dry-docs-canonical-homes.md`): `CLAUDE.md` y el resto apuntan acá en vez de repetirlos. Si agregás tests o un archivo nuevo, el número se actualiza **acá**, en el mismo cambio.
+**Este doc es el hogar canónico de estos números** (convención DRY, ver `docs/adr/0007-dry-docs-canonical-homes.md`): `AGENTS.md` y el resto apuntan acá en vez de repetirlos. Si agregás tests o un archivo nuevo, el número se actualiza **acá**, en el mismo cambio.
 
 | Verificación | Baseline esperado |
 |---|---|

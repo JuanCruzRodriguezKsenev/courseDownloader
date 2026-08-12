@@ -130,7 +130,8 @@ que el archivo ya no tiene ningún `chrome.*`.
 
 Las dos secciones de arriba dicen *dónde* vive cada cosa (zonas y capas). Ésta dice **qué
 contiene cada archivo y qué hay que respetar al tocarlo** — es el detalle operativo que antes
-vivía duplicado en `CLAUDE.md`, que ahora conserva sólo el resumen de reglas y apunta acá. La
+vivía duplicado en las reglas de agente (`AGENTS.md`, en la raíz), que ahora conservan sólo el
+resumen y apuntan acá. La
 historia de qué se migró en qué fase no está acá: vive en `docs/rearquitectura-diseno.md`.
 
 ### Popup
