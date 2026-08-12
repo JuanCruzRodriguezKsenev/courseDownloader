@@ -30,12 +30,12 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `npm test` | 34 archivos, 589 tests, todo en verde |
+| `npm test` | 34 archivos, 591 tests, todo en verde |
 | `npm run lint` | **0 errores, 0 warnings** |
 | `npx tsc --noEmit` | sin salida (limpio) |
 | `npm run build` | compila a `.output/chrome-mv3/` |
 
-**De dónde sale el 589** (2026-08-12, medido en `integracion-alertas`): son los 578 de `main`
+**De dónde sale el 591** (2026-08-12, medido en `integracion-alertas`): son los 578 de `main`
 **+9** del frente de la alerta de conexión — 4 en `serverConnection.test.js` (que no duplique el
 diagnóstico en el footer ni en el botón; que la toolbar se **bloquee y no se esconda**, con las
 pestañas quedando operativas; que el bloqueo se levante al reconectar) y **5 en
@@ -44,11 +44,16 @@ pestañas quedando operativas; que el bloqueo se levante al reconectar) y **5 en
 wrapper suelte su marco cuando la región la llena una card. **+2** más de la selección que sigue
 al filtro (`filters.test.js`).
 
-**Y acá la cuenta ya se equivocó una vez, que es para lo que existe esta sección**: la rama del
-frente de alertas anotó que «mergeado todo el baseline es 589» sumando de memoria, y le faltaban
-los **+2** de las dos ramas del copy genérico (`onboarding.preact.test.js`). 589 es el subtotal
-de las ramas 3, 4 y 5; **mergeado todo son 591**. Al mergear se re-mide con `npm test`, no se
-suma de memoria — la aritmética a mano ya falló acá y en el conteo de la deuda.
+Y **+2** de las dos ramas del copy genérico (`onboarding.preact.test.js`): 578 + 9 + 2 + 2 = **591**,
+medido, no sumado.
+
+**La cuenta ya se equivocó una vez y conviene dejarlo escrito, porque es para lo que existe esta
+sección**: la rama del frente de alertas anotó que «mergeado todo el baseline es 589» sumando de
+memoria, y le faltaban justamente esos **+2** del copy. 589 era el subtotal de las ramas 3, 4 y 5.
+El merge además dejó **tres conflictos de cabecera de versión** (`popup.js`,
+`serverConnection.js`) y **uno en esta misma tabla**, los cuatro de contexto y ninguno de lógica:
+las dos ramas se habían escrito cada una asumiendo que se mergeaba primero. Al mergear se re-mide
+con `npm test`; la aritmética a mano ya falló acá y en el conteo de la deuda.
 
 **El alcance del lint creció el 2026-08-12** sin que los números cambien: la fusión del backend
 (ADR-0015) metió `backend/` en el repo, y `npm run lint` corre `eslint .`, así que **el servidor Bun

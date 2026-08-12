@@ -41,7 +41,8 @@ pesado hecho. **Medido, no supuesto**:
 | `plataforma/` | **No** |
 | `sitio/<portal>/` | Es lo que se escribe por portal — el trabajo esperado |
 
-`PuertoSitio` (`core/puertos/sitio.ts`) ya es un contrato de 11 miembros que `tsc` hace cumplir:
+`PuertoSitio` (`core/puertos/sitio.ts`) ya es un contrato de 11 miembros que `tsc` hace cumplir
+(**12 desde el 2026-08-12**: `instruccionEscaneo`):
 un adaptador incompleto **no compila**. Esa es la red de este proyecto.
 
 Los 11, para no tener que abrir el archivo: `id`, `nombre`, `urlSondeoInternet`,
@@ -297,7 +298,7 @@ falta**. Es el corte 7. Los pasos son cinco y ninguno toca `core/`, `plataforma/
 
 | Archivo | Qué es |
 |---|---|
-| `config.ts` | El descriptor. Implementa `PuertoSitio` (**11 miembros**) y su `faceta` implementa `DescriptorFaceta` (**11 más**). |
+| `config.ts` | El descriptor. Implementa `PuertoSitio` (**12 miembros** desde el 2026-08-12; eran 11 acá) y su `faceta` implementa `DescriptorFaceta` (**11 más**). |
 | `scraper.js` | Lee el listado de clases del DOM. **Se inyecta serializado** — ver la trampa de abajo. |
 | `parserTitulos.js` | Título crudo → nombre de archivo canónico + a qué carpeta/faceta va. |
 | `resolverManifiesto.js` | HTML de la clase → URL del `.m3u8`. |
@@ -399,7 +400,7 @@ exista, hay que mirarlo de verdad:
 ## Lo que NO se toca, y es la prueba de que la re-arquitectura sirvió
 
 La UI entera, `plataforma/` completa, y de `core/` sólo los dos módulos citados. Un portal nuevo
-es: `sitio/<portal>/config.ts` (11 miembros, con el compilador de árbitro), sus tres hermanos y
+es: `sitio/<portal>/config.ts` (12 miembros desde el 2026-08-12, con el compilador de árbitro), sus tres hermanos y
 su `rules.json`.
 
 **La regla que más fácil se rompe al escribir un adaptador nuevo**: `escanearListado` se inyecta
@@ -603,7 +604,7 @@ hasta que exista un segundo portal—.
 
 **Qué hace falta para el corte 7** (o sea: cómo se suma un portal nuevo) está arriba en este
 mismo doc: §El registro, §El manifest y §Lo que NO se toca. En una línea: `sitio/<portal>/`
-con su `config.ts` (11 miembros, el compilador de árbitro) y sus tres hermanos, sumarlo al
+con su `config.ts` (12 miembros desde el 2026-08-12, el compilador de árbitro) y sus tres hermanos, sumarlo al
 array de `sitio/registro.ts`, y en `wxt.config.ts` los `host_permissions` + su ruleset dNR.
 **La regla que más fácil se rompe** —`escanearListado` se inyecta serializada y no puede tocar
 ninguna global ni constante propia— no la detecta nada salvo el navegador.

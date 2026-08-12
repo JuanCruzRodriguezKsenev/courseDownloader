@@ -1,5 +1,18 @@
 /**
- * ISLA PREACT #3 — el onboarding (welcome tour) (V1.0.0)
+ * ISLA PREACT #3 — el onboarding (welcome tour) (V1.2.0)
+ * ==========================================================================
+ * CHANGELOG v1.2.0:
+ * - [COPY GENÉRICA — corte 2] La slide "Clases y Videos" dejó de hardcodear el flujo de
+ *   Ramón Net: sale de `sitio.instruccionEscaneo` (PuertoSitio). Se perdió el <strong> del
+ *   "👁️ mostrar" a propósito — el descriptor trae texto plano y esta isla lo escapa.
+ *
+ * CHANGELOG v1.1.0:
+ * - [COPY GENÉRICA — corte 1] "Ir a Clases Grabadas 🌐" → "Ir al listado de clases 🌐":
+ *   "Clases Grabadas" es el nombre de la sección EN RAMÓN NET. El destino ya sale del
+ *   descriptor (`sitio.urlListado`), así que el label no tiene por qué nombrarla.
+ * - [PENDIENTE, y es el corte 2] La frase del selector + "👁️ mostrar" describe un flujo
+ *   que en Anatomy no existe. No se toca acá: necesita un miembro nuevo en PuertoSitio
+ *   para que cada portal traiga su instrucción → docs/copy-generico-diseno.md §5.3.
  * ==========================================================================
  * Tercera "isla" de la migración incremental del popup a Preact (ver
  * docs/adr/0006-adopt-preact-islands-in-popup.md, docs/preact-migration.md).
@@ -98,12 +111,12 @@ export function Onboarding({ conexion, appState, sitio: sitioInyectado }) {
             <div class="onboarding-slide">
               <div class="onboarding-icon">🌐</div>
               <h3>Página Correcta</h3>
-              <p>Usá la extensión dentro del listado de clases de tu materia en ${nombreSitio} para detectar los videos: <a href=${sitio.urlListado || '#'} target="_blank" class="onboarding-link">Ir a Clases Grabadas 🌐</a></p>
+              <p>Usá la extensión dentro del listado de clases de tu materia en ${nombreSitio} para detectar los videos: <a href=${sitio.urlListado || '#'} target="_blank" class="onboarding-link">Ir al listado de clases 🌐</a></p>
             </div>
             <div class="onboarding-slide">
               <div class="onboarding-icon">🔍</div>
               <h3>Clases y Videos</h3>
-              <p>Verás en pantalla las clases de la materia que elijas en el selector y presiones <strong>👁️ mostrar</strong>.</p>
+              <p>${sitio.instruccionEscaneo}</p>
             </div>
             <div class="onboarding-slide">
               <div class="onboarding-icon">🔌</div>

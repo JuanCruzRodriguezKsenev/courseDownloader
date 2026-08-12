@@ -6,8 +6,15 @@
  *   eran la segunda y la tercera copia de lo que la card de la isla ya dice y explica. El
  *   footer queda vacío y el botón sin label (y con eso, oculto — ver `configurarBotonesUX` en
  *   popup.js): en este estado la reconexión es automática y NO hay acción que ofrecer.
- * - Se salta la 1.11.0: es el corte 1 del copy genérico, que se mergea antes.
+ * - La 1.11.0 NO se salteó: es el corte 1 del copy genérico y está acá abajo. Las dos ramas
+ *   se mergearon juntas en `integracion-alertas` el 2026-08-12.
  * ==========================================================================
+ * CHANGELOG v1.11.0:
+ * - [COPY GENÉRICA — corte 1] "Analizando aula virtual…" → "Analizando…". El texto era
+ *   idéntico al de popup.js:573 y este archivo es el camino de RECUPERACIÓN TRAS CAÍDA
+ *   DEL SERVER: si se arreglaba uno solo, el usuario veía una copy u otra según por
+ *   dónde entrara. Los dos van siempre juntos → docs/copy-generico-diseno.md §5.1.
+ *
  * CHANGELOG v1.10.0:
  * - [ISLA #4 · Etapa 2] Dejó de tocar el DOM de #ui-list directo (innerHTML="" +
  *   style.display) para ocultar/restaurar la lista mientras el banner ocupa su lugar.
@@ -250,7 +257,7 @@ const ServerConnectionFeature = {
 
           bloquearRegiones(false);
 
-          nodos.txtEstado.textContent = "Analizando aula virtual...";
+          nodos.txtEstado.textContent = "Analizando...";
 
           // Se levanta el bloqueo. El `display` ya no se toca acá: la barra nunca se escondió,
           // así que no hay que reconstruir cuál correspondía según la pestaña —que era, además,

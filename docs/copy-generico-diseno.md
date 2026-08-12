@@ -1,18 +1,28 @@
 # Copy genérica: sacar el vocabulario de Ramón Net de las capas genéricas
 
-**Estado (2026-08-12): 🔵 RELEVADO Y PROPUESTO — con una excepción: §5.2, la marca, YA ESTÁ HECHA.**
+**Estado (2026-08-12): 🟡 LOS TRES CORTES ESTÁN HECHOS; FALTA LA VERIFICACIÓN EN NAVEGADOR DE DOS.**
 
-Esto no es un plan aprobado ni un corte en curso: es el **inventario medido** de dónde la UI
-genérica nombra a Ramón Net, más una propuesta de cómo arreglarlo, escrita para poder discutirse
-en otra sesión sin volver a medir. Si venís a ejecutarlo, lo primero es acordar §3 y §6; lo
-segundo es leer §4, que es donde está la trampa.
+> - **Corte 3 (§5.2, la marca)** — ✅ cerrado y verificado, pero **no por este frente**: se lo
+>   llevó puesto `ee32c0c`, el rename a Course Downloader de la Fase 3 de la fusión.
+> - **Corte 1 (§5.1, los swaps)** — construido en la rama `copy-generico-corte-1`. Compuerta
+>   verde, **navegador pendiente**.
+> - **Corte 2 (§5.3, la instrucción de escaneo)** — construido en `copy-generico-corte-2`,
+>   **apilado sobre el corte 1** porque los dos tocan `onboarding.preact.js`. Compuerta verde
+>   + 2 tests nuevos, **navegador pendiente**. Se mergean en orden: 1 y después 2.
+>
+> **Las cuatro decisiones se tomaron el 2026-08-12** y están en cada sección: §3 se acordó tal
+> cual estaba; §4 salió por la **salida 1** (texto genérico); §5.3 va con **miembro nuevo en
+> `PuertoSitio`** —y se ejecutó **requerido**, no opcional, ver ahí por qué—; el tono de la copy
+> genérica es **pelado** ("Re-escanear 🔄", "Analizando…"), con el criterio de que no pueda
+> mentir en ningún portal.
+>
+> **La verificación en navegador es la única que ve algo acá** (casi todo cae en `popup.js`,
+> ADR-0005). Los puntos a mirar están en §7.
 
-**Lo que cambió el 2026-08-12**: la Fase 3 de la fusión (`ee32c0c`) renombró la extensión a
-**Course Downloader** y con eso cerró **§5.2 entera, incluido el `alt` del logo** — sin que este
-doc participara, porque ese corte venía de `fusion-monorepo-diseno.md`. O sea que el corte 3 de §7
-está hecho y **quedan dos**. El resto —§5.1 ítems 1 a 7 y §5.3— sigue **intacto en el código**,
-re-verificado línea por línea el 2026-08-12: **7 textos en 12 sitios** que el usuario lee, más los
-2 `console.log` que no ve nadie.
+Esto nació como el **inventario medido** de dónde la UI genérica nombra a Ramón Net, más una
+propuesta de cómo arreglarlo, escrita para poder discutirse en otra sesión sin volver a medir.
+Hoy es además el registro de cómo se ejecutó. Si venís a retomarlo, lo que importa es §7 (qué
+falta verificar) y §8 (qué erró la medición).
 
 **Dónde vive el estado del backlog**: en `TECHNICAL_DEBT.md` §🔴 Abierto, y ahí sigue —ese doc es
 el hogar canónico de *qué está abierto y por qué* (ADR-0007). Este doc es el **cómo**, igual que
@@ -138,8 +148,19 @@ Detalles que cambian el arreglo:
   incoherente según por dónde entre el usuario (`serverConnection.js:233` es el camino de
   *recuperación tras caída del server*).
 - **El #4 aparece 5 veces** y una (`:874`) es la rama sin portal — ver §4.
-- **El #5 no necesita diseño**: copiar el patrón de `onboarding.preact.js:116`, que ya dice esa
-  misma frase bien.
+- **El #5 SÍ necesitaba diseño, y la propuesta de la tabla estaba mal.** Decía copiar el patrón de
+  `onboarding.preact.js:116` (`${(sitio.faceta?.etiqueta || 'categoría').toLowerCase()}`). Medido
+  al ejecutarlo: **en Anatomy eso imprime "por materia y sin clasificación"**, porque su faceta es
+  inerte pero **no está vacía** — `etiqueta: "Sin clasificación"`
+  (`sitio/anatomy-by-chris/config.ts:176`). El fallback `|| 'categoría'` nunca se dispara, así que
+  el modal pasaría de nombrar un eje ajeno a nombrar uno inexistente. Y no hay predicado genérico
+  para "faceta inerte" que se pueda consultar acá: la UI **no** detecta ese caso con una bandera,
+  emerge de que `valoresPresentes()` filtre todo lo igual a `valorComun`, que es una propiedad de
+  la lista escaneada y no del descriptor. **Se resolvió por el tono elegido**: la frase dejó de
+  enumerar niveles ("creará y organizará automáticamente las subcarpetas dentro de ella"), que es
+  cierto en los dos portales y no consulta nada. El árbol real difiere entre portales — Ramón Net
+  abre un nivel por cátedra, Anatomy no— y ésa es justamente la razón por la que la copy genérica
+  no puede describirlo.
 - **Los 2 `console.log`** (`popup.js:531` y `:546`, "Pestaña Ramón Net actualizada/enfocada") no los
   ve el usuario. Van de arrastre en el mismo corte o no van; da igual.
 
@@ -166,7 +187,33 @@ del portal.
 **Que esto se cerrara solo es el dato útil de esta sección**: era el único grupo del doc
 independiente de §5.1, y por eso pudo entrar por otra puerta sin romper nada.
 
-### 5.3 El único que no es un swap de string
+### 5.3 El único que no es un swap de string — ✅ CONSTRUIDO el 2026-08-12 (corte 2)
+
+**Hecho como decía el plan, con un cambio deliberado: el miembro va REQUERIDO, no opcional.**
+El plan de abajo decía "opcional", y eso contradecía su propio motivo — si el objetivo era que
+`tsc` obligue a los dos portales a implementarlo, un `?` deja compilar al portal que lo olvide y
+lo manda a heredar un texto ajeno o vacío, que es el defecto original. Requerido, el compilador
+lo caza. Lo demás salió como estaba escrito:
+
+- `core/puertos/sitio.ts` — `instruccionEscaneo: string`, **el puerto pasa de 11 a 12 miembros**.
+  Los seis lugares que citaban "11 miembros" se actualizaron en el mismo cambio.
+- `sitio/ramonnet/config.ts` y `sitio/anatomy-by-chris/config.ts` — cada uno su frase.
+- `popup/features/onboarding.preact.js` — la slide consume el descriptor.
+- `docs/architecture.md` — su párrafo, con por qué un miembro del puerto puede ser copy.
+- **Dos tests nuevos**: que la frase salga del descriptor y no vuelva a hardcodearse, y que los
+  dos portales reales declaren instrucciones distintas.
+
+**Lo que se perdió, y es a propósito**: el `<strong>` del "👁️ mostrar". El descriptor trae texto
+plano porque la isla Preact escapa lo que recibe; meter markup ahí lo mostraría literal. Cambiar
+eso significaría abrir un camino a `innerHTML` en la isla, que es justo lo que `docs/security.md`
+no quiere.
+
+**Falta la verificación en navegador** (slide 3 del tour, en los dos portales).
+
+---
+
+*Lo que sigue es el análisis original, y se conserva porque explica por qué este ítem no era un
+swap de string:*
 
 `onboarding.preact.js:106` no dice un nombre equivocado: **describe un flujo que en Anatomy no
 existe**. No hay selector de materia ni botón 👁️ mostrar — ahí un solo escaneo trae los 11 módulos
@@ -201,22 +248,47 @@ corte 3 se ejecutó por su cuenta el 2026-08-12 (§5.2).
 
 | Corte | Qué entra | Cómo se verifica |
 |---|---|---|
-| **1 — Los baratos** | §5.1 ítems 1–6, y de arrastre los 2 `console.log` | **Sólo navegador.** Casi todo cae en `popup.js`, el único archivo sin tests (ADR-0005). |
-| **2 — La instrucción de escaneo** | §5.3: miembro nuevo en `PuertoSitio` + los dos `config.ts` + `architecture.md` | `tsc` cubre que los dos portales lo implementen; el texto, navegador. |
+| **1 — Los baratos** 🟡 | §5.1 ítems 1–6, y de arrastre los 2 `console.log` | **Sólo navegador.** Casi todo cae en `popup.js`, el único archivo sin tests (ADR-0005). **Construido el 2026-08-12 en `copy-generico-corte-1`; compuerta verde; falta el navegador.** |
+| **2 — La instrucción de escaneo** ✅🟡 | §5.3: miembro nuevo en `PuertoSitio` + los dos `config.ts` + `architecture.md` | `tsc` cubre que los dos portales lo implementen; el texto, navegador. **Construido el 2026-08-12 en `copy-generico-corte-2`, apilado sobre el corte 1; compuerta verde + 2 tests nuevos; falta el navegador.** |
 | ~~**3 — La marca**~~ | ~~§5.2~~ | ✅ **hecho** en `ee32c0c`, con el rename a Course Downloader. El `alt` del logo se fue con él, así que **salió del corte 1**. |
 
-**Verificación en navegador del corte 1** (los cuatro carteles, **en los dos portales**):
+### 🔎 EN REVISIÓN — la checklist de navegador, para correr tal cual
 
-1. Abrir el popup con la pestaña en **Ramón Net** y con la pestaña en **Anatomy**: el loader
-   inicial y el de escaneo no deben nombrar un portal que no es.
-2. El botón "Re-escanear" en sus 5 estados (timeout de DOM, sin portal reconocido, sin clases
-   detectadas, escaneo OK, y tras caída del server).
-3. El modal de la carpeta (click en 📂) en los dos portales: en Anatomy la palabra "cátedra" no
-   debe aparecer — su faceta es inerte (`sitio/anatomy-by-chris/config.ts`, `id: "ninguna"`).
-4. El onboarding (botón ❓) en los dos portales, slides 2 y 5.
+**Estado al 2026-08-12, fin del día: los dos cortes están construidos y esperando esta pasada.**
+El build que hay en `.output/chrome-mv3/` es el de `copy-generico-corte-2`, o sea **los dos
+cortes juntos**: no hay que rebuildear, sí recargar la extensión en `chrome://extensions/`.
 
-**Riesgo del corte 1**: bajo y reversible — son strings, ninguno cambia lógica. El único que puede
-morder es el #2 si se elige la salida 2 de §4 (mover el cartel), porque ahí sí se toca el flujo.
+**Antes de empezar**: levantar el backend con `backend/iniciar.bat` y **confirmar en la consola
+del server que la raíz de descargas sea la de siempre**, no `Downloads/RamonNet_Turbo` (riesgo R3
+de `fusion-monorepo-diseno.md`: si salió el default, el "ya descargado" da el curso entero por no
+bajado). Tener a mano una pestaña de cada portal.
+
+| # | Qué mirar | Esperado | Sería un bug |
+|---|---|---|---|
+| 1 | **Cambio de portal**: abrir el popup en Ramón Net, cerrarlo, pasar a Anatomy y reabrirlo | "Leyendo la pestaña…" y "Escaneando la pestaña…" | Que aparezca **cualquier** nombre de portal. Es el momento exacto en que `sitioActivo` es todavía el anterior (§4) |
+| 2 | **Botón "Re-escanear 🔄"** | El label sin "aula virtual" en los 5 estados | Que sobreviva un "aula virtual" |
+| 3 | **Modal de carpeta (📂)**, en los dos | "(ej: 'Clases')" + "las subcarpetas dentro de ella" | En Anatomy, que aparezca **"cátedra"** o **"sin clasificación"** (ver §5.1 ítem 5) |
+| 4 | **Onboarding (❓) slide 2**, en los dos | "Ir al listado de clases 🌐", al listado del portal activo | Que linkee al portal equivocado |
+| 5 | **Onboarding slide 3** — la del corte 2 | En Ramón Net, la frase del selector y 👁️ mostrar; en Anatomy, la del escaneo único | La frase del selector en Anatomy, o etiquetas HTML literales en pantalla |
+| 6 | **Consola del popup**, cambiando de pestaña | "Pestaña del portal actualizada/enfocada" | — |
+
+**Del punto 2, tres estados salen fáciles y dos no**: escaneo OK (el normal), portal no
+reconocido (abrir el popup en cualquier otra página) y tras caída del server (matar la ventana
+del Bun, abrir el popup, volver a levantarlo — ese es el camino de `serverConnection.js:233`).
+**Timeout de DOM y "no devolvió clases" son difíciles de forzar a mano**: en los cinco el cambio
+es el mismo string, así que los tres primeros alcanzan.
+
+**Dos cosas que NO son defectos de estos cortes, para no perder tiempo mañana**:
+
+- En la **slide 3 de Ramón Net el "👁️ mostrar" ya no va en negrita**. Es deliberado: el
+  descriptor trae texto plano porque la isla escapa lo que recibe (§5.3).
+- La **slide 5 sigue diciendo "por materia y cátedra"** en Ramón Net y **"por materia y sin
+  clasificación"** en Anatomy. Eso ya estaba así, vive en la isla y **no entró en ninguno de los
+  dos cortes** — es el mismo defecto que el modal de carpeta, en el otro lado de la UI. Si
+  molesta, es un tercer cambio chico y aislado.
+
+**Riesgo**: bajo y reversible — son strings y un miembro de puerto; ninguno cambia lógica. La
+salida 2 de §4 (mover el cartel), que sí tocaba el flujo, **no se eligió**.
 
 ## 8. Registro de lo que la medición erró
 
@@ -248,6 +320,11 @@ pendiente, no por ejecutarlo):
   dos: es **una** línea con **dos** frases a cambiar (el ejemplo `'RamonNet'` y "por materia y
   cátedra"). No se corrigió el número viejo hacia atrás —el conteo de §1 documenta la medición de
   esa fecha— pero conviene saberlo antes de citarlo como si fuera exacto.
+- **Una de las 7 propuestas de §5.1 estaba mal, y sólo se vio al ejecutarla** (el #5: interpolar
+  `faceta.etiqueta` imprime "sin clasificación" en Anatomy — detalle en §5.1). El relevamiento
+  midió **dónde** estaba cada texto sin abrir el descriptor del otro portal para ver **qué valor
+  tomaría el reemplazo**. Para la próxima: una propuesta que interpola algo del descriptor no está
+  medida hasta que se leyó ese campo **en los dos portales**.
 - **Un frente ajeno cerró parte de este doc sin que el doc se enterara** (§5.2, vía la fusión). Es
   el argumento a favor de que el *estado* viva en `TECHNICAL_DEBT.md` y no acá: si el número de
   pendientes viviera en este archivo, hoy estaría mintiendo en dos lugares en vez de uno.

@@ -244,6 +244,12 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
   `popup.js`: se le habían escapado `entrypoints/popup/index.html` (4) y
   `popup/features/onboarding.preact.js` (2).
 
+- **🔎 EN REVISIÓN desde el 2026-08-12**: los cortes 1 y 2 están **construidos, con la compuerta
+  en verde, en dos ramas apiladas** (`copy-generico-corte-1` y `copy-generico-corte-2`, que se
+  mergean en ese orden porque las dos tocan `onboarding.preact.js`). **Falta la verificación en
+  navegador**, que es la única que ve algo acá, y hasta que pase el ítem **no se marca resuelto**.
+  La checklist para correrla tal cual está en `copy-generico-diseno.md` §7.
+
 - **Al 2026-08-12 quedan 7 textos en 12 sitios**, no 9 en 17: el rename de la extensión a
   **Course Downloader** (`ee32c0c`, Fase 3 de la fusión) cerró de arrastre los 4 sitios de la
   marca —`index.html:5` y `:26`, `wxt.config.ts:20`, y el `alt="Logo de Ramón Net"` del logo, que

@@ -33,9 +33,21 @@
  * - [FIX de arrastre] `.path-bar.offline` sumó `pointer-events: none`. Sólo tenía `opacity`, y
  *   el badge de la faceta es un `<span>` —no admite `disabled`—, así que se veía apagado y
  *   seguía abriendo el modal de cátedra sobre una UI muerta.
- * - NOTA de versiones: se salta la 5.19.0, que es el corte 1 del copy genérico (rama
- *   `copy-generico-corte-1`) y se mergea antes que esto.
+ * - NOTA de versiones: la 5.19.0 (corte 1 del copy genérico) NO se salteó — está acá abajo.
+ *   Las dos ramas se mergearon juntas en `integracion-alertas` el 2026-08-12, así que los dos
+ *   changelogs conviven en orden. El conflicto fue de cabecera, no de lógica.
  * ==========================================================================
+ * CHANGELOG v5.19.0:
+ * - [COPY GENÉRICA — corte 1] Esta UI dejó de hablar el vocabulario de Ramón Net, que
+ *   con dos portales era falso la mitad de las veces: "Analizando aula virtual…" (:573),
+ *   los cinco "Re-escanear aula virtual 🔄", el ejemplo de carpeta "'RamonNet'" (:671) y
+ *   el cartel de escaneo (:857) quedaron genéricos. Los dos console.log de la pestaña
+ *   fueron de arrastre. Inventario y regla de decisión → docs/copy-generico-diseno.md.
+ * - [OJO con el cartel de :857] Es genérico A PROPÓSITO, no por falta de ganas: ahí
+ *   `sitioActivo` todavía es el portal anterior. El comentario en el sitio lo explica.
+ * - [NO entró] La instrucción de escaneo del onboarding (necesita un miembro nuevo en
+ *   PuertoSitio) ni el rename de los identificadores internos. Cortes 2 y 3 del doc.
+ *
  * CHANGELOG v5.18.0:
  * - [FIX — el cartel mentiroso] Dos tarjetas nuevas para los tipos de pausa que agregó
  *   `core/cola/procesadorCola.ts` ("bloqueo" y "desconocido") y su texto de botón. Sin esto
@@ -566,7 +578,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     // Forzar re-escaneo automático si la pestaña de Ramón Net cambia de dirección o se recarga
     chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       if (changeInfo.status === 'complete' && tab.active && adoptarPortalDePestaña(tab.url)) {
-        console.log("🔄 [POPUP] Pestaña Ramón Net actualizada. Re-escaneando...");
+        console.log("🔄 [POPUP] Pestaña del portal actualizada. Re-escaneando...");
         if (!appState.fallaConexionActiva) {
           ejecutarPaso1EscaneoRamonAutomatico();
         }
@@ -581,7 +593,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         // scripting, que esperan sus propios puertos.
         if (chrome.runtime.lastError || !tab) return;
         if (tab.active && adoptarPortalDePestaña(tab.url)) {
-          console.log("🔄 [POPUP] Pestaña Ramón Net enfocada. Re-escaneando...");
+          console.log("🔄 [POPUP] Pestaña del portal enfocada. Re-escaneando...");
           if (!appState.fallaConexionActiva) {
             ejecutarPaso1EscaneoRamonAutomatico();
           }
@@ -608,7 +620,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
           nodos.btnExplore.title = `Carpeta raíz actual: ${ruta} (Click para cambiar)`;
           RutaDisco.mostrar(ruta);
-          nodos.txtEstado.textContent = "Analizando aula virtual...";
+          nodos.txtEstado.textContent = "Analizando...";
           // (el puntito de estado y el estado del servidor en el onboarding los derivan
           //  las islas Preact del daemon Conexion — ya no se empujan imperativamente)
 
@@ -706,7 +718,12 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
         mostrarModalAdvertencia({
           titulo: "Selección de Carpeta 📂",
-          cuerpo: "Por favor, seleccioná tu carpeta principal (ej: 'RamonNet').<br><br>El sistema creará y organizará automáticamente las subcarpetas por materia y cátedra dentro de ella.<br><br><strong>Nota:</strong> Evitá elegir directamente subcarpetas específicas de materias.",
+          // Copy genérica a propósito: no enumera los niveles de subcarpeta. El árbol real
+          // depende del portal —Ramón Net abre un nivel por cátedra, Anatomy no tiene eje de
+          // clasificación (`faceta.id: "ninguna"`)— y el descriptor no expone un nombre honesto
+          // para ese nivel cuando no existe: interpolar `faceta.etiqueta` acá imprimiría
+          // "por materia y sin clasificación" en Anatomy. Ver copy-generico-diseno.md §5.1.
+          cuerpo: "Por favor, seleccioná tu carpeta principal (ej: 'Clases').<br><br>El sistema creará y organizará automáticamente las subcarpetas dentro de ella.<br><br><strong>Nota:</strong> Evitá elegir directamente subcarpetas específicas de materias.",
           checkboxKey: "ocultarAdvExplorar",
           onConfirm: () => {
             lanzarSeleccionCarpetaFisica();
@@ -894,7 +911,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     }
 
     function ejecutarPaso1EscaneoRamonAutomatico() {
-      nodos.loaderTxt.textContent = "Escaneando entorno de Ramón Net...";
+      // Genérica OBLIGATORIA: acá `sitioActivo` es todavía el portal ANTERIOR (o el legado por
+      // defecto). El portal de este escaneo se resuelve recién ~17 líneas abajo, así que
+      // interpolarlo acá anunciaría el portal equivocado justo al cambiar de portal.
+      // Caso C de copy-generico-diseno.md §3; la trampa entera, en su §4.
+      nodos.loaderTxt.textContent = "Escaneando la pestaña...";
       nodos.loader.style.display = 'flex';
       // Ocultar badge de cátedra al iniciar un nuevo escaneo para evitar estados inconsistentes
       nodos.facetaBadge.style.display = "none";
@@ -902,7 +923,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       const safetyTimeout = setTimeout(() => {
         nodos.loader.style.display = 'none';
         nodos.txtEstado.textContent = "⚠️ Timeout de carga del DOM.";
-        configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
+        configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
       }, 6000);
 
       chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
@@ -915,7 +936,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         if (!portal) {
           clearTimeout(safetyTimeout);
           nodos.txtEstado.textContent = "⚠️ No estás en un portal reconocido.";
-          configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
+          configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
           if (appState.listadoClasesGlobal.length > 0) { desbanearFiltros(); aplicarFiltrosCruzados(); }
           nodos.loader.style.display = 'none';
           return;
@@ -937,7 +958,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             console.error("❌ [POPUP-SCRIPT-ERROR] Falló inyección de script de escaneo:", chrome.runtime.lastError.message);
             nodos.txtEstado.textContent = `❌ Error de escaneo: ${chrome.runtime.lastError.message}`;
             nodos.loader.style.display = 'none';
-            configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
+            configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
           
             // Cargar el listado anterior del storage para evitar dejar la interfaz vacía
             appState.inicializarSincronizacionStorage().then(() => {
@@ -1013,7 +1034,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
                 }});
               }
 
-              configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
+              configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
             } else {
               const nuevasClases = enlaces.map((item, idx) => {
                 // [ESCANEO-API CORTE 1] La base de la carpeta sale del MÓDULO de la clase si el
@@ -1078,7 +1099,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             }
           } catch (e) {
             console.error("❌ Error procesando payload de inyección:", e);
-            configurarBotonesUX("re-escanear", "Re-escanear aula virtual 🔄", false);
+            configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
           } finally {
             nodos.loader.style.display = 'none';
           }
