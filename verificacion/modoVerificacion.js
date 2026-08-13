@@ -6,9 +6,16 @@
  *
  * **Apagado no cuesta nada, y está medido de nuevo en cada versión de este archivo** (si no, el
  * número envejece y el argumento deja de valer): la bandera es una `const` literal, así que el
- * `if` queda como código muerto y Vite se lleva este módulo entero. Medición del 2026-08-13, en
- * v3.1.0: con `false`, **227,87 kB** y **cero** ocurrencias de `mv-panel` en el bundle; con
- * `true`, **246,17 kB**. (En v3.0.0 eran 225,71 y 243,21 — el banco crece, el apagado no.)
+ * `if` queda como código muerto y Vite se lleva este módulo entero. Última medición, del
+ * 2026-08-13 al cerrar la tanda del toolbar: con `false`, **231,19 kB** y **cero** ocurrencias de
+ * `mv-panel` en el bundle; con `true`, **249,50 kB**.
+ *
+ * **Y lo que hay que mirar de esos números no es el número, es la RESTA** — que es la lección de
+ * esta última re-medición. Los dos subieron ~3,3 kB sin que el banco cambiara de versión: lo que
+ * creció fue el popup (el piso visible y el filtro de materia), no esto. Leyendo sólo la columna
+ * de `true` parecería que el banco engordó. La diferencia se quedó donde estaba: **18,31 kB**
+ * ahora, 18,30 en la medición anterior (227,87 / 246,17, misma v3.1.0), 17,50 en v3.0.0
+ * (225,71 / 243,21). Ese delta es el costo del banco, y es lo único que este párrafo afirma.
  *
  * ── LAS 12 TARJETAS QUE PUEDE MOSTRAR EL POPUP, Y CÓMO SE LLEGA A CADA UNA ────────────────
  *

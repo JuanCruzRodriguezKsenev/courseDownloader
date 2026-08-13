@@ -14,12 +14,23 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ---
 
-## 🟡 `tanda-toolbar-capa-y-pnpm` — construida, compuerta verde, **SIN VERIFICAR EN CHROME**
+## ✅ `tanda-toolbar-capa-y-pnpm` — construida, compuerta verde, **VERIFICADA EN CHROME**
 
 **Estado al 2026-08-13.** **Seis commits de código** sobre `main` (`66a50c6`), más los de docs. La
 compuerta pasa entera — **38 archivos / 674 tests**, lint 0, `tsc` limpio, build 0 — y eso **no
 dice nada** sobre esta zona: casi todo cae en el núcleo de `popup.js` y en el CSS, que es
-exactamente donde la suite no ve (la lección de la tanda anterior, más abajo).
+exactamente donde la suite no ve (la lección de la tanda anterior, más abajo). Por eso la
+verificación en navegador es la que cuenta acá, y está hecha.
+
+> **Qué quedó registrado de esa verificación, y qué no.** El dueño recorrió los 9 puntos de abajo
+> y confirmó que **anda todo**. No se anotó un desglose punto por punto, así que **esto es un
+> resultado global, no una medición** — del mismo tipo que la casilla 4 del corte 7 y que la
+> verificación del escaneo por API (`docs/escaneo-api-anatomy-diseno.md`). Se escribe así a
+> propósito: es exactamente lo que lo distingue de un ✅ inventado, y si mañana aparece un defecto
+> en esta zona, lo primero que hay que saber es que no hubo desglose que lo hubiera atrapado.
+>
+> **La lista de los 9 se conserva entera** aunque ya esté verificada, porque es la lista de qué
+> mirar cuando algo de esta zona se rompa — no un formulario que se tacha y se tira.
 
 **La rama creció después de la primera anotación**, y los tres commits nuevos son de otra
 naturaleza que los tres primeros: los primeros fueron el toolbar y la capa, los nuevos salieron de
@@ -28,8 +39,9 @@ de mirar: dos de los cuatro carteles del arranque duraban menos de lo que tardan
 peor de los dos no estaba donde el diseño suponía.
 
 **El build cargado en `.output/chrome-mv3/` es el de esta rama, con el banco de pruebas
-ENCENDIDO** (`BANCO_DE_PRUEBAS = true` en `entrypoints/popup/main.js`). Si algo falla y querés
-descartar todo: `git checkout main && pnpm install && pnpm run build`.
+APAGADO** — se apagó al terminar de verificar (`BANCO_DE_PRUEBAS = false` en
+`entrypoints/popup/main.js`). Volver a encenderlo es esa línea y `pnpm run build`. Si algo falla
+y querés descartar todo: `git checkout main && pnpm install && pnpm run build`.
 
 ### Qué trae, por commit
 
@@ -341,9 +353,16 @@ mientras el trabajo avanzaba —cargarla verificaba una versión anterior sin qu
 después hubo que rearmarla con siete cherry-picks. Una herramienta que hay que reconstruir cada
 vez que se usa es una herramienta que no se usa.
 
-Apagado no cuesta nada, y **se re-mide en cada versión del banco** (si no, el número envejece y
-el argumento deja de valer). Al 2026-08-13, en v3.1.0: `false` → **227,87 kB** y **cero**
-ocurrencias de `mv-panel` en el bundle; `true` → **246,17 kB**.
+Apagado no cuesta nada, y **se re-mide** (si no, el número envejece y el argumento deja de
+valer). Los kB no se copian acá: viven en la cabecera de `verificacion/modoVerificacion.js`, que
+es su hogar canónico.
+
+**Y la regla de cuándo re-medir cambió el 2026-08-13**, al cerrar esta tanda: decía "en cada
+versión del banco", y eso alcanza sólo si el banco es lo único que se mueve. Los dos builds
+subieron ~3,3 kB con el banco intacto en v3.1.0 — lo que creció fue el popup. **Lo que hay que
+mirar es la resta entre los dos**, que es el costo real del banco y se quedó donde estaba
+(18,31 kB); leer sólo la columna de `true` haría parecer que engordó el banco cada vez que crece
+la extensión.
 
 ---
 
