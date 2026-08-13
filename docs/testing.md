@@ -30,12 +30,39 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **37 archivos, 658 tests**, todo en verde |
+| `pnpm test` | **38 archivos, 674 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
 
-**De dónde sale el 658** (2026-08-13). Son los **610** de la tanda de loaders más los **+48** del
+**De dónde sale el 674** (2026-08-13). Son los 673 de abajo más **+1** en
+`popup/features/pisoVisible.test.js` (`hayPendiente`), que fija el modo de falla que el piso
+estrena: **el código que LEE el DOM justo después de pedir una escritura**. Antes la escritura
+era sincrónica y medir a continuación medía el estado nuevo; con el piso puede estar en cola, y
+la medición lee el viejo. Costó la línea divisoria del footer —`sincronizarFooterVacio()` le
+ponía `.vacia`, que lo esconde entero— y es el primer sitio donde buscar si aparece otro.
+
+**De dónde salía el 673** (2026-08-13). Son los 668 de abajo más **+5** en
+`popup/features/filters.test.js`: el eje de **materia en Disponibles**, que no existía en un
+portal de dos niveles. Tres fijan el armado de la sección —que aparezca con dos módulos o más,
+que **no** aparezca con uno solo (una opción no filtra nada) y que **no** aparezca en un portal
+de un nivel, donde la carpeta la pone el input— y dos, el filtrado: que una clase con módulo
+responda al Set, y que con el Set vacío el input en blanco no la esconda. Ese último es el que
+protege contra el arreglo ingenuo: antes de esto `coincideMateria` era `true` fijo para toda
+clase con módulo, precisamente para que el input vacío no borrara la lista entera.
+
+**De dónde salía el 668** (2026-08-13). Son los 658 de abajo más **+10** en
+**`popup/features/pisoVisible.test.js`, archivo nuevo** (de ahí 37 → 38 archivos): el mínimo de
+tiempo que un cartel de "estoy trabajando" tiene que quedarse en pantalla. Lo que fijan, y por qué
+esos casos: los dos tiempos medidos entran como constantes de los tests (**117 ms** el botón,
+**248 ms** el loader), así que si alguien afloja el piso, el test que se rompe **nombra el defecto
+real** en vez de un número redondo. Los otros dos que valen son el que fija que un rótulo de
+estado **no** lleva piso —el contador del botón, que con piso se vuelve pegajoso al tildar
+casillas— y el de coalescencia: de tres cambios durante el piso sale **uno**, porque pintar los
+tres en fila es un parpadeo peor que el que esto viene a sacar. El reloj y el temporizador se
+inyectan: lo que se prueba es una decisión de tiempo, no cuántos ticks pasaron.
+
+**De dónde salía el 658** (2026-08-13). Son los **610** de la tanda de loaders más los **+48** del
 bloqueador reutilizable, los controles que siguen al resultado, los carteles de lista vacía y la
 capa flotante compartida:
 

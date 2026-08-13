@@ -193,6 +193,20 @@ cualquier cambio del footer (`configurarBotonesUX` y `actualizarContadoresBoton`
 último pasó a ser un envoltorio: cualquiera de las ~8 salidas del cálculo puede mover
 `btnStartQueue`, que `configurarBotonesUX` no ve.
 
+> **Y desde el 2026-08-13 esa medición ya no es incondicional, por el piso visible**
+> (`popup/features/pisoVisible.js`; ver `docs/TECHNICAL_DEBT.md` §El loader del popup no tiene
+> dueño). `configurarBotonesUX` pasó a ser el embudo que **pide** la escritura y
+> `aplicarBotonesUX` el que la hace, porque el piso puede diferirla medio segundo. Eso rompe una
+> suposición que este §3 daba por obvia: **que medir el footer justo después de escribir el botón
+> mide el estado nuevo.** Con la escritura en cola, `sincronizarFooterVacio()` medía el botón
+> anterior, concluía "no hay nada visible" y le ponía `.vacia` al footer — que lo esconde entero,
+> línea divisoria incluida— hasta que la escritura aterrizaba.
+>
+> La regla, que vale para cualquier medición futura sobre el footer: **si lo que medís depende de
+> una escritura que pediste, no la hagas en paralelo.** O preguntás por `hayPendiente()`, o la
+> medición viaja adentro de la escritura misma — que es lo que hace hoy `aplicarBotonesUX` al
+> final, o sea exactamente el orden que todo esto tenía antes del piso.
+
 ---
 
 ## 4. La selección sigue al filtro

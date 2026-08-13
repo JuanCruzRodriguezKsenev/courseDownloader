@@ -16,10 +16,16 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## 🟡 `tanda-toolbar-capa-y-pnpm` — construida, compuerta verde, **SIN VERIFICAR EN CHROME**
 
-**Estado al 2026-08-13.** Tres commits sobre `main` (`66a50c6`). La compuerta pasa entera —
-**37 archivos / 658 tests**, lint 0, `tsc` limpio, build 0 — y eso **no dice nada** sobre esta
-zona: casi todo cae en el núcleo de `popup.js` y en el CSS, que es exactamente donde la suite no
-ve (la lección de la tanda anterior, más abajo).
+**Estado al 2026-08-13.** **Seis commits de código** sobre `main` (`66a50c6`), más los de docs. La
+compuerta pasa entera — **38 archivos / 674 tests**, lint 0, `tsc` limpio, build 0 — y eso **no
+dice nada** sobre esta zona: casi todo cae en el núcleo de `popup.js` y en el CSS, que es
+exactamente donde la suite no ve (la lección de la tanda anterior, más abajo).
+
+**La rama creció después de la primera anotación**, y los tres commits nuevos son de otra
+naturaleza que los tres primeros: los primeros fueron el toolbar y la capa, los nuevos salieron de
+**medir el arranque con el banco**. Esa medición es el hilo que los une y conviene saberlo antes
+de mirar: dos de los cuatro carteles del arranque duraban menos de lo que tardan en leerse, y el
+peor de los dos no estaba donde el diseño suponía.
 
 **El build cargado en `.output/chrome-mv3/` es el de esta rama, con el banco de pruebas
 ENCENDIDO** (`BANCO_DE_PRUEBAS = true` en `entrypoints/popup/main.js`). Si algo falla y querés
@@ -32,6 +38,9 @@ descartar todo: `git checkout main && pnpm install && pnpm run build`.
 | `5a3a57b` **build** | Migración de npm a **pnpm** |
 | `841441b` **style(css)** | Micro-movimientos de hover/clic + restyle de la path-bar + foco |
 | `1221643` **feat(popup)** | Bloqueo reutilizable, controles que siguen al resultado, carteles de lista vacía, capa flotante compartida, foco atrapado, banco |
+| `77a8ed5` **build** | Sacar la clave `pnpm.onlyBuiltDependencies` de `package.json`, que pnpm 11 ignora |
+| `ffc8baa` **feat(popup)** | **Piso visible**: ningún cartel de "estoy trabajando" dura menos de 500 ms. Y el footer de descarga vuelve entero al reanudar |
+| `45bc529` **feat(popup)** | El filtro por **materia** vuelve a Disponibles, y el popover se re-ancla solo con CSS Anchor Positioning |
 
 #### `5a3a57b` — pnpm
 
@@ -69,10 +78,50 @@ mensaje del commit y, con su porqué, en `docs/alertas-y-bloqueo-diseno.md` §2.
 - **El banco** estrena el switch "sin lista previa", y su cabecera lleva ahora el inventario de
   las 12 tarjetas y cómo se fuerza cada una.
 
+#### `ffc8baa` — el piso visible (y el footer que volvía a medias)
+
+**Salió de medir, no de mirar.** Con el banco encendido, los cuatro carteles del arranque no
+tienen término medio: dos duran ~3 s y **dos son destellos** — 248 ms el del loader, 117 ms el del
+botón. Los tiempos, con sus dos advertencias, viven en `docs/TECHNICAL_DEBT.md` §El loader del
+popup no tiene dueño; no se copian acá.
+
+- **`popup/features/pisoVisible.js`** (+ 10 tests) garantiza que un cartel transitorio se quede
+  500 ms. **Dos entradas y no una**: `transitorio()` para los avisos de trabajo, `libre()` para
+  los rótulos de estado — ponerle piso al contador del botón lo volvería pegajoso al tildar
+  casillas.
+- **El peor destello estaba en el botón**, que el diseño del corte ni tocaba. Por eso hay dos
+  instancias del piso y no una compartida: el piso es del cartel, no de la pantalla.
+- **`serverConnection.js` recibe `ocultarLoader` por `ctx`**. Escribía `nodos.loader` directo, que
+  es el único camino por el que el piso se saltea sin que nada avise.
+- **El texto inicial del loader** dice ahora "Conectando con el servidor Bun…" — ver el §Lo que
+  falta, que explica por qué ese texto es del markup y no de un flujo.
+- **El footer de descarga**, que cae en el mismo archivo: reanudar tras una pausa escribía tres
+  propiedades a mano y **se olvidaba de la clase `downloading`**. La barra volvía sin su línea
+  divisoria y con el footer en tamaño normal — "casi bien", y sólo por ese camino.
+
+#### `45bc529` — el filtro de materia, y un popover que ya no es de ancho fijo
+
+- **Disponibles se había quedado sin eje de materia** en un portal de dos niveles, mientras la
+  Cola sí lo tenía. La historia completa —y por qué un `true` fijo puesto como guarda fue en
+  realidad una decisión de producto— está en `docs/escaneo-api-anatomy-diseno.md`.
+- **El popover pasó a `width: max-content` con tope**, y de ahí sale todo el resto: al crecer se
+  salía por la izquierda del popup, y con once módulos se iba abajo arrastrando el scroll de la
+  página entera.
+- **Se re-ancla solo, con CSS Anchor Positioning**: se declara la posición preferida y una
+  alternativa, y el navegador mide antes de pintar. Los dos menús de la barra son ahora el mismo
+  mecanismo y lo único propio de cada uno es su `--ancla`. **La trampa a no repetir**: dos anclas
+  con el mismo nombre no conviven — el menú se ata a la última del documento, así que los dos
+  saldrían del mismo botón.
+
 ### Qué mirar en Chrome, en este orden
 
-Son cinco cambios visuales encadenados; si algo se ve mal, **el orden importa para aislar**.
+Son ocho cambios visuales encadenados; si algo se ve mal, **el orden importa para aislar**.
 Encendé el banco con **F9**.
+
+**Los tres últimos (7, 8, 9) hay que mirarlos con el banco APAGADO también**, y es la única parte
+de esta lista donde eso cambia el resultado: el banco demora el escaneo a propósito para poder
+leer los carteles, que es exactamente lo que el piso viene a arreglar. Con el banco encendido, un
+piso que no funcione se ve igual de bien.
 
 1. **Hover y clic** (`841441b`, se revierte solo). Pasá el mouse por la lista larga: sin temblor
    ni cambio de grosor de letra. Apretá los botones: sin hundido.
@@ -98,17 +147,75 @@ Encendé el banco con **F9**.
      se desborda, y tabulando dentro de una slide **no** se llega al link ni al botón de otra.
 6. **Foco atrapado**: con la advertencia abierta, dando la vuelta con Tab no se puede llegar al
    buscador ni a los filtros de atrás. Al cerrar, el foco vuelve al botón Explorar.
+7. **El piso de los carteles** (`ffc8baa`), **con el banco apagado y el servidor prendido**. Abrí
+   el popup en Anatomy y mirá la secuencia entera: "Conectando con el servidor Bun…" (es el
+   primero, no "Leyendo la pestaña…") → el botón "Conectando con el servidor… ⏳" →
+   "Escaneando la pestaña…" → "Sincronizando disco local…". **Los cuatro se tienen que poder
+   leer**; ninguno puede aparecer y desaparecer de golpe. Antes, el primero y el último no se
+   veían.
+   - **Y lo que NO puede pasar, que es donde este corte se rompe**: que el arranque se sienta más
+     lento. El piso del primer cartel descuenta lo que el usuario ya esperó, así que el total
+     hasta ver la lista tiene que quedar parecido a lo de antes (~3,5 s), no ~4,5 s.
+   - **El contador del botón no lleva piso**, a propósito: tildá tres casillas rápido y el número
+     ("Agregar N clases…") tiene que ir al día, sin quedarse atrás medio segundo.
+   - **El onboarding es la excepción escrita**: con el tutorial pendiente, la cortina se apaga al
+     instante. Si aparece el tour con una cortina encima medio segundo, se rompió esa vía.
+   - **Y la línea divisoria del footer** (arriba del botón) tiene que estar mientras hay algo que
+     hacer. Si parpadea o desaparece al tildar casillas, es la medición que lee el DOM antes de
+     que la escritura aterrice — el `hayPendiente()` del módulo.
+8. **El footer al reanudar** (`ffc8baa`). Es el que sólo falla por un camino: arrancá una descarga,
+   **pausala** (frenado suave o caída de servidor con el banco), y reanudá. El footer tiene que
+   quedar **idéntico** al de una descarga arrancada limpia: línea divisoria arriba, footer
+   compacto, barra de 5 px, telemetría chica y caja de cancelar. Antes volvía sin la línea y con
+   el footer en tamaño normal.
+9. **El popover de filtros** (`45bc529`), en Anatomy, que es donde hay once módulos. Abrí Filtros
+   en **Disponibles**: tiene que estar la sección **Materia** con los módulos, cada opción en
+   **una fila** (checkbox a la izquierda, texto al lado — no envuelto abajo), y el menú **no se
+   puede salir** por la izquierda ni por abajo. Scrolleá adentro del menú: se mueve **el menú**,
+   no la página.
+   - **Que filtre de verdad**: tildá un módulo → quedan sólo sus clases. Con el input MATERIA
+     vacío y sin nada tildado, **la lista tiene que verse entera** (ése era el bug original).
+   - **En Ramón Net no tiene que aparecer** la sección Materia (un solo nivel), y en un portal con
+     un único módulo tampoco.
+   - **Y el menú de Orden**: abrilo y confirmá que sale de **su** botón y no del de Filtros. Los
+     dos comparten mecanismo ahora; si las anclas se pisaran, saldrían del mismo lugar.
 
 ---
 
 ## Lo que falta, para una próxima sesión
 
-### 1. 🔴 El loader no tiene dueño — es el corte que estaba por arrancar
+### 1. 🔴 El loader no tiene dueño — **construida la mitad del tiempo, falta la del dueño**
 
-**Es la deuda más concreta y ya está diseñada.** El `<div id="ui-loader">` se prende y apaga
-escribiendo `style.display` **a mano desde 9 lugares**, en dos archivos, con tres textos escritos
-a mano. No tiene componente, ni store, ni isla — a diferencia de la ruta (`RutaDisco`), el banner
-(`BannerConexion`) y la lista (`ListaClases`).
+> **Ojo con este ítem: cambió el 2026-08-13 y ya no es "el corte que estaba por arrancar".** El
+> commit `ffc8baa` construyó **el piso visible** (`popup/features/pisoVisible.js`) y con eso los
+> 12 call-sites crudos dejaron de existir: la cortina se toca por `mostrarLoader`/`ocultarLoader`
+> y el botón por `configurarBotonesUX`, que ahora es un embudo. **Lo que sigue abierto son tres
+> cosas, y ninguna es cosmética**:
+>
+> 1. **Los tokens.** `elEscaneoTomoElLoader` sigue vivo (`popup.js`): dos dueños del mismo nodo
+>    puestos de acuerdo a mano. El piso ordena *cuándo* se pinta, no *quién* puede apagar.
+> 2. **La demora de ~150 ms para aparecer**, que es la otra mitad del par — el piso evita el
+>    destello de lo que ya salió; la demora evita que salga lo que no hacía falta.
+> 3. **El dueño del nodo.** `pisoVisible.js` no es dueño de nada: nada impide escribir
+>    `nodos.loader` por atrás y saltearlo en silencio, que es exactamente lo que este ítem se
+>    llama.
+>
+> Lo que sigue abajo es el diseño completo del corte, que se conserva entero porque **las tres
+> partes que faltan se leen contra él**. Las decisiones de tiempo (piso por texto, el label del
+> botón, el nodo que nace visible) ya están construidas y quedan como el registro de por qué.
+
+El `<div id="ui-loader">` se prendía y apagaba escribiendo `style.display` **a mano desde 12
+lugares** —once en `popup.js`, uno en `popup/features/serverConnection.js`—, con tres textos
+escritos a mano. No tiene componente, ni store, ni isla — a diferencia de la ruta (`RutaDisco`),
+el banner (`BannerConexion`) y la lista (`ListaClases`). **Antes de arrancar lo que falta,
+re-contá con `grep -rn "loader.style.display" popup.js popup/features/*.js`**: acá decía 9 y
+siempre fueron 12 (mal contados, no crecidos — ver `docs/TECHNICAL_DEBT.md` §El loader del popup
+no tiene dueño). Hoy ese grep da **cuatro líneas, que son tres escrituras**: dos adentro del
+embudo (`mostrarLoader`/`ocultarLoader`) y la vía de escape del onboarding (`pisoLoader.inmediato`,
+`popup.js:871`); la cuarta es **un comentario** en `serverConnection.js` que nombra lo que ese
+archivo dejó de hacer. Contá después de filtrar comentarios — el mismo cuidado que pide
+`docs/architecture.md` §Las capas para el residuo de `chrome.*`, y por el mismo motivo: contar
+crudo infla el trabajo que falta.
 
 **Ya se pagó un bug por eso** (§6.2 del doc de alertas): el loader del escaneo inicial no se veía
 nunca, porque `conectarYArrancar` lo apagaba en su `finally` **en el mismo tick** — el escaneo no
@@ -116,25 +223,66 @@ es `async`, vuelve apenas encola su `chrome.tabs.query`. Se cerró con una **ban
 `elEscaneoTomoElLoader` (`popup.js:750` y `:803`): dos dueños del mismo recurso puestos de acuerdo
 a mano, que es el antipatrón que el §1 de ese mismo doc prohíbe para la región de la lista.
 
-**Y hay un síntoma vivo**: el escaneo rápido hace que el loader viva 100-200 ms. Es menos de lo
-que el ojo registra, así que se ve un destello y parece que no funcionó.
+**El síntoma que era vivo hasta el `ffc8baa`**: el escaneo rápido hacía vivir al loader 100-200 ms.
+Es menos de lo que el ojo registra, así que se veía un destello y parecía que no funcionó. **Eso
+es lo que cerró el piso** — pero cerrarlo con el nodo todavía sin dueño es lo que deja el ítem
+abierto y no resuelto.
 
-El corte, tal como quedó diseñado:
+El corte, tal como quedó diseñado (⬜ = falta, ✅ = construido el 2026-08-13):
 
-- **`popup/features/loader.js`, dueño único.** `mostrar(texto)` / `ocultar(token)`. Nadie más
-  escribe `style.display` sobre ese nodo.
-- **Tokens, no un booleano.** `mostrar()` devuelve un comprobante y se apaga cuando **todos** lo
+- ⬜ **`popup/features/loader.js`, dueño único.** `mostrar(texto)` / `ocultar(token)`. Nadie más
+  escribe `style.display` sobre ese nodo. **Sigue siendo el corazón del ítem**: hoy hay embudo,
+  que no es lo mismo que dueño — un embudo se puede esquivar.
+- ⬜ **Tokens, no un booleano.** `mostrar()` devuelve un comprobante y se apaga cuando **todos** lo
   devolvieron. La diferencia con la bandera no es de estilo: nadie puede apagar el loader de otro
   **porque no tiene cómo**, en vez de porque se acordó de preguntar. Con eso desaparece
   `elEscaneoTomoElLoader`.
-- **Dos tiempos, y no una `transition`.** Una transición controla *cómo* se ve el cambio, no
-  *cuándo* empieza: el fade arranca igual en el instante cero y se lee como "se está cerrando".
-  Las reglas son: **~150 ms de demora para aparecer** (si el trabajo termina antes, el loader no
-  aparece nunca — el destello se elimina en vez de alargarse) y **500 ms de mínimo visible** si
-  llegó a pintarse.
+- **Dos tiempos, y no una `transition`** — ✅ el mínimo visible, ⬜ la demora. Una transición
+  controla *cómo* se ve el cambio, no *cuándo* empieza: el fade arranca igual en el instante cero
+  y se lee como "se está cerrando". Las reglas son: **~150 ms de demora para aparecer** (si el
+  trabajo termina antes, el loader no aparece nunca — el destello se elimina en vez de alargarse)
+  y **500 ms de mínimo visible** si llegó a pintarse.
+- ✅ **El mínimo visible es POR TEXTO, no por encendido** (decidido el 2026-08-13). El loader es uno
+  solo pero los textos son varios, y un texto que se pinta 80 ms es igual de inútil que un loader
+  que parpadea: el usuario tiene que poder leerlo y sacar de ahí que algo está pasando **ahora** y
+  que lo que ve no es viejo. Así que cada cambio de texto arranca su propio piso de 500 ms; el
+  siguiente espera. Sin esto, el corte arregla el parpadeo del loader y deja intacto el de los
+  carteles que van adentro.
+- ✅ **Y el piso alcanza al LABEL DEL BOTÓN, no sólo al loader.** Esto lo decidió la medición, no el
+  diseño: el peor destello del arranque **no está en el loader** — "Sincronizando disco local…"
+  dura **117 ms** contra los 248 ms de "Conectando con el servidor Bun…". Los cuatro tiempos
+  medidos, con sus dos advertencias (los 248 son un piso, y son con el servidor prendido) →
+  `docs/TECHNICAL_DEBT.md` §El loader del popup no tiene dueño, que es su hogar canónico; no los
+  copies acá. **La interacción a respetar**: `configurarBotonesUX` decide *si* el botón se ve
+  (§3 de `alertas-y-bloqueo-diseno.md`), así que el piso va sobre el **texto** y jamás sobre la
+  visibilidad — retrasar el ocultado deja un botón ofreciendo una acción que ya no existe.
+- **El nodo nace visible por CSS, y eso se conserva a propósito** — `.loader-overlay` trae
+  `display: flex` (`styles/components/loader.css:8`) para que no se vea la UI a medio estilar en
+  los primeros frames. Tres consecuencias que el diseño tiene que absorber, y ninguna es teórica:
+  - **La demora de ~150 ms para aparecer NO aplica al loader del arranque**, que ya está en
+    pantalla antes de que exista JS. Aplica a los que un flujo pide después (el 📂, por ejemplo).
+  - **El texto del markup es el de la primera fase real.** Desde el 2026-08-13 dice "Conectando
+    con el servidor Bun…" y no "Leyendo la pestaña…", porque lo primero que corre es la conexión
+    y la secuencia quedaba **pestaña → servidor → pestaña**. Sigue siendo caso C de
+    `docs/copy-generico-diseno.md` (genérica, sin nombrar portal).
+  - **El piso de 500 ms del primer texto cuenta desde que se pintó, no desde que un flujo lo
+    reclama.** Si la lectura de storage tardó 400 ms, quedan 120, no 500. Sin esta regla el piso
+    se cobra dos veces en el arranque (≥1 s antes de ver la lista) por una espera que el usuario
+    **ya hizo**.
+- ✅ **Y el arranque con onboarding es la excepción que hay que dejar escrita**: el apagado
+  inmediato para que la cortina no tape el tour (tiene `z-index` mayor) **no puede esperar
+  500 ms**. Construido como `pisoLoader.inmediato(...)` y es el **único** del archivo, con el
+  porqué al lado. La regla que lo resuelve sin caso especial: el piso protege al texto que un
+  **flujo** puso; el que trae el markup no es una reclamación de nadie, así que se puede apagar
+  sin deuda.
 - **El riesgo, y hay que mirarlo**: los tiempos hacen que el loader viva **más allá** del
   `finally` que lo pidió, así que hay que revisar que ninguna de las 4 salidas del escaneo asuma
-  que apagar es inmediato. Los dos tiempos y el conteo se testean con temporizadores falsos.
+  que apagar es inmediato. Los tiempos y el conteo se testean con temporizadores falsos.
+- **Y el riesgo que la construcción destapó y el diseño no preveía**: el código que **lee el DOM
+  justo después de pedir una escritura**. Con el piso, esa escritura puede estar en cola y la
+  medición lee el estado viejo. Costó la línea divisoria del footer; se cerró con
+  `hayPendiente()`, y es el primer lugar donde buscar si aparece otro. Quien agregue un consumidor
+  nuevo del piso se lo va a encontrar.
 
 ### 2. 🔴 `#ui-msg-status` está oculto y nadie se lo destapa
 
