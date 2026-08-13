@@ -34,7 +34,7 @@ los cinco ítems de la auditoría de loaders— se verificó en Chrome y se merg
 ### El banco de pruebas ya no es una rama
 
 **Vive en el código**, en `verificacion/modoVerificacion.js`, y se enciende con **una línea**:
-`BANCO_DE_PRUEBAS = true` al final de `entrypoints/popup/main.js` + `npm run build`.
+`BANCO_DE_PRUEBAS = true` al final de `entrypoints/popup/main.js` + `pnpm run build`.
 
 Vivió en una rama descartable y **se perdió dos veces**: primero quedó con un build viejo
 mientras el trabajo avanzaba —cargarla verificaba una versión anterior sin que nada avisara— y

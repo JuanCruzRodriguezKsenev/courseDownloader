@@ -8,7 +8,7 @@ Esta extensión no tiene un pipeline de CI/CD ni un entorno de "producción" en 
 
 No hay publicación en la Store, empaquetado `.crx` versionado ni firma. Sí hay build:
 desde la Fase 3 la extensión se compila con WXT y lo que se carga es `.output/chrome-mv3/`
-(`npm run build`), no la raíz del repo. `npm run zip` produce un `.zip` si alguna vez hace falta.
+(`pnpm run build`), no la raíz del repo. `pnpm run zip` produce un `.zip` si alguna vez hace falta.
 
 **No se publica en la Chrome Web Store — y no está planeado hacerlo.** Es una extensión de uso **personal**: se carga descomprimida, para un solo usuario. Esto no es un "todavía no", es una restricción de diseño confirmada (2026-08-02), y **cambia el signo de varias decisiones técnicas**: no se ponderan la review de la Store, la optics de pedir permisos amplios ante usuarios desconocidos, ni el empaquetado/firma. El primer caso concreto fue la selección de sitio de la re-arquitectura multi-portal: descartar "una build por portal" a favor del registro en runtime (ver `docs/adr/0009-registro-de-sitios-en-runtime.md`). Lo que **sí** sigue valiendo con todo el peso: la seguridad real frente a contenido scrapeado (`docs/security.md`) y que la extensión se usa a diario y no puede quedar rota.
 

@@ -1,0 +1,11 @@
+# Configuración de pnpm. No declara `packages:` a propósito: `backend/` tiene su propio
+# package.json pero NO es un paquete del workspace — es otro runtime (Bun), sin dependencias,
+# que se arranca aparte con `backend/iniciar.bat` (ADR-0015). Listarlo acá lo pondría bajo el
+# instalador de Node sin que nadie lo necesite.
+#
+# `allowBuilds`: pnpm 10+ bloquea los scripts de instalación de las dependencias por defecto.
+# esbuild necesita el suyo para dejar su binario en su lugar; sin esta línea, cada
+# `pnpm install` termina en ERR_PNPM_IGNORED_BUILDS y sale con código 1, lo que rompe la
+# compuerta entera (pnpm re-corre el install antes de cada script).
+allowBuilds:
+  esbuild: true

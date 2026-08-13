@@ -113,8 +113,8 @@ chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
 
 // ─── BANCO DE PRUEBAS ────────────────────────────────────────────────────────────────────
 //
-// ⬇⬇⬇  PONÉ `true` ACÁ PARA ACTIVARLO, Y `npm run build`.  ⬇⬇⬇
-const BANCO_DE_PRUEBAS = false;
+// ⬇⬇⬇  PONÉ `true` ACÁ PARA ACTIVARLO, Y `pnpm run build`.  ⬇⬇⬇
+const BANCO_DE_PRUEBAS = true;
 // ⬆⬆⬆  Es la única línea que hay que tocar.  ⬆⬆⬆
 //
 // Qué es: un panel (🧪 en la cabecera, o **F9**) que graba los carteles que duran

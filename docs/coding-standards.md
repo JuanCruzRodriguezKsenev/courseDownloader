@@ -1,6 +1,6 @@
 # Estándar de código
 
-Convenciones observadas y a mantener en este repositorio. Hay un ESLint (flat config, `eslint.config.js`) que hace cumplir automáticamente un subconjunto (`no-undef`, `no-unused-vars`, `eqeqeq`) vía `npm run lint`; el resto de las convenciones de este documento dependen de revisión manual.
+Convenciones observadas y a mantener en este repositorio. Hay un ESLint (flat config, `eslint.config.js`) que hace cumplir automáticamente un subconjunto (`no-undef`, `no-unused-vars`, `eqeqeq`) vía `pnpm run lint`; el resto de las convenciones de este documento dependen de revisión manual.
 
 ## Idioma: identificadores y logs en español
 

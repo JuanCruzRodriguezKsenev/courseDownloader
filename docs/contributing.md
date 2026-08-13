@@ -6,17 +6,42 @@ Configuración de entorno local y flujo de trabajo para desarrollar sobre esta e
 
 - Chrome o Brave con "Modo de desarrollador" habilitable en `chrome://extensions/`.
 - El backend local en Bun corriendo en `http://localhost:3001` para poder probar descargas de punta a punta. **Está en `backend/`, dentro de este repo** desde el 2026-08-12 (ADR-0015); se arranca con `backend/iniciar.bat` — ver `docs/deployment.md`.
-- **Node.js es obligatorio**: desde la Fase 3 de la re-arquitectura la extensión se **compila** (WXT). Ya no se carga la raíz del repo — el navegador lee `.output/chrome-mv3/`, que produce `npm run build`. Node también corre la suite (`npm test`, Vitest + jsdom) y el linter (`npm run lint`).
+- **Node.js es obligatorio**: desde la Fase 3 de la re-arquitectura la extensión se **compila** (WXT). Ya no se carga la raíz del repo — el navegador lee `.output/chrome-mv3/`, que produce `pnpm run build`. Node también corre la suite (`pnpm test`, Vitest + jsdom) y el linter (`pnpm run lint`).
+- **El gestor de paquetes es pnpm, no npm** (desde el 2026-08-12). Está fijado en
+  `package.json` (`"packageManager": "pnpm@11.1.1"`), así que con Corepack activo la versión
+  correcta se usa sola. El lockfile del repo es `pnpm-lock.yaml`; `package-lock.json` se borró y
+  no debe volver. Nada del código cambió: sólo el instalador.
+
+### Las dos trampas de pnpm en este repo
+
+Ninguna de las dos es evitable ni se arregla sola, y las dos rompen **todo** — pnpm re-corre
+`install` antes de cada script, así que un install que sale con código 1 tumba los cuatro
+comandos de la compuerta a la vez, con un error que no habla de lo que realmente pasó.
+
+1. **`vite` tiene que estar declarado a mano.** WXT lo pide como *peer dependency*
+   (`^6.3.4 || ^7 || ^8.0.0-0`) y npm lo instalaba solo, sin decirlo; pnpm no. Sin esa línea en
+   `devDependencies`, WXT se queda con el `vite` 5 que arrastra Vitest y `wxt prepare` muere con
+   `vite.createRunnableDevEnvironment is not a function` — un mensaje que no menciona ni a pnpm
+   ni a la peer dep. Si algún día se actualiza Vitest, ojo: son **dos** copias de Vite conviviendo
+   a propósito (la 8 para WXT, la 5 anidada de Vitest), y eso está bien.
+2. **`allowBuilds` en `pnpm-workspace.yaml`.** pnpm 10+ bloquea los scripts de instalación de las
+   dependencias por defecto; `esbuild` necesita el suyo. Sin eso, cada install termina en
+   `ERR_PNPM_IGNORED_BUILDS`. La clave se llama `allowBuilds` (mapa) en pnpm 11 —
+   `onlyBuiltDependencies` dentro de `package.json`, que es lo que documenta medio internet, acá
+   se ignora en silencio.
+
+`backend/` no lo toca nada de esto: es otro runtime (Bun), sin dependencias, y **no** es un
+paquete del workspace — por eso `pnpm-workspace.yaml` no declara `packages:`.
 
 ## Cargar la extensión en modo desarrollo
 
-1. `npm install` (la primera vez; el `postinstall` corre `wxt prepare` y genera `.wxt/`).
-2. `npm run build` → genera `.output/chrome-mv3/`.
+1. `pnpm install` (la primera vez; el `postinstall` corre `wxt prepare` y genera `.wxt/`).
+2. `pnpm run build` → genera `.output/chrome-mv3/`.
 3. `chrome://extensions/` → activar "Modo de desarrollador" (esquina superior derecha).
 4. "Cargar descomprimida" → seleccionar **`.output/chrome-mv3/`**, NO la raíz del repo.
-5. Después de cada cambio: `npm run build` + clic en el ícono de recarga de la tarjeta.
+5. Después de cada cambio: `pnpm run build` + clic en el ícono de recarga de la tarjeta.
 
-Alternativa con recarga automática: `npm run dev` levanta WXT en modo desarrollo (HMR del
+Alternativa con recarga automática: `pnpm run dev` levanta WXT en modo desarrollo (HMR del
 popup y recarga del service worker). Los comandos vienen de `wxt.config.ts`; el `manifest.json`
 ya no se escribe a mano — lo genera el build.
 
@@ -58,7 +83,7 @@ Este proyecto trata la documentación con la misma disciplina que el código —
 - [ ] Si agregaste o cambiaste una isla Preact del popup → actualizaste la tabla de estado en `docs/preact-migration.md`.
 - [ ] Si agregaste un módulo, una feature o un puerto (o le cambiaste la responsabilidad a uno) → lo reflejaste en `docs/architecture.md` §Qué hace cada archivo.
 - [ ] Si resolviste un ítem de `docs/TECHNICAL_DEBT.md` → lo marcaste como resuelto ahí.
-- [ ] Corriste `npm test` (sin regresiones) y `npm run lint` (0 errores) sobre el cambio.
+- [ ] Corriste `pnpm test` (sin regresiones) y `pnpm run lint` (0 errores) sobre el cambio.
 - [ ] Probaste el flujo afectado end-to-end en el navegador (con el backend Bun corriendo si tocaste algo de descarga) — ver `docs/testing.md`.
 
 ## Probar el "golden path" antes de dar por terminado un cambio
