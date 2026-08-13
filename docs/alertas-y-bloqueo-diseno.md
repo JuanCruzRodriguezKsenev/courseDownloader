@@ -296,6 +296,30 @@ sigue el tema**; personalizarla es lo que se las lleva. Toda la saga arrancó po
 barra fina en una región nueva sin preguntarse por qué la otra región tenía una fina. Lo que
 quedó (`base.css`, selector universal) es deliberado y tiene escrito lo que cuesta.
 
+### 5.2 La tanda del toolbar, la capa y el piso visible — 2026-08-13
+
+**Mergeada a `main` el 2026-08-13.** Nueve commits: pnpm, los micro-movimientos de hover/clic, el
+bloqueo reutilizable + la capa flotante, el piso visible de los carteles, el filtro por materia en
+Disponibles y el popover que se re-ancla. La compuerta quedó en **38 archivos / 674 tests**, lint
+0, `tsc` limpio.
+
+**Cómo se verificó, que es el dato que hay que conservar: el dueño recorrió los 9 puntos de la
+lista y confirmó que anda todo, SIN desglose punto por punto.** O sea **resultado global, no
+medición** — del mismo tipo que la casilla 4 del corte 7 y que la verificación del escaneo por
+API, y **distinto** de la pasada del §5.1, que sí produjo una tabla de ocho defectos.
+
+Se anota así a propósito. **Si mañana aparece un defecto en esta zona, lo primero que hay que
+saber es que no hubo desglose que lo hubiera atrapado** — y que por lo tanto no hay contradicción
+entre "estaba verificado" y "estaba roto". La diferencia entre los dos registros no es de
+prolijidad: es cuánto se puede concluir de cada uno.
+
+**Lo que esta tanda agrega al §5.1, sin repetirlo**: dos de los cuatro carteles del arranque
+duraban menos de lo que tardan en leerse (248 ms y 117 ms), y **eso no se descubrió mirando —se
+descubrió midiendo, con el banco**. Es la primera vez que un defecto de esta zona lo encuentra un
+instrumento y no el ojo. La lección práctica: **para lo que dura milisegundos, mirar no alcanza**,
+y el banco tiene que estar apagado al verificar el arreglo, porque demora el escaneo a propósito y
+haría pasar un piso que no funciona.
+
 ---
 
 ## 6. El informe de la auditoría — **los cinco, ya cerrados**

@@ -419,6 +419,28 @@ Cuando aparezca un hallazgo nuevo, va acá arriba con su `**Estado**` explícito
 
 ---
 
+### ⚪ Dos restos de la limpieza de micro-movimientos
+
+Llegaron acá al mergear la tanda del toolbar (2026-08-13): vivían en
+`docs/ramas-en-revision.md`, que no es el backlog y se vacía al mergear.
+
+- **Dónde**: `styles/components/campanita.css:24` y `styles/components/help-button.css:17`
+  (`scale(1.15)` en hover); y `transition: all` en 8 reglas de `actions.css`,
+  `advertencia.css`, `faceta.css`, `filters.css`, `header.css` y `onboarding.css`.
+- **Qué pasa**: el `scale(1.15)` **no parpadea** —un 15% es un efecto deliberado, no un
+  sub-píxel— pero cambia de tamaño en hover, que es justo lo que se sacó de todos los demás
+  controles. Los dos elementos ya avisan por color, así que sacarlo no los deja mudos.
+- **Y el `transition: all` es lo que más importa de los dos**: anima *cualquier* propiedad que
+  cambie, incluidas las que mueven layout. Es el origen latente del próximo parpadeo, y va a
+  aparecer por un cambio que no tenga nada que ver con estas reglas — nadie declaró qué quería
+  animar, así que nadie va a sospechar de acá.
+- **Fix propuesto**: sacar los dos `scale()` y reemplazar cada `all` por la lista de propiedades
+  que esa regla realmente anima.
+- **Estado**: ⚪ abierto, cosmético y sin síntoma vivo. Es el candidato natural para acompañar
+  cualquier otro corte de CSS.
+
+---
+
 ### 🔴 El loader del popup no tiene dueño
 
 - **Dónde**: **12 call-sites** de `nodos.loader.style.display` — **once** en `popup.js` y uno en
