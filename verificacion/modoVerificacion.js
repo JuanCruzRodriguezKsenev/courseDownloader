@@ -7,8 +7,14 @@
  * **Apagado no cuesta nada, y está medido de nuevo en cada versión de este archivo** (si no, el
  * número envejece y el argumento deja de valer): la bandera es una `const` literal, así que el
  * `if` queda como código muerto y Vite se lleva este módulo entero. Última medición, del
- * 2026-08-13 al cerrar la tanda del toolbar: con `false`, **231,19 kB** y **cero** ocurrencias de
- * `mv-panel` en el bundle; con `true`, **249,50 kB**.
+ * 2026-08-13 sobre `main`, ya con la tanda del toolbar mergeada: con `false`, **231,33 kB** y
+ * **cero** ocurrencias de `mv-panel` en el bundle; con `true`, **249,64 kB**.
+ *
+ * **Medí los dos seguidos, sobre el mismo commit.** La primera vez que se anotó este par salió
+ * mal por no hacerlo: los dos números eran de builds separados por unos commits de docs, y el de
+ * `false` quedó 0,14 kB corrido. Parece nada, pero el par existe para que se le pueda restar, y
+ * dos mediciones de commits distintos no se restan. **El build no minifica**, así que hasta un
+ * comentario que crece mueve el total — que es justamente lo que pasó ahí.
  *
  * **Y lo que hay que mirar de esos números no es el número, es la RESTA** — que es la lección de
  * esta última re-medición. Los dos subieron ~3,3 kB sin que el banco cambiara de versión: lo que
