@@ -14,10 +14,27 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 ## 🔴 Abierto
 
-> ## Estado al 2026-08-12 (tarde): queda **UNA** entrada abierta
+> ## Estado al 2026-08-13: **CUATRO** entradas abiertas
 >
-> **La única abierta es el mecanismo de popovers sin tests** (última entrada de esta sección).
-> Todo lo demás está construido, **verificado en navegador y mergeado a `main`**.
+> Re-contadas, no sumadas al número anterior — que es lo que pide el párrafo del error de
+> conteo, unas líneas más abajo. Son:
+>
+> 1. **El mecanismo de popovers sin tests** (última entrada de esta sección). Venía de antes.
+> 2. **El loader no tiene dueño**: se prende y apaga con `style.display` desde **9 lugares**, y
+>    los dos que se pisan están coordinados por una bandera (`elEscaneoTomoElLoader`) en vez de
+>    por construcción. Síntoma vivo: el escaneo rápido lo deja 100-200 ms en pantalla y se ve un
+>    destello que parece un error. **El corte ya está diseñado** (dueño único + tokens + demora
+>    para aparecer y mínimo visible) → `docs/ramas-en-revision.md` §Lo que falta.
+> 3. **`#ui-msg-status` está oculto y nadie se lo destapa**, así que ~20 mensajes son invisibles
+>    —incluido el texto de progreso de la descarga—. Arreglo de una línea, lo que falta es la
+>    pasada por navegador → `docs/alertas-y-bloqueo-diseno.md` §6.8b.
+> 4. **El banco no puede forzar una descarga en curso** ni sembrar el historial de fallos: sólo
+>    envuelve APIs del popup, y eso vive en el service worker.
+>
+> **Y hay una tanda construida y sin verificar en Chrome**, en `tanda-toolbar-capa-y-pnpm`: pnpm,
+> el bloqueo y la capa flotante reutilizables, los controles que siguen al resultado y los
+> carteles de lista vacía. Qué mirar y en qué orden → `docs/ramas-en-revision.md`. Hasta que se
+> verifique, **eso no está cerrado**: la compuerta en verde no dice nada sobre esta zona.
 >
 > La verificación encontró **ocho defectos más**, ninguno alcanzable por la compuerta y cuatro
 > introducidos por el arreglo del anterior; se cerraron en la misma pasada. Tabla y lecciones →
@@ -400,6 +417,53 @@ acá el avance de las fases.
 Cuando aparezca un hallazgo nuevo, va acá arriba con su `**Estado**` explícito.
 
 ---
+
+### 🔴 El loader del popup no tiene dueño
+
+- **Dónde**: `popup.js` (9 call-sites de `nodos.loader.style.display`), `popup/features/serverConnection.js:181`.
+- **Qué pasa**: no hay componente, ni store, ni isla — a diferencia de la ruta (`RutaDisco`), el
+  banner (`BannerConexion`) y la lista (`ListaClases`). Tres flujos lo usan con tres textos
+  escritos a mano, y **dos se pisan**: `conectarYArrancar` lo apagaba en su `finally` en el mismo
+  tick que el escaneo lo prendía (el escaneo no es `async`). Ese bug ya se pagó (§6.2) y se cerró
+  con una **bandera**, `elEscaneoTomoElLoader` — dos dueños del mismo recurso puestos de acuerdo a
+  mano, el antipatrón que el §1 de `alertas-y-bloqueo-diseno.md` prohíbe para la lista.
+- **Síntoma vivo**: el escaneo rápido deja el loader 100-200 ms en pantalla. Es menos de lo que el
+  ojo registra: se ve un destello y parece que no funcionó.
+- **El corte está diseñado**: dueño único (`popup/features/loader.js`), **tokens** en vez de
+  bandera —nadie puede apagar el loader de otro porque no tiene cómo— y **dos tiempos**: ~150 ms
+  de demora para aparecer (si termina antes, no aparece nunca) y 500 ms de mínimo visible. Una
+  `transition` NO sirve: controla cómo se ve el cambio, no cuándo empieza.
+- **El riesgo a mirar**: los tiempos hacen que el loader viva más allá del `finally` que lo pidió,
+  así que ninguna de las 4 salidas del escaneo puede asumir que apagar es inmediato.
+- **Estado**: 🔴 abierto. Detalle completo → `docs/ramas-en-revision.md` §Lo que falta.
+
+### 🔴 La línea de estado del footer es invisible
+
+- **Dónde**: `entrypoints/popup/index.html` (el `<p id="ui-msg-status">`).
+- **Qué pasa**: nace con `style="display:none"` inline y **nada en el repo se lo saca** — no hay un
+  solo `txtEstado.style`, ni un `removeAttribute`, ni CSS con `!important` que lo pise (el único
+  `!important` es `.status-text:empty`, que lo esconde *más*). Viene así desde la migración a WXT
+  (`fd81f9a`, 2026-08-02), heredado del `popup.html` viejo.
+- **Consecuencia**: ~20 mensajes son invisibles, entre ellos "no estás en un portal reconocido",
+  "el escaneo no devolvió clases", "servidor Bun apagado" y **el texto de progreso de la
+  descarga**. Fue lo que hizo que el error de inyección pareciera no avisar.
+- **El arreglo es de una línea**; lo que falta es la pasada por navegador, porque destapa los ~20
+  de golpe y hay que mirar el footer **descargando**, que es donde cambia de alto.
+- **Ojo**: destaparlo no lo convierte en buen destino para un error. Ese lugar ya se descartó para
+  el watchdog *aunque estuviera visible*, porque comparte el footer con el diagnóstico de conexión
+  y queda pisado.
+- **Estado**: 🔴 abierto. Detalle → `docs/alertas-y-bloqueo-diseno.md` §6.8b.
+
+### 🟠 El banco de pruebas no alcanza al service worker
+
+- **Dónde**: `verificacion/modoVerificacion.js`.
+- **Qué pasa**: envuelve `fetch`, `chrome.tabs.query` y `chrome.runtime.sendMessage` **del
+  popup**, así que puede forzar 9 de las 12 tarjetas (las otras 3 se alcanzan a mano). Lo que no
+  puede es **una descarga en curso** —barra de progreso, telemetría, frenado suave, caja de
+  cancelar—, porque eso lo produce el service worker bajando de verdad. Tampoco puede sembrar el
+  historial de fallos de la campanita.
+- **Qué haría falta**: contestar IPC de progreso falsos, que es otro mecanismo y no un switch más.
+- **Estado**: 🟠 abierto. El inventario de qué se fuerza y cómo vive en la cabecera del módulo.
 
 ## 🔴 Seguridad
 
