@@ -20,11 +20,12 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 > conteo, unas líneas más abajo. Son:
 >
 > 1. **El mecanismo de popovers sin tests** (última entrada de esta sección). Venía de antes.
-> 2. **El loader no tiene dueño**: se prende y apaga con `style.display` desde **9 lugares**, y
+> 2. **El loader no tiene dueño**: se prende y apaga con `style.display` desde **12 lugares**, y
 >    los dos que se pisan están coordinados por una bandera (`elEscaneoTomoElLoader`) en vez de
->    por construcción. Síntoma vivo: el escaneo rápido lo deja 100-200 ms en pantalla y se ve un
->    destello que parece un error. **El corte ya está diseñado** (dueño único + tokens + demora
->    para aparecer y mínimo visible) → `docs/ramas-en-revision.md` §Lo que falta.
+>    por construcción. Medido el 2026-08-13: dos de los cuatro carteles del arranque son
+>    destellos —**248 ms** el del loader y **117 ms** el del botón—, y los otros dos duran ~3 s.
+>    **El corte ya está diseñado** (dueño único + tokens + demora para aparecer y mínimo visible
+>    **por texto**, botón incluido) → `docs/ramas-en-revision.md` §Lo que falta.
 > 3. **`#ui-msg-status` está oculto y nadie se lo destapa**, así que ~20 mensajes son invisibles
 >    —incluido el texto de progreso de la descarga—. Arreglo de una línea, lo que falta es la
 >    pasada por navegador → `docs/alertas-y-bloqueo-diseno.md` §6.8b.
@@ -420,7 +421,13 @@ Cuando aparezca un hallazgo nuevo, va acá arriba con su `**Estado**` explícito
 
 ### 🔴 El loader del popup no tiene dueño
 
-- **Dónde**: `popup.js` (9 call-sites de `nodos.loader.style.display`), `popup/features/serverConnection.js:181`.
+- **Dónde**: **12 call-sites** de `nodos.loader.style.display` — **once** en `popup.js` y uno en
+  `popup/features/serverConnection.js`. El inventario es
+  `grep -rn "loader.style.display" popup.js popup/features/*.js`, no una lista acá: son los nodos
+  que el corte tiene que dejar en cero, y una lista de líneas envejece con el primer commit que
+  toque `popup.js`. **Decían 9 y siempre fueron 12** — mal contados de entrada el 2026-08-12, no
+  crecidos después (`git show main:popup.js | grep -c` ya daba once). El error subdimensionaba
+  justo lo que este ítem existe para dimensionar.
 - **Qué pasa**: no hay componente, ni store, ni isla — a diferencia de la ruta (`RutaDisco`), el
   banner (`BannerConexion`) y la lista (`ListaClases`). Tres flujos lo usan con tres textos
   escritos a mano, y **dos se pisan**: `conectarYArrancar` lo apagaba en su `finally` en el mismo
@@ -429,13 +436,65 @@ Cuando aparezca un hallazgo nuevo, va acá arriba con su `**Estado**` explícito
   mano, el antipatrón que el §1 de `alertas-y-bloqueo-diseno.md` prohíbe para la lista.
 - **Síntoma vivo**: el escaneo rápido deja el loader 100-200 ms en pantalla. Es menos de lo que el
   ojo registra: se ve un destello y parece que no funcionó.
+- **Medido el 2026-08-13** con el banco de pruebas (Anatomy, 20 clases, servidor prendido). Los
+  cuatro carteles del arranque **no tienen término medio: dos duran ~3 s y dos son destellos**:
+
+  | Cartel | Dónde | Duró |
+  |---|---|---|
+  | "Conectando con el servidor Bun…" | loader | **248 ms** ⚠️ |
+  | "Conectando con el servidor… ⏳" | botón | 3,20 s |
+  | "Escaneando la pestaña…" | loader | ≥3,09 s |
+  | "Sincronizando disco local…" | botón | **117 ms** ⚠️ |
+
+  Popup abierto → usable: **3,46 s**. Dos advertencias sobre estos números: (1) los 248 ms son un
+  **piso**, no la duración — el banco anota el texto del loader recién cuando arranca él
+  (`verificacion/modoVerificacion.js:276`, y va último por diseño), y el CSS ya lo había pintado
+  antes; (2) son con el **servidor prendido**. Apagado, en Windows `localhost` cuelga en vez de
+  rechazar y lo único que corta es el timeout de 4000 ms de `obtenerRutaServidor`
+  (`core/backend/bunClient.ts:277`): el mismo cartel pasa de ~250 ms a **4 s**. Es el texto con
+  más rango dinámico del popup, y el piso de 500 ms sólo toca el extremo corto.
+- **El piso vale también para el LABEL DEL BOTÓN, no sólo para el loader.** Lo destapó esa misma
+  medición y da vuelta una suposición del ítem: **el peor parpadeo no está en el loader**
+  —"Sincronizando disco local…" dura 117 ms, menos de la mitad que el del loader— y está en un
+  elemento que el corte, tal como estaba diseñado, **no toca**. La regla es del cartel, no del
+  nodo: si un texto le informa al usuario que algo está pasando ahora, tiene que durar lo
+  suficiente para leerse. Ojo con la interacción: `configurarBotonesUX` decide *si* el botón se
+  muestra (`docs/alertas-y-bloqueo-diseno.md` §3), así que el piso va sobre el texto, nunca sobre
+  la visibilidad — retrasar el ocultado dejaría un botón ofreciendo una acción que ya no existe.
 - **El corte está diseñado**: dueño único (`popup/features/loader.js`), **tokens** en vez de
   bandera —nadie puede apagar el loader de otro porque no tiene cómo— y **dos tiempos**: ~150 ms
   de demora para aparecer (si termina antes, no aparece nunca) y 500 ms de mínimo visible. Una
   `transition` NO sirve: controla cómo se ve el cambio, no cuándo empieza.
+- **El mínimo visible es por TEXTO, no por encendido** (2026-08-13). El nodo es uno y los textos
+  varios; un cartel que dura 80 ms no se lee, y leerlo es todo el punto —el usuario deduce de ahí
+  que algo pasa ahora y que lo que ve no es viejo—. El piso del primer texto **cuenta desde que
+  el CSS lo pintó**, no desde que un flujo lo reclama, o el arranque paga la espera dos veces.
+- **Lo que NO se toca: que el nodo nazca visible por CSS.** Es deliberado (evita ver la UI a medio
+  estilar), y a cambio el diseño absorbe tres cosas — la demora de 150 ms no aplica al loader del
+  arranque, el texto del markup tiene que ser el de la primera fase real, y el apagado inmediato
+  para el onboarding (`popup.js:820`) no puede esperar el piso. Las tres, con su regla, en
+  `docs/ramas-en-revision.md` §Lo que falta.
+- **Ya se cerró la mitad de copy** (2026-08-13): `entrypoints/popup/index.html:12` decía "Leyendo
+  la pestaña…" siendo que la primera fase es la conexión al servidor, así que la secuencia era
+  **pestaña → servidor → pestaña**. Hoy dice "Conectando con el servidor Bun…". Es un cambio de
+  texto, no del mecanismo: el ítem sigue abierto.
 - **El riesgo a mirar**: los tiempos hacen que el loader viva más allá del `finally` que lo pidió,
   así que ninguna de las 4 salidas del escaneo puede asumir que apagar es inmediato.
-- **Estado**: 🔴 abierto. Detalle completo → `docs/ramas-en-revision.md` §Lo que falta.
+- **CONSTRUIDO el 2026-08-13 — la mitad del tiempo, no la del dueño.** Entró
+  `popup/features/pisoVisible.js` (+ 10 tests) y **los 12 call-sites crudos ya no existen**: la
+  cortina se toca por `mostrarLoader`/`ocultarLoader` y el botón por `configurarBotonesUX`, que
+  ahora es un embudo sobre `aplicarBotonesUX`. `serverConnection.js` recibe `ocultarLoader` por
+  `ctx` en vez de escribir `nodos.loader` — era el único camino por el que el piso se salteaba
+  sin querer. Los dos carteles del markup se siembran con `performance.now()`, así que el piso
+  del arranque descuenta lo que el usuario ya esperó.
+- **Lo que sigue abierto, y por eso el ítem no se cierra**: (1) **los tokens** — el piso ordena
+  *cuándo* se pinta, pero `elEscaneoTomoElLoader` sigue vivo, así que dos dueños del mismo nodo
+  se siguen coordinando a mano; (2) **la demora de ~150 ms para aparecer**, que es la otra mitad
+  del par (el piso evita el destello de lo que ya salió; la demora evita que salga lo que no hace
+  falta); (3) el módulo **no es dueño de ningún nodo** — nada impide escribir `nodos.loader` por
+  atrás y saltearlo, que es exactamente lo que este ítem se llama.
+- **Estado**: 🔴 abierto (la mitad del tiempo, construida y **sin verificar en Chrome**). Detalle
+  completo → `docs/ramas-en-revision.md` §Lo que falta.
 
 ### 🔴 La línea de estado del footer es invisible
 
@@ -447,6 +506,10 @@ Cuando aparezca un hallazgo nuevo, va acá arriba con su `**Estado**` explícito
 - **Consecuencia**: ~20 mensajes son invisibles, entre ellos "no estás en un portal reconocido",
   "el escaneo no devolvió clases", "servidor Bun apagado" y **el texto de progreso de la
   descarga**. Fue lo que hizo que el error de inyección pareciera no avisar.
+- **Observado en vivo el 2026-08-13**, de arrastre con la medición del loader: en el registro del
+  banco aparece `estado  Analizando...` a las `11:06:37.321`, entre dos carteles del loader que sí
+  se ven. El banco lee el DOM, no la pantalla — o sea que el mensaje se escribió, en el arranque
+  normal, y nadie lo vio. Es la primera evidencia directa de este ítem y no hizo falta buscarla.
 - **El arreglo es de una línea**; lo que falta es la pasada por navegador, porque destapa los ~20
   de golpe y hay que mirar el footer **descargando**, que es donde cambia de alto.
 - **Ojo**: destaparlo no lo convierte en buen destino para un error. Ese lugar ya se descartó para

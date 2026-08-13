@@ -316,6 +316,7 @@
 import { html } from './popup/vendor/htm-preact-standalone.module.js';
 import { abrirCapa } from './popup/features/capa.preact.js';
 import Bloqueo from './popup/features/bloqueo.js';
+import { crearPisoVisible } from './popup/features/pisoVisible.js';
 import FacetaFeature from './popup/features/faceta.js';
 import FilterFeature from './popup/features/filters.js';
 import OrdenFeature from './popup/features/orden.js';
@@ -398,6 +399,44 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // El overlay del onboarding y su DOM interno los posee la isla Preact
       // features/onboarding.preact.js (ver ADR-0006). Ya no hay refs nodos.* a él.
     };
+
+    // [PISO VISIBLE] Los dos carteles que anuncian trabajo en curso —la cortina del loader y el
+    // label del botón principal— pasan por acá para que ninguno pueda durar menos de lo que
+    // tarda en leerse. Medido el 2026-08-13 con el banco, sin esto: "Conectando con el servidor
+    // Bun…" 248 ms y "Sincronizando disco local…" 117 ms. Los dos se leen como una falla, no
+    // como una operación rápida. El porqué del número y de las dos entradas → el encabezado de
+    // `popup/features/pisoVisible.js`.
+    //
+    // Son DOS instancias y no una compartida a propósito: el piso es del cartel, no de la
+    // pantalla. Que el botón esté cumpliendo el suyo no tiene por qué demorar al loader, que
+    // está informando otra cosa en otro lado.
+    const pisoLoader = crearPisoVisible();
+    const pisoBoton = crearPisoVisible();
+
+    // El loader nace visible por CSS (`.loader-overlay { display: flex }`) para que no se vea la
+    // UI a medio estilar, así que su primer texto lleva rato en pantalla cuando llegamos acá.
+    // `performance.now()` es lo que lleva el documento desde que empezó a cargar, o sea una
+    // buena aproximación de "hace cuánto que se ve ese cartel": se le descuenta.
+    // Los dos carteles del arranque vienen escritos en el markup y visibles desde el primer
+    // frame: la cortina y el label del botón ("Conectando con el servidor… ⏳",
+    // `index.html:113`). Los dos se siembran igual, aunque hoy sólo el primero llegue a
+    // parpadear — el que hoy dura 3,2 s lo hace porque el servidor está prendido, y con caché
+    // caliente o sin red esa duración cambia sola.
+    pisoLoader.sembrar(performance.now());
+    pisoBoton.sembrar(performance.now());
+
+    /** Muestra la cortina con un texto. Cuenta como aviso de trabajo: se queda el mínimo. */
+    function mostrarLoader(texto) {
+      pisoLoader.transitorio(() => {
+        nodos.loaderTxt.textContent = texto;
+        nodos.loader.style.display = 'flex';
+      });
+    }
+
+    /** Apaga la cortina — esperando, si hace falta, a que el texto que está arriba se cumpla. */
+    function ocultarLoader() {
+      pisoLoader.libre(() => { nodos.loader.style.display = 'none'; });
+    }
 
     // Fase 5c: antes esto guardaba la REFERENCIA al listener, sólo para poder pasársela después
     // a removeListener. El puerto de mensajería devuelve directamente la función de baja, así
@@ -627,7 +666,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         bloquearFilaDePortal(bloquear || !!escaneoMuerto);
       },
       onReintentarCola: () => ejecutarReintentoDeCola(),
-      onReescanearAula: () => ejecutarPaso1EscaneoRamonAutomatico()
+      onReescanearAula: () => ejecutarPaso1EscaneoRamonAutomatico(),
+      // [PISO VISIBLE] La feature apagaba la cortina escribiendo `style.display` sobre
+      // `nodos.loader`, que es el único camino por el que el piso se puede saltear sin querer.
+      // Va por acá para que su apagado espere el mínimo igual que los del orquestador.
+      ocultarLoader: () => ocultarLoader()
     });
     const activarEstadoOfflineUI = _serverConnection.activarEstadoOfflineUI;
     // Un único detector de estado de conexión, siempre activo mientras el popup está
@@ -645,6 +688,10 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       onRestaurarPanel: (txt, limpiarCola) => restaurarPanelPorInterrupcion(txt, limpiarCola),
       mostrarAlerta: (tipo, titulo) => mostrarAlertDeConexionCaida(tipo, titulo),
       congelarUI: (titulo, pct, tel) => congelarUIPorDescargaActiva(titulo, pct, tel),
+      // El footer en forma de "descargando", sin el resto de lo que hace `congelarUI`. Lo usa
+      // el reanudar-tras-pausa, que necesita restaurarlo YA y no puede esperar al primer
+      // `update_progress_bar` (ver el comentario largo en `queue.js`).
+      mostrarFooterDescargando: () => mostrarFooterDescargando(),
       renderizar: () => renderizarListadoInterfaz(),
       setVerificandoConexion: (v) => { verificandoConexionBoton = v; },
       setReintentandoCola: (v) => { reintentandoColaActivo = v; },
@@ -750,8 +797,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // si el escaneo arranca, pasa a ser de él y esta función NO lo toca.
       let elEscaneoTomoElLoader = false;
       try {
-        nodos.loaderTxt.textContent = "Conectando con el servidor Bun...";
-        nodos.loader.style.display = 'flex';
+        mostrarLoader("Conectando con el servidor Bun...");
 
         const ruta = await backend.obtenerRutaServidor();
         if (ruta) {
@@ -800,7 +846,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         // Y no era sólo cosmético: el cartel del cambio de portal —lo que hay que mirar para
         // verificar la copy genérica— no se podía observar abriendo el popup, había que forzarlo
         // con Re-escanear. Un bug abierto era precondición para verificar otra cosa.
-        if (!elEscaneoTomoElLoader) nodos.loader.style.display = 'none';
+        if (!elEscaneoTomoElLoader) ocultarLoader();
       }
     }
 
@@ -817,7 +863,12 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       if (!appState.tutorialCompletado) {
         // El loader (.loader-overlay) tiene z-index MAYOR que el onboarding y arranca
         // en display:flex por CSS; hay que ocultarlo o taparía el tour.
-        nodos.loader.style.display = 'none';
+        //
+        // [PISO VISIBLE] Es el ÚNICO `inmediato` del archivo, y por eso: acá esperar el piso
+        // sería peor que el parpadeo que el piso evita — deja el tutorial medio segundo abajo
+        // de una cortina que ya no informa nada. Y el cartel que estaría cumpliendo su mínimo
+        // es el del markup, que no lo pidió ningún flujo.
+        pisoLoader.inmediato(() => { nodos.loader.style.display = 'none'; });
         mostrarOnboarding();
       } else {
         await conectarYArrancar();
@@ -825,7 +876,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     } catch (error) {
       console.error("❌ Error en inicio del Orquestador:", error);
       nodos.txtEstado.textContent = "⚠️ Error de inicialización interna.";
-      nodos.loader.style.display = 'none'; // el loader tapa el mensaje de error si queda visible
+      ocultarLoader(); // el loader tapa el mensaje de error si queda visible
     }
 
     function lanzarSeleccionCarpetaFisica() {
@@ -838,8 +889,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       RutaDisco.cargando("Abriendo explorador...");
 
       // Mostrar loader de espera
-      nodos.loaderTxt.textContent = "Abriendo explorador de archivos...";
-      nodos.loader.style.display = 'flex';
+      mostrarLoader("Abriendo explorador de archivos...");
 
       backend.seleccionarCarpeta().then(res => {
         if (res.success) {
@@ -863,7 +913,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         nodos.btnExplore.disabled = false;
         nodos.btnExplore.classList.remove('loading');
         nodos.btnExplore.innerHTML = originalBtnHTML;
-        nodos.loader.style.display = 'none';
+        ocultarLoader();
       });
     }
 
@@ -1103,8 +1153,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // defecto). El portal de este escaneo se resuelve recién ~17 líneas abajo, así que
       // interpolarlo acá anunciaría el portal equivocado justo al cambiar de portal.
       // Caso C de copy-generico-diseno.md §3; la trampa entera, en su §4.
-      nodos.loaderTxt.textContent = "Escaneando la pestaña...";
-      nodos.loader.style.display = 'flex';
+      mostrarLoader("Escaneando la pestaña...");
       // Ocultar badge de cátedra al iniciar un nuevo escaneo para evitar estados inconsistentes
       nodos.facetaBadge.style.display = "none";
 
@@ -1125,7 +1174,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         if (!portal) {
           clearTimeout(safetyTimeout);
           terminarEscaneo();
-          nodos.loader.style.display = 'none';
+          ocultarLoader();
 
           // [SIN PORTAL] Tercera forma de morir del escaneo, y hasta acá la única sin cartel:
           // escribía en `nodos.txtEstado` —el `<p>` oculto del footer, §6.8b— y **sólo
@@ -1161,7 +1210,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           // [ítem 1b] Abandonar: subir la generación invalida el callback que llegue después.
           generacionEscaneo++;
           escaneoEnCurso = false;
-          nodos.loader.style.display = 'none';
+          ocultarLoader();
           // [ítem 1e] La tarjeta ocupa la región, así que la toolbar y la path-bar se bloquean
           // — si no, quedan vivas sobre una lista que no está en pantalla: buscador, filtros,
           // orden, "Todos", el input de materia y el badge de la faceta, todos operando sobre
@@ -1219,7 +1268,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             // después (dentro del .then()). Se captura ya o se pierde.
             const motivoCrudo = chrome.runtime.lastError.message;
             console.error("❌ [POPUP-SCRIPT-ERROR] Falló inyección de script de escaneo:", motivoCrudo);
-            nodos.loader.style.display = 'none';
+            ocultarLoader();
 
             // [FEEDBACK DE INYECCIÓN] Esta rama no pintaba NADA que el usuario pudiera ver:
             // mandaba el texto a `nodos.txtEstado` (el `<p>` del footer, que está oculto — ver
@@ -1379,7 +1428,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             console.error("❌ Error procesando payload de inyección:", e);
             configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
           } finally {
-            nodos.loader.style.display = 'none';
+            ocultarLoader();
             // [LOADERS — ítem 1e] El escaneo terminó: si lo único que tenía bloqueada la región
             // era un timeout anterior, se libera. Va por la condición completa y no por
             // `bloquear(false)` a secas, porque si además hay una alerta de conexión viva, ésa
@@ -1400,11 +1449,16 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
     // [REFACTORIZADO V5.4.1]: Motor de Sincronización Unificado e Híbrido (0% improvisación)
     async function ejecutarPaso2SincronizarDiscoVeloz() {
-      configurarBotonesUX("sincronizar-disco", "", true);
-      nodos.btnAction.innerHTML = `<span class="spinner-inline"></span> Sincronizando disco local...`;
-      // El "" de arriba significa "sin acción → botón oculto"; acá el label se escribe por
-      // innerHTML (lleva spinner), así que hay que volver a mostrarlo. Es la única excepción.
-      nodos.btnAction.style.display = 'block';
+      // [PISO VISIBLE] Las tres escrituras van juntas en UN `transitorio`: son un solo cartel
+      // ("estoy sincronizando"), y separadas el piso arrancaría con el botón todavía oculto.
+      // Éste es el que la medición mostró peor — 117 ms, menos de la mitad que el del loader.
+      pisoBoton.transitorio(() => {
+        aplicarBotonesUX("sincronizar-disco", "", true);
+        nodos.btnAction.innerHTML = `<span class="spinner-inline"></span> Sincronizando disco local...`;
+        // El "" de arriba significa "sin acción → botón oculto"; acá el label se escribe por
+        // innerHTML (lleva spinner), así que hay que volver a mostrarlo. Es la única excepción.
+        nodos.btnAction.style.display = 'block';
+      });
       ListaClases.setAtenuada(true); // atenúa la lista durante la sincronización (isla dueña de #ui-list)
 
       const subcarpetaFiltro = nodos.folder.value.trim().toLowerCase();
@@ -1911,11 +1965,31 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
     }
 
+    /**
+     * Pone el footer en forma de "hay una descarga en curso". Las cuatro escrituras van
+     * JUNTAS y en una sola función porque estaban copiadas en tres lugares y **dos se
+     * olvidaban de la primera** — la clase `downloading` del `<body>`, que es de la que
+     * cuelga todo `styles/components/downloads-active.css`: la línea divisoria entre el
+     * botón y la barra (`.download-separator`, que nace en `display:none`), el footer
+     * compacto, la barra de 5px, la telemetría chica y la caja de cancelar.
+     *
+     * El síntoma era desconcertante justo por eso: la barra de progreso aparecía —esas tres
+     * líneas sí estaban— pero sin la línea de arriba y con el footer en su tamaño normal, o
+     * sea "casi bien". Y sólo por un camino: arrancar la cola limpia pasaba por
+     * `congelarUIPorDescargaActiva` y quedaba perfecto; **reanudar después de una pausa**, no.
+     */
+    function mostrarFooterDescargando() {
+      document.body.classList.add('downloading');
+      nodos.cancelBox.style.display = 'flex';
+      nodos.btnStartQueue.style.display = 'none';
+      nodos.progressCont.style.display = 'block';
+    }
+
     function congelarUIPorDescargaActiva(titulo, pct, tel) {
       appState.videoActualEnTransmisiónSW = titulo;
       appState.ráfagaEnCurso = true;
-      document.body.classList.add('downloading');
-    
+      mostrarFooterDescargando();
+
       nodos.txtEstado.innerHTML = "";
       const span = document.createElement('span');
       span.style.color = "var(--accent-orange)";
@@ -1924,8 +1998,6 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       const prefijo = appState.banderaFrenadoSolicitado ? "Frenando al terminar:" : "Descargando:";
       nodos.txtEstado.append(prefijo, document.createElement('br'), span);
 
-      nodos.btnStartQueue.style.display = 'none';
-      nodos.cancelBox.style.display = 'flex';
       nodos.folder.disabled = false;
       nodos.btnExplore.disabled = true;
       if (nodos.turboSwitch) nodos.turboSwitch.disabled = true; 
@@ -1933,7 +2005,6 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       nodos.btnSoftCancel.disabled = appState.banderaFrenadoSolicitado;
     
       nodos.progressBar.style.width = `${pct}%`;
-      nodos.progressCont.style.display = 'block';
       if (tel) renderers.pintarTelemetria(tel, nodos);
       renderizarListadoInterfaz();
       conectarEscuchadoresDelWorker();
@@ -1954,11 +2025,12 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             appState.fallaConexionActiva = null;
             appState.videoFalladoParaReintento = null;
           
-            nodos.cancelBox.style.display = 'flex';
-            nodos.btnStartQueue.style.display = 'none';
-            nodos.progressCont.style.display = 'block';
+            // Recuperación tras una caída: el footer vuelve a modo descarga. Iba con las tres
+            // escrituras sueltas y sin la clase `downloading`, así que la barra reaparecía sin
+            // su línea divisoria y con el footer en tamaño normal.
+            mostrarFooterDescargando();
             if (req.telemetry) nodos.panelTel.style.display = 'flex';
-          
+
             debeReRenderizar = true;
           }
 
@@ -2125,7 +2197,13 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     // una sola vez y sin depender de que cada rama se acuerde. Ver `sincronizarFooterVacio`.
     function actualizarContadoresBoton() {
       calcularContadoresBoton();
-      sincronizarFooterVacio();
+      // [PISO VISIBLE] Medir sólo si el botón NO quedó en cola. `calcularContadoresBoton` pide
+      // la escritura por `configurarBotonesUX`, que desde el piso puede diferirla; medir acá
+      // en ese caso lee el botón en su estado ANTERIOR y le pone `.vacia` al footer, que lo
+      // esconde entero — la línea divisoria se iba hasta que la escritura aterrizaba. Cuando
+      // hay una pendiente la medición viaja adentro de ella: `aplicarBotonesUX` la hace al
+      // final, que es exactamente el orden que tenía todo esto antes del piso.
+      if (!pisoBoton.hayPendiente()) sincronizarFooterVacio();
       // [TOOLBAR SIN NADA QUE FILTRAR] Enganchado acá y no en cada mutación de la cola porque
       // éste es el embudo por el que ya pasa todo cambio de estado que puede vaciarla o
       // llenarla (encolar, quitar, el ítem que termina en el SW, conmutar de pestaña): son 12
@@ -2286,7 +2364,16 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       }
     }
 
+    // [PISO VISIBLE] El label del botón entra por `libre`: se pinta ya, salvo que arriba haya un
+    // cartel de trabajo cumpliendo su mínimo — hoy "Sincronizando disco local…", que sin esto
+    // duraba 117 ms. Va con `libre` y NO con `transitorio` a propósito: éste es el embudo por el
+    // que pasa también el contador ("Agregar 20 clases…"), y ponerle piso a un rótulo de estado
+    // lo vuelve pegajoso — tildar tres casillas rápido dejaría el número atrasado cada vez.
     function configurarBotonesUX(modo, txt, dis) {
+      pisoBoton.libre(() => aplicarBotonesUX(modo, txt, dis));
+    }
+
+    function aplicarBotonesUX(modo, txt, dis) {
       nodos.btnAction.setAttribute('data-modo', modo);
       nodos.btnAction.className = `btn-action modo-${modo}`;
       nodos.btnAction.textContent = txt;

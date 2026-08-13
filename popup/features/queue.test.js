@@ -48,6 +48,7 @@ function crearFeature(overrides = {}) {
     resetSeleccionFila: vi.fn(),
     mostrarAlerta: vi.fn(),
     congelarUI: vi.fn(),
+    mostrarFooterDescargando: vi.fn(),
     renderizar: vi.fn(),
     setVerificandoConexion: vi.fn(),
     setReintentandoCola: vi.fn(),
@@ -420,14 +421,18 @@ describe('QueueFeature.ejecutarReintentoDeCola', () => {
     AppState.colaDescargas = [{ titulo: 'A' }];
     AppState.fallaConexionActiva = 'internet';
     AppState.videoFalladoParaReintento = 'A';
-    const { feature, ctx, nodos } = crearFeature();
+    const { feature, ctx } = crearFeature();
 
     await feature.ejecutarReintentoDeCola();
 
     expect(AppState.fallaConexionActiva).toBeNull();
     expect(AppState.videoFalladoParaReintento).toBeNull();
     expect(ctx.renderizar).toHaveBeenCalled();
-    expect(nodos.progressCont.style.display).toBe('block');
+    // Antes esto afirmaba `nodos.progressCont.style.display === 'block'`, o sea UNA de las
+    // tres escrituras que este camino hacía a mano — y por mirar sólo esa no vio que le
+    // faltaba la cuarta: la clase `downloading` del `<body>`, de la que cuelga la línea
+    // divisoria del footer. Ahora afirma el embudo entero, que es lo que no se puede olvidar.
+    expect(ctx.mostrarFooterDescargando).toHaveBeenCalled();
     expect(mensajeria.accionesEnviadas()).toContain('iniciar_descarga_cola');
     expect(ctx.mostrarAlerta).not.toHaveBeenCalled();
   });
