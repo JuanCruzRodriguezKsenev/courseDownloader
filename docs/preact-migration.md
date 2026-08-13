@@ -26,6 +26,7 @@ el **mapa de avance**: qué isla está hecha, cuál sigue, y cómo agregar una n
 | 3 | **Onboarding** (overlay del tour) | `#preact-onboarding` (antes `#ui-onboarding`) | ✅ Hecha | `popup/features/onboarding.preact.js` (+ `.test.js`) |
 | 4 | **Lista de clases** (filas + cards de estado + host) | `#ui-list` (hijos y atributos) | ✅ Hecha (Etapas 0–2) | `popup/features/listaClases.preact.js` (+ `.test.js`) |
 | 5 | **Campanita de fallos** (botón + badge + panel de historial) | `#preact-campanita` en el header | ✅ Hecha | `popup/features/campanita.preact.js` (+ `.test.js`) |
+| — | **Capa flotante** (superficie + cierre; *no es una isla*: es un componente que las islas usan) | ninguna propia — la pinta quien la usa | ✅ Hecha (4 de 4 consumidores migrados) | `popup/features/capa.preact.js` (+ `.test.js`) |
 
 **Notas de secuencia / riesgo:**
 - **⚠️ 2 (alerta) — el root hermano se revirtió el 2026-08-12, y ésa es la lección de esta tabla.** La nota de abajo describe la solución de la migración: darle a la alerta su **propio root** (`#preact-banner`) y **apagar `#ui-list` desde el vanilla** (`setOculta`) mientras se muestra. Funcionaba, pero dejaba **dos dueños de la misma región de pantalla coordinados a mano**, y el acoplamiento se cobró exactamente lo que se esperaría: cualquiera que tocara el host —una sincronización de disco (`setAtenuada`), un cambio de pestaña (`setSelectionMode`), la reconexión— devolvía la lista **debajo** del banner. Ahora la alerta la pinta la isla #4 dentro de `#ui-list`: **un dueño del DOM, dos fuentes de estado** (su store y el de la alerta, al que la #4 se suscribe). De la #2 sobreviven su store y su vista; lo que murió es su lugar en el DOM, y con él `setOculta` como mecanismo de coordinación. La regla que queda: **si dos cosas ocupan la misma región, no se reparten el DOM — comparten contenedor y un `if` decide.** 3 tests en `listaClases.preact.test.js` lo fijan.
@@ -37,6 +38,71 @@ el **mapa de avance**: qué isla está hecha, cuál sigue, y cómo agregar una n
   - **Etapa 1 — hecha (`listaClases.preact.js` v1.0.0, `popup.js` v5.9.0).** Isla `<ListaClases>` + store `window.ListaClases`: `renderizarListadoInterfaz` ya no construye DOM — mantiene la lógica (sincronizar cola, filtrar, ordenar) y empuja un view-model discriminado (`{modo:'card',card}` / `{modo:'lista',items,ctx}`). `construirFilaClaseDOM`→`<FilaClase>` y `renderizarTarjetaEstado`→`<TarjetaEstado>` (port 1:1). `onCheckChange` pasó a `(clase,checked)` y re-empuja el vm; el post-proceso por fila (atenuar/deshabilitar sin sincronizar) y `selectionMode` viajan en el vm. La card de escaneo "sin enlaces" también empuja al store. AppState sigue siendo la fuente de verdad. `renderers.js` `construirFilaClaseDOM`/`renderizarTarjetaEstado` quedaron como **referencia muerta** (ya eliminados, `renderers.js` v5.2.0); `pintarTelemetria` sigue vivo. 7 tests en `listaClases.preact.test.js`.
   - **Etapa 2 — hecha (`listaClases.preact.js` v1.1.0, `popup.js` v5.10.0, `serverConnection.js` v1.10.0).** La isla es dueña también de los **atributos del host** `#ui-list`, con setters propios en el store (`window.ListaClases`): `setSelectionMode(bool)` (antes `actualizarModoSeleccion` mutaba `nodos.lista.classList`), `setAtenuada(bool)` (opacidad durante la sincronización de disco, antes `nodos.lista.style.opacity`), y `setOculta(bool)` (visibilidad mientras el banner ocupa el lugar de la lista). Un `useEffect` refleja esos flags sobre el nodo real sin tocar el CSS (sigue keyeando sobre `#ui-list.list-wrapper`). El punto delicado —`serverConnection` hacía `innerHTML="" + display:none` sobre `#ui-list`, borrando el DOM que Preact gestiona— se resolvió con `setOculta`: la isla devuelve `null`, así **Preact** quita los hijos y su vdom no se desincroniza. Se quitó `nodos.lista`. **Excepción:** la card de fallo de conexión que pinta `renderizarListadoInterfaz` NO se eliminó — resultó **viva**, no muerta: para el caso "descarga interrumpida" (`AppState.fallaConexionActiva`), `reaccionarAConexion` retorna temprano SIN ocultar `#ui-list`, así que esa card es el indicador visible. +3 tests de host en `listaClases.preact.test.js` (10 total); `serverConnection.test.js` actualizado (asserts de `ListaClases.setOculta`). El adelgazamiento restante de `popup.js` (extraer `filters.js`, etc.) va aparte, en la Fase 2 del ROADMAP.
 - **5 (campanita de fallos) — ✅ hecha.** Primera isla cuyo store-puente NO es un `window.X` efímero del popup, sino un **módulo compartido con el SW**: `core/historial/historialFallos.ts`, respaldado en `chrome.storage.local` (clave `historialFallos`) y espejado vía `storage.onChanged`. El motivo es que el **escritor principal es el service worker** (`background.js` `registrarFallo`), típicamente con el popup CERRADO, así que la fuente de verdad debe vivir fuera del popup (a diferencia de `BannerConexion`/`RutaDisco`, estado efímero que sólo existe mientras el popup está abierto). El hook `useHistorialFallos()` se suscribe y vuelve a pedir `obtener()` en cada señal (sin espejo en memoria; el storage es la única verdad). La isla es aditiva: no reemplaza los handlers IPC `clase_con_error`/`cola_pausada_por_error` de `popup.js` (que siguen pintando la UI inline cuando el popup está abierto), sólo suma el canal persistente. Título/motivo (texto scrapeado) se interpolan como **texto plano** (regla anti-XSS). 8 tests en `campanita.preact.test.js`. Ver `docs/notificaciones-fallos-diseno.md`.
+
+### La capa flotante compartida (`capa.preact.js`) — 2026-08-13
+
+**No es una isla**, y la distinción importa: no posee ninguna región del DOM ni deriva de ningún
+store. Es un **componente** que las islas usan adentro de su propio root, así que no le aplica la
+regla del límite de DOM que gobierna la tabla de arriba.
+
+Nació de medir la duplicación: `.adv-overlay` y `.faceta-overlay` son **idénticos línea por
+línea** (inset 0, `--bg-overlay`, `blur(8px)`, flex centrado, `z-index: 9999999`,
+`fadeIn-modal 0.25s`); `.onboarding-overlay` es el mismo con otro blur; y las cards sólo difieren
+en padding, `max-width` y el tamaño del `h4`. En JS, `mostrarModalAdvertencia` (`popup.js`) y
+`mostrarModal` (`faceta.js`) repiten la misma secuencia con distinto nombre.
+
+**Dos variantes, porque son dos cosas distintas:**
+
+- `modal` — tapa y centra. Para lo que **pide algo**: elegí una cátedra, Entendido/Cancelar, el tour.
+- `anclado` — la misma superficie, junto a quien la abrió, sin tapar. Para lo que **sólo
+  informa**. El historial de fallos quedó acá a propósito: lo que hacés después de leer un fallo
+  es buscar esa clase en la lista, y un modal te la esconde.
+
+**Lo que ganaron los cuatro, y ninguno tenía: cierre con Escape y con clic afuera**, más
+`role="dialog"`/`aria-modal`. No había un solo `keydown` para esto en el proyecto.
+
+**Reparto de responsabilidades**: el componente pone la superficie y el cierre; **dónde se apoya
+y cuánto mide lo pone el consumidor** en su hoja. Si las medidas vivieran en `capa.css`, ese
+archivo tendría que conocer a cada uno — justo lo que se está deshaciendo.
+
+**El `contenedorRef` no es opcional en la variante anclada**, y es el caso que más costó: el
+disparador vive FUERA de la card, así que sin el ref un clic en él cuenta como "afuera", se
+cierra por ahí y el `onClick` del botón lo reabre. El panel no se cierra nunca y parece que el
+botón está roto. Hay un test para eso.
+
+**Los cuatro consumidores están migrados** (2026-08-13): campanita (`anclado`), onboarding,
+asistente de faceta y modal de advertencia (`modal`).
+
+Los dos últimos son DOM vanilla armado a mano, así que entran por **`abrirCapa`**, el puente
+imperativo del mismo módulo: monta su propio root, lo saca al cerrar, y le pasa `cerrar` al
+contenido para que los botones de adentro no tengan que guardarse la referencia. Sin ese puente
+había que migrar `popup.js` y `faceta.js` enteros a Preact en el mismo corte — cambiarle el
+mundo a un módulo es mucho más grande que compartirle la superficie.
+
+**Lo que se llevó puesto de paso**: el modal de advertencia interpolaba en un
+`card.innerHTML = \`<h4>${titulo}</h4>…\``. Hoy los dos valores son literales del archivo, así
+que no había un XSS real — pero era la línea que se vuelve uno el día que alguien le pase un
+título de clase. Con htm van escapados y no puede volver por ahí.
+
+**El foco queda atrapado en la variante `modal`** (2026-08-13): al abrir entra al primer control,
+el Tab cicla en los dos extremos y al cerrar vuelve a quien lo tenía. Sin eso, con el modal en
+pantalla el Tab seguía recorriendo el buscador y los filtros de abajo — invisibles y muertos —, y
+el foco desaparecía de la vista sin ninguna señal. **La variante `anclado` NO atrapa a propósito**:
+no tapa nada, así que salir de ella con Tab es legítimo; encerrar el foco en algo que no bloquea
+es encerrar al usuario sin motivo.
+
+> **Y eso destapó algo del tour**: sus 6 slides existen todas a la vez (el carrusel las desplaza
+> con `translateX` y el wrapper recorta con `overflow: hidden`), así que las que no ves siguen
+> siendo enfocables — hay un `<a>` en la 2 y un `<button>` en la 5. Ahora las inactivas llevan
+> **`inert`**, que saca el subárbol entero del foco, del clic y del árbol de accesibilidad; con
+> `tabindex="-1"` habría que acordarse de cada control nuevo que entre a una slide. Ojo con el
+> `|| undefined` en el atributo: `inert={false}` lo dejaría puesto igual.
+
+**Y una diferencia de conducta que hay que conocer**: ahora Escape y el clic al fondo **cierran**
+la advertencia, y eso equivale a **Cancelar** — el modal distingue "lo cerró un botón" de "lo
+descartaron", porque si no, salir por Escape dejaría al llamador esperando una respuesta que
+nunca llega. El onboarding, en cambio, lleva `cerrarPorFondo={false}`: se muestra una sola vez y
+un clic al fondo lo cerraría para siempre.
 
 ## Cómo agregar una isla nueva (receta)
 

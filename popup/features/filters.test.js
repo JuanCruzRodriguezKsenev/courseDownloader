@@ -18,7 +18,9 @@ function montarNodos() {
     <div id="ui-filter-menu"></div>
     <button id="ui-btn-filter-pills"><span>Filtros</span></button>
     <input id="ui-master-check" type="checkbox">
+    <span id="ui-master-select-wrapper"></span>
     <button id="ui-btn-sort"></button>
+    <button id="ui-btn-toggle-select">Seleccionar</button>
   `;
   return {
     search: document.getElementById('ui-search'),
@@ -27,6 +29,7 @@ function montarNodos() {
     btnFilterPills: document.getElementById('ui-btn-filter-pills'),
     masterCheck: document.getElementById('ui-master-check'),
     btnSort: document.getElementById('ui-btn-sort'),
+    btnToggleSelect: document.getElementById('ui-btn-toggle-select'),
   };
 }
 
@@ -300,8 +303,16 @@ describe('FilterFeature.actualizarPillsUIState', () => {
 });
 
 describe('FilterFeature.desbanearFiltros', () => {
+  // "Todos" ahora tiene DOS condiciones, así que los casos que sólo miran la sincronización
+  // necesitan que además haya algo seleccionable; si no, se apaga por la otra razón.
+  function conUnaSeleccionable() {
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [{ titulo: 'A', visible: true, estado: 'pending' }];
+  }
+
   it('habilita search/filtros/sort y master según sincronización', () => {
     const { feature, nodos } = crearFeature();
+    conUnaSeleccionable();
     nodos.search.disabled = true;
     nodos.btnFilterPills.disabled = true;
     nodos.btnSort.disabled = true;
@@ -316,6 +327,150 @@ describe('FilterFeature.desbanearFiltros', () => {
     AppState.sincronizacionDiscoCompletada = true;
     feature.desbanearFiltros();
     expect(nodos.masterCheck.disabled).toBe(false);
+  });
+
+  /**
+   * El defecto que cierra esto: con "Todos" marcado y el filtro puesto en "descargados", el
+   * control quedaba encendido, aceptaba el clic y NO hacía nada (la selección masiva sólo toca
+   * las `pending`), y el repintado lo devolvía a desmarcado. Ofrecía una acción inexistente.
+   */
+  it('apaga "Todos" cuando el filtro no dejó nada seleccionable', () => {
+    const { feature, nodos } = crearFeature();
+    AppState.sincronizacionDiscoCompletada = true;
+    AppState.pestañaActiva = 'disponibles';
+    // Lo que deja en pantalla filtrar por "descargados": visibles, pero ninguna marcable.
+    AppState.listadoClasesGlobal = [
+      { titulo: 'A', visible: true, estado: 'downloaded' },
+      { titulo: 'B', visible: true, estado: 'downloaded' },
+    ];
+
+    feature.desbanearFiltros();
+
+    expect(nodos.masterCheck.disabled).toBe(true);
+    const wrapper = document.getElementById('ui-master-select-wrapper');
+    expect(wrapper.getAttribute('aria-disabled')).toBe('true');
+    expect(wrapper.title).toBe('No hay clases seleccionables con este filtro');
+  });
+
+  it('alcanza UNA pendiente visible para que vuelva a encenderse', () => {
+    const { feature, nodos } = crearFeature();
+    AppState.sincronizacionDiscoCompletada = true;
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'A', visible: true, estado: 'downloaded' },
+      { titulo: 'B', visible: true, estado: 'pending' },
+    ];
+
+    feature.desbanearFiltros();
+    expect(nodos.masterCheck.disabled).toBe(false);
+    expect(document.getElementById('ui-master-select-wrapper').getAttribute('aria-disabled')).toBe('false');
+  });
+
+  it('no cuenta las pendientes que el filtro escondió (visible: false)', () => {
+    const { feature, nodos } = crearFeature();
+    AppState.sincronizacionDiscoCompletada = true;
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'A', visible: true, estado: 'downloaded' },
+      { titulo: 'B', visible: false, estado: 'pending' }, // pendiente, pero fuera de pantalla
+    ];
+
+    feature.desbanearFiltros();
+    expect(nodos.masterCheck.disabled).toBe(true);
+  });
+
+  it('distingue las dos causas en el title: sin sincronizar no es lo mismo que sin seleccionables', () => {
+    const { feature } = crearFeature();
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [{ titulo: 'A', visible: true, estado: 'pending' }];
+    AppState.sincronizacionDiscoCompletada = false;
+
+    feature.desbanearFiltros();
+    expect(document.getElementById('ui-master-select-wrapper').title)
+      .toBe('Esperando la sincronización con el disco');
+  });
+});
+
+describe('FilterFeature: ordenar y "Seleccionar" siguen a "hay algo en pantalla"', () => {
+  it('los apaga cuando el filtro no dejó NINGUNA clase visible', () => {
+    const { feature, nodos } = crearFeature();
+    AppState.sincronizacionDiscoCompletada = true;
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [{ titulo: 'A', visible: false, estado: 'pending' }];
+
+    feature.desbanearFiltros();
+    expect(nodos.btnSort.disabled).toBe(true);
+    expect(nodos.btnToggleSelect.disabled).toBe(true);
+  });
+
+  /**
+   * El caso que separa los dos predicados, y la razón de que no se compartan: filtrando por
+   * "descargados" hay clases en pantalla y ninguna marcable. "Todos" no tiene qué marcar;
+   * ordenar dos descargadas sí tiene sentido. Copiar un predicado en el otro apaga un control
+   * que sirve.
+   */
+  it('ordenar sigue ENCENDIDO con clases visibles no seleccionables, aunque "Todos" se apague', () => {
+    const { feature, nodos } = crearFeature();
+    AppState.sincronizacionDiscoCompletada = true;
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'A', visible: true, estado: 'downloaded' },
+      { titulo: 'B', visible: true, estado: 'downloaded' },
+    ];
+
+    feature.desbanearFiltros();
+    expect(nodos.btnSort.disabled).toBe(false);      // hay 2 clases que ordenar
+    expect(nodos.masterCheck.disabled).toBe(true);   // pero ninguna que marcar
+  });
+
+  it('el buscador y los filtros NO se apagan nunca por el resultado: son la salida', () => {
+    const { feature, nodos } = crearFeature();
+    AppState.sincronizacionDiscoCompletada = true;
+    AppState.pestañaActiva = 'disponibles';
+    // Cero visibles: el peor caso, y justo cuando más se necesita poder sacar el filtro.
+    AppState.listadoClasesGlobal = [{ titulo: 'A', visible: false, estado: 'pending' }];
+
+    feature.desbanearFiltros();
+    expect(nodos.search.disabled).toBe(false);
+    expect(nodos.btnFilterPills.disabled).toBe(false);
+  });
+});
+
+describe('FilterFeature.hayVisibles', () => {
+  it('en la Cola SÍ cuenta la que se está bajando (a diferencia de haySeleccionablesVisibles)', () => {
+    const { feature } = crearFeature();
+    AppState.pestañaActiva = 'cola';
+    AppState.ráfagaEnCurso = true;
+    AppState.videoActualEnTransmisiónSW = 'La que baja';
+    AppState.colaDescargas = [{ titulo: 'La que baja', materia: 'x', sitioId: 'ramonnet' }];
+
+    expect(feature.hayVisibles()).toBe(true);              // ocupa un renglón: se puede ordenar
+    expect(feature.haySeleccionablesVisibles()).toBe(false); // pero no se la puede desmarcar
+  });
+});
+
+describe('FilterFeature.haySeleccionablesVisibles', () => {
+  it('en la Cola no cuenta la que se está bajando: no se la puede desmarcar', () => {
+    const { feature } = crearFeature();
+    AppState.pestañaActiva = 'cola';
+    AppState.ráfagaEnCurso = true;
+    AppState.videoActualEnTransmisiónSW = 'La que baja';
+    AppState.colaDescargas = [{ titulo: 'La que baja', materia: 'x', sitioId: 'ramonnet' }];
+
+    expect(feature.haySeleccionablesVisibles()).toBe(false);
+  });
+
+  it('en la Cola cuenta las demás', () => {
+    const { feature } = crearFeature();
+    AppState.pestañaActiva = 'cola';
+    AppState.ráfagaEnCurso = true;
+    AppState.videoActualEnTransmisiónSW = 'La que baja';
+    AppState.colaDescargas = [
+      { titulo: 'La que baja', materia: 'x', sitioId: 'ramonnet' },
+      { titulo: 'Otra', materia: 'x', sitioId: 'ramonnet' },
+    ];
+
+    expect(feature.haySeleccionablesVisibles()).toBe(true);
   });
 });
 

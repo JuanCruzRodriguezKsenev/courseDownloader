@@ -91,3 +91,36 @@ describe("el fallback que usa el onboarding (ítem 5 de la auditoría de loaders
     expect(portalParaElTour(undefined)).toBe(SitioRamonNet);
   });
 });
+
+describe("sitios.todos: la card de 'no estás en un portal reconocido' los NOMBRA", () => {
+  // Ese cartel dice "abrí una de <portales> y tocá Re-escanear". Si la lista se escribiera a
+  // mano en el copy, envejecería en el próximo portal que se registre — que es exactamente lo
+  // que ADR-0010 evita en los datos, entrando por el texto.
+  //
+  // OJO CON CÓMO SE COMPARA ACÁ, y costó un test rojo: los descriptores llevan el getter
+  // `escanearListado`, que lee la global `Scraper` de un `.js` hermano que estos tests no
+  // cargan. Cualquier aserción que INSPECCIONE el objeto (un `toContain` sobre descriptores,
+  // un `toEqual` profundo) lo invoca y muere con "Scraper is not defined" — un rojo que no
+  // habla de lo que se está probando. Se compara por `id`, que es dato plano.
+  const ids = () => sitios.todos().map((s) => s.id);
+
+  it("devuelve los dos portales registrados", () => {
+    expect(ids()).toContain("ramonnet");
+    expect(ids()).toContain("anatomy-by-chris");
+  });
+
+  it("todos tienen nombre legible: es lo único que la card muestra", () => {
+    for (const portal of sitios.todos()) {
+      expect(typeof portal.nombre).toBe("string");
+      expect(portal.nombre.length).toBeGreaterThan(0);
+    }
+  });
+
+  // El wrapper de composición es el que comparten SW y popup; que no filtre ni reordene es lo
+  // que hace que el cartel enumere lo mismo que el registro resuelve por id.
+  it("no esconde ninguno: cada uno resuelve por su id al mismo descriptor", () => {
+    for (const portal of sitios.todos()) {
+      expect(sitios.obtener(portal.id)).toBe(portal);
+    }
+  });
+});

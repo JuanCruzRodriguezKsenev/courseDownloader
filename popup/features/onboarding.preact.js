@@ -36,6 +36,7 @@
  */
 import { html, render, useState, useEffect } from '../vendor/htm-preact-standalone.module.js';
 import { useConexion } from './conexionHeader.preact.js';
+import { Capa } from './capa.preact.js';
 
 // --- Store externo: puente entre el vanilla (popup.js dispara/provee callbacks)
 // y la isla (se suscribe y re-renderiza). Equivalente a useSyncExternalStore. ---
@@ -97,33 +98,53 @@ export function Onboarding({ conexion, appState, sitio: sitioInyectado }) {
     dots.push(html`<span class="onboarding-dot ${i === slide ? 'active' : ''}"></span>`);
   }
 
+  // [FOCO] Las 6 slides existen TODAS a la vez: el carrusel las desplaza con `translateX` y el
+  // wrapper recorta con `overflow: hidden`. O sea que las que no ves siguen en el árbol y son
+  // enfocables — hay un `<a>` en la 2 y un `<button>` en la 5. Sin marcarlas, el foco atrapado
+  // de `Capa` las recorrería y el usuario tabularía a controles que no están en pantalla; peor
+  // que antes, cuando el Tab al menos se iba del modal.
+  //
+  // `inert` (y no `tabindex="-1"`) porque saca el subárbol ENTERO del foco, del clic y del
+  // árbol de accesibilidad — no habría que acordarse de cada control nuevo que entre a una
+  // slide. `|| undefined` para que el atributo se quite en la activa: `inert={false}` lo
+  // dejaría puesto igual, que es la trampa clásica de los atributos booleanos.
+
+  // El overlay y la card salen de `Capa` (`capa.preact.js`); acá quedó sólo el contenido.
+  //
+  // `cerrarPorFondo={false}` NO es un detalle: el tour se muestra una sola vez, así que un clic
+  // al fondo mientras lo leés lo cerraría para siempre. Se sale por "Saltar" o por Escape, que
+  // son salidas deliberadas. Fue este consumidor el que obligó a que la prop exista.
   return html`
-    <div class="onboarding-overlay" id="ui-onboarding">
-      <div class="onboarding-card">
-        <button class="onboarding-skip-btn" title="Saltar tutorial" onClick=${cerrar}>Saltar</button>
+    <${Capa} variante="modal"
+             abierto=${true}
+             onCerrar=${cerrar}
+             cerrarPorFondo=${false}
+             etiqueta="Tutorial de bienvenida"
+             clase="onboarding-card">
+      <button class="onboarding-skip-btn" title="Saltar tutorial" onClick=${cerrar}>Saltar</button>
         <div class="onboarding-slides-wrapper">
           <div class="onboarding-slides" style=${`transform: translateX(-${slide * 100}%)`}>
-            <div class="onboarding-slide">
+            <div class="onboarding-slide" inert=${slide !== 0 || undefined}>
               <div class="onboarding-icon">🚀</div>
               <h3>¡Bienvenido a ${nombreSitio} Turbo!</h3>
               <p>Descargá todas tus clases de ${nombreSitio} al instante, sin límites de tamaño y de forma organizada en tu PC.</p>
             </div>
-            <div class="onboarding-slide">
+            <div class="onboarding-slide" inert=${slide !== 1 || undefined}>
               <div class="onboarding-icon">🌐</div>
               <h3>Página Correcta</h3>
               <p>Usá la extensión dentro del listado de clases de tu materia en ${nombreSitio} para detectar los videos: <a href=${sitio.urlListado || '#'} target="_blank" class="onboarding-link">Ir al listado de clases 🌐</a></p>
             </div>
-            <div class="onboarding-slide">
+            <div class="onboarding-slide" inert=${slide !== 2 || undefined}>
               <div class="onboarding-icon">🔍</div>
               <h3>Clases y Videos</h3>
               <p>${sitio.instruccionEscaneo}</p>
             </div>
-            <div class="onboarding-slide">
+            <div class="onboarding-slide" inert=${slide !== 3 || undefined}>
               <div class="onboarding-icon">🔌</div>
               <h3>Conectá tu Servidor</h3>
               <p>Ejecutá <strong>backend/iniciar.bat</strong>. El servidor debe quedar abierto (podés minimizar la consola y no tenés que hacer nada más).</p>
             </div>
-            <div class="onboarding-slide">
+            <div class="onboarding-slide" inert=${slide !== 4 || undefined}>
               <div class="onboarding-icon">📁</div>
               <h3>Carpeta de Descargas</h3>
               <p>Seleccioná tu carpeta raíz. La extensión creará y organizará las subcarpetas por materia y ${(sitio.faceta?.etiqueta || 'categoría').toLowerCase()} automáticamente de forma ordenada.</p>
@@ -138,7 +159,7 @@ export function Onboarding({ conexion, appState, sitio: sitioInyectado }) {
                 onClick=${() => { if (typeof _store.onExplore === 'function') _store.onExplore(); }}
               >📂 Seleccionar Carpeta</button>
             </div>
-            <div class="onboarding-slide">
+            <div class="onboarding-slide" inert=${slide !== 5 || undefined}>
               <div class="onboarding-icon">⚡</div>
               <h3>Navegá sin Preocupaciones</h3>
               <p>Podés cambiar de materia, navegar otras páginas o cerrar la pestaña de ${nombreSitio}. ¡La descarga seguirá corriendo de fondo!</p>
@@ -150,8 +171,7 @@ export function Onboarding({ conexion, appState, sitio: sitioInyectado }) {
           <div class="onboarding-dots">${dots}</div>
           <button class="btn-onboarding-nav" onClick=${siguiente}>${slide === total - 1 ? 'Comenzar' : 'Siguiente'}</button>
         </div>
-      </div>
-    </div>`;
+    <//>`;
 }
 
 // FASE 7C: la monta el entrypoint del popup con sus dependencias, no este módulo al

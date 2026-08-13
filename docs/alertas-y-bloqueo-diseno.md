@@ -81,6 +81,30 @@ según qué hubiera fallado.
 "Todos" sin sincronizar), así que se delega en `desbanearFiltros()` y se restauran a mano sólo
 los que dependen de la conexión o de la ráfaga.
 
+### 2.0 Cómo se aplica hoy: `popup/features/bloqueo.js`
+
+La tabla de arriba **es código**, no una convención a respetar de memoria. Estaba copiada en las
+tres funciones de `popup.js` (`bloquearToolbar`, `bloquearFilaDePortal`,
+`bloquearRegionesDeAlerta`), que repetían las mismas decisiones con distinta letra y obligaban a
+acordarse de las tres cada vez que entraba un control.
+
+```js
+Bloqueo.aplicar(bloquear, { regiones, elementos, restaurar })
+```
+
+Tres cosas que conviene saber antes de usarlo:
+
+- **La forma la elige él**, con `'disabled' in elemento`: la propiedad del DOM, no una lista de
+  tags que haya que mantener. Un control nuevo entra sin tocar el módulo.
+- **`aplicar()` nunca escribe `disabled = false`.** La asimetría de arriba dejó de ser una
+  advertencia en prosa y pasó a ser estructural: al liberar llama al `restaurar` que le pasás, y
+  si no le pasás ninguno, no re-habilita nada. Un call-site nuevo **no puede** habilitar de más
+  por olvido; a lo sumo se olvida de habilitar, que se ve enseguida.
+- **`aria-disabled` sí es simétrico**: es un marcador, no una capacidad.
+
+Tiene tests propios (`popup/features/bloqueo.test.js`), y ése es medio punto del refactor: el
+contrato vivía en `popup.js`, que la suite no ve.
+
 ### 2.1 `.bloqueada` normaliza tres cosas, y ninguna es cosmética
 
 La utilitaria vive en `styles/base.css` (no en la hoja de un componente: la usan tres regiones,
@@ -446,8 +470,206 @@ corte chico: resolver el portal por pestaña y pasárselo.
 
 - Las **cuatro salidas** del loader del escaneo están todas cubiertas (timeout, sin portal, error
   de inyección, y el `finally` del procesamiento): no hay fuga.
+  > **Ojo con cómo se leyó esto.** Se verificó que las cuatro **apagan el loader**, y de ahí no
+  > se sigue que las cuatro **avisen**. La del error de inyección apagaba el loader y no decía
+  > nada — ver §6.8. Cubrir una salida es apagar el loader *y* dejar algo en pantalla.
 - El banner **no se re-renderiza de más**: se compara el tipo antes de re-mostrar.
 - La **campanita** y el historial están acotados (50) y con su propio estado; no comparten canal
   con la línea de estado, que es lo correcto.
 - Las **cinco tarjetas de pausa** cubren los cinco tipos con copy distinta y **ninguna nombra un
   portal** — respetan ADR-0010.
+
+### 6.8 🔴 El error de inyección no avisaba, y la línea de estado del footer está muerta
+
+**Encontrado el 2026-08-12, con el banco de pruebas** (`error de inyección` + demora 0). Son
+**dos** defectos, y se tapaban entre sí: el primero está arreglado, el segundo **sigue abierto**.
+
+#### a) La rama no tenía tarjeta — ✅ cerrado
+
+`popup.js` era la única de las salidas del escaneo que **no** llamaba a `ListaClases.render`:
+mandaba el texto a `nodos.txtEstado` y **restauraba la lista anterior desde storage**. El
+resultado en pantalla era indistinguible de un escaneo exitoso — lista completa, botón
+"Re-escanear", cero explicación. Su hermana la del watchdog (§6.1) sí tenía tarjeta.
+
+Lo delator, y por qué el banco valió: la rama **sí corría** —el botón pasaba a "Re-escanear",
+línea que sólo existe ahí— y aun así no se veía nada.
+
+**Cómo se cerró**: entra por el mismo estado que el watchdog. `escaneoMuertoPorTimeout` pasó a
+llamarse `escaneoMuerto` y lleva `motivo: 'timeout' | 'inyeccion'`.
+
+> **Por qué UN estado y no dos banderas.** El bloqueo se deriva de él en cuatro lugares
+> (`sincronizarBloqueosDeAlerta`, el `bloquearRegiones` que le pasa `serverConnection`,
+> `calcularContadoresBoton` y el render). Con dos banderas hay que acordarse de las dos en los
+> cuatro, y eso es exactamente lo que el §1 dice que se desincroniza. **La tarjeta y el bloqueo
+> son el mismo estado.**
+
+Y **no se pinta en la rama**: se registra y se pide el repintado, que es el contrato que el §6.1
+ya había pagado. La copy es distinta según el motivo porque la acción del usuario es distinta —
+ante un timeout se reintenta; ante una inyección rechazada, reintentar en la misma pestaña
+vuelve a fallar, así que la tarjeta dice que se pare en una pestaña del portal.
+
+#### b) 🔴 `#ui-msg-status` está oculto y nadie se lo destapa — ABIERTO
+
+El `<p>` de la línea de estado del footer nace con **`style="display:none"` inline**
+(`entrypoints/popup/index.html`), y en todo el repo **no hay** un solo `txtEstado.style`, ni un
+`removeAttribute`, ni una regla con `!important` que lo pise — el único `!important` es
+`.status-text:empty` (`styles/components/footer.css`), que lo esconde *más*. El inline le gana a
+`display: flex`. Viene así desde la migración a WXT (`fd81f9a`, 2026-08-02), heredado del
+`popup.html` viejo.
+
+**Consecuencia**: todo lo que se escribe ahí es invisible. Hay ~20 sitios — `popup.js`
+("no estás en un portal reconocido", "el escaneo no devolvió clases", **el texto de progreso de
+la descarga**), `popup/features/queue.js` ("verificando conexión", "frenando al terminar") y
+`popup/features/serverConnection.js` ("servidor Bun apagado").
+
+**Por qué no se arregló en el mismo corte**: sacar el inline destapa los ~20 de una vez,
+incluido el progreso durante la descarga, que cambia el alto del footer mientras baja. Es un
+cambio visual ancho y hay que mirarlo descargando, no leyendo. **El arreglo es de una línea**;
+lo que falta es la pasada por navegador.
+
+**Y ojo con "arreglarlo" mandando mensajes ahí**: el §6.1 ya había descartado ese destino para
+el watchdog *aunque estuviera visible*, porque comparte el footer con el diagnóstico de conexión
+—que tiene otro dueño— y queda pisado. Destaparlo no lo convierte en un buen lugar para un
+error; lo convierte en un lugar donde el copy que hoy vive ahí, por fin, se lee.
+
+#### c) 🟠 Un repintado le gana la región a la card del escaneo vacío — ✅ cerrado
+
+Forzando escaneo vacío **sin lista previa**, lo que queda en pantalla es la card genérica del
+filtro (`No hay clases / No se encontraron clases que coincidan con la búsqueda o el filtro`,
+`aplicarFiltrosCruzados`) en vez de la del escaneo (`Sin clases detectadas`, con el nombre del
+portal y la instrucción). O sea: **la card correcta se pinta y un repintado posterior la
+reemplaza** — el mismo patrón del defecto nº2 del §5.1, que se dio por cerrado, reentrando por
+la rama del escaneo vacío, que sigue pintando de una sola vez en vez de derivar del estado.
+
+No es cosmético: la card del filtro le dice al usuario que **afloje un filtro** cuando lo que
+pasó es que el portal no devolvió nada.
+
+> **✅ Cerrado (2026-08-13), y con él un defecto más viejo.** La card se **deriva** ahora en
+> `renderizarListadoInterfaz` en vez de pintarse una vez al terminar el escaneo, así que ningún
+> repintado se la come. Tercera vez que este archivo paga el mismo error (watchdog §6.1, error
+> de inyección §6.8a, y ésta): **estado pintado una vez en vez de derivado**.
+>
+> Y de paso se arregló lo que la card decía. `filtrados.length === 0` es cierto por dos causas
+> —colección vacía vs. filtro que escondió todo— y las dos recibían el mismo texto. Ahora
+> ramifica por `coleccionDeLaPestañaVacia()`, **el mismo predicado que decide el bloqueo de la
+> toolbar**, con lo cual el cartel y el bloqueo no pueden contradecirse: con la colección vacía
+> la toolbar está bloqueada y el texto no ofrece tocarla ("Sin clases detectadas … Asegurate de
+> estar dentro de \<portal\>"); con el filtro, está viva y el texto manda justo ahí.
+>
+> Eso cierra también el defecto que el comentario de `coleccionDeLaPestañaVacia()` tenía anotado
+> desde su propia auditoría: en la **Fila**, "No tenés clases agregadas en esta lista" aparecía
+> también cuando sí las tenías y las habías filtrado. Ahora ese caso dice "Ninguna coincide".
+>
+> Se fueron con el cambio **tres `disabled` puestos a mano** en la rama del escaneo vacío: los
+> decide el mismo predicado en `bloquearToolbar`.
+
+### 6.9 🟠 "Todos" encendido sobre un filtro sin nada seleccionable — ✅ cerrado
+
+**Encontrado el 2026-08-12, usando la extensión.** Con "Todos" marcado y el filtro puesto en
+**descargados**, el control quedaba encendido, aceptaba el clic y **no hacía nada**.
+
+La cadena, que son tres piezas y ninguna estaba mal sola:
+
+1. `actualizarMasterCheckState()` calcula el `checked` sobre `visible && estado === 'pending'`.
+   Filtrando por descargados ese conjunto queda vacío y la condición es `visibles.length > 0 &&
+   …`, así que se **desmarca solo**.
+2. El handler le pasa **todos** los visibles a `conmutarSeleccionMasiva`, que sólo toca las
+   `pending` (`core/estado/appState.ts`). Cero pendientes → el bucle no toca nada.
+3. El repintado vuelve a pasar por (1) y lo devuelve a desmarcado. El control **rebota**.
+
+**Es la misma regla que ya justificaba bloquear la toolbar con la colección vacía** (§2.2):
+dejar los controles vivos ofrece una acción que no existe. Un control que se deja clickear y no
+hace nada es peor que uno apagado — mueve la duda al usuario, que no sabe si el que falló es él.
+
+> **Y no contradice la trampa del §2.2**, aunque lo parezca: ahí se dice que el bloqueo mira la
+> COLECCIÓN y jamás el resultado filtrado. Esa regla protege **la salida** —el buscador y las
+> pastillas—, porque apagarlos con un filtro que dejó cero **encierra al usuario**: ya no puede
+> sacar el filtro que lo dejó así. **"Todos" no es salida**, es una acción *sobre* el resultado;
+> apagarlo deja intacto el camino de vuelta. La distinción no es "colección vs. filtrado", es
+> **"con qué se sale vs. qué se hace con lo que quedó"**.
+
+**Dónde se arregló, que fue la parte que costó decidir**: en `desbanearFiltros()`
+(`popup/features/filters.js`), no en `actualizarMasterCheckState()`. `masterCheck.disabled` lo
+escriben hoy seis lugares, y el que tiene la **última palabra** es `desbanearFiltros`, porque
+corre desde el `restaurar` de `bloquearToolbar`, que `sincronizarBloqueosDeAlerta()` llama al
+final de todo. Puesto en `actualizarMasterCheckState()` —que corre antes— quedaba pisado, y el
+síntoma habría sido "a veces funciona".
+
+Lleva `title` porque las dos causas de apagado son distintas y sin decirlo el bloqueo mueve la
+duda en vez de sacarla: *"Esperando la sincronización con el disco"* vs. *"No hay clases
+seleccionables con este filtro"*.
+
+#### La regla que queda, y es la que hay que aplicar al próximo control
+
+**¿Este control puede sacarme de la situación?**
+
+| | Sigue al resultado filtrado | Por qué |
+|---|---|---|
+| Buscador, Filtros | **NO, nunca** | Son **la salida**. Apagarlos con cero resultados encierra al usuario (§2.2). Sólo los apaga la COLECCIÓN vacía, que decide `bloquearToolbar`. |
+| "Todos" | Sí — `haySeleccionablesVisibles()` | Actúa sobre el resultado. Sin nada marcable es un no-op. |
+| Ordenar, "Seleccionar" | Sí — `hayVisibles()` | Ídem, pero con **otro** predicado. |
+
+**Los dos predicados no coinciden, y ahí está la trampa de reusar el de al lado**: filtrando por
+"descargados" hay clases en pantalla y ninguna marcable. "Todos" se apaga porque no tiene qué
+marcar; **ordenar tiene que quedar encendido**, porque ordenar dos clases descargadas es
+legítimo. En la Cola pasa lo mismo con la que se está bajando: no cuenta para "Todos" (no se la
+puede desmarcar) y sí para ordenar (ocupa un renglón).
+
+Umbral de `hayVisibles`: **cero**, no "menos de dos". Ordenar una sola clase tampoco hace nada,
+pero apagarlo ahí titila con cada filtro y se lee como un bug.
+
+Y una que se pagó al construirlo: **`btnToggleSelect` se re-habilitaba dos veces**. Estaba en el
+`restaurar` de `bloquearToolbar` con un `disabled = false` incondicional que corría DESPUÉS de
+`desbanearFiltros`, así que le pisaba la condición nueva. Se sacó de ahí: el dueño es
+`desbanearFiltros`, como el resto de la toolbar.
+
+#### Y el cursor, que quedó partido al medio
+
+El "Todos" es un `<label>` con dos hijos, así que al deshabilitarlo **individualmente** (no por
+región) la casilla tomaba su `:disabled` de `base.css` —apagada, `cursor: not-allowed`— y el
+texto se quedaba con el `cursor: pointer` y el color plenos de `.master-select`. La mitad
+derecha del control decía "clickeame" y la izquierda decía lo contrario.
+
+Es el defecto de las **dos densidades** del §2.1, reentrando por el bloqueo individual en vez de
+por el de región — `.bloqueada` sólo cubría el segundo. Se cierra con
+`.master-select[aria-disabled="true"]` (`filters.css`), que toma el tinte y el cursor para todo
+el control, **neutralizando el `opacity` propio de la casilla**: dos `0.5` anidados dan 0,25 y
+volvían las dos densidades adentro del mismo control.
+
+`not-allowed` y no `default` a propósito: acá no hay una región apagada que se lea como "ahora
+no", hay **un** control que no se puede usar. Adentro de `.bloqueada` sigue mandando la región
+—su regla lleva `!important` y ésta no—, así que los dos estados quedan distinguibles.
+
+### 6.10 🔴 En una página no soportada, "Re-escanear" contestaba cualquier cosa — ✅ cerrado
+
+**Encontrado el 2026-08-13, usando la extensión**: parado en una página cualquiera y tocando
+Re-escanear, aparecía *"No hay clases — No se encontraron clases que coincidan con la búsqueda o
+el filtro"*, con el buscador vacío y sin ningún filtro puesto.
+
+**No era el cartel de lista vacía fallando: era una tercera causa que ningún cartel cubría.** El
+escaneo ni siquiera corre — `adoptarPortalDePestaña(tab.url)` no resuelve y la rama sale con
+`return`. Lo único que hacía era:
+
+- escribir `"⚠️ No estás en un portal reconocido."` en `nodos.txtEstado`, el `<p>` oculto (§6.8b)
+  — **tercer** mensaje perdido ahí; y
+- repintar **sólo si ya había clases** (`if (appState.listadoClasesGlobal.length > 0)`). Con la
+  lista vacía no repintaba nada, así que quedaba en pantalla lo que hubiera de antes.
+
+De ahí el síntoma: la card vieja sobrevivía a una acción del usuario que debería haberla
+reemplazado. **No mentía el copy nuevo; mentía la ausencia de repintado.**
+
+**Cerrado** sumando `motivo: 'sin-portal'` al `escaneoMuerto` que ya usaban el watchdog (§6.1) y
+el error de inyección (§6.8a) — tercera entrada al mismo estado, con lo cual vienen gratis el
+bloqueo derivado de la toolbar y que ningún render posterior le gane la región. Y se fue el
+`if (length > 0)`: el repintado corre siempre.
+
+**La card nombra los portales** (*"Abrí una de Ramón Net o Anatomy by Chris"*) y la lista sale de
+`sitios.todos()`, un passthrough nuevo del wrapper de composición. Escribirla en el copy la
+dejaría envejecer en el próximo portal que se registre — que es lo que ADR-0010 evita en los
+datos, entrando por el texto.
+
+> **El patrón, que ya lleva tres**: el escaneo tiene ahora tres salidas por error y las tres
+> pasan por el mismo estado. **Si aparece una cuarta, va ahí también.** Lo que hace falta para
+> que una salida esté "cubierta" son tres cosas, no una: apagar el loader, **dejar algo en
+> pantalla** y **pedir el repintado**. El §6.7 daba las cuatro salidas por buenas mirando sólo
+> la primera.

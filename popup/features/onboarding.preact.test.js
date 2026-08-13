@@ -124,14 +124,14 @@ describe('Isla Preact: Onboarding', () => {
     const api = crear();
     await flush();
     expect(typeof api.mostrarOnboarding).toBe('function');
-    expect(root.querySelector('.onboarding-overlay')).toBeNull();
+    expect(root.querySelector('.onboarding-card')).toBeNull();
   });
 
   it('mostrarOnboarding muestra el overlay, primer dot activo y "Atrás" deshabilitado', async () => {
     const api = crear();
     api.mostrarOnboarding();
     await flush();
-    expect(root.querySelector('.onboarding-overlay')).not.toBeNull();
+    expect(root.querySelector('.onboarding-card')).not.toBeNull();
     const dots = root.querySelectorAll('.onboarding-dot');
     expect(dots.length).toBe(6);
     expect(dots[0].classList.contains('active')).toBe(true);
@@ -149,7 +149,7 @@ describe('Isla Preact: Onboarding', () => {
     await flush();
     expect(window.AppState.tutorialCompletado).toBe(true);
     expect(window.AppState.respaldar).toHaveBeenCalled();
-    expect(root.querySelector('.onboarding-overlay')).toBeNull();
+    expect(root.querySelector('.onboarding-card')).toBeNull();
   });
 
   it('el estado del servidor del slide se DERIVA del daemon (offline → error + botón disabled)', async () => {
@@ -197,7 +197,7 @@ describe('Isla Preact: Onboarding', () => {
     crear({ onComplete });
     document.getElementById('help').click(); // mostrarOnboarding(true)
     await flush();
-    expect(root.querySelector('.onboarding-overlay')).not.toBeNull();
+    expect(root.querySelector('.onboarding-card')).not.toBeNull();
     root.querySelector('.onboarding-skip-btn').click(); // cierra
     await flush();
     expect(onComplete).not.toHaveBeenCalled();

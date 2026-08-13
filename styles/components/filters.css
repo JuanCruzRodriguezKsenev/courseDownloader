@@ -23,9 +23,20 @@
     outline: none;
     height: 24px;
     box-sizing: border-box;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 
+    /* Mismo foco que el input de materia (`path-bar.css`), y por eso suma el halo que antes no
+       tenía: son los dos únicos campos de texto del popup y se veían distinto. Con el halo, el
+       indicador propio es lo bastante visible como para poder apagar el outline global —el
+       cambio de color del borde, solo, no lo era. */
     &:focus {
       border-color: var(--accent-orange);
+      box-shadow: 0 0 0 2px rgba(var(--accent-orange-rgb), 0.15);
+    }
+
+    /* El mismo triple foco que tenía materia: ver el comentario largo en `path-bar.css`. */
+    &:focus-visible {
+      outline: none;
     }
   }
 
@@ -281,6 +292,34 @@
 
     input {
       flex-shrink: 0;
+    }
+
+    /* Deshabilitado por su cuenta — NO por una región en alerta (para eso está `.bloqueada`).
+       Pasa cuando el filtro no dejó nada seleccionable o el disco no sincronizó todavía.
+
+       El control es un <label> con dos hijos, y sin esto quedaba partido al medio: la casilla
+       tomaba su `:disabled` de `base.css` (apagada, `cursor: not-allowed`) y el texto "Todos"
+       se quedaba con el `cursor: pointer` y el color plenos de la regla de arriba. O sea que
+       la mitad derecha del mismo control **decía "clickeame"** mientras la izquierda decía lo
+       contrario. Es el defecto de "dos densidades" del §2.1 de alertas-y-bloqueo-diseno.md,
+       reentrando por el bloqueo individual en vez de por el de región.
+
+       El tinte va en el LABEL para que alcance al texto, y por eso hay que neutralizar el
+       propio de la casilla: dos `opacity: 0.5` anidados dan 0,25 y volvíamos a tener las dos
+       densidades, ahora dentro del mismo control.
+
+       `not-allowed` y no `default` a propósito: acá no hay una región apagada que se lea como
+       "ahora no", hay UN control que no se puede usar. Adentro de `.bloqueada` manda la
+       región igual —su regla lleva `!important` y ésta no—, así que los dos estados siguen
+       siendo distinguibles y ninguno queda desparejo. */
+    &[aria-disabled="true"] {
+      opacity: 0.5;
+      cursor: not-allowed;
+
+      input:disabled {
+        opacity: 1;
+        cursor: not-allowed;
+      }
     }
   }
 }

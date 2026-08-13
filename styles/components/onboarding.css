@@ -1,31 +1,27 @@
 /* ==========================================================================
    TUTORIAL DE BIENVENIDA (ONBOARDING WELCOME TOUR)
    ========================================================================== */
-.onboarding-overlay {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background-color: var(--bg-overlay);
-  backdrop-filter: blur(12px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 99999999;
-  animation: fadeIn-modal 0.3s ease-out;
-}
+/* `.onboarding-overlay` se fue entera: la pinta `Capa` (`styles/components/capa.css`). Era
+   idéntica a las otras dos salvo el blur (12px contra 8px) y un dígito más de z-index, y
+   ninguna de las dos diferencias respondía a nada — el tour es el único overlay que se abre
+   solo, nunca convive con otro.
 
+   De la card queda SÓLO lo que es del tour. Fondo, borde, radio y sombra ahora los da
+   `.capa-card`; `text-align: center` y el `gap` de `.es-modal` se apagan acá porque este
+   contenido es un carrusel, no una columna de párrafos centrados. */
 .onboarding-card {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
   padding: 1.5rem 1.25rem 1.25rem;
   width: 88%;
   max-width: 330px;
-  box-shadow: 0 12px 30px rgba(var(--shadow-rgb), 0.45);
   display: flex;
   flex-direction: column;
+  gap: 0;
+  text-align: left;
+  /* `position: relative` es load-bearing: el botón "Saltar" es `position: absolute` y se
+     ancla a esta card. Sin esto se iría al overlay, que ocupa la pantalla entera. */
   position: relative;
+  /* El carrusel se desplaza con `translateX`; sin esto las slides de al lado se ven. */
   overflow: hidden;
-  box-sizing: border-box;
 }
 
 .onboarding-skip-btn {

@@ -1,27 +1,10 @@
-/* Modal overlay del asistente de faceta (en Ramón Net: la multicátedra) */
-.faceta-overlay {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background-color: var(--bg-overlay);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999999;
-  animation: fadeIn-modal 0.25s ease-out;
-}
-
+/* Asistente de faceta (en Ramón Net: la multicátedra).
+   El overlay y la superficie los pone `Capa` (`styles/components/capa.css`). `.faceta-overlay`
+   era idéntica línea por línea a `.adv-overlay`, y de la card sólo quedan las dos medidas que
+   este modal tenía propias — el resto era la misma superficie escrita otra vez. */
 .faceta-card {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
   padding: 1.5rem 1.25rem;
-  width: 85%;
   max-width: 280px;
-  box-shadow: var(--shadow-modal);
-  text-align: center;
-  display: flex;
-  flex-direction: column;
   gap: 0.9rem;
 }
 
@@ -59,11 +42,11 @@
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   text-transform: uppercase;
 
+  /* Sin `translateY(-0.5px)`: parpadeaba en vez de moverse. Ver `styles/list.css` (.video-item). */
   &:hover {
     background-color: var(--accent-orange);
     color: var(--text-on-orange);
     border-color: var(--accent-orange);
-    transform: translateY(-0.5px);
   }
 
   &.opt-todas {
@@ -96,11 +79,6 @@
 
 /* Lo comparten advertencia.css y onboarding.css: se define acá porque este archivo
    es el primero de los tres en el @import de popup/globals.css. */
-@keyframes fadeIn-modal {
-  from { opacity: 0; transform: scale(0.96); }
-  to { opacity: 1; transform: scale(1); }
-}
-
 .faceta-badge {
   font-size: var(--text-sm);
   background-color: rgba(var(--accent-orange-rgb), 0.1);

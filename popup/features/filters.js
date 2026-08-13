@@ -223,12 +223,99 @@ const FilterFeature = {
       actualizarContadores();
     }
 
+    /**
+     * ¿Hay algo que "Todos" pueda marcar AHORA, con los filtros puestos?
+     *
+     * Existe porque el filtro puede dejar en pantalla puras clases NO seleccionables —filtrar
+     * por "descargados" es el caso—, y ahí "Todos" quedaba encendido y era un **no-op**: el
+     * clic entraba, `conmutarSeleccionMasiva` sólo toca las `pending` (`core/estado/appState.ts`)
+     * y no encontraba ninguna, el repintado volvía a calcular el `checked` sobre el mismo
+     * conjunto vacío, y el control rebotaba a desmarcado. Un control que se deja clickear y no
+     * hace nada es peor que uno apagado: mueve la duda al usuario.
+     *
+     * **Mira el resultado FILTRADO, y acá sí corresponde** — ojo con esto, porque parece
+     * contradecir la trampa del §2.2 de alertas-y-bloqueo-diseno.md ("el bloqueo mira la
+     * COLECCIÓN, jamás el resultado filtrado"). No la contradice: esa regla protege la SALIDA
+     * —el buscador y las pastillas—, porque apagarlos con un filtro que dejó cero **encierra al
+     * usuario**, que ya no puede sacar el filtro que lo dejó así. "Todos" no es salida: es una
+     * acción SOBRE el resultado. Apagarlo deja intacto el camino de vuelta.
+     */
+    /**
+     * ¿Hay algo EN PANTALLA, sea marcable o no?
+     *
+     * Hermano de `haySeleccionablesVisibles`, y **no son el mismo predicado aunque lo parezcan**
+     * — copiarse uno al otro apaga controles que sí sirven. Filtrando por "descargados" hay
+     * clases en pantalla y **ninguna** marcable: "Todos" se apaga (no tiene qué marcar) y
+     * **ordenar se queda encendido** (ordenar dos descargadas es perfectamente legítimo).
+     *
+     * En la Cola, a diferencia del otro, la que se está bajando **sí** cuenta: no se la puede
+     * desmarcar, pero ocupa un renglón y ordenar la lista que la contiene tiene sentido.
+     */
+    function hayVisibles() {
+      if (appState.pestañaActiva === "cola") {
+        const busqueda = nodos.search.value.toLowerCase().trim();
+        return appState.colaDescargas.some((clase) => coincideConFiltrosCola(clase, busqueda));
+      }
+      return appState.listadoClasesGlobal.some((c) => c.visible);
+    }
+
+    function haySeleccionablesVisibles() {
+      if (appState.pestañaActiva === "cola") {
+        const busqueda = nodos.search.value.toLowerCase().trim();
+        // Mismo predicado que usa el handler de "Todos" en la Cola, incluida la exclusión de
+        // la que se está bajando: no se la puede desmarcar, así que no cuenta como disponible.
+        return appState.colaDescargas.some((clase) => {
+          const esActivo = appState.videoActualEnTransmisiónSW === clase.titulo && appState.ráfagaEnCurso;
+          return coincideConFiltrosCola(clase, busqueda) && !esActivo;
+        });
+      }
+      return appState.listadoClasesGlobal.some((c) => c.visible && c.estado === 'pending');
+    }
+
     // (Re)habilita los controles de filtrado/búsqueda una vez que hay listado cargado.
+    //
+    // Es el dueño con la ÚLTIMA palabra sobre `masterCheck`: corre desde el `restaurar` de
+    // `bloquearToolbar`/`bloquearRegionesDeAlerta`, que `sincronizarBloqueosDeAlerta()` llama
+    // al final de todo. Por eso la condición de "Todos" se agrega acá y no en
+    // `actualizarMasterCheckState()`, que corre ANTES y quedaría pisada.
     function desbanearFiltros() {
+      // EL BUSCADOR Y LOS FILTROS NO LLEVAN CONDICIÓN, y es deliberado: son **la salida**.
+      // Apagarlos porque el filtro dejó cero resultados encierra al usuario, que ya no puede
+      // sacar el filtro que lo dejó así (§2.2 de alertas-y-bloqueo-diseno.md). Lo único que
+      // los apaga es la COLECCIÓN vacía, y eso lo decide `bloquearToolbar` afuera.
       nodos.search.disabled = false;
       nodos.btnFilterPills.disabled = false;
-      nodos.masterCheck.disabled = !appState.sincronizacionDiscoCompletada;
-      if (nodos.btnSort) nodos.btnSort.disabled = false;
+
+      // Ordenar y "Seleccionar" sí: actúan SOBRE el resultado y no sacan de ninguna parte.
+      // Con cero en pantalla son no-ops, igual que "Todos".
+      //
+      // Umbral: cero, no "menos de dos". Ordenar una sola clase tampoco hace nada, pero
+      // apagarlo ahí titila con cada filtro y se lee como un bug; con cero, la card ya dice
+      // "No hay clases" y el botón acompaña.
+      //
+      // Sin `title` a propósito: el del botón de orden lo escribe `orden.js` en cada render
+      // (`Orden: <criterio>`). Pisarlo desde acá sería el segundo dueño del mismo atributo, y
+      // el que corriera último ganaría — que es el defecto que este archivo viene evitando.
+      const sinVisibles = !hayVisibles();
+      if (nodos.btnSort) nodos.btnSort.disabled = sinVisibles;
+      if (nodos.btnToggleSelect) nodos.btnToggleSelect.disabled = sinVisibles;
+
+      // Dos condiciones, dos causas distintas, y el `title` las distingue: sin sincronizar el
+      // disco todavía no se sabe qué está descargado; sin seleccionables el filtro no dejó
+      // nada que marcar. Apagarlo sin decir por qué mueve la duda de lugar en vez de sacarla.
+      const sinSincronizar = !appState.sincronizacionDiscoCompletada;
+      const sinSeleccionables = !haySeleccionablesVisibles();
+      nodos.masterCheck.disabled = sinSincronizar || sinSeleccionables;
+
+      const wrapperTodos = document.getElementById('ui-master-select-wrapper');
+      if (wrapperTodos) {
+        wrapperTodos.setAttribute('aria-disabled', String(sinSincronizar || sinSeleccionables));
+        wrapperTodos.title = sinSincronizar
+          ? 'Esperando la sincronización con el disco'
+          : sinSeleccionables
+            ? 'No hay clases seleccionables con este filtro'
+            : 'Seleccionar todas las clases visibles';
+      }
     }
 
     // Actualiza el badge del botón "Filtros (N)" según cuántos filtros haya activos.
@@ -506,6 +593,11 @@ const FilterFeature = {
       coincideConFiltrosCola,
       aplicarFiltrosCruzados,
       desbanearFiltros,
+      // Se exponen para poder testearlos solos: son los dos predicados de los que depende que
+      // se apaguen "Todos" / "Ordenar", y su caso interesante (filtrar por descargados) no se
+      // alcanza desde afuera. Van los dos porque la gracia es justamente que NO coinciden.
+      haySeleccionablesVisibles,
+      hayVisibles,
       actualizarPillsUIState,
       renderizarFiltrosMenuPopover,
     };
