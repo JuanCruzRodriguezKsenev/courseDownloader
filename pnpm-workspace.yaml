@@ -7,5 +7,10 @@
 # esbuild necesita el suyo para dejar su binario en su lugar; sin esta línea, cada
 # `pnpm install` termina en ERR_PNPM_IGNORED_BUILDS y sale con código 1, lo que rompe la
 # compuerta entera (pnpm re-corre el install antes de cada script).
+#
+# ESTE archivo es el único lugar donde vale. pnpm 11 lee `allowBuilds` de acá e IGNORA EN
+# SILENCIO el `pnpm.onlyBuiltDependencies` de `package.json` que muestra casi toda la
+# documentación — esa clave estuvo duplicada acá hasta el 2026-08-13 y se sacó por eso: no
+# hacía nada, y se leía como la fuente. Si volvés a ver ERR_PNPM_IGNORED_BUILDS, es acá.
 allowBuilds:
   esbuild: true
