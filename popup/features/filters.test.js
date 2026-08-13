@@ -18,7 +18,9 @@ function montarNodos() {
     <div id="ui-filter-menu"></div>
     <button id="ui-btn-filter-pills"><span>Filtros</span></button>
     <input id="ui-master-check" type="checkbox">
+    <span id="ui-master-select-wrapper"></span>
     <button id="ui-btn-sort"></button>
+    <button id="ui-btn-toggle-select">Seleccionar</button>
   `;
   return {
     search: document.getElementById('ui-search'),
@@ -27,6 +29,7 @@ function montarNodos() {
     btnFilterPills: document.getElementById('ui-btn-filter-pills'),
     masterCheck: document.getElementById('ui-master-check'),
     btnSort: document.getElementById('ui-btn-sort'),
+    btnToggleSelect: document.getElementById('ui-btn-toggle-select'),
   };
 }
 
@@ -233,6 +236,35 @@ describe('FilterFeature.aplicarFiltrosCruzados', () => {
     expect(ctx.actualizarContadores).toHaveBeenCalled();
   });
 
+  // Antes esto era `coincideMateria = true` fijo para toda clase con módulo: el Set se llenaba
+  // y no pasaba nada. El síntoma era "el filtro de materia no existe en Disponibles".
+  it('filtra por materia a las clases con módulo, que ya no miran el input', () => {
+    const { feature, filtrosActivos, nodos } = crearFeature();
+    nodos.folder.value = ''; // el input está vacío: en un portal de dos niveles es lo normal
+    AppState.listadoClasesGlobal = [
+      { titulo: 'a', modulo: 'Tórax', carpeta: 'TORAX', estado: 'pending' },
+      { titulo: 'b', modulo: 'Abdomen', carpeta: 'ABDOMEN', estado: 'pending' },
+    ];
+
+    filtrosActivos.materias.add('TORAX');
+    feature.aplicarFiltrosCruzados();
+
+    expect(AppState.listadoClasesGlobal[0].visible).toBe(true);
+    expect(AppState.listadoClasesGlobal[1].visible).toBe(false);
+  });
+
+  it('sin materias marcadas, el input vacío no esconde a las clases con módulo', () => {
+    const { feature, nodos } = crearFeature();
+    nodos.folder.value = '';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'a', modulo: 'Tórax', carpeta: 'TORAX', estado: 'pending' },
+    ];
+
+    feature.aplicarFiltrosCruzados();
+
+    expect(AppState.listadoClasesGlobal[0].visible).toBe(true);
+  });
+
   // [LA SELECCIÓN SIGUE AL FILTRO] Sin esto la selección quedaba invisible y operante: "Todos"
   // sin filtro marcaba las 103, filtrabas a 12 en pantalla y el botón seguía ofreciendo —y
   // encolando— las 103, porque el conteo lee `seleccionado` y no `visible`.
@@ -300,8 +332,16 @@ describe('FilterFeature.actualizarPillsUIState', () => {
 });
 
 describe('FilterFeature.desbanearFiltros', () => {
+  // "Todos" ahora tiene DOS condiciones, así que los casos que sólo miran la sincronización
+  // necesitan que además haya algo seleccionable; si no, se apaga por la otra razón.
+  function conUnaSeleccionable() {
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [{ titulo: 'A', visible: true, estado: 'pending' }];
+  }
+
   it('habilita search/filtros/sort y master según sincronización', () => {
     const { feature, nodos } = crearFeature();
+    conUnaSeleccionable();
     nodos.search.disabled = true;
     nodos.btnFilterPills.disabled = true;
     nodos.btnSort.disabled = true;
@@ -316,6 +356,150 @@ describe('FilterFeature.desbanearFiltros', () => {
     AppState.sincronizacionDiscoCompletada = true;
     feature.desbanearFiltros();
     expect(nodos.masterCheck.disabled).toBe(false);
+  });
+
+  /**
+   * El defecto que cierra esto: con "Todos" marcado y el filtro puesto en "descargados", el
+   * control quedaba encendido, aceptaba el clic y NO hacía nada (la selección masiva sólo toca
+   * las `pending`), y el repintado lo devolvía a desmarcado. Ofrecía una acción inexistente.
+   */
+  it('apaga "Todos" cuando el filtro no dejó nada seleccionable', () => {
+    const { feature, nodos } = crearFeature();
+    AppState.sincronizacionDiscoCompletada = true;
+    AppState.pestañaActiva = 'disponibles';
+    // Lo que deja en pantalla filtrar por "descargados": visibles, pero ninguna marcable.
+    AppState.listadoClasesGlobal = [
+      { titulo: 'A', visible: true, estado: 'downloaded' },
+      { titulo: 'B', visible: true, estado: 'downloaded' },
+    ];
+
+    feature.desbanearFiltros();
+
+    expect(nodos.masterCheck.disabled).toBe(true);
+    const wrapper = document.getElementById('ui-master-select-wrapper');
+    expect(wrapper.getAttribute('aria-disabled')).toBe('true');
+    expect(wrapper.title).toBe('No hay clases seleccionables con este filtro');
+  });
+
+  it('alcanza UNA pendiente visible para que vuelva a encenderse', () => {
+    const { feature, nodos } = crearFeature();
+    AppState.sincronizacionDiscoCompletada = true;
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'A', visible: true, estado: 'downloaded' },
+      { titulo: 'B', visible: true, estado: 'pending' },
+    ];
+
+    feature.desbanearFiltros();
+    expect(nodos.masterCheck.disabled).toBe(false);
+    expect(document.getElementById('ui-master-select-wrapper').getAttribute('aria-disabled')).toBe('false');
+  });
+
+  it('no cuenta las pendientes que el filtro escondió (visible: false)', () => {
+    const { feature, nodos } = crearFeature();
+    AppState.sincronizacionDiscoCompletada = true;
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'A', visible: true, estado: 'downloaded' },
+      { titulo: 'B', visible: false, estado: 'pending' }, // pendiente, pero fuera de pantalla
+    ];
+
+    feature.desbanearFiltros();
+    expect(nodos.masterCheck.disabled).toBe(true);
+  });
+
+  it('distingue las dos causas en el title: sin sincronizar no es lo mismo que sin seleccionables', () => {
+    const { feature } = crearFeature();
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [{ titulo: 'A', visible: true, estado: 'pending' }];
+    AppState.sincronizacionDiscoCompletada = false;
+
+    feature.desbanearFiltros();
+    expect(document.getElementById('ui-master-select-wrapper').title)
+      .toBe('Esperando la sincronización con el disco');
+  });
+});
+
+describe('FilterFeature: ordenar y "Seleccionar" siguen a "hay algo en pantalla"', () => {
+  it('los apaga cuando el filtro no dejó NINGUNA clase visible', () => {
+    const { feature, nodos } = crearFeature();
+    AppState.sincronizacionDiscoCompletada = true;
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [{ titulo: 'A', visible: false, estado: 'pending' }];
+
+    feature.desbanearFiltros();
+    expect(nodos.btnSort.disabled).toBe(true);
+    expect(nodos.btnToggleSelect.disabled).toBe(true);
+  });
+
+  /**
+   * El caso que separa los dos predicados, y la razón de que no se compartan: filtrando por
+   * "descargados" hay clases en pantalla y ninguna marcable. "Todos" no tiene qué marcar;
+   * ordenar dos descargadas sí tiene sentido. Copiar un predicado en el otro apaga un control
+   * que sirve.
+   */
+  it('ordenar sigue ENCENDIDO con clases visibles no seleccionables, aunque "Todos" se apague', () => {
+    const { feature, nodos } = crearFeature();
+    AppState.sincronizacionDiscoCompletada = true;
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'A', visible: true, estado: 'downloaded' },
+      { titulo: 'B', visible: true, estado: 'downloaded' },
+    ];
+
+    feature.desbanearFiltros();
+    expect(nodos.btnSort.disabled).toBe(false);      // hay 2 clases que ordenar
+    expect(nodos.masterCheck.disabled).toBe(true);   // pero ninguna que marcar
+  });
+
+  it('el buscador y los filtros NO se apagan nunca por el resultado: son la salida', () => {
+    const { feature, nodos } = crearFeature();
+    AppState.sincronizacionDiscoCompletada = true;
+    AppState.pestañaActiva = 'disponibles';
+    // Cero visibles: el peor caso, y justo cuando más se necesita poder sacar el filtro.
+    AppState.listadoClasesGlobal = [{ titulo: 'A', visible: false, estado: 'pending' }];
+
+    feature.desbanearFiltros();
+    expect(nodos.search.disabled).toBe(false);
+    expect(nodos.btnFilterPills.disabled).toBe(false);
+  });
+});
+
+describe('FilterFeature.hayVisibles', () => {
+  it('en la Cola SÍ cuenta la que se está bajando (a diferencia de haySeleccionablesVisibles)', () => {
+    const { feature } = crearFeature();
+    AppState.pestañaActiva = 'cola';
+    AppState.ráfagaEnCurso = true;
+    AppState.videoActualEnTransmisiónSW = 'La que baja';
+    AppState.colaDescargas = [{ titulo: 'La que baja', materia: 'x', sitioId: 'ramonnet' }];
+
+    expect(feature.hayVisibles()).toBe(true);              // ocupa un renglón: se puede ordenar
+    expect(feature.haySeleccionablesVisibles()).toBe(false); // pero no se la puede desmarcar
+  });
+});
+
+describe('FilterFeature.haySeleccionablesVisibles', () => {
+  it('en la Cola no cuenta la que se está bajando: no se la puede desmarcar', () => {
+    const { feature } = crearFeature();
+    AppState.pestañaActiva = 'cola';
+    AppState.ráfagaEnCurso = true;
+    AppState.videoActualEnTransmisiónSW = 'La que baja';
+    AppState.colaDescargas = [{ titulo: 'La que baja', materia: 'x', sitioId: 'ramonnet' }];
+
+    expect(feature.haySeleccionablesVisibles()).toBe(false);
+  });
+
+  it('en la Cola cuenta las demás', () => {
+    const { feature } = crearFeature();
+    AppState.pestañaActiva = 'cola';
+    AppState.ráfagaEnCurso = true;
+    AppState.videoActualEnTransmisiónSW = 'La que baja';
+    AppState.colaDescargas = [
+      { titulo: 'La que baja', materia: 'x', sitioId: 'ramonnet' },
+      { titulo: 'Otra', materia: 'x', sitioId: 'ramonnet' },
+    ];
+
+    expect(feature.haySeleccionablesVisibles()).toBe(true);
   });
 });
 
@@ -346,6 +530,55 @@ describe('FilterFeature.renderizarFiltrosMenuPopover', () => {
 
     expect(filtrosActivos.estados.has('pending')).toBe(true);
     expect(ctx.renderizar).toHaveBeenCalled();
+  });
+
+  // [ESCANEO-API CORTE 1, deuda] En un portal de dos niveles cada clase trae su módulo, así que
+  // la carpeta ya no sale del input — y Disponibles se quedó sin eje de materia mientras la Cola
+  // sí lo tenía. Estos cuatro fijan que exista, que filtre, y las dos condiciones de que aparezca.
+  it('en Disponibles arma la sección Materia con los módulos escaneados', () => {
+    const { feature, nodos } = crearFeature();
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'a', modulo: 'Tórax', carpeta: 'TORAX', estado: 'pending' },
+      { titulo: 'b', modulo: 'Abdomen', carpeta: 'ABDOMEN', estado: 'pending' },
+      { titulo: 'c', modulo: 'Tórax', carpeta: 'TORAX', estado: 'pending' },
+    ];
+
+    feature.renderizarFiltrosMenuPopover();
+
+    const titulos = [...nodos.filterMenu.querySelectorAll('.popover-section-title')].map(t => t.textContent);
+    expect(titulos).toContain('Materia');
+    const opciones = [...nodos.filterMenu.querySelectorAll('.popover-option span')].map(s => s.textContent);
+    // Ordenadas y sin repetir: Tórax aparece en dos clases y da UNA opción.
+    expect(opciones.filter(o => o.startsWith('📁'))).toEqual(['📁 ABDOMEN', '📁 TORAX']);
+  });
+
+  it('no arma la sección Materia con un solo módulo — una opción no filtra nada', () => {
+    const { feature, nodos } = crearFeature();
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'a', modulo: 'Tórax', carpeta: 'TORAX', estado: 'pending' },
+      { titulo: 'b', modulo: 'Tórax', carpeta: 'TORAX', estado: 'pending' },
+    ];
+
+    feature.renderizarFiltrosMenuPopover();
+
+    const titulos = [...nodos.filterMenu.querySelectorAll('.popover-section-title')].map(t => t.textContent);
+    expect(titulos).not.toContain('Materia');
+  });
+
+  it('no arma la sección Materia en un portal de un nivel — ahí la carpeta la pone el input', () => {
+    const { feature, nodos } = crearFeature();
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'a', carpeta: 'biologia', estado: 'pending' },
+      { titulo: 'b', carpeta: 'quimica', estado: 'pending' },
+    ];
+
+    feature.renderizarFiltrosMenuPopover();
+
+    const titulos = [...nodos.filterMenu.querySelectorAll('.popover-section-title')].map(t => t.textContent);
+    expect(titulos).not.toContain('Materia');
   });
 
   it('en Cola arma Materia + Cátedra derivadas de la cola', () => {

@@ -187,6 +187,14 @@ export const sitios = {
    * cualquier página con el adaptador de Ramón Net — el bug que ADR-0010 previene.
    */
   resolverPorUrl: (url?: string) => Sitios.resolverPorUrl(url),
+
+  /**
+   * Todos los registrados. Lo consume la card de "no estás en un portal reconocido", que
+   * necesita NOMBRARLOS para que el cartel sirva de algo — decir "abrí un portal" sin decir
+   * cuáles obliga al usuario a adivinar, y hardcodear la lista en el copy la deja envejecer en
+   * el próximo portal que se registre (ADR-0010: el portal es dato, no build).
+   */
+  todos: () => Sitios.todos(),
 };
 
 /**

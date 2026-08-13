@@ -52,6 +52,17 @@
 > sin módulo, y el filtro de materia comparando contra el input, que deja la lista entera
 > invisible en un portal de dos niveles. Ninguno de los siete lo detecta el compilador.
 >
+> **Y el segundo de esos dos se cerró en dos mitades, con un mes de distancia entre ellas — la
+> primera dejó un agujero con forma de arreglo.** Que la lista no se vaciara se resolvió con
+> `coincideMateria = true` fijo para toda clase con módulo: correcto contra el síntoma, y a la
+> vez la eliminación del eje de materia en Disponibles. Nadie lo reportó como falta porque **el
+> filtro seguía ahí, mostrando la sección Estado y la de Tipo**; sólo faltaba una sección que
+> nunca había existido en este portal, y con once módulos la lista era justo lo bastante larga
+> como para necesitarla. Se construyó el 2026-08-13 (sección Materia en el popover, `filters.js`
+> + 5 tests). **La lección, que no es sobre filtros**: un `true` fijo puesto para que algo deje
+> de romperse es una decisión de producto disfrazada de arreglo defensivo — y es invisible en el
+> diff, porque se lee como una guarda.
+>
 > Y una decisión de UX que duró horas: el filtro por tipo arrancaba en **"sólo video"** y se
 > revirtió al abrir el popup. El criterio no estaba mal; **un filtro activo que el usuario no
 > prendió es invisible**, y la lista venía recortada sin que hubiera cómo notarlo.

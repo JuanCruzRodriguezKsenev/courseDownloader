@@ -144,6 +144,15 @@ donde por definición no hay portal que nombrar.
 
 Detalles que cambian el arreglo:
 
+- **El #1 volvió a cambiar el 2026-08-13, y ya no dice "Leyendo la pestaña…": dice "Conectando
+  con el servidor Bun…".** No es una vuelta atrás de este frente —sigue siendo caso C, genérica,
+  sin nombrar portal— sino un arreglo de *otra* incoherencia que este relevamiento no miraba: ese
+  texto lo pinta el CSS antes de que exista JS, y la primera fase real no es leer la pestaña sino
+  conectar con el servidor, así que la secuencia que veía el usuario era **pestaña → servidor →
+  pestaña**. La lección para este doc: **el caso C no se agota en "no nombres el portal"**; un
+  cartel que corre antes de que se resuelva nada también tiene que decir la verdad sobre *qué
+  fase* viene. Detalle del corte del loader → `docs/TECHNICAL_DEBT.md` §El loader del popup no
+  tiene dueño.
 - **El #3 está duplicado en dos archivos** con el texto idéntico. Se arreglan los dos o queda
   incoherente según por dónde entre el usuario (`serverConnection.js:233` es el camino de
   *recuperación tras caída del server*).
@@ -265,7 +274,7 @@ bajado). Tener a mano una pestaña de cada portal.
 
 | # | Qué mirar | Esperado | Sería un bug |
 |---|---|---|---|
-| 1 | **Cambio de portal**: abrir el popup en Ramón Net, cerrarlo, pasar a Anatomy y reabrirlo | "Leyendo la pestaña…" y "Escaneando la pestaña…" | Que aparezca **cualquier** nombre de portal. Es el momento exacto en que `sitioActivo` es todavía el anterior (§4) |
+| 1 | **Cambio de portal**: abrir el popup en Ramón Net, cerrarlo, pasar a Anatomy y reabrirlo | "Conectando con el servidor Bun…" y después "Escaneando la pestaña…", **en ese orden y sin volver atrás** | Que aparezca **cualquier** nombre de portal (es el momento exacto en que `sitioActivo` es todavía el anterior, §4) — o que la secuencia arranque nombrando la pestaña, que es la incoherencia que cerró el cambio del 2026-08-13 |
 | 2 | **Botón "Re-escanear 🔄"** | El label sin "aula virtual" en los 5 estados | Que sobreviva un "aula virtual" |
 | 3 | **Modal de carpeta (📂)**, en los dos | "(ej: 'Clases')" + "las subcarpetas dentro de ella" | En Anatomy, que aparezca **"cátedra"** o **"sin clasificación"** (ver §5.1 ítem 5) |
 | 4 | **Onboarding (❓) slide 2**, en los dos | "Ir al listado de clases 🌐", al listado del portal activo | Que linkee al portal equivocado |

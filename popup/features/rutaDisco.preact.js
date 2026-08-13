@@ -1,5 +1,10 @@
 /**
- * ISLA PREACT #1b — el texto de la ruta del disco (📁 PC:) (V1.0.0)
+ * ISLA PREACT #1b — el texto de la ruta del disco (📁 PC:) (V1.1.0)
+ * ==========================================================================
+ * CHANGELOG v1.1.0:
+ * - El texto va envuelto en `<bdi dir="ltr">` para que la hoja pueda recortar la ruta por la
+ *   izquierda sin que se invierta el orden de los caracteres. Motivo y las tres reglas que lo
+ *   sostienen: `styles/components/path-bar.css` (.pc-path-text).
  * ==========================================================================
  * Isla de la migración incremental del popup a Preact (ver ADR-0006,
  * docs/preact-migration.md). Es DUEÑA exclusiva del texto de la ruta física
@@ -50,7 +55,13 @@ function useRutaDisco() {
 
 export function PcPath() {
   const { texto, titulo, cargando } = useRutaDisco();
-  return html`<span class="pc-path-text ${cargando ? 'loading-text' : ''}" title=${titulo}>${texto}</span>`;
+  // El `<bdi dir="ltr">` no es decorativo: la hoja recorta la ruta por la IZQUIERDA (para que
+  // se vea la carpeta de destino y no `C:\Users\...`), y eso se consigue poniendo el
+  // contenedor en `direction: rtl`. Sin volver a fijar `ltr` acá adentro, el algoritmo bidi
+  // reordena los separadores y la ruta se lee al revés. Ver `styles/components/path-bar.css`.
+  // `textContent` lo atraviesa, así que los tests de la isla no cambian.
+  return html`<span class="pc-path-text ${cargando ? 'loading-text' : ''}" title=${titulo}
+    ><bdi dir="ltr">${texto}</bdi></span>`;
 }
 
 export function montar(root) {

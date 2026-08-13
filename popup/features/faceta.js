@@ -45,6 +45,9 @@
  * Expone: actualizarBadge, aplicarSeleccionSilenciosa, verificarYMostrarAsistente,
  *         perteneceASeleccion.
  */
+import { html } from '../vendor/htm-preact-standalone.module.js';
+import { abrirCapa } from './capa.preact.js';
+
 const FacetaFeature = {
   crear(ctx) {
     const { badge, aplicarFiltros, sitio, sitios, appState } = ctx;
@@ -162,42 +165,38 @@ const FacetaFeature = {
       }
     }
 
+    // Guarda del modal abierto. Antes esto era `querySelector('.faceta-overlay')?.remove()`, o
+    // sea "buscá en el DOM si ya hay uno" — con la capa compartida el nodo lo maneja `abrirCapa`,
+    // así que la referencia se guarda en vez de rastrearse.
+    let cerrarModalAbierto = null;
+
     function mostrarModal(valores) {
       const faceta = descriptorFaceta();
-      document.querySelector(".faceta-overlay")?.remove();
+      if (cerrarModalAbierto) cerrarModalAbierto();
 
-      const overlay = document.createElement("div");
-      overlay.className = "faceta-overlay";
-
-      const card = document.createElement("div");
-      card.className = "faceta-card";
-
-      // El copy sale del descriptor del sitio (no es contenido scrapeado), pero se
-      // pinta con textContent igual: el descriptor es DATO, no markup literal de este
-      // archivo, así que le aplica la regla anti-XSS (ver docs/security.md).
-      const titulo = document.createElement("h4");
-      titulo.textContent = faceta.modal.titulo;
-      const descripcion = document.createElement("p");
-      descripcion.textContent = faceta.modal.descripcion;
-      card.append(titulo, descripcion);
-
-      const optionsDiv = document.createElement("div");
-      optionsDiv.className = "faceta-options";
-
-      [...valores].sort(faceta.ordenar).forEach(valor => {
-        const btn = document.createElement("button");
-        btn.className = "btn-faceta-opt";
-        btn.textContent = faceta.etiquetar(valor);
-        btn.addEventListener("click", () => {
-          aplicarSeleccionSilenciosa(valor);
-          overlay.remove();
-        });
-        optionsDiv.appendChild(btn);
+      // El overlay, la card y el cierre (Escape / clic al fondo) los pone `Capa`. Lo que antes
+      // eran ~20 líneas de `createElement` acá quedó en el CONTENIDO y nada más.
+      //
+      // El copy sale del descriptor del sitio (no es contenido scrapeado), y viaja como
+      // interpolación de htm, que escapa: el descriptor es DATO, no markup literal de este
+      // archivo, así que le aplica la regla anti-XSS igual (ver docs/security.md). Es la misma
+      // garantía que daba el `textContent` de antes, por otra vía.
+      cerrarModalAbierto = abrirCapa({
+        variante: 'modal',
+        etiqueta: faceta.modal.titulo,
+        clase: 'faceta-card',
+        alCerrar: () => { cerrarModalAbierto = null; },
+        contenido: (cerrar) => html`
+          <h4>${faceta.modal.titulo}</h4>
+          <p>${faceta.modal.descripcion}</p>
+          <div class="faceta-options">
+            ${[...valores].sort(faceta.ordenar).map((valor) => html`
+              <button class="btn-faceta-opt"
+                      onClick=${() => { aplicarSeleccionSilenciosa(valor); cerrar(); }}>
+                ${faceta.etiquetar(valor)}
+              </button>`)}
+          </div>`,
       });
-
-      card.appendChild(optionsDiv);
-      overlay.appendChild(card);
-      document.body.appendChild(overlay);
     }
 
     // El tooltip también sale del descriptor: era el último string del sitio que

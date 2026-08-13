@@ -1,12 +1,53 @@
 /**
- * MODO VERIFICACIÓN — banco de pruebas de la UI (V3.0.0)
+ * MODO VERIFICACIÓN — banco de pruebas de la UI (V3.1.0)
  * ==========================================================================
  * **Se activa con UNA línea**: `BANCO_DE_PRUEBAS = true` al final de
- * `entrypoints/popup/main.js`, y `npm run build`.
+ * `entrypoints/popup/main.js`, y `pnpm run build`.
  *
- * **Apagado no cuesta nada, y está medido**: la bandera es una `const` literal, así que el
- * `if` queda como código muerto y Vite se lleva este módulo entero. Con `false` el bundle no
- * tiene ni una ocurrencia de `mv-panel` (225,71 kB); con `true`, 243,21 kB.
+ * **Apagado no cuesta nada, y está medido de nuevo en cada versión de este archivo** (si no, el
+ * número envejece y el argumento deja de valer): la bandera es una `const` literal, así que el
+ * `if` queda como código muerto y Vite se lleva este módulo entero. Última medición, del
+ * 2026-08-13 al cerrar la tanda del toolbar: con `false`, **231,19 kB** y **cero** ocurrencias de
+ * `mv-panel` en el bundle; con `true`, **249,50 kB**.
+ *
+ * **Y lo que hay que mirar de esos números no es el número, es la RESTA** — que es la lección de
+ * esta última re-medición. Los dos subieron ~3,3 kB sin que el banco cambiara de versión: lo que
+ * creció fue el popup (el piso visible y el filtro de materia), no esto. Leyendo sólo la columna
+ * de `true` parecería que el banco engordó. La diferencia se quedó donde estaba: **18,31 kB**
+ * ahora, 18,30 en la medición anterior (227,87 / 246,17, misma v3.1.0), 17,50 en v3.0.0
+ * (225,71 / 243,21). Ese delta es el costo del banco, y es lo único que este párrafo afirma.
+ *
+ * ── LAS 12 TARJETAS QUE PUEDE MOSTRAR EL POPUP, Y CÓMO SE LLEGA A CADA UNA ────────────────
+ *
+ * El objetivo declarado del banco es forzar el 100%. Este es el estado, y se actualiza cuando
+ * se agrega una tarjeta — una que no figure acá es una que nadie va a poder mirar.
+ *
+ *   ✅ Sin clases detectadas ......... "sin lista previa" + resultado `vacío`  ← v3.1.0
+ *   ✅ No estás en un portal ......... pestaña forzada, una marcada `[—]`
+ *   ✅ El escaneo tardó demasiado .... resultado `colgado`
+ *   ✅ No pudimos leer la pestaña .... "error de inyección" + demora 0
+ *   ✅ Servidor Desconectado ......... "servidor caído"
+ *   ✅ Conexión a Internet Caída ..... "internet caído"
+ *   ✅ Sesión no iniciada ............ cola pausada, tipo `sesion`
+ *   ✅ El portal rechazó la descarga . cola pausada, tipo `rechazo`
+ *   ✅ La descarga falló ............. cola pausada, tipo `desconocido`
+ *   ➖ No hay clases (filtro) ........ a mano: buscar algo inexistente
+ *   ➖ Ninguna coincide (fila) ....... a mano: filtrar la fila a cero
+ *   ➖ Fila de descarga vacía ........ a mano: fila vacía + pestaña Fila
+ *
+ * (➖ = no necesita el banco, se alcanza con la UI en dos clics.)
+ *
+ * **Lo que sigue SIN poder forzarse, y es el próximo corte si se quiere el 100% de verdad**:
+ * una descarga en curso — la barra de progreso, la telemetría, el frenado suave y la caja de
+ * cancelar sólo aparecen con el service worker bajando de verdad, y el banco sólo envuelve
+ * APIs del popup. Y el historial de fallos (la campanita) no se puede sembrar.
+ *
+ * CHANGELOG v3.1.0:
+ * - [SIN LISTA PREVIA] Un switch que vacía `listadoClasesGlobal` justo antes de escanear. Era
+ *   la única tarjeta a la que no se llegaba: con lista cargada, un escaneo vacío cae en la rama
+ *   que la CONSERVA (y avisa por la línea de estado del footer, que está oculta), así que "Sin
+ *   clases detectadas" no aparecía nunca. Vacía sólo en memoria y **no toca la cola**: la rama
+ *   deriva su `itemsEnCola` de los `estado === 'process'` de esa misma lista.
  *
  * CHANGELOG v3.0.0 — deja de ser un andamio:
  * - **Ya no vive en una rama descartable.** Vivió en una (`copy-generico-verificacion`) y se
@@ -211,6 +252,7 @@ export function activarModoVerificacion({ sitios, montarOnboarding, conexion, ap
   const cfg = {
     demoraMs: 3000,
     resultado: "real",          // "real" | "vacio" | "colgado"
+    vaciarListaPrevia: false,   // vacía listadoClasesGlobal justo antes de escanear
     tabForzada: null,           // null = la pestaña activa de verdad
     caidas: { servidor: false, internet: false },
     // Se lee de localStorage porque hay que APLICARLO AL ARRANCAR: el popup consulta al SW
@@ -365,6 +407,15 @@ export function activarModoVerificacion({ sitios, montarOnboarding, conexion, ap
           <option value="vacio">vacío → "no devolvió clases"</option>
           <option value="colgado">colgado → timeout de DOM</option>
         </select>
+      </div>
+      <div class="mv-fila">
+        <label class="mv-switch"><input type="checkbox" id="mv-sin-lista"> sin lista previa</label>
+      </div>
+      <div class="mv-nota">
+        Vacía <code>listadoClasesGlobal</code> justo antes de escanear. Es la única forma de
+        llegar a <b>"Sin clases detectadas"</b>: con lista cargada, un escaneo vacío cae en la
+        rama que la conserva. <b>No toca la cola</b>. Si el escaneo termina, el vacío se
+        persiste — se recupera con un Re-escanear.
       </div>
       <div class="mv-fila">
         <label class="mv-switch"><input type="checkbox" id="mv-lasterror"> error de inyección</label>
@@ -599,6 +650,7 @@ export function activarModoVerificacion({ sitios, montarOnboarding, conexion, ap
   $("#mv-recargar-tabs").onclick = cargarPestañas;
   $("#mv-demora").onchange = (e) => { cfg.demoraMs = Number(e.target.value); };
   $("#mv-resultado").onchange = (e) => { cfg.resultado = e.target.value; };
+  $("#mv-sin-lista").onchange = (e) => { cfg.vaciarListaPrevia = e.target.checked; };
   $("#mv-lasterror").onchange = (e) => {
     fingirLastError = e.target.checked;
     if (fingirLastError && !puedeFingirLastError) {
@@ -621,6 +673,19 @@ export function activarModoVerificacion({ sitios, montarOnboarding, conexion, ap
       btn.disabled = false;
       btn.style.display = "block";
     }
+    // Vaciar la lista va ACÁ y no en el `onchange` del switch: tildarlo no tiene que borrarte
+    // nada, sólo armar el próximo escaneo. Así el switch se puede poner y sacar sin efectos.
+    //
+    // Se muta en su lugar (`length = 0`) en vez de reasignar, por si algún call-site quedó con
+    // la referencia vieja. Y NO se toca `colaDescargas`: la rama que importa deriva su
+    // `itemsEnCola` de `listadoClasesGlobal` (los `estado === 'process'`), así que con vaciar
+    // ésta alcanza — y la cola, que es lo que al usuario le duele perder, queda intacta.
+    if (cfg.vaciarListaPrevia && appState && Array.isArray(appState.listadoClasesGlobal)) {
+      const cuantas = appState.listadoClasesGlobal.length;
+      appState.listadoClasesGlobal.length = 0;
+      anotar("banco", `lista previa VACIADA (${cuantas} clases, sólo en memoria)`);
+    }
+
     salirDelBanco();
     anotar("banco", "▶ escaneo disparado");
     btn.click();

@@ -90,6 +90,8 @@ const QueueFeature = {
       onRestaurarPanel,
       mostrarAlerta,
       congelarUI,
+      // Con default no-op: los tests que no lo inyectan no tienen footer que poner en forma.
+      mostrarFooterDescargando = () => {},
       renderizar,
       setVerificandoConexion,
       setReintentandoCola,
@@ -334,9 +336,10 @@ const QueueFeature = {
       // null, ese handler ya no entra a su rama de limpieza (está gateada a que la falla
       // siga activa), y su re-render está gateado a que cambie el título — que no cambia
       // porque se reanuda el MISMO video. Sin esto, el banner quedaba hasta refrescar.
-      nodos.cancelBox.style.display = 'flex';
-      nodos.btnStartQueue.style.display = 'none';
-      nodos.progressCont.style.display = 'block';
+      // Iba con las tres escrituras sueltas, y le faltaba la clase `downloading` del `<body>`:
+      // la barra volvía pero sin la línea divisoria de arriba (`.download-separator`) ni el
+      // footer compacto. Ahora es la misma función que usa el arranque limpio.
+      mostrarFooterDescargando();
       renderizar();
       actualizarContadores();
 

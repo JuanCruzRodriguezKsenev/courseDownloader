@@ -16,6 +16,10 @@
 @import '../styles/components/advertencia.css';
 @import '../styles/components/onboarding.css';
 @import '../styles/components/help-button.css';
+/* `capa.css` ANTES de sus consumidores: define la superficie base y ellos la ajustan
+   (medidas, posición). Al revés, el ajuste del consumidor perdería contra la base por orden
+   de cascada a igual especificidad. */
+@import '../styles/components/capa.css';
 @import '../styles/components/campanita.css';
 
 @import '../styles/list.css';

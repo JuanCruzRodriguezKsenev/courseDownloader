@@ -11,7 +11,7 @@ Los ES modules no cargan por `file://` (CORS), así que servilo por HTTP:
 
 ```bash
 # desde la raíz del repo, cualquiera de estas:
-npx serve prototype/preact-serverConnection
+pnpm dlx serve prototype/preact-serverConnection
 # o
 python -m http.server 8080 --directory prototype/preact-serverConnection
 ```

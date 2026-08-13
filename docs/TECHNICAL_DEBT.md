@@ -14,10 +14,28 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 ## 🔴 Abierto
 
-> ## Estado al 2026-08-12 (tarde): queda **UNA** entrada abierta
+> ## Estado al 2026-08-13: **CUATRO** entradas abiertas
 >
-> **La única abierta es el mecanismo de popovers sin tests** (última entrada de esta sección).
-> Todo lo demás está construido, **verificado en navegador y mergeado a `main`**.
+> Re-contadas, no sumadas al número anterior — que es lo que pide el párrafo del error de
+> conteo, unas líneas más abajo. Son:
+>
+> 1. **El mecanismo de popovers sin tests** (última entrada de esta sección). Venía de antes.
+> 2. **El loader no tiene dueño**: se prende y apaga con `style.display` desde **12 lugares**, y
+>    los dos que se pisan están coordinados por una bandera (`elEscaneoTomoElLoader`) en vez de
+>    por construcción. Medido el 2026-08-13: dos de los cuatro carteles del arranque son
+>    destellos —**248 ms** el del loader y **117 ms** el del botón—, y los otros dos duran ~3 s.
+>    **El corte ya está diseñado** (dueño único + tokens + demora para aparecer y mínimo visible
+>    **por texto**, botón incluido) → `docs/ramas-en-revision.md` §Lo que falta.
+> 3. **`#ui-msg-status` está oculto y nadie se lo destapa**, así que ~20 mensajes son invisibles
+>    —incluido el texto de progreso de la descarga—. Arreglo de una línea, lo que falta es la
+>    pasada por navegador → `docs/alertas-y-bloqueo-diseno.md` §6.8b.
+> 4. **El banco no puede forzar una descarga en curso** ni sembrar el historial de fallos: sólo
+>    envuelve APIs del popup, y eso vive en el service worker.
+>
+> **Y hay una tanda construida y sin verificar en Chrome**, en `tanda-toolbar-capa-y-pnpm`: pnpm,
+> el bloqueo y la capa flotante reutilizables, los controles que siguen al resultado y los
+> carteles de lista vacía. Qué mirar y en qué orden → `docs/ramas-en-revision.md`. Hasta que se
+> verifique, **eso no está cerrado**: la compuerta en verde no dice nada sobre esta zona.
 >
 > La verificación encontró **ocho defectos más**, ninguno alcanzable por la compuerta y cuatro
 > introducidos por el arreglo del anterior; se cerraron en la misma pasada. Tabla y lecciones →
@@ -401,6 +419,137 @@ Cuando aparezca un hallazgo nuevo, va acá arriba con su `**Estado**` explícito
 
 ---
 
+### ⚪ Dos restos de la limpieza de micro-movimientos
+
+Llegaron acá al mergear la tanda del toolbar (2026-08-13): vivían en
+`docs/ramas-en-revision.md`, que no es el backlog y se vacía al mergear.
+
+- **Dónde**: `styles/components/campanita.css:24` y `styles/components/help-button.css:17`
+  (`scale(1.15)` en hover); y `transition: all` en 8 reglas de `actions.css`,
+  `advertencia.css`, `faceta.css`, `filters.css`, `header.css` y `onboarding.css`.
+- **Qué pasa**: el `scale(1.15)` **no parpadea** —un 15% es un efecto deliberado, no un
+  sub-píxel— pero cambia de tamaño en hover, que es justo lo que se sacó de todos los demás
+  controles. Los dos elementos ya avisan por color, así que sacarlo no los deja mudos.
+- **Y el `transition: all` es lo que más importa de los dos**: anima *cualquier* propiedad que
+  cambie, incluidas las que mueven layout. Es el origen latente del próximo parpadeo, y va a
+  aparecer por un cambio que no tenga nada que ver con estas reglas — nadie declaró qué quería
+  animar, así que nadie va a sospechar de acá.
+- **Fix propuesto**: sacar los dos `scale()` y reemplazar cada `all` por la lista de propiedades
+  que esa regla realmente anima.
+- **Estado**: ⚪ abierto, cosmético y sin síntoma vivo. Es el candidato natural para acompañar
+  cualquier otro corte de CSS.
+
+---
+
+### 🔴 El loader del popup no tiene dueño
+
+- **Dónde**: **12 call-sites** de `nodos.loader.style.display` — **once** en `popup.js` y uno en
+  `popup/features/serverConnection.js`. El inventario es
+  `grep -rn "loader.style.display" popup.js popup/features/*.js`, no una lista acá: son los nodos
+  que el corte tiene que dejar en cero, y una lista de líneas envejece con el primer commit que
+  toque `popup.js`. **Decían 9 y siempre fueron 12** — mal contados de entrada el 2026-08-12, no
+  crecidos después (`git show main:popup.js | grep -c` ya daba once). El error subdimensionaba
+  justo lo que este ítem existe para dimensionar.
+- **Qué pasa**: no hay componente, ni store, ni isla — a diferencia de la ruta (`RutaDisco`), el
+  banner (`BannerConexion`) y la lista (`ListaClases`). Tres flujos lo usan con tres textos
+  escritos a mano, y **dos se pisan**: `conectarYArrancar` lo apagaba en su `finally` en el mismo
+  tick que el escaneo lo prendía (el escaneo no es `async`). Ese bug ya se pagó (§6.2) y se cerró
+  con una **bandera**, `elEscaneoTomoElLoader` — dos dueños del mismo recurso puestos de acuerdo a
+  mano, el antipatrón que el §1 de `alertas-y-bloqueo-diseno.md` prohíbe para la lista.
+- **Síntoma vivo**: el escaneo rápido deja el loader 100-200 ms en pantalla. Es menos de lo que el
+  ojo registra: se ve un destello y parece que no funcionó.
+- **Medido el 2026-08-13** con el banco de pruebas (Anatomy, 20 clases, servidor prendido). Los
+  cuatro carteles del arranque **no tienen término medio: dos duran ~3 s y dos son destellos**:
+
+  | Cartel | Dónde | Duró |
+  |---|---|---|
+  | "Conectando con el servidor Bun…" | loader | **248 ms** ⚠️ |
+  | "Conectando con el servidor… ⏳" | botón | 3,20 s |
+  | "Escaneando la pestaña…" | loader | ≥3,09 s |
+  | "Sincronizando disco local…" | botón | **117 ms** ⚠️ |
+
+  Popup abierto → usable: **3,46 s**. Dos advertencias sobre estos números: (1) los 248 ms son un
+  **piso**, no la duración — el banco anota el texto del loader recién cuando arranca él
+  (`verificacion/modoVerificacion.js:276`, y va último por diseño), y el CSS ya lo había pintado
+  antes; (2) son con el **servidor prendido**. Apagado, en Windows `localhost` cuelga en vez de
+  rechazar y lo único que corta es el timeout de 4000 ms de `obtenerRutaServidor`
+  (`core/backend/bunClient.ts:277`): el mismo cartel pasa de ~250 ms a **4 s**. Es el texto con
+  más rango dinámico del popup, y el piso de 500 ms sólo toca el extremo corto.
+- **El piso vale también para el LABEL DEL BOTÓN, no sólo para el loader.** Lo destapó esa misma
+  medición y da vuelta una suposición del ítem: **el peor parpadeo no está en el loader**
+  —"Sincronizando disco local…" dura 117 ms, menos de la mitad que el del loader— y está en un
+  elemento que el corte, tal como estaba diseñado, **no toca**. La regla es del cartel, no del
+  nodo: si un texto le informa al usuario que algo está pasando ahora, tiene que durar lo
+  suficiente para leerse. Ojo con la interacción: `configurarBotonesUX` decide *si* el botón se
+  muestra (`docs/alertas-y-bloqueo-diseno.md` §3), así que el piso va sobre el texto, nunca sobre
+  la visibilidad — retrasar el ocultado dejaría un botón ofreciendo una acción que ya no existe.
+- **El corte está diseñado**: dueño único (`popup/features/loader.js`), **tokens** en vez de
+  bandera —nadie puede apagar el loader de otro porque no tiene cómo— y **dos tiempos**: ~150 ms
+  de demora para aparecer (si termina antes, no aparece nunca) y 500 ms de mínimo visible. Una
+  `transition` NO sirve: controla cómo se ve el cambio, no cuándo empieza.
+- **El mínimo visible es por TEXTO, no por encendido** (2026-08-13). El nodo es uno y los textos
+  varios; un cartel que dura 80 ms no se lee, y leerlo es todo el punto —el usuario deduce de ahí
+  que algo pasa ahora y que lo que ve no es viejo—. El piso del primer texto **cuenta desde que
+  el CSS lo pintó**, no desde que un flujo lo reclama, o el arranque paga la espera dos veces.
+- **Lo que NO se toca: que el nodo nazca visible por CSS.** Es deliberado (evita ver la UI a medio
+  estilar), y a cambio el diseño absorbe tres cosas — la demora de 150 ms no aplica al loader del
+  arranque, el texto del markup tiene que ser el de la primera fase real, y el apagado inmediato
+  para el onboarding (`popup.js:820`) no puede esperar el piso. Las tres, con su regla, en
+  `docs/ramas-en-revision.md` §Lo que falta.
+- **Ya se cerró la mitad de copy** (2026-08-13): `entrypoints/popup/index.html:12` decía "Leyendo
+  la pestaña…" siendo que la primera fase es la conexión al servidor, así que la secuencia era
+  **pestaña → servidor → pestaña**. Hoy dice "Conectando con el servidor Bun…". Es un cambio de
+  texto, no del mecanismo: el ítem sigue abierto.
+- **El riesgo a mirar**: los tiempos hacen que el loader viva más allá del `finally` que lo pidió,
+  así que ninguna de las 4 salidas del escaneo puede asumir que apagar es inmediato.
+- **CONSTRUIDO el 2026-08-13 — la mitad del tiempo, no la del dueño.** Entró
+  `popup/features/pisoVisible.js` (+ 10 tests) y **los 12 call-sites crudos ya no existen**: la
+  cortina se toca por `mostrarLoader`/`ocultarLoader` y el botón por `configurarBotonesUX`, que
+  ahora es un embudo sobre `aplicarBotonesUX`. `serverConnection.js` recibe `ocultarLoader` por
+  `ctx` en vez de escribir `nodos.loader` — era el único camino por el que el piso se salteaba
+  sin querer. Los dos carteles del markup se siembran con `performance.now()`, así que el piso
+  del arranque descuenta lo que el usuario ya esperó.
+- **Lo que sigue abierto, y por eso el ítem no se cierra**: (1) **los tokens** — el piso ordena
+  *cuándo* se pinta, pero `elEscaneoTomoElLoader` sigue vivo, así que dos dueños del mismo nodo
+  se siguen coordinando a mano; (2) **la demora de ~150 ms para aparecer**, que es la otra mitad
+  del par (el piso evita el destello de lo que ya salió; la demora evita que salga lo que no hace
+  falta); (3) el módulo **no es dueño de ningún nodo** — nada impide escribir `nodos.loader` por
+  atrás y saltearlo, que es exactamente lo que este ítem se llama.
+- **Estado**: 🔴 abierto (la mitad del tiempo, construida y **sin verificar en Chrome**). Detalle
+  completo → `docs/ramas-en-revision.md` §Lo que falta.
+
+### 🔴 La línea de estado del footer es invisible
+
+- **Dónde**: `entrypoints/popup/index.html` (el `<p id="ui-msg-status">`).
+- **Qué pasa**: nace con `style="display:none"` inline y **nada en el repo se lo saca** — no hay un
+  solo `txtEstado.style`, ni un `removeAttribute`, ni CSS con `!important` que lo pise (el único
+  `!important` es `.status-text:empty`, que lo esconde *más*). Viene así desde la migración a WXT
+  (`fd81f9a`, 2026-08-02), heredado del `popup.html` viejo.
+- **Consecuencia**: ~20 mensajes son invisibles, entre ellos "no estás en un portal reconocido",
+  "el escaneo no devolvió clases", "servidor Bun apagado" y **el texto de progreso de la
+  descarga**. Fue lo que hizo que el error de inyección pareciera no avisar.
+- **Observado en vivo el 2026-08-13**, de arrastre con la medición del loader: en el registro del
+  banco aparece `estado  Analizando...` a las `11:06:37.321`, entre dos carteles del loader que sí
+  se ven. El banco lee el DOM, no la pantalla — o sea que el mensaje se escribió, en el arranque
+  normal, y nadie lo vio. Es la primera evidencia directa de este ítem y no hizo falta buscarla.
+- **El arreglo es de una línea**; lo que falta es la pasada por navegador, porque destapa los ~20
+  de golpe y hay que mirar el footer **descargando**, que es donde cambia de alto.
+- **Ojo**: destaparlo no lo convierte en buen destino para un error. Ese lugar ya se descartó para
+  el watchdog *aunque estuviera visible*, porque comparte el footer con el diagnóstico de conexión
+  y queda pisado.
+- **Estado**: 🔴 abierto. Detalle → `docs/alertas-y-bloqueo-diseno.md` §6.8b.
+
+### 🟠 El banco de pruebas no alcanza al service worker
+
+- **Dónde**: `verificacion/modoVerificacion.js`.
+- **Qué pasa**: envuelve `fetch`, `chrome.tabs.query` y `chrome.runtime.sendMessage` **del
+  popup**, así que puede forzar 9 de las 12 tarjetas (las otras 3 se alcanzan a mano). Lo que no
+  puede es **una descarga en curso** —barra de progreso, telemetría, frenado suave, caja de
+  cancelar—, porque eso lo produce el service worker bajando de verdad. Tampoco puede sembrar el
+  historial de fallos de la campanita.
+- **Qué haría falta**: contestar IPC de progreso falsos, que es otro mecanismo y no un switch más.
+- **Estado**: 🟠 abierto. El inventario de qué se fuerza y cómo vive en la cabecera del módulo.
+
 ## 🔴 Seguridad
 
 ### XSS por interpolación sin escapar de título scrapeado
@@ -479,7 +628,7 @@ Cuando aparezca un hallazgo nuevo, va acá arriba con su `**Estado**` explícito
 - **Qué pasaba**: la lista era `[".wxt/**/*", "wxt.config.ts", "entrypoints/**/*", "core/**/*"]`. Como `allowJs` está en `false` y los dos entrypoints son `.js`, `tsc` los salteaba y con ellos todo el grafo de imports, así que `shared/` y `plataforma/` **nunca entraban**. `npx tsc --noEmit --listFiles` lo confirmó: 11 archivos del repo, todos de `core/`.
 - **Impacto**: desde la Fase 5b, `shared/state.ts`, `shared/conexion.ts`, `plataforma/chrome/almacenamiento.ts`, `plataforma/chrome/mensajeria.ts` y `plataforma/composicion.ts` —justo lo recién migrado— pasaban la compuerta sin que nadie los mirara. La compuerta daba verde igual, que es lo peor de este tipo de agujero: no se nota. Lint sí los cubría (ESLint no depende de `include`), así que el hueco era el typecheck, no el análisis estático entero.
 - **Fix aplicado**: sumar `"shared/**/*"` y `"plataforma/**/*"` al `include`, más un comentario en el archivo explicando que la cobertura **no** es automática y que cada carpeta nueva con `.ts` hay que listarla. Salió limpio sin tocar una línea de código de producción: 11 → 18 archivos typechequeados, 0 errores.
-- **Estado**: ✅ resuelto (2026-08-03). Al agregar `.ts` bajo una raíz nueva (ej. `core/hls/` si cuelga de otro lado en la Fase 6), verificar con `npx tsc --noEmit --listFiles` que efectivamente entró.
+- **Estado**: ✅ resuelto (2026-08-03). Al agregar `.ts` bajo una raíz nueva (ej. `core/hls/` si cuelga de otro lado en la Fase 6), verificar con `pnpm exec tsc --noEmit --listFiles` que efectivamente entró.
 
 ---
 

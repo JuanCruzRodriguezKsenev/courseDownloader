@@ -30,12 +30,79 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `npm test` | **35 archivos, 610 tests**, todo en verde |
-| `npm run lint` | **0 errores, 0 warnings** |
-| `npx tsc --noEmit` | sin salida (limpio) |
-| `npm run build` | compila a `.output/chrome-mv3/` |
+| `pnpm test` | **38 archivos, 674 tests**, todo en verde |
+| `pnpm run lint` | **0 errores, 0 warnings** |
+| `pnpm exec tsc --noEmit` | sin salida (limpio) |
+| `pnpm run build` | compila a `.output/chrome-mv3/` |
 
-**De dónde sale el 610** (2026-08-12, medido en `integracion-alertas`). Primero el subtotal de
+**De dónde sale el 674** (2026-08-13). Son los 673 de abajo más **+1** en
+`popup/features/pisoVisible.test.js` (`hayPendiente`), que fija el modo de falla que el piso
+estrena: **el código que LEE el DOM justo después de pedir una escritura**. Antes la escritura
+era sincrónica y medir a continuación medía el estado nuevo; con el piso puede estar en cola, y
+la medición lee el viejo. Costó la línea divisoria del footer —`sincronizarFooterVacio()` le
+ponía `.vacia`, que lo esconde entero— y es el primer sitio donde buscar si aparece otro.
+
+**De dónde salía el 673** (2026-08-13). Son los 668 de abajo más **+5** en
+`popup/features/filters.test.js`: el eje de **materia en Disponibles**, que no existía en un
+portal de dos niveles. Tres fijan el armado de la sección —que aparezca con dos módulos o más,
+que **no** aparezca con uno solo (una opción no filtra nada) y que **no** aparezca en un portal
+de un nivel, donde la carpeta la pone el input— y dos, el filtrado: que una clase con módulo
+responda al Set, y que con el Set vacío el input en blanco no la esconda. Ese último es el que
+protege contra el arreglo ingenuo: antes de esto `coincideMateria` era `true` fijo para toda
+clase con módulo, precisamente para que el input vacío no borrara la lista entera.
+
+**De dónde salía el 668** (2026-08-13). Son los 658 de abajo más **+10** en
+**`popup/features/pisoVisible.test.js`, archivo nuevo** (de ahí 37 → 38 archivos): el mínimo de
+tiempo que un cartel de "estoy trabajando" tiene que quedarse en pantalla. Lo que fijan, y por qué
+esos casos: los dos tiempos medidos entran como constantes de los tests (**117 ms** el botón,
+**248 ms** el loader), así que si alguien afloja el piso, el test que se rompe **nombra el defecto
+real** en vez de un número redondo. Los otros dos que valen son el que fija que un rótulo de
+estado **no** lleva piso —el contador del botón, que con piso se vuelve pegajoso al tildar
+casillas— y el de coalescencia: de tres cambios durante el piso sale **uno**, porque pintar los
+tres en fila es un parpadeo peor que el que esto viene a sacar. El reloj y el temporizador se
+inyectan: lo que se prueba es una decisión de tiempo, no cuántos ticks pasaron.
+
+**De dónde salía el 658** (2026-08-13). Son los **610** de la tanda de loaders más los **+48** del
+bloqueador reutilizable, los controles que siguen al resultado, los carteles de lista vacía y la
+capa flotante compartida:
+
+- **+10** en **`popup/features/bloqueo.test.js`, archivo nuevo** (de ahí 35 → 36 archivos). Fija
+  el contrato del §2 de `alertas-y-bloqueo-diseno.md`, que hasta ahora vivía copiado en tres
+  funciones de `popup.js` — o sea, **en el único archivo que la suite no puede ver**. Lo que más
+  vale de los diez es el que fija la asimetría: liberar NO escribe `disabled = false`. Esa regla
+  estaba sólo en prosa y es la que, violada, enciende el buscador sin lista.
+- **+6** en `popup/features/filters.test.js` — que "Todos" se apague cuando el filtro no dejó
+  nada seleccionable, que alcance UNA pendiente visible para encenderlo, que las pendientes
+  escondidas por el filtro no cuenten, que el `title` distinga las dos causas, y los dos de la
+  Cola (la que se está bajando no cuenta). El test viejo de `desbanearFiltros` **falló al hacer
+  el cambio**, que es lo que se esperaba: ahora hay dos condiciones y no una.
+- **+4** más en el mismo archivo, por "Ordenar"/"Seleccionar". El que vale es el que fija que
+  los **dos predicados no coinciden**: con clases visibles pero ninguna marcable, "Todos" se
+  apaga y **ordenar sigue encendido**. Compartirlos apagaría un control que sirve, y es el
+  error que un `haySeleccionablesVisibles()` reutilizado por comodidad habría metido. Otro fija
+  que el buscador y los filtros **no se apagan ni con cero visibles**: son la salida.
+- **+3** en `plataforma/composicion.test.ts`, por `sitios.todos()` — el que alimenta la card de
+  "no estás en un portal reconocido", que **nombra** los portales en vez de decir "abrí un
+  portal". Su comentario guarda la trampa que costó un rojo: comparar **descriptores** en una
+  aserción los inspecciona, eso invoca el getter `escanearListado`, y muere con `Scraper is not
+  defined` — un fallo que no habla de lo que se prueba. Se compara por `id`.
+- **+13** en **`popup/features/capa.preact.test.js`, archivo nuevo** (de ahí 36 → 37 archivos).
+  Fija el contrato de la capa flotante compartida, y **cada caso es una ausencia real**: los
+  cuatro flotantes del popup (advertencia, faceta, onboarding, campanita) se escribieron cuatro
+  veces y ninguno cerraba con Escape ni con clic afuera. El que más vale es el del
+  `contenedorRef`: sin él, el clic en el disparador cuenta como "afuera", se cierra por ahí y el
+  `onClick` del botón lo reabre — el panel no se cierra nunca y parece que el botón está roto.
+  **+5 más** al migrar los otros tres consumidores, sobre `abrirCapa` (el puente imperativo que
+  usan `popup.js` y `faceta.js`): que saque su root del `<body>` al cerrar y no deje nodos
+  colgando, que `alCerrar` corra **una sola vez** —hay guarda de reentrada, porque "Entendido"
+  cierra y su efecto puede volver a llamar—, y que las interpolaciones se escapen. Este último
+  no es ceremonia: el modal de advertencia venía de un `card.innerHTML` con `${titulo}` adentro.
+  **+7 más** por el foco atrapado: que el foco entre al abrir, que el Tab cicle en los dos
+  extremos, que vuelva si se escapó, que se restituya a quien lo tenía al cerrar, que **ignore
+  lo que esté dentro de un `[inert]`** (las slides ocultas del tour) y que la variante anclada
+  **no** atrape — no tapa nada, así que salir con Tab es legítimo.
+
+**Y de dónde salía el 610** (2026-08-12, medido en `integracion-alertas`). Primero el subtotal de
 las cinco ramas mergeadas, que da **591**, y después los **+19** de la tanda de loaders:
 
 - **+5** en `sitio/registro.test.ts` — el tope del escaneo por portal (`topeEscaneoMs`). Apuntan
@@ -71,10 +138,10 @@ memoria, y le faltaban justamente esos **+2** del copy. 589 era el subtotal de l
 El merge además dejó **tres conflictos de cabecera de versión** (`popup.js`,
 `serverConnection.js`) y **uno en esta misma tabla**, los cuatro de contexto y ninguno de lógica:
 las dos ramas se habían escrito cada una asumiendo que se mergeaba primero. Al mergear se re-mide
-con `npm test`; la aritmética a mano ya falló acá y en el conteo de la deuda.
+con `pnpm test`; la aritmética a mano ya falló acá y en el conteo de la deuda.
 
 **El alcance del lint creció el 2026-08-12** sin que los números cambien: la fusión del backend
-(ADR-0015) metió `backend/` en el repo, y `npm run lint` corre `eslint .`, así que **el servidor Bun
+(ADR-0015) metió `backend/` en el repo, y `pnpm run lint` corre `eslint .`, así que **el servidor Bun
 entró bajo la misma red que la extensión** — tiene su bloque en `eslint.config.js` con globals de
 Node + `Bun`, y no se le aflojó ninguna regla. Al entrar destapó 16 errores (`process`/`Bun` sin
 declarar) y 7 warnings, todos de higiene y todos limpiados en el mismo corte con el criterio de
@@ -100,14 +167,14 @@ figura en la lista pero **aporta cero archivos** — los dos son `.js`, y ahí e
 la salida. Una carpeta con `.ts` que no esté listada pasa la compuerta en
 verde sin que nadie la mire; fue el caso de `shared/` y `plataforma/` entre la Fase 5b y el
 2026-08-03 (ver `docs/TECHNICAL_DEBT.md` §Testing). Al migrar `.ts` a una raíz nueva,
-agregala al `include` y confirmá con `npx tsc --noEmit --listFiles`.
+agregala al `include` y confirmá con `pnpm exec tsc --noEmit --listFiles`.
 
 ## Cómo correr los tests
 
 ```
-npm install      # una sola vez (instala las devDependencies en node_modules/, gitignorado)
-npm test         # corre todo una vez (vitest run)
-npm run test:watch  # modo watch durante desarrollo
+pnpm install      # una sola vez (instala las devDependencies en node_modules/, gitignorado)
+pnpm test         # corre todo una vez (vitest run)
+pnpm run test:watch  # modo watch durante desarrollo
 ```
 
 La extensión **sí** se empaqueta desde la Fase 3 de la re-arquitectura (WXT + Vite → `.output/chrome-mv3/`) y el núcleo se está migrando a TypeScript: ADR-0008 reemplazó a `docs/adr/0001-no-bundler-or-typescript-yet.md`. Lo que sigue siendo cierto es que la extensión no tiene dependencias de **runtime** — todo `package.json` es tooling (Vitest, ESLint, `tsc`, WXT).

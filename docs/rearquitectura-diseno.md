@@ -245,7 +245,7 @@ configuración final):
   ser **la carpeta que se carga en `chrome://extensions/`**, en vez de la raíz del repo. Es el
   cambio de flujo diario más visible para quien desarrolla, y hay que reflejarlo en
   `docs/contributing.md` y en el `README.md` el día que se ejecute.
-- Verificación del paso de setup: `npx wxt prepare` genera `.wxt/` sin errores, y un `build`
+- Verificación del paso de setup: `pnpm exec wxt prepare` genera `.wxt/` sin errores, y un `build`
   produce un SW cargable — antes de mover una sola línea de lógica.
 
 ## Orden de migración (incremental — nunca big-bang)
@@ -337,7 +337,7 @@ riesgo asumido están en **ADR-0009** (no se repiten acá — regla DRY, ADR-000
   sin descargar clases. El corte se paga una sola vez, en la **Fase 8** (el "paso 6" que decía
   esta regla era la numeración de un borrador anterior del plan). Sin `src/`, la coexistencia
   no es entre dos carpetas sino entre dos generaciones de archivos en la misma.
-- **Verificación por fase**: cada fase termina con `npm test` en verde + `npm run lint` sin
+- **Verificación por fase**: cada fase termina con `pnpm test` en verde + `pnpm run lint` sin
   errores nuevos, y las que tocan el flujo de descarga, con el golden path manual
   (`docs/contributing.md`). Una fase que no se puede verificar está mal cortada.
 - **Rollback**: una rama por fase (`feat/rearq-<fase>`), sin mergear a `main` hasta verificar.
@@ -355,10 +355,10 @@ Orden de lectura para llegar al frente de trabajo sin reconstruir contexto:
 verde y que son la red de todo lo demás:
 
 ```bash
-npm test
-npm run lint
-npx tsc --noEmit
-npm run build     # genera .output/chrome-mv3/
+pnpm test
+pnpm run lint
+pnpm exec tsc --noEmit
+pnpm run build     # genera .output/chrome-mv3/
 ```
 
 Los números esperados de cada una (cantidad de tests, warnings tolerados) están en
@@ -838,7 +838,7 @@ entrypoints o el adaptador de sitio. Los puntos, con la extensión recargada:
 3. El escaneo del aula (ejercita `SitioActivo.escanearListado` inyectado con executeScript).
 4. Un aula multicátedra: modal, badge y filtro por faceta con los estilos renombrados.
 
-Y lo específico del build de la Fase 3 (`npm run build` → cargar `.output/chrome-mv3/`; la
+Y lo específico del build de la Fase 3 (`pnpm run build` → cargar `.output/chrome-mv3/`; la
 rama `feat/rearq-fase3-wxt` ya está mergeada, esto es hoy el camino normal):
 
 5. Que el **service worker arranque sin excepción** (`chrome://extensions/` → "service

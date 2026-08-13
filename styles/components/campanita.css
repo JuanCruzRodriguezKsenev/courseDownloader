@@ -44,19 +44,17 @@
   box-sizing: border-box;
 }
 
-/* Panel desplegable, anclado al botón. */
+/* Panel desplegable, anclado al botón.
+   El fondo, el borde, el radio y la sombra ya NO están acá: los pone `.capa-card`
+   (`styles/components/capa.css`), la superficie compartida con los modales. Acá queda sólo lo
+   que es de este panel — dónde se apoya y cuánto mide—, que es justamente lo que el componente
+   no puede saber. `position` y `z-index` también los pone `.capa-card.es-anclada`. */
 .campanita-panel {
-  position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  z-index: 50;
-  width: 280px;
+  width: 300px;
   max-height: 340px;
   overflow-y: auto;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  box-shadow: 0 6px 20px rgba(var(--shadow-rgb), 0.18);
 }
 
 .campanita-panel-head {
@@ -148,13 +146,20 @@
   white-space: nowrap;
 }
 
+/* El título es el de la clase que falló, y es LARGO: es lo que uno lee para ir a buscarla a la
+   lista. Estaba en `nowrap` + ellipsis dentro de 280px, así que se cortaba casi siempre y el
+   panel no cumplía su única función. Ahora entra en dos líneas y recién ahí corta —
+   `overflow-wrap` para que un título sin espacios tampoco desborde el panel. */
 .campanita-titulo {
   font-size: var(--text-base);
   font-weight: var(--font-semibold);
   color: var(--text-main);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow-wrap: anywhere;
 }
 
 .campanita-motivo {

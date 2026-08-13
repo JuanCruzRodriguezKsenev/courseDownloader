@@ -1,0 +1,65 @@
+/* Capa flotante compartida (componente: popup/features/capa.preact.js)
+   ==========================================================================
+   La SUPERFICIE y el FONDO, una sola vez. Hasta acá estaban escritos cuatro veces —
+   `.adv-overlay`/`.adv-card`, `.faceta-overlay`/`.faceta-card`, `.onboarding-overlay` y el
+   `.campanita-panel`—, con los overlays idénticos línea por línea y las cards diferenciadas
+   sólo en padding, `max-width` y el tamaño del título.
+
+   LO QUE **NO** VIVE ACÁ, Y ES A PROPÓSITO: dónde se apoya la capa y cuánto mide. Eso es del
+   consumidor y va en su hoja (`campanita.css` la posiciona junto al 🔔). Meter las medidas acá
+   obligaría a este archivo a conocer a cada uno, que es justo lo que se está deshaciendo. */
+
+/* Fondo de la variante `modal`. Es el que ya existía, palabra por palabra: mismo token de
+   color, mismo blur, mismo z-index y misma animación de entrada.
+
+   `position: absolute` y no `fixed`: el popup de la extensión tiene el `<body>` del tamaño de
+   la ventana, así que absolute alcanza — y fixed traería su propio contexto de apilamiento. */
+.capa-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: var(--bg-overlay);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999999;
+  animation: fadeIn-modal 0.25s ease-out;
+}
+
+/* La superficie, común a las dos variantes. */
+.capa-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+  box-sizing: border-box;
+}
+
+/* Variante `modal`: centrada por el overlay, ancho relativo al popup. Los valores salen de
+   promediar los dos que había (`.adv-card` 290px / 1.25rem y `.faceta-card` 280px /
+   1.5rem 1.25rem): la diferencia entre ellos no respondía a nada, era deriva. */
+.capa-card.es-modal {
+  width: 85%;
+  max-width: 290px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  text-align: center;
+}
+
+/* Variante `anclada`: la posiciona su consumidor (top/right/width), acá sólo se declara que
+   sale del flujo y por encima de la UI normal — pero MUY por debajo del overlay modal, para
+   que un modal siempre tape a un panel anclado y no al revés. */
+.capa-card.es-anclada {
+  position: absolute;
+  z-index: 50;
+}
+
+/* La entrada. Vivía en `faceta.css` por accidente histórico —la usaban los tres overlays, y
+   los `@keyframes` son globales aunque se declaren dentro de la hoja de un componente—. Ahora
+   está donde está su único consumidor. */
+@keyframes fadeIn-modal {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}

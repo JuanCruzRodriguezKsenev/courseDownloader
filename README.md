@@ -49,15 +49,15 @@ Para realizar las descargas físicas en tu disco, la extensión se conecta con u
 ### 2. Compilar e Instalar la Extensión en el Navegador
 > La extensión se **compila** (antes se cargaba el repo tal cual).
 
-1. En la raíz del repo: `npm install` (sólo la primera vez) y después `npm run build`.
-   Eso genera la carpeta **`.output/chrome-mv3/`**. *No afecta a `backend/`, que no usa npm ni tiene dependencias.*
+1. En la raíz del repo: `pnpm install` (sólo la primera vez) y después `pnpm run build`.
+   Eso genera la carpeta **`.output/chrome-mv3/`**. *No afecta a `backend/`, que no usa pnpm ni tiene dependencias.*
 2. Abrí Chrome o Brave y navegá a `chrome://extensions/`.
 3. Activá el **Modo de desarrollador** (esquina superior derecha).
 4. Hacé clic en **Cargar descomprimida** (Load unpacked) y seleccioná **`.output/chrome-mv3/`**
    (NO la raíz del repositorio).
 5. Fijá el ícono de la extensión en tu barra de herramientas.
 
-Tras cambiar código: `npm run build` y recargar la extensión desde su tarjeta.
+Tras cambiar código: `pnpm run build` y recargar la extensión desde su tarjeta.
 
 ### 3. Configuración Inicial (Primer Uso)
 1. Hacé clic en el ícono de la extensión. Se desplegará el **Welcome Tour**.
@@ -93,7 +93,7 @@ El circuito es el mismo en los dos portales — **escanear → seleccionar → e
 ## 📁 Estructura del Repositorio
 
 > Los fuentes viven en la **raíz** del repo (`srcDir: '.'`); lo que la extensión carga es
-> `.output/chrome-mv3/`, generado por `npm run build`. Detalle técnico completo en
+> `.output/chrome-mv3/`, generado por `pnpm run build`. Detalle técnico completo en
 > `docs/architecture.md`.
 
 * **`wxt.config.ts`**: Configuración del empaquetado y **origen del `manifest.json`** (permisos, hosts, dNR, iconos). El manifest ya no se escribe a mano: se genera desde acá.

@@ -55,15 +55,28 @@
   border: 1px solid var(--border-color);
   border-left: 3px solid var(--border-color);
   flex-shrink: 0;
-  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), 
-              border-color 0.15s ease, 
-              box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  /* [SIN MOVIMIENTO EN EL HOVER] Acá había `transform: translateY(-0.5px)` con su transición, y
+     era el parpadeo: **medio píxel no existe en pantalla**. El navegador no puede apoyar la
+     fila en una fracción de píxel, así que la re-rasteriza y de paso le cambia el suavizado al
+     texto (de subpíxel a escala de grises al promover la capa). Eso se ve como si la fila
+     cambiara de tamaño o de grosor de letra — y con la transición de 0,15 s recorre posiciones
+     fraccionarias durante todo el trayecto, así que tiembla en vez de moverse. En una lista de
+     ~100 filas, cada pasada del mouse lo dispara.
+
+     Y no se perdió ningún efecto al sacarlo: 0,5px es imperceptible como movimiento (por eso
+     el síntoma se leía como "parpadea", nunca como "se levanta"), y la sombra que lo acompañaba
+     iba en `rgba(…, 0.02)` — 2% de opacidad, invisible sobre este fondo. Se estaba pagando el
+     temblor por dos efectos que no se veían.
+
+     El hover sigue avisando por COLOR, que no toca el layout ni la rasterización del texto: el
+     borde se aclara. Se le suma `background-color` a la transición para que el estado
+     `.selected` entre igual de suave, que antes saltaba de golpe (no estaba en la lista). */
+  transition: border-color 0.15s ease,
+              background-color 0.15s ease;
   cursor: default;
 
   &:hover {
     border-color: var(--text-muted);
-    transform: translateY(-0.5px);
-    box-shadow: 0 2px 6px rgba(var(--shadow-rgb), 0.02);
   }
 
   &.selected {

@@ -1,7 +1,51 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.22.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.24.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.24.0:
+ * - [SIN PORTAL] La TERCERA forma de morir del escaneo ya avisa. En una página que no es de
+ *   ningún portal el escaneo corta antes de correr, y esa rama escribía en `nodos.txtEstado`
+ *   —el <p> oculto del footer— y **sólo repintaba si ya había clases**: con la lista vacía no
+ *   repintaba nada, así que apretar "Re-escanear" en una página cualquiera dejaba en pantalla
+ *   la card que hubiera de antes (típicamente la del filtro, que no tenía nada que ver). Entra
+ *   por el mismo `escaneoMuerto` que el timeout y la inyección, con `motivo: 'sin-portal'`, y
+ *   el `if (length > 0)` se fue: el repintado corre siempre. Los portales los NOMBRA la card, y
+ *   salen de `sitios.todos()` (nuevo passthrough en composicion.ts), nunca del copy: una lista
+ *   escrita a mano envejece en el próximo portal que se registre.
+ * - [VACÍO POR QUÉ] La lista vacía ya dice CUÁL de las dos causas fue. `filtrados.length === 0`
+ *   es cierto porque la colección está vacía (el escaneo no encontró nada / la fila no tiene
+ *   ítems) o porque el filtro los escondió, y las dos recibían el mismo cartel: al primero se
+ *   le pedía aflojar un filtro que no había puesto, y en la Fila "No tenés clases agregadas"
+ *   era directamente falso. La distinción no se inventó: `coleccionDeLaPestañaVacia()` ya
+ *   existía y es la que decide el bloqueo de la toolbar — usar el MISMO predicado para el copy
+ *   es lo que hace que el cartel y el bloqueo digan lo mismo.
+ *   Y la card pasa a DERIVARSE en cada repintado: "Sin clases detectadas" se pintaba una sola
+ *   vez al terminar el escaneo y el primer repintado la reemplazaba por la del filtro
+ *   (conmutar de pestaña alcanzaba). Tercera vez que este archivo paga el mismo error, después
+ *   del watchdog y del error de inyección. Se fueron con ella tres `disabled` puestos a mano.
+ * - [BLOQUEO REUTILIZABLE] `popup/features/bloqueo.js`: el contrato del §2 de
+ *   alertas-y-bloqueo-diseno.md dejó de estar copiado en `bloquearToolbar`,
+ *   `bloquearFilaDePortal` y `bloquearRegionesDeAlerta`. Elige la forma por elemento
+ *   (`disabled` vs `aria-disabled`) y hace ESTRUCTURAL la asimetría: `aplicar()` nunca escribe
+ *   `disabled = false`, sólo el `restaurar` de quien llama. Y estrena tests, que es medio
+ *   punto del refactor: el contrato vivía en este archivo, que la suite no ve.
+ * - [CONTROLES QUE SIGUEN AL RESULTADO] "Todos", "Ordenar" y "Seleccionar" se apagan cuando no
+ *   hay sobre qué actuar; el buscador y los filtros NO, nunca, porque son la salida. Dos
+ *   predicados distintos y a propósito (`haySeleccionablesVisibles` vs `hayVisibles`): con el
+ *   filtro en "descargados" hay clases que ordenar y ninguna que marcar.
+ * CHANGELOG v5.23.0:
+ * - [FEEDBACK DE INYECCIÓN] El escaneo que muere porque Chrome rechazó la inyección ya avisa.
+ *   Era la ÚNICA de las salidas del escaneo sin tarjeta: escribía en `nodos.txtEstado` —el
+ *   `<p>` del footer, que está oculto por un `display:none` inline que nadie le saca (hallazgo
+ *   §6.8 de alertas-y-bloqueo-diseno.md, sin arreglar acá)— y encima restauraba la lista vieja,
+ *   con lo cual la pantalla quedaba idéntica a un escaneo exitoso. Se detectó con el banco de
+ *   pruebas: la rama corría (el botón pasaba a "Re-escanear") y no se veía nada.
+ *   `escaneoMuertoPorTimeout` pasa a ser `escaneoMuerto` con un campo `motivo`
+ *   ('timeout' | 'inyeccion'): UN estado para las dos muertes, porque el bloqueo se deriva de
+ *   él en cuatro lugares y dos banderas se desincronizan de la tarjeta (la regla del §1). La
+ *   tarjeta nueva ("No pudimos leer la pestaña") dice qué hacer, que no es reintentar en la
+ *   misma pestaña. Se entra por el contrato del watchdog: no se pinta en la rama, se registra
+ *   y se pide el repintado, así ningún render posterior le gana la región.
  * CHANGELOG v5.22.0:
  * - [LOADERS — ítem 2] El loader del escaneo inicial se ve. `conectarYArrancar` lo apagaba en
  *   su `finally` incondicional, y el escaneo NO es `async` —vuelve apenas encola su
@@ -269,6 +313,10 @@
 // "la feature de filtros"—; lo inyectable son los servicios, y ésos siguen entrando por
 // parámetro. Efecto colateral que importa: el orden de imports del entrypoint deja de ser
 // load-bearing para todo esto, porque ahora lo resuelve el grafo del bundler.
+import { html } from './popup/vendor/htm-preact-standalone.module.js';
+import { abrirCapa } from './popup/features/capa.preact.js';
+import Bloqueo from './popup/features/bloqueo.js';
+import { crearPisoVisible } from './popup/features/pisoVisible.js';
 import FacetaFeature from './popup/features/faceta.js';
 import FilterFeature from './popup/features/filters.js';
 import OrdenFeature from './popup/features/orden.js';
@@ -352,6 +400,44 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // features/onboarding.preact.js (ver ADR-0006). Ya no hay refs nodos.* a él.
     };
 
+    // [PISO VISIBLE] Los dos carteles que anuncian trabajo en curso —la cortina del loader y el
+    // label del botón principal— pasan por acá para que ninguno pueda durar menos de lo que
+    // tarda en leerse. Medido el 2026-08-13 con el banco, sin esto: "Conectando con el servidor
+    // Bun…" 248 ms y "Sincronizando disco local…" 117 ms. Los dos se leen como una falla, no
+    // como una operación rápida. El porqué del número y de las dos entradas → el encabezado de
+    // `popup/features/pisoVisible.js`.
+    //
+    // Son DOS instancias y no una compartida a propósito: el piso es del cartel, no de la
+    // pantalla. Que el botón esté cumpliendo el suyo no tiene por qué demorar al loader, que
+    // está informando otra cosa en otro lado.
+    const pisoLoader = crearPisoVisible();
+    const pisoBoton = crearPisoVisible();
+
+    // El loader nace visible por CSS (`.loader-overlay { display: flex }`) para que no se vea la
+    // UI a medio estilar, así que su primer texto lleva rato en pantalla cuando llegamos acá.
+    // `performance.now()` es lo que lleva el documento desde que empezó a cargar, o sea una
+    // buena aproximación de "hace cuánto que se ve ese cartel": se le descuenta.
+    // Los dos carteles del arranque vienen escritos en el markup y visibles desde el primer
+    // frame: la cortina y el label del botón ("Conectando con el servidor… ⏳",
+    // `index.html:113`). Los dos se siembran igual, aunque hoy sólo el primero llegue a
+    // parpadear — el que hoy dura 3,2 s lo hace porque el servidor está prendido, y con caché
+    // caliente o sin red esa duración cambia sola.
+    pisoLoader.sembrar(performance.now());
+    pisoBoton.sembrar(performance.now());
+
+    /** Muestra la cortina con un texto. Cuenta como aviso de trabajo: se queda el mínimo. */
+    function mostrarLoader(texto) {
+      pisoLoader.transitorio(() => {
+        nodos.loaderTxt.textContent = texto;
+        nodos.loader.style.display = 'flex';
+      });
+    }
+
+    /** Apaga la cortina — esperando, si hace falta, a que el texto que está arriba se cumpla. */
+    function ocultarLoader() {
+      pisoLoader.libre(() => { nodos.loader.style.display = 'none'; });
+    }
+
     // Fase 5c: antes esto guardaba la REFERENCIA al listener, sólo para poder pasársela después
     // a removeListener. El puerto de mensajería devuelve directamente la función de baja, así
     // que acá se guarda eso: desengancharlo es llamarla.
@@ -374,15 +460,27 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     // en pantalla — el mismo defecto que el corte del banner ya había arreglado, reentrando
     // por una puerta nueva.
     //
-    // **Es un objeto y no un booleano a propósito**: guarda lo que la tarjeta necesita decir
-    // (`{ portal, segundos }`), porque quien la pinta es `renderizarListadoInterfaz` cada vez
-    // que repinta —igual que las cards de `fallaConexionActiva`— y no el watchdog una sola vez.
+    // **Es un objeto y no un booleano a propósito**: guarda lo que la tarjeta necesita decir,
+    // porque quien la pinta es `renderizarListadoInterfaz` cada vez que repinta —igual que las
+    // cards de `fallaConexionActiva`— y no el watchdog una sola vez.
     // Pintarla una vez fue el bug de la primera versión: conmutar de pestaña repintaba la
     // lista encima y quedaba visible PERO bloqueada, ni tarjeta ni toolbar usable.
     //
     // Regla, que es la del §1 de alertas-y-bloqueo-diseno.md: **la tarjeta y el bloqueo son el
     // mismo estado**. Si se pueden desincronizar, se van a desincronizar.
-    let escaneoMuertoPorTimeout = null;
+    //
+    // **Lleva `motivo` porque el escaneo muere de DOS maneras**, y se unificaron acá a
+    // propósito: el watchdog (`'timeout'`) y la inyección rechazada (`'inyeccion'`, que es
+    // página de sistema o permisos de host). Son un solo estado y no dos porque el bloqueo se
+    // deriva de él en cuatro lugares; con dos banderas, la tarjeta y el bloqueo se pueden
+    // desincronizar, que es exactamente lo que dice la regla de arriba que no puede pasar.
+    //
+    // El error de inyección **no tenía tarjeta**: escribía en la línea de estado del footer y
+    // devolvía la lista vieja desde storage. Dos motivos por los que eso no se veía: el `<p>`
+    // del footer está oculto (ver el hallazgo en alertas-y-bloqueo-diseno.md §6.8), y aunque
+    // no lo estuviera, ese destino ya se había descartado para el watchdog por quedar pisado
+    // por el diagnóstico de conexión, que es de otro dueño.
+    let escaneoMuerto = null;
 
     /**
      * El timeout del escaneo ocupa la región **sólo en Disponibles**, y esto no es un detalle.
@@ -399,7 +497,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
      * lugar. **La tarjeta y el bloqueo se acotan igual o no se acotan.**
      */
     function escaneoMuertoDominaLaPestaña() {
-      return !!escaneoMuertoPorTimeout && appState.pestañaActiva === "disponibles";
+      return !!escaneoMuerto && appState.pestañaActiva === "disponibles";
     }
 
     // [MULTISITIO CORTE 5] El portal de la pestaña que se está mirando.
@@ -565,10 +663,14 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // bloqueadas. De ahí los dos `||`.
       bloquearRegiones: (bloquear) => {
         bloquearRegionesDeAlerta(bloquear || escaneoMuertoDominaLaPestaña());
-        bloquearFilaDePortal(bloquear || !!escaneoMuertoPorTimeout);
+        bloquearFilaDePortal(bloquear || !!escaneoMuerto);
       },
       onReintentarCola: () => ejecutarReintentoDeCola(),
-      onReescanearAula: () => ejecutarPaso1EscaneoRamonAutomatico()
+      onReescanearAula: () => ejecutarPaso1EscaneoRamonAutomatico(),
+      // [PISO VISIBLE] La feature apagaba la cortina escribiendo `style.display` sobre
+      // `nodos.loader`, que es el único camino por el que el piso se puede saltear sin querer.
+      // Va por acá para que su apagado espere el mínimo igual que los del orquestador.
+      ocultarLoader: () => ocultarLoader()
     });
     const activarEstadoOfflineUI = _serverConnection.activarEstadoOfflineUI;
     // Un único detector de estado de conexión, siempre activo mientras el popup está
@@ -586,6 +688,10 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       onRestaurarPanel: (txt, limpiarCola) => restaurarPanelPorInterrupcion(txt, limpiarCola),
       mostrarAlerta: (tipo, titulo) => mostrarAlertDeConexionCaida(tipo, titulo),
       congelarUI: (titulo, pct, tel) => congelarUIPorDescargaActiva(titulo, pct, tel),
+      // El footer en forma de "descargando", sin el resto de lo que hace `congelarUI`. Lo usa
+      // el reanudar-tras-pausa, que necesita restaurarlo YA y no puede esperar al primer
+      // `update_progress_bar` (ver el comentario largo en `queue.js`).
+      mostrarFooterDescargando: () => mostrarFooterDescargando(),
       renderizar: () => renderizarListadoInterfaz(),
       setVerificandoConexion: (v) => { verificandoConexionBoton = v; },
       setReintentandoCola: (v) => { reintentandoColaActivo = v; },
@@ -691,8 +797,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // si el escaneo arranca, pasa a ser de él y esta función NO lo toca.
       let elEscaneoTomoElLoader = false;
       try {
-        nodos.loaderTxt.textContent = "Conectando con el servidor Bun...";
-        nodos.loader.style.display = 'flex';
+        mostrarLoader("Conectando con el servidor Bun...");
 
         const ruta = await backend.obtenerRutaServidor();
         if (ruta) {
@@ -741,7 +846,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         // Y no era sólo cosmético: el cartel del cambio de portal —lo que hay que mirar para
         // verificar la copy genérica— no se podía observar abriendo el popup, había que forzarlo
         // con Re-escanear. Un bug abierto era precondición para verificar otra cosa.
-        if (!elEscaneoTomoElLoader) nodos.loader.style.display = 'none';
+        if (!elEscaneoTomoElLoader) ocultarLoader();
       }
     }
 
@@ -758,7 +863,12 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       if (!appState.tutorialCompletado) {
         // El loader (.loader-overlay) tiene z-index MAYOR que el onboarding y arranca
         // en display:flex por CSS; hay que ocultarlo o taparía el tour.
-        nodos.loader.style.display = 'none';
+        //
+        // [PISO VISIBLE] Es el ÚNICO `inmediato` del archivo, y por eso: acá esperar el piso
+        // sería peor que el parpadeo que el piso evita — deja el tutorial medio segundo abajo
+        // de una cortina que ya no informa nada. Y el cartel que estaría cumpliendo su mínimo
+        // es el del markup, que no lo pidió ningún flujo.
+        pisoLoader.inmediato(() => { nodos.loader.style.display = 'none'; });
         mostrarOnboarding();
       } else {
         await conectarYArrancar();
@@ -766,7 +876,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     } catch (error) {
       console.error("❌ Error en inicio del Orquestador:", error);
       nodos.txtEstado.textContent = "⚠️ Error de inicialización interna.";
-      nodos.loader.style.display = 'none'; // el loader tapa el mensaje de error si queda visible
+      ocultarLoader(); // el loader tapa el mensaje de error si queda visible
     }
 
     function lanzarSeleccionCarpetaFisica() {
@@ -779,8 +889,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       RutaDisco.cargando("Abriendo explorador...");
 
       // Mostrar loader de espera
-      nodos.loaderTxt.textContent = "Abriendo explorador de archivos...";
-      nodos.loader.style.display = 'flex';
+      mostrarLoader("Abriendo explorador de archivos...");
 
       backend.seleccionarCarpeta().then(res => {
         if (res.success) {
@@ -804,7 +913,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         nodos.btnExplore.disabled = false;
         nodos.btnExplore.classList.remove('loading');
         nodos.btnExplore.innerHTML = originalBtnHTML;
-        nodos.loader.style.display = 'none';
+        ocultarLoader();
       });
     }
 
@@ -856,37 +965,32 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       });
     }
 
+    // Guarda del modal abierto, en vez de rastrearlo en el DOM con un `querySelector`: el nodo
+    // ahora lo maneja `abrirCapa`.
+    let cerrarAdvertenciaAbierta = null;
+
     function mostrarModalAdvertencia({ titulo, cuerpo, checkboxKey, onConfirm, onCancel }) {
-      document.querySelector(".adv-overlay")?.remove();
+      if (cerrarAdvertenciaAbierta) cerrarAdvertenciaAbierta();
 
-      const overlay = document.createElement("div");
-      overlay.className = "adv-overlay";
+      // El overlay, la card y el cierre (Escape / clic al fondo) los pone `Capa`.
+      //
+      // **Y de paso se cierra un `innerHTML` con interpolación.** `titulo` y `cuerpo` entraban
+      // por `card.innerHTML = \`<h4>${titulo}</h4>...\``: hoy los dos son literales de este
+      // archivo, así que no había un XSS real, pero era la clase de línea que se vuelve uno el
+      // día que alguien le pasa un nombre de carpeta o un título de clase. Con htm van como
+      // interpolación escapada y el riesgo no puede volver por acá.
+      //
+      // El checkbox deja de buscarse por `getElementById` en el handler: su estado vive en una
+      // variable de este closure, que es lo que era desde siempre.
+      let noMostrarMas = false;
+      // Distingue "lo cerró un botón" de "lo descartó Escape o el clic al fondo". Sin esto,
+      // salir por Escape no ejecutaría `onCancel` y el llamador se quedaría esperando una
+      // respuesta que nunca llega (el de la materia deja su bandera puesta y no vuelve a
+      // avisar). Descartar ES cancelar; lo que no puede es cancelar además de confirmar.
+      let resueltoPorBoton = false;
 
-      const card = document.createElement("div");
-      card.className = "adv-card";
-
-      card.innerHTML = `
-        <h4>${titulo}</h4>
-        <p>${cuerpo}</p>
-      `;
-
-      const labelCheckbox = document.createElement("label");
-      labelCheckbox.className = "adv-checkbox-label";
-      labelCheckbox.innerHTML = `
-        <input type="checkbox" id="ui-adv-dontshow">
-        <span>No volver a mostrar este aviso</span>
-      `;
-      card.appendChild(labelCheckbox);
-
-      const buttons = document.createElement("div");
-      buttons.className = "adv-buttons";
-
-      const btnConfirm = document.createElement("button");
-      btnConfirm.className = "btn-adv-primary";
-      btnConfirm.textContent = "Entendido";
-      btnConfirm.addEventListener("click", () => {
-        const checked = document.getElementById("ui-adv-dontshow").checked;
-        if (checked) {
+      const cerrarConEfecto = (efecto) => () => {
+        if (noMostrarMas) {
           if (checkboxKey === "ocultarAdvExplorar") {
             appState.ocultarAdvertenciaExplorar = true;
           } else if (checkboxKey === "ocultarAdvAula") {
@@ -894,22 +998,31 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           }
           appState.respaldar();
         }
-        overlay.remove();
-        if (onConfirm) onConfirm();
-      });
+        resueltoPorBoton = true;
+        if (cerrarAdvertenciaAbierta) cerrarAdvertenciaAbierta();
+        if (efecto) efecto();
+      };
 
-      const btnCancel = document.createElement("button");
-      btnCancel.className = "btn-adv-secondary";
-      btnCancel.textContent = "Cancelar";
-      btnCancel.addEventListener("click", () => {
-        overlay.remove();
-        if (onCancel) onCancel();
+      cerrarAdvertenciaAbierta = abrirCapa({
+        variante: 'modal',
+        etiqueta: titulo,
+        clase: 'adv-card',
+        alCerrar: () => {
+          cerrarAdvertenciaAbierta = null;
+          if (!resueltoPorBoton && onCancel) onCancel();
+        },
+        contenido: () => html`
+          <h4>${titulo}</h4>
+          <p>${cuerpo}</p>
+          <label class="adv-checkbox-label">
+            <input type="checkbox" onChange=${(e) => { noMostrarMas = e.target.checked; }} />
+            <span>No volver a mostrar este aviso</span>
+          </label>
+          <div class="adv-buttons">
+            <button class="btn-adv-primary" onClick=${cerrarConEfecto(onConfirm)}>Entendido</button>
+            <button class="btn-adv-secondary" onClick=${cerrarConEfecto(onCancel)}>Cancelar</button>
+          </div>`,
       });
-
-      buttons.append(btnConfirm, btnCancel);
-      card.appendChild(buttons);
-      overlay.appendChild(card);
-      document.body.appendChild(overlay);
     }
 
     // cargarRutaServidorSilencioso, activarEstadoOfflineUI e iniciarMonitoreoServidor
@@ -1026,7 +1139,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // Arranca uno nuevo: la región deja de estar muerta. No se desbloquea todavía —eso lo
       // hace el `finally` del payload cuando el escaneo TERMINA—, porque desbloquear ahora
       // habilitaría la toolbar sobre la tarjeta de error que sigue en pantalla.
-      escaneoMuertoPorTimeout = null;
+      escaneoMuerto = null;
 
       // [LOADERS — ítem 1b] ABANDONO EXPLÍCITO. Cada corrida se lleva su número; el watchdog lo
       // incrementa al vencerse. Un callback que llegue después compara y se calla, en vez de
@@ -1040,8 +1153,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // defecto). El portal de este escaneo se resuelve recién ~17 líneas abajo, así que
       // interpolarlo acá anunciaría el portal equivocado justo al cambiar de portal.
       // Caso C de copy-generico-diseno.md §3; la trampa entera, en su §4.
-      nodos.loaderTxt.textContent = "Escaneando la pestaña...";
-      nodos.loader.style.display = 'flex';
+      mostrarLoader("Escaneando la pestaña...");
       // Ocultar badge de cátedra al iniciar un nuevo escaneo para evitar estados inconsistentes
       nodos.facetaBadge.style.display = "none";
 
@@ -1062,10 +1174,32 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         if (!portal) {
           clearTimeout(safetyTimeout);
           terminarEscaneo();
-          nodos.txtEstado.textContent = "⚠️ No estás en un portal reconocido.";
+          ocultarLoader();
+
+          // [SIN PORTAL] Tercera forma de morir del escaneo, y hasta acá la única sin cartel:
+          // escribía en `nodos.txtEstado` —el `<p>` oculto del footer, §6.8b— y **sólo
+          // repintaba si ya había clases**. Con la lista vacía no repintaba nada, así que en
+          // pantalla quedaba lo que hubiera de antes: apretabas Re-escanear en una página
+          // cualquiera y te contestaba una card del filtro, que no tenía nada que ver.
+          //
+          // Entra por el mismo estado que el timeout y el error de inyección: no se pinta acá,
+          // se registra y se pide el repintado. Con eso vienen gratis el bloqueo de la toolbar
+          // (mismo estado) y que ningún render posterior le gane la región.
+          //
+          // Los nombres salen del REGISTRO, no del copy: decir "abrí un portal" sin decir
+          // cuáles obliga a adivinar, y una lista escrita a mano envejece en el próximo portal
+          // (ADR-0010). Se escapan acá, al guardarlos, porque la descripción de la card viaja
+          // por `dangerouslySetInnerHTML`.
+          escaneoMuerto = {
+            motivo: 'sin-portal',
+            portales: sitios.todos().map((s) => utils.escaparHtml(s.nombre)).join(' o '),
+          };
+          sincronizarBloqueosDeAlerta();
           configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
-          if (appState.listadoClasesGlobal.length > 0) { desbanearFiltros(); aplicarFiltrosCruzados(); }
-          nodos.loader.style.display = 'none';
+          desbanearFiltros();
+          // Sin el `if (length > 0)` que tenía: el repintado corre SIEMPRE, que es lo que
+          // faltaba para que la pantalla refleje lo que acaba de pasar.
+          aplicarFiltrosCruzados();
           return;
         }
 
@@ -1076,7 +1210,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           // [ítem 1b] Abandonar: subir la generación invalida el callback que llegue después.
           generacionEscaneo++;
           escaneoEnCurso = false;
-          nodos.loader.style.display = 'none';
+          ocultarLoader();
           // [ítem 1e] La tarjeta ocupa la región, así que la toolbar y la path-bar se bloquean
           // — si no, quedan vivas sobre una lista que no está en pantalla: buscador, filtros,
           // orden, "Todos", el input de materia y el badge de la faceta, todos operando sobre
@@ -1094,7 +1228,8 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           //
           // El nombre del portal se escapa ACÁ, al guardarlo, porque la descripción de la card
           // viaja por `dangerouslySetInnerHTML` (regla de docs/security.md).
-          escaneoMuertoPorTimeout = {
+          escaneoMuerto = {
+            motivo: 'timeout',
             portal: utils.escaparHtml(portal.nombre),
             segundos: Math.round(portal.topeEscaneoMs / 1000),
           };
@@ -1129,18 +1264,36 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           // Controlar de forma resiliente si ocurrió un error de inyección (ej: permisos de host o página de sistema)
           // lastError de chrome.scripting (la inyección), no de IPC — ver la nota de arriba.
           if (chrome.runtime.lastError) {
-            console.error("❌ [POPUP-SCRIPT-ERROR] Falló inyección de script de escaneo:", chrome.runtime.lastError.message);
-            nodos.txtEstado.textContent = `❌ Error de escaneo: ${chrome.runtime.lastError.message}`;
-            nodos.loader.style.display = 'none';
+            // `lastError` SÓLO es legible durante este turno sincrónico, y el mensaje se usa
+            // después (dentro del .then()). Se captura ya o se pierde.
+            const motivoCrudo = chrome.runtime.lastError.message;
+            console.error("❌ [POPUP-SCRIPT-ERROR] Falló inyección de script de escaneo:", motivoCrudo);
+            ocultarLoader();
+
+            // [FEEDBACK DE INYECCIÓN] Esta rama no pintaba NADA que el usuario pudiera ver:
+            // mandaba el texto a `nodos.txtEstado` (el `<p>` del footer, que está oculto — ver
+            // alertas-y-bloqueo-diseno.md §6.8) y era la única salida del escaneo sin tarjeta,
+            // mientras su hermana la del watchdog sí la tenía. Ahora entra por el MISMO estado
+            // que aquélla, con su mismo contrato: no se pinta acá, se registra y se pide el
+            // repintado, así ningún render posterior le gana la región.
+            //
+            // El mensaje de Chrome se escapa al guardarlo: la descripción de la card viaja por
+            // `dangerouslySetInnerHTML` (regla de docs/security.md). No es texto scrapeado,
+            // pero el destino es el mismo y la regla se aplica por destino, no por origen.
+            escaneoMuerto = {
+              motivo: 'inyeccion',
+              portal: utils.escaparHtml(portal.nombre),
+              detalle: utils.escaparHtml(motivoCrudo || 'sin detalle'),
+            };
+            sincronizarBloqueosDeAlerta();
             configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
-          
-            // Cargar el listado anterior del storage para evitar dejar la interfaz vacía
+
+            // Se sigue recuperando el listado anterior del storage, y NO para mostrarlo: la
+            // tarjeta ocupa la región (una región, un dueño). Es para que el "Re-escanear" que
+            // la tarjeta pide encuentre la lista donde estaba si el próximo intento funciona.
             appState.inicializarSincronizacionStorage().then(() => {
-              if (appState.listadoClasesGlobal.length > 0) {
-                desbanearFiltros();
-                aplicarFiltrosCruzados();
-                actualizarBadgeFaceta();
-              }
+              actualizarBadgeFaceta();
+              renderizarListadoInterfaz();
             });
             return;
           }
@@ -1194,18 +1347,18 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
               } else {
                 appState.listadoClasesGlobal = itemsEnCola;
                 appState.respaldar();
-                nodos.search.disabled = true;
-                nodos.btnFilterPills.disabled = true;
-                nodos.masterCheck.disabled = true;
 
-                ListaClases.render({ modo: 'card', card: {
-                  tipo: 'info',
-                  titulo: 'Sin clases detectadas',
-                  // El nombre del portal sale del descriptor. Estaba hardcodeado "Ramón Net", y
-                  // en el otro portal el cartel mandaba al usuario al lugar equivocado.
-                  descripcion: `No encontramos clases en esta pestaña.<br>Asegurate de estar dentro de ${utils.escaparHtml(portal.nombre)} y hacé click en Re-escanear.`,
-                  icono: '🔍'
-                }});
+                // [VACÍO POR QUÉ] Acá se pintaba la card "Sin clases detectadas" a mano, y
+                // duraba hasta el primer repintado: conmutar de pestaña llama a
+                // `aplicarFiltrosCruzados`, que llegaba a su propia rama de lista vacía y la
+                // reemplazaba por la del FILTRO — o sea, terminaba diciéndole al usuario que
+                // aflojara un filtro que no había puesto.
+                //
+                // Ahora la card se DERIVA en `renderizarListadoInterfaz` a partir de
+                // `coleccionDeLaPestañaVacia()`, así que basta con dejar el estado como está y
+                // pedir el repintado. Los tres `disabled` a mano también se fueron: el mismo
+                // predicado los decide en `bloquearToolbar`, vía `sincronizarBloqueosDeAlerta()`.
+                aplicarFiltrosCruzados();
               }
 
               configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
@@ -1275,7 +1428,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             console.error("❌ Error procesando payload de inyección:", e);
             configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
           } finally {
-            nodos.loader.style.display = 'none';
+            ocultarLoader();
             // [LOADERS — ítem 1e] El escaneo terminó: si lo único que tenía bloqueada la región
             // era un timeout anterior, se libera. Va por la condición completa y no por
             // `bloquear(false)` a secas, porque si además hay una alerta de conexión viva, ésa
@@ -1296,11 +1449,16 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
     // [REFACTORIZADO V5.4.1]: Motor de Sincronización Unificado e Híbrido (0% improvisación)
     async function ejecutarPaso2SincronizarDiscoVeloz() {
-      configurarBotonesUX("sincronizar-disco", "", true);
-      nodos.btnAction.innerHTML = `<span class="spinner-inline"></span> Sincronizando disco local...`;
-      // El "" de arriba significa "sin acción → botón oculto"; acá el label se escribe por
-      // innerHTML (lleva spinner), así que hay que volver a mostrarlo. Es la única excepción.
-      nodos.btnAction.style.display = 'block';
+      // [PISO VISIBLE] Las tres escrituras van juntas en UN `transitorio`: son un solo cartel
+      // ("estoy sincronizando"), y separadas el piso arrancaría con el botón todavía oculto.
+      // Éste es el que la medición mostró peor — 117 ms, menos de la mitad que el del loader.
+      pisoBoton.transitorio(() => {
+        aplicarBotonesUX("sincronizar-disco", "", true);
+        nodos.btnAction.innerHTML = `<span class="spinner-inline"></span> Sincronizando disco local...`;
+        // El "" de arriba significa "sin acción → botón oculto"; acá el label se escribe por
+        // innerHTML (lleva spinner), así que hay que volver a mostrarlo. Es la única excepción.
+        nodos.btnAction.style.display = 'block';
+      });
       ListaClases.setAtenuada(true); // atenúa la lista durante la sincronización (isla dueña de #ui-list)
 
       const subcarpetaFiltro = nodos.folder.value.trim().toLowerCase();
@@ -1552,13 +1710,34 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // Va DESPUÉS de `fallaConexionActiva` porque esa condición es más grave (la cola está
       // pausada); si las dos son ciertas, gana la de arriba y ésta no se pinta. Y a diferencia
       // de aquélla, ésta es SÓLO de Disponibles — ver `escaneoMuertoDominaLaPestaña`.
+      // Las dos maneras de morir tienen copy distinta porque la acción del usuario es
+      // distinta: ante el timeout se reintenta; ante la inyección rechazada, reintentar en la
+      // misma pestaña vuelve a fallar — primero hay que pararse en la pestaña del portal.
+      // El botón sigue diciendo "Re-escanear" en los dos casos, y la tarjeta es la que dice
+      // qué pasa: es la regla del §3 de alertas-y-bloqueo-diseno.md.
       if (escaneoMuertoDominaLaPestaña()) {
-        ListaClases.render({ modo: 'card', card: {
-          tipo: 'error',
-          titulo: 'El escaneo tardó demasiado',
-          descripcion: `Pasaron ${escaneoMuertoPorTimeout.segundos} s sin respuesta de ${escaneoMuertoPorTimeout.portal}.<br>Puede ser la conexión o que el portal haya cambiado.<br>Probá <strong>Re-escanear</strong>.`,
-          icono: '⏱️'
-        }});
+        // Las tres formas de morir del escaneo, con copy propia cada una porque la acción del
+        // usuario es distinta: al timeout se le reintenta; a la inyección rechazada hay que
+        // cambiarle la pestaña; y sin portal, directamente hay que ir a abrir uno. El botón
+        // dice "Re-escanear" en los tres casos y la tarjeta dice qué pasa (§3).
+        const cards = {
+          timeout: {
+            titulo: 'El escaneo tardó demasiado',
+            descripcion: `Pasaron ${escaneoMuerto.segundos} s sin respuesta de ${escaneoMuerto.portal}.<br>Puede ser la conexión o que el portal haya cambiado.<br>Probá <strong>Re-escanear</strong>.`,
+            icono: '⏱️',
+          },
+          inyeccion: {
+            titulo: 'No pudimos leer la pestaña',
+            descripcion: `Chrome no dejó leer esta pestaña.<br>Poné adelante una pestaña de ${escaneoMuerto.portal} —no una página del navegador— y probá <strong>Re-escanear</strong>.<br><small>${escaneoMuerto.detalle}</small>`,
+            icono: '🚫',
+          },
+          'sin-portal': {
+            titulo: 'No estás en un portal reconocido',
+            descripcion: `Esta pestaña no es de ningún portal conocido.<br>Abrí una de <strong>${escaneoMuerto.portales}</strong> y tocá <strong>Re-escanear</strong>.`,
+            icono: '🧭',
+          },
+        };
+        ListaClases.render({ modo: 'card', card: { tipo: 'error', ...cards[escaneoMuerto.motivo] } });
         return;
       }
 
@@ -1622,16 +1801,50 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         filtrados.sort(_orden.comparador());
       }
 
+      // [VACÍO POR QUÉ] `filtrados.length === 0` es cierto por DOS causas muy distintas, y
+      // hasta acá las dos recibían el mismo cartel:
+      //
+      //   a) no hay NADA en la colección — el escaneo no encontró clases, o la fila está vacía;
+      //   b) hay ítems y el filtro/la búsqueda los escondió.
+      //
+      // Decirle "no coinciden con la búsqueda o el filtro" al caso (a) le pide al usuario que
+      // afloje un filtro que no puso. Y al revés, "no tenés clases agregadas" en la Fila era
+      // falso cuando sí las tenía y las había filtrado.
+      //
+      // La distinción NO se inventa acá: `coleccionDeLaPestañaVacia()` ya existía y es la que
+      // decide el bloqueo de la toolbar. Usar el mismo predicado para el copy es lo que hace
+      // que **el cartel y el bloqueo digan lo mismo** — con (a) la toolbar está bloqueada y el
+      // texto no ofrece tocarla; con (b) está viva y el texto manda justo ahí.
+      //
+      // Y va DERIVADO en cada repintado, no pintado una vez: la card de "Sin clases
+      // detectadas" se pintaba al terminar el escaneo y el primer repintado se la comía —
+      // conmutar de pestaña alcanzaba—, dejando en pantalla el cartel del filtro. Es el mismo
+      // error que ya se pagó con el watchdog y con el error de inyección.
       if (filtrados.length === 0) {
+        const coleccionVacia = coleccionDeLaPestañaVacia();
+        const portalActual = sitio();
+
         if (appState.pestañaActiva === "cola") {
-          ListaClases.render({ modo: 'card', card: {
+          ListaClases.render({ modo: 'card', card: coleccionVacia ? {
             tipo: 'info',
             titulo: 'Fila de descarga vacía',
             descripcion: 'No tenés clases agregadas en esta lista.<br>Volvé a "Clases Disponibles", marcá las clases y agregalas.',
             icono: '📥'
+          } : {
+            tipo: 'info',
+            titulo: 'Ninguna coincide',
+            descripcion: 'Tenés clases en la fila, pero ninguna coincide con la búsqueda o el filtro.<br>Aflojá el filtro para verlas.',
+            icono: '🔍'
           }});
         } else {
-          ListaClases.render({ modo: 'card', card: {
+          ListaClases.render({ modo: 'card', card: coleccionVacia ? {
+            tipo: 'info',
+            titulo: 'Sin clases detectadas',
+            // El nombre del portal sale del descriptor, nunca hardcodeado: en el otro portal
+            // el cartel mandaba al usuario al lugar equivocado.
+            descripcion: `No encontramos clases en esta pestaña.<br>Asegurate de estar dentro de ${utils.escaparHtml(portalActual.nombre)} y hacé click en Re-escanear.`,
+            icono: '🔍'
+          } : {
             tipo: 'info',
             titulo: 'No hay clases',
             descripcion: 'No se encontraron clases que coincidan con la búsqueda o el filtro seleccionado.',
@@ -1752,11 +1965,31 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
     }
 
+    /**
+     * Pone el footer en forma de "hay una descarga en curso". Las cuatro escrituras van
+     * JUNTAS y en una sola función porque estaban copiadas en tres lugares y **dos se
+     * olvidaban de la primera** — la clase `downloading` del `<body>`, que es de la que
+     * cuelga todo `styles/components/downloads-active.css`: la línea divisoria entre el
+     * botón y la barra (`.download-separator`, que nace en `display:none`), el footer
+     * compacto, la barra de 5px, la telemetría chica y la caja de cancelar.
+     *
+     * El síntoma era desconcertante justo por eso: la barra de progreso aparecía —esas tres
+     * líneas sí estaban— pero sin la línea de arriba y con el footer en su tamaño normal, o
+     * sea "casi bien". Y sólo por un camino: arrancar la cola limpia pasaba por
+     * `congelarUIPorDescargaActiva` y quedaba perfecto; **reanudar después de una pausa**, no.
+     */
+    function mostrarFooterDescargando() {
+      document.body.classList.add('downloading');
+      nodos.cancelBox.style.display = 'flex';
+      nodos.btnStartQueue.style.display = 'none';
+      nodos.progressCont.style.display = 'block';
+    }
+
     function congelarUIPorDescargaActiva(titulo, pct, tel) {
       appState.videoActualEnTransmisiónSW = titulo;
       appState.ráfagaEnCurso = true;
-      document.body.classList.add('downloading');
-    
+      mostrarFooterDescargando();
+
       nodos.txtEstado.innerHTML = "";
       const span = document.createElement('span');
       span.style.color = "var(--accent-orange)";
@@ -1765,8 +1998,6 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       const prefijo = appState.banderaFrenadoSolicitado ? "Frenando al terminar:" : "Descargando:";
       nodos.txtEstado.append(prefijo, document.createElement('br'), span);
 
-      nodos.btnStartQueue.style.display = 'none';
-      nodos.cancelBox.style.display = 'flex';
       nodos.folder.disabled = false;
       nodos.btnExplore.disabled = true;
       if (nodos.turboSwitch) nodos.turboSwitch.disabled = true; 
@@ -1774,7 +2005,6 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       nodos.btnSoftCancel.disabled = appState.banderaFrenadoSolicitado;
     
       nodos.progressBar.style.width = `${pct}%`;
-      nodos.progressCont.style.display = 'block';
       if (tel) renderers.pintarTelemetria(tel, nodos);
       renderizarListadoInterfaz();
       conectarEscuchadoresDelWorker();
@@ -1795,11 +2025,12 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             appState.fallaConexionActiva = null;
             appState.videoFalladoParaReintento = null;
           
-            nodos.cancelBox.style.display = 'flex';
-            nodos.btnStartQueue.style.display = 'none';
-            nodos.progressCont.style.display = 'block';
+            // Recuperación tras una caída: el footer vuelve a modo descarga. Iba con las tres
+            // escrituras sueltas y sin la clase `downloading`, así que la barra reaparecía sin
+            // su línea divisoria y con el footer en tamaño normal.
+            mostrarFooterDescargando();
             if (req.telemetry) nodos.panelTel.style.display = 'flex';
-          
+
             debeReRenderizar = true;
           }
 
@@ -1966,7 +2197,13 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     // una sola vez y sin depender de que cada rama se acuerde. Ver `sincronizarFooterVacio`.
     function actualizarContadoresBoton() {
       calcularContadoresBoton();
-      sincronizarFooterVacio();
+      // [PISO VISIBLE] Medir sólo si el botón NO quedó en cola. `calcularContadoresBoton` pide
+      // la escritura por `configurarBotonesUX`, que desde el piso puede diferirla; medir acá
+      // en ese caso lee el botón en su estado ANTERIOR y le pone `.vacia` al footer, que lo
+      // esconde entero — la línea divisoria se iba hasta que la escritura aterrizaba. Cuando
+      // hay una pendiente la medición viaja adentro de ella: `aplicarBotonesUX` la hace al
+      // final, que es exactamente el orden que tenía todo esto antes del piso.
+      if (!pisoBoton.hayPendiente()) sincronizarFooterVacio();
       // [TOOLBAR SIN NADA QUE FILTRAR] Enganchado acá y no en cada mutación de la cola porque
       // éste es el embudo por el que ya pasa todo cambio de estado que puede vaciarla o
       // llenarla (encolar, quitar, el ítem que termina en el SW, conmutar de pestaña): son 12
@@ -2046,13 +2283,29 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           nodos.btnStartQueue.style.display = 'none';
         } else {
           nodos.btnAction.style.display = 'none';
-          nodos.btnStartQueue.style.display = appState.ráfagaEnCurso ? 'none' : 'block';
-        
+
+          // [FILA VACÍA ⇒ SIN BOTÓN] Con la fila vacía este botón se MOSTRABA, deshabilitado.
+          // No mentía —no se podía apretar— pero ofrecía la acción igual: un botón grande que
+          // dice "Iniciar descarga masiva 🚀" justo debajo de una tarjeta que dice "Fila de
+          // descarga vacía". Ofrecer una acción que no existe es lo mismo que este archivo ya
+          // corrigió en "Todos" y en "Ordenar"; acá se resuelve escondiendo y no bloqueando,
+          // porque **no hay nada que el usuario pueda hacer desde el footer en esta pestaña**:
+          // lo que tiene que hacer es ir a Disponibles, que es lo que la tarjeta le dice.
+          //
+          // Esconder es seguro acá y no mueve nada de lugar: `sincronizarFooterVacio()` corre
+          // JUSTO DESPUÉS de esta función y colapsa el footer entero cuando no le queda ningún
+          // hijo visible, así que no deja el borde superior flotando sin nada abajo.
+          const filaVacia = appState.colaDescargas.length === 0;
+          nodos.btnStartQueue.style.display = (appState.ráfagaEnCurso || filaVacia) ? 'none' : 'block';
+
           if (verificandoConexionBoton) {
             nodos.btnStartQueue.disabled = true;
             nodos.btnStartQueue.innerHTML = `<span class="spinner-inline"></span> Verificando conexión...`;
           } else {
-            nodos.btnStartQueue.disabled = (appState.colaDescargas.length === 0);
+            // Se conserva el `disabled` aunque esté escondido: son dos propiedades
+            // independientes y dejarlo habilitado-pero-oculto haría que cualquier rama futura
+            // que lo muestre lo muestre apretable sobre una fila vacía.
+            nodos.btnStartQueue.disabled = filaVacia;
             if (!appState.ráfagaEnCurso) {
               nodos.btnStartQueue.innerHTML = "Iniciar descarga masiva 🚀";
             }
@@ -2111,7 +2364,16 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       }
     }
 
+    // [PISO VISIBLE] El label del botón entra por `libre`: se pinta ya, salvo que arriba haya un
+    // cartel de trabajo cumpliendo su mínimo — hoy "Sincronizando disco local…", que sin esto
+    // duraba 117 ms. Va con `libre` y NO con `transitorio` a propósito: éste es el embudo por el
+    // que pasa también el contador ("Agregar 20 clases…"), y ponerle piso a un rótulo de estado
+    // lo vuelve pegajoso — tildar tres casillas rápido dejaría el número atrasado cada vez.
     function configurarBotonesUX(modo, txt, dis) {
+      pisoBoton.libre(() => aplicarBotonesUX(modo, txt, dis));
+    }
+
+    function aplicarBotonesUX(modo, txt, dis) {
       nodos.btnAction.setAttribute('data-modo', modo);
       nodos.btnAction.className = `btn-action modo-${modo}`;
       nodos.btnAction.textContent = txt;
@@ -2181,7 +2443,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       //    a los que el paso 2 les pone la palabra final.
       bloquearRegionesDeAlerta(alertaGlobal || escaneoMuertoDominaLaPestaña());
       // 2) Lo que sigue al portal, en las DOS pestañas.
-      bloquearFilaDePortal(alertaGlobal || !!escaneoMuertoPorTimeout);
+      bloquearFilaDePortal(alertaGlobal || !!escaneoMuerto);
       // 3) Y la toolbar sola, que además se apaga cuando no hay NADA que filtrar. No es una
       //    alerta: es que buscar, filtrar y ordenar sobre una colección vacía no hace nada, y
       //    dejar los controles vivos ofrece una acción que no existe. Va al final porque el
@@ -2198,16 +2460,18 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
      * una alerta y no tiene por qué apagar el resto de la UI.
      */
     function bloquearToolbar(bloquear) {
-      if (nodos.filtersBar) nodos.filtersBar.classList.toggle('bloqueada', bloquear);
-      const wrapperTodos = document.getElementById('ui-master-select-wrapper');
-      if (wrapperTodos) wrapperTodos.setAttribute('aria-disabled', String(bloquear));
-      if (bloquear) {
-        [nodos.search, nodos.btnFilterPills, nodos.btnSort, nodos.masterCheck, nodos.btnToggleSelect]
-          .forEach((c) => { if (c) c.disabled = true; });
-      } else {
-        desbanearFiltros();
-        if (nodos.btnToggleSelect) nodos.btnToggleSelect.disabled = false;
-      }
+      Bloqueo.aplicar(bloquear, {
+        regiones: [nodos.filtersBar],
+        elementos: [
+          nodos.search, nodos.btnFilterPills, nodos.btnSort, nodos.masterCheck,
+          nodos.btnToggleSelect,
+          document.getElementById('ui-master-select-wrapper'),
+        ],
+        // `btnToggleSelect` ya NO se re-habilita acá. Lo hace `desbanearFiltros`, que le
+        // aplica la misma condición que a "Ordenar" (nada visible ⇒ no-op). Ponerlo también
+        // acá lo re-habilitaba SIEMPRE, y como corría después, le pisaba esa condición.
+        restaurar: () => desbanearFiltros(),
+      });
     }
 
     /**
@@ -2229,45 +2493,46 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     }
 
     function bloquearFilaDePortal(bloquear) {
-      const fila = document.querySelector('.meta-row.row-aula');
-      if (fila) fila.classList.toggle('bloqueada', bloquear);
-      // El input admite `disabled`; el badge es un <span> y lleva `aria-disabled` — el mismo
-      // contrato de dos formas que documenta `styles/base.css`, no dos criterios.
-      if (nodos.folder) nodos.folder.disabled = bloquear;
-      if (nodos.facetaBadge) nodos.facetaBadge.setAttribute('aria-disabled', String(bloquear));
+      // El input admite `disabled`; el badge es un <span> y lleva `aria-disabled`. No hay que
+      // decidirlo acá: `Bloqueo` le da a cada uno la forma que admite.
+      //
+      // Ojo con el `restaurar`: esta fila es la única de las tres cuyo control se liberaba
+      // incondicionalmente (`folder.disabled = bloquear`), y se conserva así porque el input
+      // de materia no tiene otra condición que ésta. No copiar este `restaurar` a una región
+      // cuyos controles sí dependan de algo más.
+      Bloqueo.aplicar(bloquear, {
+        regiones: [document.querySelector('.meta-row.row-aula')],
+        elementos: [nodos.folder, nodos.facetaBadge],
+        restaurar: () => { if (nodos.folder) nodos.folder.disabled = false; },
+      });
     }
 
     function bloquearRegionesDeAlerta(bloquear) {
-      const pathBar = document.querySelector('.path-bar');
-      [pathBar, nodos.filtersBar, nodos.cancelBox].forEach((n) => n && n.classList.toggle('bloqueada', bloquear));
-
-      const controles = [
-        nodos.folder, nodos.btnExplore,
-        nodos.search, nodos.btnFilterPills, nodos.btnSort, nodos.masterCheck, nodos.btnToggleSelect,
-        nodos.btnSoftCancel, nodos.btnHardCancel,
-      ];
-      // Lo que NO es un control de formulario no admite `disabled`, así que lleva
-      // `aria-disabled`: el badge de la faceta es un <span> y el "Todos" es un <label>. El CSS
-      // de `.bloqueada` los apaga con `pointer-events` a partir de ese atributo —única forma
-      // de matarles el `cursor: pointer` y el hover— y `faceta.js` lo respeta en su listener.
-      // Es el mismo bloqueo, expresado en la forma que cada elemento admite.
-      [nodos.facetaBadge, document.getElementById('ui-master-select-wrapper')]
-        .forEach((n) => n && n.setAttribute('aria-disabled', String(bloquear)));
-
-      if (bloquear) {
-        controles.forEach((c) => { if (c) c.disabled = true; });
-        return;
-      }
-
-      // Liberar NO es "habilitar todo": cada control tiene su propia condición y ponerlos en
-      // `false` a ciegas habilitaría el buscador sin lista o "Todos" sin sincronizar. Se
-      // delega en quien ya sabe — `desbanearFiltros` para la toolbar — y se restauran a mano
-      // sólo los que dependen del estado de conexión o de la ráfaga.
-      if (nodos.folder) nodos.folder.disabled = false;
-      if (nodos.btnExplore) nodos.btnExplore.disabled = false;
-      desbanearFiltros();
-      if (nodos.btnSoftCancel) nodos.btnSoftCancel.disabled = appState.banderaFrenadoSolicitado;
-      if (nodos.btnHardCancel) nodos.btnHardCancel.disabled = false;
+      // La lista mezcla controles de formulario con un <span> (el badge de la faceta) y un
+      // <label> (el "Todos"): `Bloqueo` le da a cada uno su forma. El CSS de `.bloqueada` los
+      // apaga con `pointer-events` a partir del `aria-disabled` —única forma de matarles el
+      // `cursor: pointer` y el hover— y `faceta.js` lo respeta en su listener.
+      Bloqueo.aplicar(bloquear, {
+        regiones: [document.querySelector('.path-bar'), nodos.filtersBar, nodos.cancelBox],
+        elementos: [
+          nodos.folder, nodos.btnExplore,
+          nodos.search, nodos.btnFilterPills, nodos.btnSort, nodos.masterCheck,
+          nodos.btnToggleSelect,
+          nodos.btnSoftCancel, nodos.btnHardCancel,
+          nodos.facetaBadge, document.getElementById('ui-master-select-wrapper'),
+        ],
+        // Liberar NO es "habilitar todo": se delega en quien ya sabe —`desbanearFiltros` para
+        // la toolbar— y se restauran a mano sólo los que dependen de la conexión o de la
+        // ráfaga. `btnSoftCancel` es el ejemplo de por qué esto no se puede automatizar: su
+        // valor al liberar no es `false`, es una bandera.
+        restaurar: () => {
+          if (nodos.folder) nodos.folder.disabled = false;
+          if (nodos.btnExplore) nodos.btnExplore.disabled = false;
+          desbanearFiltros();
+          if (nodos.btnSoftCancel) nodos.btnSoftCancel.disabled = appState.banderaFrenadoSolicitado;
+          if (nodos.btnHardCancel) nodos.btnHardCancel.disabled = false;
+        },
+      });
     }
 
     function sincronizarFooterVacio() {

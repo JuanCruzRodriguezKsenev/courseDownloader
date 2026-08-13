@@ -108,6 +108,11 @@ const ServerConnectionFeature = {
       bloquearRegiones,
       onReintentarCola,
       onReescanearAula,
+      // [PISO VISIBLE] Apagar la cortina, respetando el mínimo que su texto tenga pendiente.
+      // Entra por ctx —y no escribiendo `nodos.loader.style.display` como antes— porque el
+      // piso vive en el orquestador: escribir el nodo por atrás lo saltea en silencio.
+      // Con default no-op para no romper a los tests que no lo inyectan.
+      ocultarLoader = () => {},
       appState,
       conexion,
       // FASE 8: los puentes de las islas entran por ctx y no por window. Van por acá y no
@@ -178,7 +183,7 @@ const ServerConnectionFeature = {
       // dueños de la misma región puestos de acuerdo a mano, y alcanzaba con que algo tocara el
       // host (una sincronización, un cambio de pestaña) para que la lista volviera abajo.
       bannerConexion.mostrar(tipo);
-      nodos.loader.style.display = 'none';
+      ocultarLoader();
 
       // El path del disco sólo se pierde si el que cayó es el servidor Bun (localhost).
       if (tipo === "servidor") {

@@ -23,19 +23,51 @@
     outline: none;
     height: 24px;
     box-sizing: border-box;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 
+    /* Mismo foco que el input de materia (`path-bar.css`), y por eso suma el halo que antes no
+       tenía: son los dos únicos campos de texto del popup y se veían distinto. Con el halo, el
+       indicador propio es lo bastante visible como para poder apagar el outline global —el
+       cambio de color del borde, solo, no lo era. */
     &:focus {
       border-color: var(--accent-orange);
+      box-shadow: 0 0 0 2px rgba(var(--accent-orange-rgb), 0.15);
+    }
+
+    /* El mismo triple foco que tenía materia: ver el comentario largo en `path-bar.css`. */
+    &:focus-visible {
+      outline: none;
     }
   }
 
+  /* ── El componente "disparador + menú que se re-ancla" ────────────────────────────────
+     Los dos menús de esta barra (Filtros y Orden) son la misma cosa y ahora comparten el
+     mecanismo entero. Lo único propio de cada instancia es **una línea**: el nombre de su
+     ancla, en `--ancla`. Se declara acá, en el contenedor, y de ahí lo heredan las dos partes
+     que lo necesitan — el botón (que se llama así) y el menú (que se ata a ese nombre).
+
+     Va por variable heredada y no por `anchor-scope`, que es la pieza del estándar pensada
+     justo para esto: MDN todavía lo da como no soportado en ningún navegador. Con la variable,
+     un tercer menú son tres líneas de HTML y un `--ancla:` acá — sin tocar nada del mecanismo.
+
+     Cuidado con lo único que NO se puede compartir: **el nombre tiene que ser distinto por
+     instancia**. Dos anclas con el mismo nombre no conviven — el menú se ata a la ÚLTIMA del
+     documento, así que los dos menús saldrían del mismo botón. */
   .filter-dropdown {
     position: relative;
     display: inline-block;
     flex: 1;
     min-width: 0;
     max-width: 90px;
+
+    /* El botón ES el ancla. `var()` acá es lo que hace genérico al componente. */
+    > button {
+      anchor-name: var(--ancla);
+    }
   }
+
+  #ui-filter-dropdown-container { --ancla: --menu-filtros; }
+  #ui-sort-dropdown-container { --ancla: --menu-orden; }
 
   .pill-filter-btn {
     width: 100%;
@@ -82,10 +114,18 @@
   }
 
   .filter-menu-popover {
-    position: absolute;
-    top: 28px;
-    right: 0;
-    width: 160px;
+    /* El ancho lo pone el contenido, no un número fijo. Con `width: 160px` los nombres de
+       módulo largos (GENERALIDADES_DE_ANATOMIA, LIBROS_Y_HERRAMIENTAS_DE_ESTUDIO) se envolvían
+       abajo del checkbox y la opción dejaba de leerse como una fila. */
+    width: max-content;
+    min-width: 160px;
+    /* La lista de materias es tan larga como módulos tenga el portal (en Anatomy, once), así
+       que sin tope el popover crecía fuera de la ventana y **la barra que aparecía era la de
+       la página**: se scrolleaba el popup entero, con el menú abierto arrastrándose. El scroll
+       es del menú. */
+    max-height: 240px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     /* Opaco a propósito (2026-08-05). Antes era `--bg-overlay` (82%) + blur de 16px, o sea
        vidrio esmerilado: se leía la lista por detrás de las opciones. NO se tocó el token,
        porque `--bg-overlay` lo comparten cuatro fondos de modal (advertencia, faceta, loader,
@@ -102,6 +142,36 @@
     gap: var(--space-sm);
     box-sizing: border-box;
     animation: popover-fade-in 0.15s ease-out;
+
+  /* ── Dónde se pinta: sale de su botón, y se corre solo si no entra ─────────────────────
+     El problema: anclado a su botón, el borde derecho del menú queda a ~229px del izquierdo
+     del popup, así que cualquier panel más ancho se sale por la izquierda y se corta. Y la
+     lista de materias necesita más: los nombres de módulo son largos.
+
+     Bajarle el ancho es perder texto; colgarlo de la barra lo despega del botón que lo abre.
+     La tercera salida es la que el navegador ya sabe hacer: **CSS Anchor Positioning**. Se
+     declara la posición preferida (debajo del botón, alineado a su borde derecho) y una
+     alternativa; el navegador MIDE antes de pintar y usa la alternativa sólo si la preferida
+     se sale. Sin JS, sin medir a mano y sin un reflow de más.
+
+     `position: fixed` y no `absolute` a propósito: con `fixed` el bloque contenedor es la
+     ventana —o sea el popup entero, 390px— y el desborde se mide contra eso, que es
+     exactamente la pregunta que queremos que conteste. Con `absolute` el bloque contenedor
+     sería `.filter-dropdown`, de 90x24, y la medición no significaría nada. Acá `fixed` no
+     tiene su contra habitual: el `<body>` de un popup de extensión no scrollea
+     (`overflow: hidden` en `styles/base.css`), que es el mismo motivo por el que `capa.css`
+     eligió al revés. Requisito: ningún ancestro con `transform`/`filter`/`backdrop-filter`,
+     porque eso volvería a hacerlos bloque contenedor — verificado, no hay.
+
+     Chrome 125+. Es todo lo que hace falta saber acá: esta extensión corre en Chrome/Brave, se
+     carga desempaquetada y no se publica, así que un @supports con un camino alternativo sería
+     código que nadie va a ejecutar nunca. */
+    position: fixed;
+    position-anchor: var(--ancla);
+    top: calc(anchor(bottom) + 4px);
+    right: anchor(right);
+    max-width: 300px;
+    position-try-fallbacks: --menu-contra-el-borde;
   }
 
   .popover-section-title {
@@ -136,6 +206,16 @@
       cursor: pointer;
       width: 12px;
       height: 12px;
+      /* Sin esto el checkbox es lo que cede cuando la etiqueta no entra: se achica hasta
+         deformarse, o la envuelve y queda arriba del texto en vez de al lado. El que tiene que
+         ceder es el texto. */
+      flex-shrink: 0;
+    }
+
+    /* Un nombre más largo que el tope corta por donde sea antes que desbordar el popover
+       horizontalmente — la única salida peor que envolver. */
+    span {
+      overflow-wrap: anywhere;
     }
   }
 
@@ -282,6 +362,34 @@
     input {
       flex-shrink: 0;
     }
+
+    /* Deshabilitado por su cuenta — NO por una región en alerta (para eso está `.bloqueada`).
+       Pasa cuando el filtro no dejó nada seleccionable o el disco no sincronizó todavía.
+
+       El control es un <label> con dos hijos, y sin esto quedaba partido al medio: la casilla
+       tomaba su `:disabled` de `base.css` (apagada, `cursor: not-allowed`) y el texto "Todos"
+       se quedaba con el `cursor: pointer` y el color plenos de la regla de arriba. O sea que
+       la mitad derecha del mismo control **decía "clickeame"** mientras la izquierda decía lo
+       contrario. Es el defecto de "dos densidades" del §2.1 de alertas-y-bloqueo-diseno.md,
+       reentrando por el bloqueo individual en vez de por el de región.
+
+       El tinte va en el LABEL para que alcance al texto, y por eso hay que neutralizar el
+       propio de la casilla: dos `opacity: 0.5` anidados dan 0,25 y volvíamos a tener las dos
+       densidades, ahora dentro del mismo control.
+
+       `not-allowed` y no `default` a propósito: acá no hay una región apagada que se lea como
+       "ahora no", hay UN control que no se puede usar. Adentro de `.bloqueada` manda la
+       región igual —su regla lleva `!important` y ésta no—, así que los dos estados siguen
+       siendo distinguibles y ninguno queda desparejo. */
+    &[aria-disabled="true"] {
+      opacity: 0.5;
+      cursor: not-allowed;
+
+      input:disabled {
+        opacity: 1;
+        cursor: not-allowed;
+      }
+    }
   }
 }
 
@@ -290,4 +398,18 @@
 @keyframes popover-fade-in {
   from { opacity: 0; transform: translateY(-3px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* La alternativa del menú de filtros: si alineado al botón se sale por la izquierda, el
+   navegador lo corre contra el borde derecho de la ventana. Va acá arriba de todo, sin anidar,
+   por el mismo motivo que los @keyframes: es una regla de ámbito global.
+
+   `0.75rem` no es un número suelto — es el `padding` del `.container` (`styles/base.css`), así
+   que el menú corrido queda a ras de la barra de filtros y no pegado al vidrio de la ventana.
+
+   Sólo puede tocar posición, márgenes, tamaño y alineación: `@position-try` no admite otras
+   propiedades. El `max-width` de 300px vive en la regla normal justamente por eso — no cambia
+   entre una posición y la otra. */
+@position-try --menu-contra-el-borde {
+  right: 0.75rem;
 }

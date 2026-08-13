@@ -53,7 +53,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   delete globalThis.AppState;
-  document.querySelector('.faceta-overlay')?.remove();
+  document.querySelector('.capa-overlay')?.remove();
 });
 
 describe('FacetaFeature.actualizarBadge', () => {
@@ -125,7 +125,7 @@ describe('FacetaFeature.verificarYMostrarAsistente', () => {
 
     feature.verificarYMostrarAsistente();
 
-    const overlay = document.querySelector('.faceta-overlay');
+    const overlay = document.querySelector('.capa-overlay');
     expect(overlay).not.toBeNull();
     const labels = [...overlay.querySelectorAll('.btn-faceta-opt')].map(b => b.textContent);
     expect(labels).toEqual(['Cátedra A', 'Cátedra B', 'Cátedra C']); // ordenadas
@@ -152,7 +152,7 @@ describe('FacetaFeature.verificarYMostrarAsistente', () => {
 
     feature.verificarYMostrarAsistente();
 
-    expect(document.querySelector('.faceta-overlay')).toBeNull();
+    expect(document.querySelector('.capa-overlay')).toBeNull();
     expect(AppState.listadoClasesGlobal[0].seleccionado).toBe(true);
     expect(aplicarFiltros).toHaveBeenCalled();
   });
@@ -165,7 +165,7 @@ describe('FacetaFeature.verificarYMostrarAsistente', () => {
     feature.verificarYMostrarAsistente();
 
     expect(AppState.facetaElegidaDe('ramonnet')).toBeNull();
-    expect(document.querySelector('.faceta-overlay')).toBeNull();
+    expect(document.querySelector('.capa-overlay')).toBeNull();
   });
 });
 
@@ -178,7 +178,7 @@ describe('FacetaFeature — click en el badge y modal', () => {
     const { badge, aplicarFiltros } = crearFeature();
 
     badge.click();
-    const overlay = document.querySelector('.faceta-overlay');
+    const overlay = document.querySelector('.capa-overlay');
     expect(overlay).not.toBeNull();
 
     // Elegir "Cátedra B" aplica la selección y remueve el overlay.
@@ -188,7 +188,7 @@ describe('FacetaFeature — click en el badge y modal', () => {
     expect(AppState.facetaElegidaDe('ramonnet')).toBe('B');
     expect(AppState.listadoClasesGlobal[1].seleccionado).toBe(true);
     expect(aplicarFiltros).toHaveBeenCalled();
-    expect(document.querySelector('.faceta-overlay')).toBeNull();
+    expect(document.querySelector('.capa-overlay')).toBeNull();
   });
 
   it('click en el badge con un solo valor no abre modal', () => {
@@ -197,7 +197,7 @@ describe('FacetaFeature — click en el badge y modal', () => {
 
     badge.click();
 
-    expect(document.querySelector('.faceta-overlay')).toBeNull();
+    expect(document.querySelector('.capa-overlay')).toBeNull();
   });
 });
 
@@ -242,7 +242,7 @@ describe('FacetaFeature — con el descriptor de OTRO sitio', () => {
 
     feature.verificarYMostrarAsistente();
 
-    const overlay = document.querySelector('.faceta-overlay');
+    const overlay = document.querySelector('.capa-overlay');
     expect(overlay.querySelector('h4').textContent).toBe('Varias comisiones');
     const labels = [...overlay.querySelectorAll('.btn-faceta-opt')].map(b => b.textContent);
     expect(labels).toEqual(['Comisión 1', 'Comisión 2']); // 'GENERAL' no es una opción
@@ -316,7 +316,7 @@ describe('FacetaFeature — el modal sólo mira las clases del portal activo (mu
 
     // Un solo valor propio ('A'): no corresponde modal. Con el ítem ajeno contado serían dos
     // y se habría abierto, ofreciendo "Cátedra ZZZ".
-    expect(document.querySelector('.faceta-overlay')).toBeNull();
+    expect(document.querySelector('.capa-overlay')).toBeNull();
     expect(AppState.facetaElegidaDe('ramonnet')).toBeNull();
   });
 });

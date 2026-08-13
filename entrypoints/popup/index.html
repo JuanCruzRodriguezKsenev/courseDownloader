@@ -9,7 +9,14 @@
 
   <div id="ui-loader" class="loader-overlay" aria-live="polite">
     <div class="spinner"></div>
-    <div class="loader-text" id="ui-loader-txt">Leyendo la pestaña...</div>
+    <!-- El texto inicial tiene que ser el de la PRIMERA fase real, que es conectar con el
+         servidor Bun (popup.js, conectarYArrancar) — no el del escaneo, que va después. El
+         loader nace visible por CSS (.loader-overlay { display: flex }) para que no se vea la
+         UI sin estilos, así que este texto se muestra ANTES de que corra una línea de JS: si
+         nombra otra fase, la secuencia queda pestaña → servidor → pestaña. Sigue siendo copy
+         genérica obligatoria (caso C de docs/copy-generico-diseno.md): acá todavía no hay
+         portal resuelto que nombrar. -->
+    <div class="loader-text" id="ui-loader-txt">Conectando con el servidor Bun...</div>
   </div>
 
   <!-- Overlay del Tutorial de Bienvenida (Onboarding).
@@ -73,6 +80,9 @@
           <span>Filtros</span>
           <span class="arrow">▼</span>
         </button>
+        <!-- Los dos menús de esta barra (éste y el de orden) son el mismo componente: mismo
+             markup, misma clase, mismo mecanismo. Lo único propio de cada uno es el `--ancla`
+             que declara su contenedor en `filters.css`. -->
         <div id="ui-filter-menu" class="filter-menu-popover" style="display: none;"></div>
       </div>
 

@@ -160,6 +160,13 @@ historia de qué se migró en qué fase no está acá: vive en `docs/rearquitect
   | `queue.js` (`QueueFeature`) | Ciclo de vida completo de la cola: encolar/quitar, cancelar, arrancar, reanudar tras caída | Sin `chrome.*`: el puerto le llega como `ctx.mensajeria`. |
   | `filters.js` (`FilterFeature`) | Búsqueda + filtros por estado/materia/faceta + popover | Dueña del predicado unificado `coincideConFiltrosCola`. **Trampa**: su objeto `filtrosActivos` viaja **por referencia** en `ctx`, porque algunos call-sites de `popup.js` todavía lo mutan. |
   | `faceta.js` (`FacetaFeature`) | Badge + asistente/modal de autoselección del eje de clasificación del sitio | **Genérica**: el vocabulario lo pone el descriptor del sitio (ver §UI de `rearquitectura-diseno.md`). |
+  | `orden.js` (`OrdenFeature`) | Criterio de orden (llegada/nombre/faceta/portal) + sentido ↑↓ y su popover | Entró con el corte 6b del multi-sitio. En la Cola el orden que se ve **es** el orden en que se baja. |
+  | `bloqueo.js` (`Bloqueo`) | El contrato de "este control no se puede usar ahora", en un solo lugar | Estaba copiado en tres funciones de `popup.js`. `pointer-events` **no** es un bloqueo: deja pasar el teclado. Las cuatro reglas → `docs/alertas-y-bloqueo-diseno.md` §2. |
+  | `pisoVisible.js` (`crearPisoVisible`) | El mínimo de tiempo que un cartel de "estoy trabajando" se queda en pantalla | **No es dueño de ningún nodo**: resuelve el *cuándo*, no el *quién* — escribir el nodo por atrás lo saltea en silencio. La mitad que falta (la demora para aparecer) sigue en `docs/TECHNICAL_DEBT.md`. |
+
+  No son features, pero viven en la misma carpeta y conviene no confundirlas: `capa.preact.js`
+  (la superficie flotante compartida — un **componente**, no una isla) y los seis `*.preact.js`
+  de las islas, todos mapeados en `docs/preact-migration.md`.
 
 - **Islas Preact** (`popup/vendor/htm-preact-standalone.module.js`, importadas al final de
   `entrypoints/popup/main.js`; el service worker sigue vanilla). Seis: `conexionHeader`,

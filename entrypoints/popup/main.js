@@ -113,7 +113,7 @@ chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
 
 // ─── BANCO DE PRUEBAS ────────────────────────────────────────────────────────────────────
 //
-// ⬇⬇⬇  PONÉ `true` ACÁ PARA ACTIVARLO, Y `npm run build`.  ⬇⬇⬇
+// ⬇⬇⬇  PONÉ `true` ACÁ PARA ACTIVARLO, Y `pnpm run build`.  ⬇⬇⬇
 const BANCO_DE_PRUEBAS = false;
 // ⬆⬆⬆  Es la única línea que hay que tocar.  ⬆⬆⬆
 //
@@ -130,10 +130,14 @@ const BANCO_DE_PRUEBAS = false;
 // cada vez que se usa es una herramienta que no se usa. Acá se mantiene sola con el resto.
 //
 // **Apagado NO cuesta nada, y está medido**: la bandera es una `const` literal, así que el
-// `if` es código muerto y Vite se lleva el módulo entero en el tree-shaking. Comprobado
-// comparando los dos builds — en `false`: 225,71 kB y **cero** ocurrencias de `mv-panel` en el
-// bundle; en `true`: 243,21 kB. Por eso la bandera es una `const` y no una variable, un
-// `let`, ni algo leído de storage: cualquiera de esas tres lo dejaría adentro para siempre.
+// `if` es código muerto y Vite se lleva el módulo entero en el tree-shaking (cero ocurrencias
+// de `mv-panel` en el bundle). Por eso la bandera es una `const` y no una variable, un `let`,
+// ni algo leído de storage: cualquiera de esas tres lo dejaría adentro para siempre.
+//
+// **Los kB medidos NO se copian acá.** Vivían duplicados en este comentario y quedaron viejos
+// una versión entera del banco, diciendo un número que ya no era. El hogar canónico es la
+// cabecera de `verificacion/modoVerificacion.js`, que además explica por qué lo que hay que
+// leer es la resta entre los dos builds y no el total de ninguno.
 //
 // Y por eso el import es **estático** y no un `import()` dinámico, que sería el reflejo obvio:
 // el banco **envuelve `fetch`, `chrome.tabs.query` y `chrome.runtime.sendMessage`**, y tiene

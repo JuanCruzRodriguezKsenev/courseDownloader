@@ -17,7 +17,8 @@
  * htm/Preact los escapa. NUNCA dangerouslySetInnerHTML acá (regla de docs/security.md).
  * ==========================================================================
  */
-import { html, render, useState, useEffect } from '../vendor/htm-preact-standalone.module.js';
+import { html, render, useState, useEffect, useRef } from '../vendor/htm-preact-standalone.module.js';
+import { Capa } from './capa.preact.js';
 
 // Etiqueta corta por tipo para la fila del panel (el título largo va en la notificación
 // nativa; acá alcanza con un chip escaneable).
@@ -77,34 +78,45 @@ export function FilaFallo({ fallo }) {
     </li>`;
 }
 
+// El CONTENIDO del panel. La superficie (fondo, borde, sombra) y el cierre los pone `Capa`
+// (`capa.preact.js`); acá quedó sólo lo que es propio del historial de fallos.
 export function PanelFallos({ lista, onMarcarLeidos, onLimpiar }) {
   return html`
-    <div class="campanita-panel">
-      <div class="campanita-panel-head">
-        <strong>Fallos de descarga</strong>
-        <div class="campanita-acciones">
-          <button class="campanita-accion" onClick=${onMarcarLeidos} disabled=${lista.length === 0}>Marcar leídas</button>
-          <button class="campanita-accion" onClick=${onLimpiar} disabled=${lista.length === 0}>Limpiar</button>
-        </div>
+    <div class="campanita-panel-head">
+      <strong>Fallos de descarga</strong>
+      <div class="campanita-acciones">
+        <button class="campanita-accion" onClick=${onMarcarLeidos} disabled=${lista.length === 0}>Marcar leídas</button>
+        <button class="campanita-accion" onClick=${onLimpiar} disabled=${lista.length === 0}>Limpiar</button>
       </div>
-      ${lista.length === 0
-        ? html`<div class="campanita-vacio">Sin fallos 🎉</div>`
-        : html`<ul class="campanita-lista">${lista.map((f) => html`<${FilaFallo} key=${f.id} fallo=${f} />`)}</ul>`}
-    </div>`;
+    </div>
+    ${lista.length === 0
+      ? html`<div class="campanita-vacio">Sin fallos 🎉</div>`
+      : html`<ul class="campanita-lista">${lista.map((f) => html`<${FilaFallo} key=${f.id} fallo=${f} />`)}</ul>`}`;
 }
 
 export function Campanita({ historial }) {
   const lista = useHistorialFallos(historial);
   const [abierto, setAbierto] = useState(false);
   const noLeidos = lista.reduce((n, f) => (f.leido ? n : n + 1), 0);
+  // El contenedor envuelve AL BOTÓN Y AL PANEL. `Capa` lo usa para saber qué es "afuera": sin
+  // esto, tocar la campanita estando abierto dispara el cierre por clic-afuera **y** el toggle
+  // del botón, se anulan, y el panel no se cierra nunca.
+  const contenedor = useRef(null);
 
   const marcar = () => { if (historial) historial.marcarTodosLeidos(); };
   const limpiar = () => { if (historial) historial.limpiar(); };
 
   return html`
-    <div class="campanita">
+    <div class="campanita" ref=${contenedor}>
       <${CampanitaBoton} count=${noLeidos} onClick=${() => setAbierto((a) => !a)} />
-      ${abierto && html`<${PanelFallos} lista=${lista} onMarcarLeidos=${marcar} onLimpiar=${limpiar} />`}
+      <${Capa} variante="anclado"
+               abierto=${abierto}
+               onCerrar=${() => setAbierto(false)}
+               etiqueta="Fallos de descarga"
+               clase="campanita-panel"
+               contenedorRef=${contenedor}>
+        <${PanelFallos} lista=${lista} onMarcarLeidos=${marcar} onLimpiar=${limpiar} />
+      <//>
     </div>`;
 }
 
