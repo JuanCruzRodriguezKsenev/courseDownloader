@@ -27,39 +27,81 @@
   width: 100%;
 }
 
+/* Línea divisoria entre las dos filas, la misma del footer y la del separador de descarga:
+   `1px solid var(--border-color)`. Es el token compartido y no un gris propio — un divisor que
+   no matchea a los otros dos se lee como otra cosa.
+
+   Va sobre el HERMANO (`+`) y no sobre `.row-aula` por dos motivos: la primera fila nunca
+   queda con una línea colgando arriba (que sería un borde repetido, porque `.path-bar` ya
+   tiene el suyo), y si algún día entra una tercera fila, la hereda sola.
+
+   El `padding-top` iguala al `gap: 0.5rem` de la barra a propósito: el gap queda ARRIBA de la
+   línea y el padding ABAJO, así el divisor cae centrado entre las dos filas en vez de pegado
+   a la de abajo. */
+.meta-row + .meta-row {
+  border-top: 1px solid var(--border-color);
+  padding-top: 0.5rem;
+}
+
 .meta-label {
   font-size: var(--text-sm);
   font-weight: var(--font-bold);
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  /* SIN ancho reservado: cada rótulo mide lo suyo y su valor arranca pegado a él.
+     Las dos filas quedan escalonadas a propósito (📁 PC: ~48px, 📚 MATERIA: ~78px), y ésa fue
+     la elección: el hueco de ~30px que dejaba la columna compartida detrás de "PC:" se leía
+     como un error de alineación, no como una grilla.
+
+     HISTORIA, PARA QUE NO VUELVA EN CÍRCULO. Primero fue `width: 42px` fijo, que recortaba
+     "📚 MATERIA:". El arreglo fue `min-width: 78px`, que dejó de recortar pero fijó la columna
+     al rótulo más largo — y de ahí salía el hueco. **Volver a poner un ancho acá reabre una de
+     las dos cosas**, según el número que se elija.
+
+     Lo que impide que el rótulo se recorte hoy NO es un ancho, son estas dos: `white-space:
+     nowrap` (no parte en dos líneas) y `flex-shrink: 0` (ni el input de materia ni el badge de
+     la faceta se lo comen cuando la fila queda justa — que es cuando se veía el defecto
+     original, con el badge de cátedra en pantalla). Las dos son obligatorias. */
   white-space: nowrap;
-  /* Era `width: 42px` fijo "para alinear columnas simétricamente", y 42px no alcanzan para
-     "📚 MATERIA:": la etiqueta salía cortada. Con `min-width` se conserva lo que el ancho fijo
-     buscaba —las dos filas arrancan en la misma columna— sin recortar la más larga, y
-     `flex-shrink: 0` evita que el input o el badge de la faceta se la coman cuando la fila
-     queda justa (que es cuando se veía el defecto: con el badge de cátedra en pantalla). */
-  min-width: 78px;
   flex-shrink: 0;
   display: inline-block;
 }
 
+/* La ruta del disco es un VALOR de sólo lectura, no un campo. Tenía el mismo fondo, borde,
+   radio, alto y padding que `.input-path` —la fila de abajo, que sí se edita—, así que se leía
+   como un input; y como uno roto, porque no toma foco ni acepta texto. Ahora la única caja de
+   esta barra es la que de verdad se escribe. Sacar el recuadro arregla de paso lo otro que se
+   veía mal: el valor arrancaba ~9px más adentro que su etiqueta, por el padding y el borde.
+
+   TRES COSAS QUE NO SON GUSTO, Y SE ROMPEN SI SE TOCAN:
+
+   1. `display: block`, NO `flex`. Así estaba, y por eso el texto se cortaba a cuchillo, sin
+      puntos suspensivos: `text-overflow` **no aplica a un contenedor flex** (el texto queda
+      como ítem anónimo). El centrado vertical lo hace `line-height`, que no tiene ese efecto.
+   2. `min-width: 0`. Un ítem flex no baja de su ancho de contenido por defecto, así que sin
+      esto la ruta empuja la fila y el ellipsis no aparece nunca, aunque el resto esté bien.
+   3. El recorte va por la IZQUIERDA (`direction: rtl` + `text-align: left`). Con el recorte
+      normal se come el final, que en una ruta es la única parte que dice algo:
+      `C:\Users\jcrod\OneDrive\…` no informa a dónde se está bajando. Así se ve la cola, que es
+      la carpeta de destino. El orden real de los caracteres lo devuelve el `<bdi dir="ltr">`
+      que pone la isla (`rutaDisco.preact.js`); sin él, la dirección rtl reordena los separado-
+      res y la ruta se lee al revés. La ruta completa sigue estando en el `title`. */
 .pc-path-text {
   flex: 1;
+  min-width: 0;
+  display: block;
+  height: 24px;
+  line-height: 24px;
+  box-sizing: border-box;
   font-size: var(--text-base);
   font-family: var(--font-mono);
-  color: var(--text-muted);
+  color: var(--text-main);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  background-color: var(--bg-main);
-  padding: 0 var(--space-sm);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-color);
-  height: 24px;
-  display: flex;
-  align-items: center;
-  box-sizing: border-box;
+  direction: rtl;
+  text-align: left;
 }
 
 .input-path {
@@ -81,6 +123,20 @@
     border-color: var(--accent-orange);
     box-shadow: 0 0 0 2px rgba(var(--accent-orange-rgb), 0.15);
   }
+
+  /* UN SOLO TRATAMIENTO DE FOCO. El `outline: none` de arriba no alcanzaba: `base.css` tiene
+     `input:focus-visible { outline: 2px solid … }` como default de accesibilidad, y ése le gana
+     —(0,1,1) contra (0,1,0)—, así que al entrar al campo se veían TRES cosas encimadas: el
+     borde naranja, el halo de 2px y encima el outline con su `outline-offset: 1px`. Eso es lo
+     que se leía como borde doble.
+
+     Se apaga acá y NO en `base.css`: el default global tiene que seguir valiendo para todo lo
+     que no traiga foco propio. Apagarlo es legítimo **sólo porque este campo ya muestra un foco
+     bien visible** (borde + halo, los dos naranjas). Un control al que le saques el outline sin
+     darle otro indicador queda sin foco visible para quien navega con teclado. */
+  &:focus-visible {
+    outline: none;
+  }
 }
 
 .btn-settings, .btn-explore {
@@ -97,20 +153,22 @@
   gap: var(--space-xs);
   height: 24px;
   box-sizing: border-box;
-  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+  /* `transform` salió de la lista: ya no queda nadie que lo mueva (ni el hover ni el clic).
+     Dejar una propiedad en la transición que nadie cambia no rompe, pero es la invitación a que
+     el próximo la use sin darse cuenta de que va a animarse. */
+  transition: box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1),
               background-color 0.2s ease;
 
+  /* Sin `translateY(-0.5px)`: parpadeaba en vez de moverse. Ver `styles/list.css` (.video-item).
+     La sombra se queda: no mueve nada de lugar ni fuerza a re-rasterizar el texto. */
   &:hover:not(:disabled) {
     background-color: var(--bg-surface);
     border-color: var(--text-muted);
-    transform: translateY(-0.5px);
     box-shadow: 0 2px 5px rgba(var(--shadow-rgb), 0.05);
   }
 
-  &:active:not(:disabled) {
-    transform: scale(0.96);
-  }
+  /* Sin `&:active { transform: scale(0.96) }` — el "hundido" de Explorar. Escalar re-rasteriza
+     el texto del botón y se leía como parpadeo. Ver `styles/list.css` (.video-item). */
 
   &:disabled {
     opacity: 0.5;
