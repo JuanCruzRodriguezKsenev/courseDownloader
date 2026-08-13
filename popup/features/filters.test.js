@@ -236,6 +236,35 @@ describe('FilterFeature.aplicarFiltrosCruzados', () => {
     expect(ctx.actualizarContadores).toHaveBeenCalled();
   });
 
+  // Antes esto era `coincideMateria = true` fijo para toda clase con módulo: el Set se llenaba
+  // y no pasaba nada. El síntoma era "el filtro de materia no existe en Disponibles".
+  it('filtra por materia a las clases con módulo, que ya no miran el input', () => {
+    const { feature, filtrosActivos, nodos } = crearFeature();
+    nodos.folder.value = ''; // el input está vacío: en un portal de dos niveles es lo normal
+    AppState.listadoClasesGlobal = [
+      { titulo: 'a', modulo: 'Tórax', carpeta: 'TORAX', estado: 'pending' },
+      { titulo: 'b', modulo: 'Abdomen', carpeta: 'ABDOMEN', estado: 'pending' },
+    ];
+
+    filtrosActivos.materias.add('TORAX');
+    feature.aplicarFiltrosCruzados();
+
+    expect(AppState.listadoClasesGlobal[0].visible).toBe(true);
+    expect(AppState.listadoClasesGlobal[1].visible).toBe(false);
+  });
+
+  it('sin materias marcadas, el input vacío no esconde a las clases con módulo', () => {
+    const { feature, nodos } = crearFeature();
+    nodos.folder.value = '';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'a', modulo: 'Tórax', carpeta: 'TORAX', estado: 'pending' },
+    ];
+
+    feature.aplicarFiltrosCruzados();
+
+    expect(AppState.listadoClasesGlobal[0].visible).toBe(true);
+  });
+
   // [LA SELECCIÓN SIGUE AL FILTRO] Sin esto la selección quedaba invisible y operante: "Todos"
   // sin filtro marcaba las 103, filtrabas a 12 en pantalla y el botón seguía ofreciendo —y
   // encolando— las 103, porque el conteo lee `seleccionado` y no `visible`.
@@ -501,6 +530,55 @@ describe('FilterFeature.renderizarFiltrosMenuPopover', () => {
 
     expect(filtrosActivos.estados.has('pending')).toBe(true);
     expect(ctx.renderizar).toHaveBeenCalled();
+  });
+
+  // [ESCANEO-API CORTE 1, deuda] En un portal de dos niveles cada clase trae su módulo, así que
+  // la carpeta ya no sale del input — y Disponibles se quedó sin eje de materia mientras la Cola
+  // sí lo tenía. Estos cuatro fijan que exista, que filtre, y las dos condiciones de que aparezca.
+  it('en Disponibles arma la sección Materia con los módulos escaneados', () => {
+    const { feature, nodos } = crearFeature();
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'a', modulo: 'Tórax', carpeta: 'TORAX', estado: 'pending' },
+      { titulo: 'b', modulo: 'Abdomen', carpeta: 'ABDOMEN', estado: 'pending' },
+      { titulo: 'c', modulo: 'Tórax', carpeta: 'TORAX', estado: 'pending' },
+    ];
+
+    feature.renderizarFiltrosMenuPopover();
+
+    const titulos = [...nodos.filterMenu.querySelectorAll('.popover-section-title')].map(t => t.textContent);
+    expect(titulos).toContain('Materia');
+    const opciones = [...nodos.filterMenu.querySelectorAll('.popover-option span')].map(s => s.textContent);
+    // Ordenadas y sin repetir: Tórax aparece en dos clases y da UNA opción.
+    expect(opciones.filter(o => o.startsWith('📁'))).toEqual(['📁 ABDOMEN', '📁 TORAX']);
+  });
+
+  it('no arma la sección Materia con un solo módulo — una opción no filtra nada', () => {
+    const { feature, nodos } = crearFeature();
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'a', modulo: 'Tórax', carpeta: 'TORAX', estado: 'pending' },
+      { titulo: 'b', modulo: 'Tórax', carpeta: 'TORAX', estado: 'pending' },
+    ];
+
+    feature.renderizarFiltrosMenuPopover();
+
+    const titulos = [...nodos.filterMenu.querySelectorAll('.popover-section-title')].map(t => t.textContent);
+    expect(titulos).not.toContain('Materia');
+  });
+
+  it('no arma la sección Materia en un portal de un nivel — ahí la carpeta la pone el input', () => {
+    const { feature, nodos } = crearFeature();
+    AppState.pestañaActiva = 'disponibles';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'a', carpeta: 'biologia', estado: 'pending' },
+      { titulo: 'b', carpeta: 'quimica', estado: 'pending' },
+    ];
+
+    feature.renderizarFiltrosMenuPopover();
+
+    const titulos = [...nodos.filterMenu.querySelectorAll('.popover-section-title')].map(t => t.textContent);
+    expect(titulos).not.toContain('Materia');
   });
 
   it('en Cola arma Materia + Cátedra derivadas de la cola', () => {

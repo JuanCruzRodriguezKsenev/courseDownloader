@@ -182,8 +182,12 @@ const FilterFeature = {
         // decide su módulo, así que compararla contra el input dejaría **toda la lista
         // invisible** apenas el input quede vacío — que es justamente lo que pasa ahora en un
         // portal de dos niveles. Sin módulo, la comparación de siempre.
+        // Con módulo, el eje de materia lo decide el POPOVER (sección Materia), no el input.
+        // Antes esto era `true` fijo, o sea: en un portal de dos niveles no había forma de
+        // filtrar por materia en Disponibles, aunque el mismo Set ya filtrara la Cola.
         const coincideMateria = clase.modulo
-          ? true
+          ? (filtrosActivos.materias.size === 0
+             || filtrosActivos.materias.has((clase.carpeta || '').toUpperCase()))
           : (!clase.carpeta || (clase.carpeta.toLowerCase() === materiaActiva));
         const coincideTexto = clase.titulo.toLowerCase().includes(busqueda);
         const coincideEstado = filtrosActivos.estados.size === 0 || filtrosActivos.estados.has(clase.estado);
@@ -359,6 +363,41 @@ const FilterFeature = {
       nodos.filterMenu.innerHTML = "";
 
       if (appState.pestañaActiva === "disponibles") {
+        // --- Sección Materia (portales de dos niveles) ---
+        // [ESCANEO-API CORTE 1, deuda] En un portal donde cada clase trae su propio módulo, la
+        // carpeta dejó de salir del input de materia — y con eso Disponibles se quedó SIN eje de
+        // materia, mientras la Cola sí lo tenía. Se veía como que el filtro no existía; en
+        // realidad `aplicarFiltrosCruzados` daba `coincideMateria = true` fijo para esas clases.
+        //
+        // Sólo se ofrece con DOS o más: una sección de una opción no filtra nada, es ruido. Es
+        // el mismo criterio con el que la sección Tipo se esconde en Ramón Net.
+        const materiasDisponibles = Array.from(new Set(
+          clasesDelPortalActivo()
+            .filter(c => c.modulo && c.carpeta)
+            .map(c => c.carpeta.toUpperCase())
+        )).sort();
+
+        if (materiasDisponibles.length > 1) {
+          const secMateria = document.createElement("div");
+          secMateria.className = "popover-section";
+
+          const titMateria = document.createElement("div");
+          titMateria.className = "popover-section-title";
+          titMateria.textContent = "Materia";
+          secMateria.appendChild(titMateria);
+
+          materiasDisponibles.forEach(mat => {
+            const opt = crearPopoverOptionDOM(`📁 ${mat}`, filtrosActivos.materias.has(mat), (checked) => {
+              if (checked) filtrosActivos.materias.add(mat);
+              else filtrosActivos.materias.delete(mat);
+              actualizarPillsUIState();
+              aplicarFiltrosCruzados();
+            });
+            secMateria.appendChild(opt);
+          });
+          nodos.filterMenu.appendChild(secMateria);
+        }
+
         // --- Sección Estado ---
         const secEstado = document.createElement("div");
         secEstado.className = "popover-section";
