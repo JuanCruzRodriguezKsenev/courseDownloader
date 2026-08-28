@@ -14,33 +14,22 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ---
 
-## 🔍 En revisión
+## ✅ Nada en revisión
 
-**Desde 2026-08-27.** Rama `tanda-host-ramonnet-y-conexion`, fuera de `main`, con tres cortes:
+**Al 2026-08-27.** `main` está al día: la tanda `tanda-host-ramonnet-y-conexion` se verificó en
+Chrome y se mergeó. No hay trabajo construido fuera de `main`.
 
-1. **El host de Ramón Net migró**, de `plataforma.ramonnet.com.ar` (dado de baja: no resuelve en
-   DNS ni contra resolvers públicos como 8.8.8.8/1.1.1.1) a `ramonnet.com.ar` —
-   `sitio/ramonnet/config.ts`, `host_permissions` en `wxt.config.ts`, y las docs que citaban el
-   host viejo. **Verificado en Chrome**: el popup ya escaneó clases reales sobre el host nuevo
-   (capturado por el usuario, 51 clases bajo `ramonnet.com.ar/usuario/clases-grabadas`).
-2. **El mensaje de conexión caída** deja de decir "Sin conexión a internet" — mentía: el daemon
-   (`core/conexion/conexion.ts`) sondea el host del PORTAL, no internet en general, así que un
-   portal caído con internet sano mostraba el cartel equivocado (fue justo el síntoma que
-   destapó el corte 1). Pasa a "No se pudo contactar el sitio" en las tres copias: banner
-   (`bannerConexion.preact.js`), tooltip del puntito (`conexionHeader.preact.js`) y notificación
-   nativa (`notificaciones.ts`). **No verificado en Chrome todavía.**
-3. **El badge de cátedra se salía del popup** por el borde derecho (capturado en pantalla por el
-   usuario) — `.input-path` no tenía `min-width: 0`, así que no podía ceder ancho y el
-   `.faceta-badge` (sin límite, `white-space: nowrap`) quedaba empujado afuera.
-   `styles/components/path-bar.css`. **No verificado en Chrome todavía.**
+Dónde quedó lo que traía, por si venís buscándolo:
 
-Qué mirar en Chrome antes de mergear:
-- Popup sobre `ramonnet.com.ar/usuario/clases-grabadas` con una materia que dispare cátedra (ej.
-  "anatomia") → el badge "CÁTEDRA C" tiene que entrar completo, sin recortarse contra el borde.
-- Backend Bun apagado o `ramonnet.com.ar` inalcanzable (ej. bloqueado en `/etc/hosts`) → la
-  tarjeta tiene que decir "No se pudo contactar el sitio", no "Sin conexión a internet".
-
-Si algo falla, aislar por corte: son tres commits, uno por punto de arriba.
+- **La migración de host** (`plataforma.ramonnet.com.ar` → `ramonnet.com.ar`, dado de baja el
+  primero) → el changelog de `sitio/ramonnet/config.ts` (v2.2.0) y `host_permissions` en
+  `wxt.config.ts`. Verificado con clases reales escaneadas sobre el host nuevo.
+- **El copy de conexión caída** ("Sin conexión a internet" → "No se pudo contactar el sitio",
+  porque el daemon sondea el host del portal, no internet en general) → el changelog de
+  `bannerConexion.preact.js` (v1.2.0), replicado en `conexionHeader.preact.js` y
+  `notificaciones.ts`. Verificado en Chrome.
+- **El badge de cátedra que se salía del popup** → el comentario sobre `min-width: 0` en
+  `.input-path`, `styles/components/path-bar.css`. Verificado en Chrome.
 
 ---
 
