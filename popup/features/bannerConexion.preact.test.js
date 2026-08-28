@@ -57,7 +57,7 @@ describe('Isla Preact: BannerConexion', () => {
     await flush();
     expect(card().dataset.tipo).toBe('internet');
     expect(card().querySelector('.server-error-icon').textContent).toBe('🌐');
-    expect(card().querySelector('h5').textContent).toBe('Sin conexión a internet');
+    expect(card().querySelector('h5').textContent).toBe('No se pudo contactar el sitio');
   });
 
   it('ocultar() saca la card', async () => {
