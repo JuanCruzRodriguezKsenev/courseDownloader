@@ -9,9 +9,9 @@ Course Downloader es una extensión Manifest V3 para Chrome/Brave que automatiza
 ```
 ┌─────────────────────┐        chrome.scripting          ┌──────────────────────┐
 │  Pestaña del usuario │ ◄──────── inyecta Scraper ─────── │      popup.js         │
-│  (plataforma.ramonnet│                                    │  (ventana del popup)  │
-│   .com.ar)           │                                    └──────────┬───────────┘
-└─────────────────────┘                                               │
+│  (ramonnet.com.ar)   │                                    │  (ventana del popup)  │
+└─────────────────────┘                                    └──────────┬───────────┘
+                                                                        │
                                                           chrome.runtime.sendMessage
                                                           chrome.storage.local (polling)
                                                                         │

@@ -34,8 +34,10 @@ export default defineConfig({
     ],
     host_permissions: [
       // --- Portal 1: Ramón Net + su CDN de video (Bunny) ---
-      'https://plataforma.ramonnet.com.ar/*',
-      'http://plataforma.ramonnet.com.ar/*',
+      // [2026-08-27] Migrado de `plataforma.ramonnet.com.ar` (dado de baja, no resuelve en
+      // DNS) a este dominio — ver sitio/ramonnet/config.ts.
+      'https://ramonnet.com.ar/*',
+      'http://ramonnet.com.ar/*',
       'https://*.bunnyinfra.net/*',
       'https://*.b-cdn.net/*',
       // --- Portal 2: Anatomy by Chris (Hotmart Club) ---

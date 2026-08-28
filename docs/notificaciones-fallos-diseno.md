@@ -139,12 +139,12 @@ bloque `chrome.alarms.onAlarm.addListener`, `background.js:745-774`):
 ```js
 chrome.notifications.onClicked.addListener(async (notificationId) => {
   chrome.notifications.clear(notificationId);
-  const [tab] = await chrome.tabs.query({ url: "https://plataforma.ramonnet.com.ar/*" });
+  const [tab] = await chrome.tabs.query({ url: "https://ramonnet.com.ar/*" });
   if (tab) {
     await chrome.tabs.update(tab.id, { active: true });
     await chrome.windows.update(tab.windowId, { focused: true });
   } else {
-    await chrome.tabs.create({ url: "https://plataforma.ramonnet.com.ar/" });
+    await chrome.tabs.create({ url: "https://ramonnet.com.ar/" });
   }
 });
 ```
@@ -175,7 +175,7 @@ documentada en `docs/testing.md`) — se verifican manualmente (ver Verificació
 ## 3. `manifest.json`
 
 Agregar `"notifications"` al array `permissions` (después de `"alarms"`, línea ~12). No
-hace falta tocar `host_permissions` (ya cubre `plataforma.ramonnet.com.ar`). No hay
+hace falta tocar `host_permissions` (ya cubre `ramonnet.com.ar`). No hay
 convención establecida de bump de `version` por feature (historia de un solo commit) —
 se deja sin tocar salvo preferencia en contrario.
 

@@ -1,6 +1,14 @@
 /**
- * ADAPTADOR DE SITIO — RAMÓN NET: CONFIGURACIÓN (V2.1.0)
+ * ADAPTADOR DE SITIO — RAMÓN NET: CONFIGURACIÓN (V2.2.0)
  * ==========================================================================
+ * CHANGELOG v2.2.0:
+ * - [FIX] `host` (y `urlSondeoInternet`, derivado a mano) migran de `plataforma.ramonnet.com.ar`
+ *   a `ramonnet.com.ar`: el subdominio viejo dejó de resolver en DNS (confirmado contra
+ *   resolvers públicos, no sólo el local) y el portal real sirve hoy desde la raíz del dominio.
+ *   Sin este cambio, `esPaginaDelSitio`/`patronPestañas` no reconocían la pestaña real y el
+ *   sondeo de conexión mostraba "sin internet" con internet andando — mismo `host_permissions`
+ *   en `wxt.config.ts`.
+ *
  * CHANGELOG v2.1.0:
  * - [COPY GENÉRICA — corte 2] Declara `instruccionEscaneo`: la frase del onboarding sobre
  *   el selector de materia y 👁️ mostrar, que estaba hardcodeada en la isla y describía
@@ -93,7 +101,9 @@ const SitioRamonNet: SitioRamonNetDescriptor = {
   // Origen del portal. Lo usa el daemon de conexión como sonda de "hay internet":
   // es deliberadamente el sitio objetivo y no un genérico tipo google.com — lo que
   // importa no es tener red, sino poder llegar A ESTE portal.
-  urlSondeoInternet: "https://plataforma.ramonnet.com.ar",
+  // [2026-08-27] El portal migró de `plataforma.ramonnet.com.ar` (ya no resuelve en DNS,
+  // ni vía resolvers públicos) a este dominio — confirmado sirviendo <title>Ramonnet</title>.
+  urlSondeoInternet: "https://ramonnet.com.ar",
 
   // Segmento de la ruta que identifica la página de una clase grabada. Si la URL
   // final de un fetch lo pierde, el portal redirigió al login (no hay sesión).
@@ -102,7 +112,7 @@ const SitioRamonNet: SitioRamonNetDescriptor = {
   // Host del portal + los dos derivados que necesita el resto del código: reconocer
   // si una pestaña pertenece al sitio, y el patrón de match para chrome.tabs.query.
   // Estaban hardcodeados en 5 lugares entre popup.js y background.js.
-  host: "plataforma.ramonnet.com.ar",
+  host: "ramonnet.com.ar",
   esPaginaDelSitio(url) {
     return typeof url === "string" && url.includes(this.host);
   },

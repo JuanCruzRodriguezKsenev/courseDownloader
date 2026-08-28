@@ -30,7 +30,7 @@ Esta es la **fuente canónica** de la regla. `docs/coding-standards.md` la refer
 
 **Portal 1 — Ramón Net:**
 
-- `https://plataforma.ramonnet.com.ar/*`, `http://.../*` — necesario para el scraping y el fetch del HTML de cada clase con `credentials: "include"` (para reusar la sesión autenticada del usuario en el navegador).
+- `https://ramonnet.com.ar/*`, `http://.../*` — necesario para el scraping y el fetch del HTML de cada clase con `credentials: "include"` (para reusar la sesión autenticada del usuario en el navegador).
 - `https://*.bunnyinfra.net/*`, `https://*.b-cdn.net/*` — CDN que sirve los manifiestos `.m3u8` y los fragmentos `.ts`.
 
 **Portal 2 — Anatomy by Chris (Hotmart Club):** son cinco porque su cadena de video pasa por cinco hosts distintos, todos medidos (ver `docs/portal-anatomy-by-chris-diseno.md` §La cadena de video). Olvidar el del CDN no se ve como un error de permisos sino como descargas que fallan en el primer fragmento.
@@ -49,7 +49,7 @@ Esta es la **fuente canónica** de la regla. `docs/coding-standards.md` la refer
 
 ## `credentials: "include"` en fetches a Ramón Net
 
-`ResolverManifiesto.resolver` (`sitio/ramonnet/resolverManifiesto.js`) hace `fetch(..., { credentials: "include" })` contra `plataforma.ramonnet.com.ar` para reusar la cookie de sesión del usuario logueado en esa pestaña. Esto es intencional y necesario (sin la sesión, la plataforma no serviría el HTML de la clase) — no es un descuido de CSRF, porque el request es same-site respecto al dominio autenticado y está acotado por `host_permissions`.
+`ResolverManifiesto.resolver` (`sitio/ramonnet/resolverManifiesto.js`) hace `fetch(..., { credentials: "include" })` contra `ramonnet.com.ar` para reusar la cookie de sesión del usuario logueado en esa pestaña. Esto es intencional y necesario (sin la sesión, la plataforma no serviría el HTML de la clase) — no es un descuido de CSRF, porque el request es same-site respecto al dominio autenticado y está acotado por `host_permissions`.
 
 ## El `id_token` guardado en `chrome.storage.local` (corte 7)
 

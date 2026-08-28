@@ -6,7 +6,7 @@ Extensión de Chrome/Brave de alto rendimiento diseñada para descargar clases g
 
 | Portal | Dónde vive | Qué baja |
 |---|---|---|
-| **Ramón Net** | `plataforma.ramonnet.com.ar` | videos 480p, clasificados por cátedra |
+| **Ramón Net** | `ramonnet.com.ar` | videos 480p, clasificados por cátedra |
 | **Anatomy by Chris** | `hotmart.com/es/club/anatomy-by-chris` | videos hasta 720p **y los PDF adjuntos** |
 
 Cada portal tiene su color en la lista, su propia carpeta en disco y su propio modo de escaneo. La cola es **una sola** y puede mezclar clases de los dos: el service worker las baja en orden sin que te importe de dónde salieron.
@@ -73,7 +73,7 @@ El circuito es el mismo en los dos portales — **escanear → seleccionar → e
 
 ### En Ramón Net
 
-1. Entrá al listado de clases grabadas de tu materia: [plataforma.ramonnet.com.ar/usuario/clases-grabadas](https://plataforma.ramonnet.com.ar/usuario/clases-grabadas).
+1. Entrá al listado de clases grabadas de tu materia: [ramonnet.com.ar/usuario/clases-grabadas](https://ramonnet.com.ar/usuario/clases-grabadas).
 2. Hacé clic en el botón de la materia que deseas descargar y presioná **👁️ mostrar** (ojo) al lado de las clases que quieras revelar. *La extensión lee lo que está visible en la página, así que lo que no revelaste no aparece.*
 
 ### En Anatomy by Chris
