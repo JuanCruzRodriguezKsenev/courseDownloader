@@ -10,9 +10,17 @@ export function sanitizarNombreArchivo(nombre) {
 
 /**
  * Valida que la ruta resuelta esté estrictamente dentro de la carpeta raíz.
+ *
+ * Cuando la raíz elegida es la letra de disco pelada en Windows (ej. "D:\"),
+ * `path.resolve` la devuelve CON la barra final — a diferencia de cualquier carpeta
+ * normal, donde no la lleva. Concatenarle `path.sep` de nuevo daba "D:\\" (doble
+ * barra), que ningún hijo real empieza: la raíz quedaba bloqueada contra sí misma,
+ * sin loguear nada, justo entre el "Extensión conectada" y el "carpeta sincronizada"
+ * de handleEscanearDisco.
  */
 export function esRutaSegura(rutaResuelta) {
   const raizNormalizada = path.resolve(CARPETA_RAIZ_VIDEOS);
   const rutaNormalizada = path.resolve(rutaResuelta);
-  return rutaNormalizada.startsWith(raizNormalizada + path.sep) || rutaNormalizada === raizNormalizada;
+  const prefijo = raizNormalizada.endsWith(path.sep) ? raizNormalizada : raizNormalizada + path.sep;
+  return rutaNormalizada.startsWith(prefijo) || rutaNormalizada === raizNormalizada;
 }
