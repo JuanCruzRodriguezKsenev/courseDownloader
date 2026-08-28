@@ -14,22 +14,33 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ---
 
-## ✅ Nada en revisión
+## 🔍 En revisión
 
-**Al 2026-08-13.** `main` está al día: la tanda `tanda-toolbar-capa-y-pnpm` se verificó en Chrome
-y se mergeó. No hay trabajo construido fuera de `main`.
+**Desde 2026-08-27.** Rama `tanda-host-ramonnet-y-conexion`, fuera de `main`, con tres cortes:
 
-Dónde quedó lo que traía, por si venís buscándolo:
+1. **El host de Ramón Net migró**, de `plataforma.ramonnet.com.ar` (dado de baja: no resuelve en
+   DNS ni contra resolvers públicos como 8.8.8.8/1.1.1.1) a `ramonnet.com.ar` —
+   `sitio/ramonnet/config.ts`, `host_permissions` en `wxt.config.ts`, y las docs que citaban el
+   host viejo. **Verificado en Chrome**: el popup ya escaneó clases reales sobre el host nuevo
+   (capturado por el usuario, 51 clases bajo `ramonnet.com.ar/usuario/clases-grabadas`).
+2. **El mensaje de conexión caída** deja de decir "Sin conexión a internet" — mentía: el daemon
+   (`core/conexion/conexion.ts`) sondea el host del PORTAL, no internet en general, así que un
+   portal caído con internet sano mostraba el cartel equivocado (fue justo el síntoma que
+   destapó el corte 1). Pasa a "No se pudo contactar el sitio" en las tres copias: banner
+   (`bannerConexion.preact.js`), tooltip del puntito (`conexionHeader.preact.js`) y notificación
+   nativa (`notificaciones.ts`). **No verificado en Chrome todavía.**
+3. **El badge de cátedra se salía del popup** por el borde derecho (capturado en pantalla por el
+   usuario) — `.input-path` no tenía `min-width: 0`, así que no podía ceder ancho y el
+   `.faceta-badge` (sin límite, `white-space: nowrap`) quedaba empujado afuera.
+   `styles/components/path-bar.css`. **No verificado en Chrome todavía.**
 
-- **El registro de la verificación en navegador** → `docs/alertas-y-bloqueo-diseno.md` §5.2, que
-  es su hogar canónico. Ahí está también de qué **tipo** fue (resultado global, no medición) y
-  por qué esa distinción importa cuando aparezca el próximo defecto en esa zona.
-- **Lo que quedó abierto** → `docs/TECHNICAL_DEBT.md` §🔴 Abierto. Son cuatro: el loader sin
-  dueño (con la mitad del tiempo ya construida), la línea de estado invisible del footer, lo que
-  el banco todavía no puede forzar, y los dos restos de la limpieza de micro-movimientos.
-- **El porqué de cada pieza** → `docs/alertas-y-bloqueo-diseno.md` (bloqueo, alertas, carteles),
-  `docs/preact-migration.md` §La capa flotante compartida, `docs/contributing.md` §Las dos
-  trampas de pnpm, y `docs/escaneo-api-anatomy-diseno.md` (el eje de materia).
+Qué mirar en Chrome antes de mergear:
+- Popup sobre `ramonnet.com.ar/usuario/clases-grabadas` con una materia que dispare cátedra (ej.
+  "anatomia") → el badge "CÁTEDRA C" tiene que entrar completo, sin recortarse contra el borde.
+- Backend Bun apagado o `ramonnet.com.ar` inalcanzable (ej. bloqueado en `/etc/hosts`) → la
+  tarjeta tiene que decir "No se pudo contactar el sitio", no "Sin conexión a internet".
+
+Si algo falla, aislar por corte: son tres commits, uno por punto de arriba.
 
 ---
 
