@@ -1,6 +1,11 @@
 /**
- * ISLA PREACT #1 — el puntito de estado del header (V1.0.0)
+ * ISLA PREACT #1 — el puntito de estado del header (V1.1.0)
  * ==========================================================================
+ * CHANGELOG v1.1.0:
+ * - [COPY] Tooltip "internet": "Sin conexión a internet" → "No se pudo contactar el sitio".
+ *   El daemon sondea el HOST DEL PORTAL, no un endpoint genérico de internet — mismo cambio
+ *   en `bannerConexion.preact.js` y `notificaciones.ts`.
+ *
  * Primera "isla" de la migración incremental del popup a Preact (ver
  * docs/adr/0006-adopt-preact-islands-in-popup.md). Preact convive con el resto
  * vanilla: esta isla es DUEÑA exclusiva del indicador de conexión (#preact-status-dot)
@@ -34,7 +39,7 @@ export function StatusDot({ conexion }) {
   const ok = c.completa;
   return html`<div
     class="status-dot ${ok ? 'online' : 'offline'}"
-    title=${ok ? 'Conectado' : (!c.servidor ? 'Servidor desconectado' : 'Sin conexión a internet')}
+    title=${ok ? 'Conectado' : (!c.servidor ? 'Servidor desconectado' : 'No se pudo contactar el sitio')}
   ></div>`;
 }
 

@@ -1,6 +1,12 @@
 /**
- * ISLA PREACT #2 — la alerta de conexión caída: store + vista (V1.1.0)
+ * ISLA PREACT #2 — la alerta de conexión caída: store + vista (V1.2.0)
  * ==========================================================================
+ * CHANGELOG v1.2.0:
+ * - [COPY] Tarjeta "internet": "Sin conexión a internet" → "No se pudo contactar el sitio".
+ *   El daemon (`core/conexion/conexion.ts`) sondea el HOST DEL PORTAL, no un endpoint
+ *   genérico — el texto viejo mentía cuando el portal estaba caído pero el resto de internet
+ *   andaba bien. Mismo cambio en `conexionHeader.preact.js` y `notificaciones.ts`.
+ *
  * CHANGELOG v1.1.0:
  * - [ALERTA EN EL CONTENEDOR] Perdió su root propio (#preact-banner) y con él el auto-montaje.
  *   La alerta se pinta ahora DENTRO de #ui-list, junto a las listas, porque tener dos dueños de
@@ -39,9 +45,9 @@ const TARJETAS_OFFLINE = {
   },
   internet: {
     icono: '🌐',
-    titulo: 'Sin conexión a internet',
-    cuerpo: 'Revisá tu conexión a la red.<br>La extensión se reconectará y sincronizará sola apenas vuelva internet.',
-    pulso: 'Esperando conexión a internet...',
+    titulo: 'No se pudo contactar el sitio',
+    cuerpo: 'No llegamos al sitio del curso. Puede ser tu conexión, o que el sitio esté caído momentáneamente.<br>La extensión reintentará y sincronizará sola apenas vuelva a responder.',
+    pulso: 'Esperando respuesta del sitio...',
   },
 };
 

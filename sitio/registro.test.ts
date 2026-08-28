@@ -34,7 +34,7 @@ describe("Sitios.obtener (por id, como viene de un ítem persistido)", () => {
 
 describe("Sitios.resolverPorUrl (para la pestaña activa)", () => {
   it("reconoce una URL del portal delegando en su esPaginaDelSitio", () => {
-    expect(Sitios.resolverPorUrl("https://plataforma.ramonnet.com.ar/usuario/clases-grabadas")).toBe(
+    expect(Sitios.resolverPorUrl("https://ramonnet.com.ar/usuario/clases-grabadas")).toBe(
       SitioRamonNet
     );
   });
@@ -63,7 +63,7 @@ describe("Sitios.resolverPorUrl (para la pestaña activa)", () => {
     // La mitad "el otro portal no se ve afectado" del frente multiportal, que hasta el corte 7
     // sólo tenía dobles.
     const urls = [
-      "https://plataforma.ramonnet.com.ar/usuario/clases-grabadas",
+      "https://ramonnet.com.ar/usuario/clases-grabadas",
       "https://hotmart.com/es/club/anatomy-by-chris/products/6083220/content/ABC",
     ];
     for (const url of urls) {

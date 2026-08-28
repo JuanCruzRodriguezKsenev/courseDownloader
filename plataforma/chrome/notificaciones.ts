@@ -1,5 +1,5 @@
 /**
- * ADAPTADOR CHROME — NOTIFICACIONES NATIVAS (V1.1.0)
+ * ADAPTADOR CHROME — NOTIFICACIONES NATIVAS (V1.2.0)
  * ==========================================================================
  * Capa 3. Salió de `background.js` en la Fase 6b: la cola decide *cuándo* avisar de un fallo,
  * pero *cómo* se muestra el aviso es del navegador.
@@ -11,6 +11,14 @@
  * Todo el módulo es best-effort y **nunca propaga**: una regresión real (v5.10.0) fue que un
  * `chrome.notifications` ausente —el permiso no se aplica hasta recargar la extensión desde
  * su tarjeta— frenaba la cola entera. Avisar de un fallo no puede causar otro.
+ *
+ * CHANGELOG v1.2.0:
+ * - [COPY] "Sin conexión a internet" → "No se pudo contactar el sitio". El daemon de conexión
+ *   (`core/conexion/conexion.ts`) sondea el HOST DEL PORTAL, no un endpoint genérico — así que
+ *   el texto viejo mentía cuando el portal estaba caído/mal resuelto pero el resto de internet
+ *   andaba bien (fue justo el caso real que lo destapó: `plataforma.ramonnet.com.ar` dado de
+ *   baja, ver `sitio/ramonnet/config.ts`). Mismo cambio en `bannerConexion.preact.js` y
+ *   `conexionHeader.preact.js` — las tres copias tienen que decir lo mismo.
  *
  * CHANGELOG v1.1.0:
  * - [MULTISITIO CORTE 8] El `notificationId` deja de ser `""` y pasa a **llevar adentro el
@@ -74,7 +82,7 @@ const TITULOS_POR_TIPO: Record<string, string> = {
   rechazo: "Clase saltada",
   sesion: "Sesión expirada",
   servidor: "Servidor desconectado",
-  internet: "Sin conexión a internet",
+  internet: "No se pudo contactar el sitio",
 };
 
 export function notificarFallo(tipo: string, titulo: string, motivo: string, sitioId?: string): void {

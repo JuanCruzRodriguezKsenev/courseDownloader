@@ -90,7 +90,7 @@ Este proyecto trata la documentación con la misma disciplina que el código —
 
 1. Levantar el backend Bun (`iniciar.bat`, ver `docs/deployment.md`).
 2. Cargar/recargar la extensión.
-3. Entrar a `plataforma.ramonnet.com.ar/usuario/clases-grabadas`, revelar algunas clases.
+3. Entrar a `ramonnet.com.ar/usuario/clases-grabadas`, revelar algunas clases.
 4. Abrir el popup, confirmar que aparecen en "Clases Disponibles".
 5. Seleccionar 1-2 clases, agregarlas a la fila, iniciar la descarga.
 6. Confirmar que el progreso se refleja en el popup y que el archivo aparece en disco al terminar.

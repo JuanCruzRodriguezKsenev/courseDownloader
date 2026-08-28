@@ -49,7 +49,7 @@ describe("sitios.obtener: la migración del sitioId ausente vive acá", () => {
 
 describe("sitios.resolverPorUrl: para la pestaña, y SIN migración", () => {
   it("reconoce la pestaña de cada portal", () => {
-    expect(sitios.resolverPorUrl("https://plataforma.ramonnet.com.ar/usuario/clases-grabadas"))
+    expect(sitios.resolverPorUrl("https://ramonnet.com.ar/usuario/clases-grabadas"))
       .toBe(SitioRamonNet);
     expect(sitios.resolverPorUrl("https://hotmart.com/es/club/anatomy-by-chris/products/6083220"))
       .toBe(SitioAnatomyByChris);

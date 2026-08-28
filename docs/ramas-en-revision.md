@@ -16,20 +16,20 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## ✅ Nada en revisión
 
-**Al 2026-08-13.** `main` está al día: la tanda `tanda-toolbar-capa-y-pnpm` se verificó en Chrome
-y se mergeó. No hay trabajo construido fuera de `main`.
+**Al 2026-08-27.** `main` está al día: la tanda `tanda-host-ramonnet-y-conexion` se verificó en
+Chrome y se mergeó. No hay trabajo construido fuera de `main`.
 
 Dónde quedó lo que traía, por si venís buscándolo:
 
-- **El registro de la verificación en navegador** → `docs/alertas-y-bloqueo-diseno.md` §5.2, que
-  es su hogar canónico. Ahí está también de qué **tipo** fue (resultado global, no medición) y
-  por qué esa distinción importa cuando aparezca el próximo defecto en esa zona.
-- **Lo que quedó abierto** → `docs/TECHNICAL_DEBT.md` §🔴 Abierto. Son cuatro: el loader sin
-  dueño (con la mitad del tiempo ya construida), la línea de estado invisible del footer, lo que
-  el banco todavía no puede forzar, y los dos restos de la limpieza de micro-movimientos.
-- **El porqué de cada pieza** → `docs/alertas-y-bloqueo-diseno.md` (bloqueo, alertas, carteles),
-  `docs/preact-migration.md` §La capa flotante compartida, `docs/contributing.md` §Las dos
-  trampas de pnpm, y `docs/escaneo-api-anatomy-diseno.md` (el eje de materia).
+- **La migración de host** (`plataforma.ramonnet.com.ar` → `ramonnet.com.ar`, dado de baja el
+  primero) → el changelog de `sitio/ramonnet/config.ts` (v2.2.0) y `host_permissions` en
+  `wxt.config.ts`. Verificado con clases reales escaneadas sobre el host nuevo.
+- **El copy de conexión caída** ("Sin conexión a internet" → "No se pudo contactar el sitio",
+  porque el daemon sondea el host del portal, no internet en general) → el changelog de
+  `bannerConexion.preact.js` (v1.2.0), replicado en `conexionHeader.preact.js` y
+  `notificaciones.ts`. Verificado en Chrome.
+- **El badge de cátedra que se salía del popup** → el comentario sobre `min-width: 0` en
+  `.input-path`, `styles/components/path-bar.css`. Verificado en Chrome.
 
 ---
 
