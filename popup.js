@@ -886,10 +886,14 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       nodos.btnExplore.innerHTML = `<span class="spinner-inline"></span> Cargando...`;
     
       const rutaPrevia = RutaDisco.get();
-      RutaDisco.cargando("Abriendo explorador...");
+      RutaDisco.cargando("Esperando tu elección...");
 
-      // Mostrar loader de espera
-      mostrarLoader("Abriendo explorador de archivos...");
+      // Mostrar loader de espera. "Abriendo..." (progresivo) se leía como que todavía no había
+      // pasado nada, y el usuario no sabía si ya se había abierto la ventana nativa detrás del
+      // popup o si seguía esperando — este fetch dura hasta que la persona elige o cancela
+      // (ver el docblock de seleccionarCarpeta en bunClient.ts), así que el cartel tiene que
+      // decir explícitamente que la pelota está del lado del usuario.
+      mostrarLoader("Elegí la carpeta en la ventana que se abrió...");
 
       backend.seleccionarCarpeta().then(res => {
         if (res.success) {
