@@ -8,8 +8,10 @@
  * Sobrevivieron sin tocar una aserción al reparto de la Fase 6a — que era exactamente para lo
  * que estaban.
  */
+// @ts-expect-error Entorno de test en Node sin @types/node en la extensión
+import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
-import { sanitizarTexto, escaparHtml, quitarAcentos } from './texto';
+import { sanitizarTexto, escaparHtml, quitarAcentos, nombreEnDisco, CARACTERES_VALIDOS_EN_DISCO } from './texto';
 
 describe('sanitizarTexto', () => {
   it('reemplaza caracteres inválidos para nombre de archivo por "_"', () => {
@@ -79,5 +81,31 @@ describe('quitarAcentos', () => {
     expect(quitarAcentos(null)).toBe('');
     expect(quitarAcentos(undefined)).toBe('');
     expect(quitarAcentos('')).toBe('');
+  });
+});
+
+describe('nombreEnDisco', () => {
+  it('conserva el doble espacio', () => {
+    expect(nombreEnDisco('MC4 2026  - Copia de P2F2.pdf')).toBe('MC4 2026  - Copia de P2F2.pdf');
+  });
+
+  it('sanea caracteres fuera de la lista blanca', () => {
+    expect(nombreEnDisco('27 abr 2026 a la(s) 5:36 p.m..jpg')).toBe('27 abr 2026 a la(s) 5_36_p.m..jpg');
+  });
+
+  it('extrae el nombre de archivo con barras normales y barras invertidas', () => {
+    expect(nombreEnDisco('a/b\\c.pdf')).toBe('c.pdf');
+  });
+
+  it('devuelve placeholder ante texto vacío o nulo', () => {
+    expect(nombreEnDisco('')).toBe('video_sin_nombre');
+    expect(nombreEnDisco(null)).toBe('video_sin_nombre');
+    expect(nombreEnDisco(undefined)).toBe('video_sin_nombre');
+    expect(nombreEnDisco('   ')).toBe('video_sin_nombre');
+  });
+
+  it('paridad con el backend: backend/utils.js contiene la misma clase de caracteres', () => {
+    const fuenteBackend = readFileSync(new URL('../../backend/utils.js', import.meta.url), 'utf8');
+    expect(fuenteBackend).toContain(CARACTERES_VALIDOS_EN_DISCO);
   });
 });

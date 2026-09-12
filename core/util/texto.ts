@@ -1,6 +1,10 @@
 /**
- * UTILIDADES DE TEXTO (V1.1.0)
+ * UTILIDADES DE TEXTO (V1.2.0)
  * ==========================================================================
+ * CHANGELOG v1.2.0:
+ * - [CLASSROOM CORTE 1] Nace `nombreEnDisco` y `CARACTERES_VALIDOS_EN_DISCO`, replicando
+ *   exactamente `sanitizarNombreArchivo` del backend Bun sin colapsar espacios múltiples.
+ *
  * CHANGELOG v1.1.0:
  * - [ESCANEO-API CORTE 2] Nace `sanearNombreCarpeta`, para el override del input de carpeta.
  * ==========================================================================
@@ -35,6 +39,24 @@ const MAPA_ACENTOS: Record<string, string> = {
 };
 
 const REGEX_ACENTOS = /[áäâàéëêèíïîìóöôòúüûùÁÄÂÀÉËÊÈÍÏÎÌÓÖÔÒÚÜÛÙ]/g;
+
+/** Clase de caracteres válidos para nombres de archivo en disco, sincronizada con backend/utils.js. */
+export const CARACTERES_VALIDOS_EN_DISCO = "a-zA-Z0-9 _\\-().áéíóúÁÉÍÓÚñÑ";
+const REGEX_CARACTERES_INVALIDOS_DISCO = new RegExp(`[^${CARACTERES_VALIDOS_EN_DISCO}]`, "g");
+
+/**
+ * Replica exactamente la función `sanitizarNombreArchivo` del backend Bun (`backend/utils.js`).
+ *
+ * Existe al lado de `sanitizarTexto` y **no se unifican**: `sanitizarTexto` colapsa espacios
+ * múltiples (`\s+` → `" "`), lo que cambiaría el nombre de videos que ya están bajados si se
+ * modificara. `nombreEnDisco` conserva los espacios (incluidos dobles espacios de Classroom)
+ * y extrae el basename considerando tanto `/` como `\`.
+ */
+export function nombreEnDisco(nombre?: string | null): string {
+  if (!nombre) return "video_sin_nombre";
+  const base = nombre.replace(/^.*[/\\]/, "");
+  return base.replace(REGEX_CARACTERES_INVALIDOS_DISCO, "_").trim() || "video_sin_nombre";
+}
 
 /** Sanitiza títulos para usarlos como nombres de archivo válidos en el OS. */
 export function sanitizarTexto(texto?: string | null): string {

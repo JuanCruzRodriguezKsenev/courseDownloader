@@ -1,6 +1,12 @@
 /**
- * PUERTO DE SITIO (V1.2.0)
+ * PUERTO DE SITIO (V1.3.0)
  * ==========================================================================
+ * CHANGELOG v1.3.0:
+ * - [CLASSROOM CORTE 1] Miembro nuevo `credencialesAdjunto` ("omit" | "include", opcional).
+ *   La descarga del adjunto va con las credenciales de la sesión del navegador en portales
+ *   que lo requieran (Classroom con Drive, donde sin cookies da 401). El default sigue siendo
+ *   "omit" para no romper CloudFront en Anatomy.
+ *
  * CHANGELOG v1.2.0:
  * - [LOADERS — ítem 1] Miembro nuevo `topeEscaneoMs` (el puerto pasa de 12 a 13). El
  *   `safetyTimeout` del escaneo era 6000 fijo en popup.js contra ~11 s reales de Anatomy
@@ -286,6 +292,19 @@ export interface PuertoSitio {
     signal?: AbortSignal,
     credenciales?: Record<string, string>
   ): Promise<string>;
+
+  /**
+   * [CLASSROOM CORTE 1] Política de credenciales (`fetch(urlFirmada, { credentials })`)
+   * para la descarga directa de un adjunto.
+   *
+   * - Default: `"omit"`.
+   * - Opcional: un portal sin adjuntos no lo necesita, y Anatomy queda en el valor
+   *   medido sin declararlo (CloudFront responde a curl pelado y mandar cookies puede
+   *   hacer que rechace).
+   * - Classroom lo declara `"include"`: Google Drive necesita las cookies de sesión del
+   *   navegador junto con `authuser` para autorizar la descarga (diseño D1 y M0).
+   */
+  readonly credencialesAdjunto?: "omit" | "include";
 
   /**
    * Función que se INYECTA en la pestaña del portal (`chrome.scripting.executeScript`)
