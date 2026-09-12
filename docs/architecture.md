@@ -374,20 +374,22 @@ fuera de `entrypoints/` porque WXT trata cada archivo suelto de ahí como un ent
 
 ### Capa 2 — `sitio/<portal>/`
 
-**Hay dos portales desde el 2026-08-07** (corte 7): `sitio/ramonnet/` y
-`sitio/anatomy-by-chris/` (Hotmart Club). Cada uno son cuatro archivos —`config.ts` + tres
-hermanos `.js`— y su `rules.json` en `public/sitio/<portal>/`.
+**Hay tres portales desde el 2026-09-12** (Classroom corte 1): `sitio/ramonnet/`,
+`sitio/anatomy-by-chris/` (Hotmart Club) y `sitio/google-classroom/`. Los dos primeros tienen
+cuatro archivos —`config.ts` + tres hermanos `.js`— y su `rules.json` en `public/sitio/<portal>/`.
+Classroom son cuatro archivos —`config.ts` y tres `.js` (`scraper.js`, `parserTitulos.js`,
+`descargarAdjunto.js`)— sin `rules.json`.
 
 `sitio/<portal>/config.ts` exporta **su descriptor y nada más**: se declara implementación de
 `PuertoSitio`, así que a un adaptador de portal al que le falte una pieza lo caza el compilador
 y no la lectura.
 
-**Un miembro del puerto puede ser copy, y desde el 2026-08-12 hay uno**: `instruccionEscaneo`
-(el puerto pasó a **12 miembros**). Es la frase del onboarding que explica qué va a ver el
-usuario después de escanear, y entró porque **describe un flujo, no un hecho**: Ramón Net filtra
-por materia con un selector y un botón 👁️ mostrar, Anatomy trae el curso entero de una sola
-llamada y no tiene ninguno de los dos controles. Estaba hardcodeada con el flujo del primer
-portal, así que el tour del segundo describía una UI inexistente. Va **requerido y no opcional**
+**Un miembro del puerto puede ser copy**: `instruccionEscaneo` (ver `core/puertos/sitio.ts`).
+Es la frase del onboarding que explica qué va a ver el usuario después de escanear, y entró porque
+**describe un flujo, no un hecho**: Ramón Net filtra por materia con un selector y un botón 👁️
+mostrar, Anatomy trae el curso entero de una sola llamada y no tiene ninguno de los dos controles,
+y Classroom pide mantener la pestaña visible durante el escaneo. Estaba hardcodeada con el flujo
+del primer portal, así que el tour del segundo describía una UI inexistente. Va **requerido y no opcional**
 a propósito —con `?` el portal que la olvide compila igual y hereda un texto ajeno— y viaja como
 **texto plano**, porque la isla Preact que lo muestra escapa lo que recibe. Es la excepción
 razonada a la regla de abajo: no es una constante del portal que alguien lee, es copy genérica
@@ -396,17 +398,20 @@ que el portal completa.
 **⚠️ Los globals de los tres hermanos llevan nombre por portal.** Los de Ramón Net son los que
 quedaron sin calificar por haber sido el primero (`Scraper`, `ParserTitulos`,
 `ResolverManifiesto`); los del segundo son `ScraperAnatomy`, `ParserTitulosAnatomy`,
-`ResolverManifiestoAnatomy`. Compartir un nombre hace que **el último entrypoint evaluado le pise
-los tres al otro portal**, y el síntoma sería un portal escaneando o resolviendo con el adaptador
-ajeno — en silencio, y sin que lo vea el bundler, el lint, `tsc` ni la suite. Cada nombre nuevo va
-también a `globalesDelProyecto` en `eslint.config.js`.
+`ResolverManifiestoAnatomy`, `DescargarAdjuntoAnatomy`; los de Classroom son `ScraperClassroom`,
+`ParserTitulosClassroom`, `DescargarAdjuntoClassroom`. Compartir un nombre hace que **el último
+entrypoint evaluado le pise los tres al otro portal**, y el síntoma sería un portal escaneando o
+resolviendo con el adaptador ajeno — en silencio, y sin que lo vea el bundler, el lint, `tsc` ni la
+suite. Cada nombre nuevo va también a `globalesDelProyecto` en `eslint.config.js`.
 
 **Cómo se autentica el portal decide si el corte toca Capa 1.** Ramón Net resuelve con la cookie
 de sesión (`credentials: "include"`) y no necesita nada más. Anatomy by Chris necesita un
 `id_token` que sólo existe en el `localStorage` de su pestaña, y el service worker no tiene
 pestaña: por eso su scraper lo devuelve en `ResultadoEscaneo.credenciales`, se guarda **por
 portal** en `core/estado/credencialesPortal.ts` y le vuelve como tercer parámetro de
-`resolverManifiesto`. La decisión y sus alternativas → ADR-0013.
+`resolverManifiesto`. Google Classroom guarda el índice `authuser` y usa las cookies de Google del
+navegador para la descarga de adjuntos (`credencialesAdjunto: "include"`). La decisión y sus
+alternativas → ADR-0013.
 
 **Qué portal está activo NO lo decide este archivo**, y es un cambio del 2026-08-04 (corte 2 de
 `docs/multisitio-diseno.md`): acá vivía `const SitioActivo = SitioRamonNet`, o sea un portal
@@ -472,6 +477,13 @@ URL que devuelve vive **una hora**: pedirla al escanear la vencería antes de us
 **inyectado en la pestaña** y no en el SW: desde la pestaña sale con el origen de `hotmart.com` y
 el `id_token` de su `localStorage`, que el service worker no puede replicar. Ramón Net sigue
 devolviendo sincrónicamente y no se enteró.
+
+**Google Classroom tiene tres hermanos** (`sitio/google-classroom/`): `scraper.js` (`ScraperClassroom`,
+que escanea Trabajo en clase y Novedades e inyecta la lectura del DOM), `parserTitulos.js`
+(`ParserTitulosClassroom.clasificarCarpeta`, que clasifica por curso saneado) y `descargarAdjunto.js`
+(`DescargarAdjuntoClassroom.resolver`, que genera la URL con `authuser` para Drive o un data URI en
+base64 para accesos `.md`). No implementa `resolverManifiesto.js` porque no tiene videos HLS (su
+descriptor rechaza esa llamada como red de seguridad).
 
 **Cómo resuelve `ResolverManifiesto.resolver`, y por qué es el primer sospechoso cuando una
 descarga trae el video equivocado.** El camino principal **no** parsea el manifiesto: extrae el

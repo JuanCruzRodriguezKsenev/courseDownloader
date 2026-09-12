@@ -14,16 +14,44 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ---
 
-## 🚧 En construcción: `classroom-corte-1` (desde el 2026-09-12)
+## 🚧 En revisión: `classroom-corte-1` (desde el 2026-09-12)
 
 - **Qué trae**: el tercer portal, Google Classroom. Escanea un curso entero y baja sus archivos
   de Drive a `raíz/google-classroom/<curso>/`; los videos, YouTube y los vínculos quedan como
   `.md` con el link.
   - Plan: `docs/plan-classroom-corte-1.md`.
   - Diseño y mediciones: `docs/portal-google-classroom-diseno.md`.
-- **Estado**: el plan está escrito y todavía no hay código. Qué mirar en Chrome está en el Paso 9
-  B del plan; quien lo ejecute lo copia acá al terminar.
-- **Lo que no trae**: el mapeo a la carpeta del dueño. Es el corte 2.
+- **Estado**: código completo (Pasos 1 a 8 implementados, verificación A en verde). Pendiente
+  la Verificación B en navegador con el dueño.
+- **Lo que no trae**: el mapeo a la carpeta del dueño (`U.N.L.P/`). Es el corte 2.
+
+### Checklist de Verificación B (en navegador)
+
+**Antes de empezar:**
+- Levantar el backend: `cd backend && bun run server.js`
+- `pnpm run build` y recargar la extensión desde `.output/chrome-mv3/`
+- Usar la cuenta del curso de Google (`/u/2/`)
+- Dejar la pestaña al frente durante cada escaneo
+
+1. [ ] **Arranque**: el service worker arranca sin excepciones y el popup renderiza completo (`docs/rearquitectura-diseno.md` §Verificación en navegador, puntos 5 y 6).
+2. [ ] **Escaneo curso por curso** (contrastar enlaces con los esperados del §8 del diseño):
+   - [ ] Física II G22 (Palacio): 57 enlaces esperados
+   - [ ] Física I 2024: 130 enlaces (129 Trabajo en clase + 1 sólo en Novedades)
+   - [ ] Fisica_II_G25_2026 (Bianchi, archivado): 71 Trabajo en clase + hasta 28 en Novedades
+   - [ ] MB5 2024: 24 enlaces
+   - [ ] MC4 1S 2026: 13 enlaces
+   - [ ] MC2 2025: 25 enlaces
+   - [ ] MC6 y Q5: tarjeta "El escaneo no trajo clases" en segundos, sin esperar tope de 20 s
+3. [ ] **Nombres repetidos**: en Física I, los 5 `informe de laboratorio fisica i 2024 (template)` aparecen con su material agregado; en Bianchi, los dos `interferencia2025` también.
+4. [ ] **Pestaña oculta**: a mitad del escaneo de Física I, cambiar de pestaña. Aparece la tarjeta con aviso de visibilidad y la lista anterior se conserva en pantalla.
+5. [ ] **Descarga** de 6 ítems y posterior re-sincronización de disco:
+   - [ ] Un PDF en `raíz/google-classroom/<curso>/` con su nombre
+   - [ ] Un video de Drive, uno de YouTube y un vínculo como `.md` funcionales
+   - [ ] Imagen `27 abr 2026 a la(s) 5:36 p.m..jpg` de Bianchi
+   - [ ] `MC4 2026  - Copia de P2F2.pdf` (conservando doble espacio)
+   - [ ] Los 6 quedan marcados como descargados tras re-sincronizar
+6. [ ] **Anatomy sigue igual**: bajar un PDF (funciona sin cookies) y comprobar que lo ya descargado sigue marcado como descargado.
+7. [ ] **Aviso de fallo**: la notificación de un ítem de Classroom que falla abre la pestaña del portal (`background.js:534`).
 
 ## Lo último que se mergeó (2026-08-27)
 

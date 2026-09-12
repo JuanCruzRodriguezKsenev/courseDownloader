@@ -30,12 +30,32 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **38 archivos, 674 tests**, todo en verde |
+| `pnpm test` | **41 archivos, 702 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
 
-**De dónde sale el 674** (2026-08-13). Son los 673 de abajo más **+1** en
+**De dónde sale el 702** (2026-09-12, corte 1 de Google Classroom). Son los 674 de abajo más
+**+28** tests nuevos repartidos en 3 archivos nuevos (38 → 41 archivos) y 3 archivos existentes:
+
+- **+16** en `sitio/google-classroom/` (3 archivos nuevos):
+  - `descargarAdjunto.test.js` (**+4**): URL de Drive con `authuser`, rechazo sin `authuser`,
+    data URI markdown de acceso con tildes, id vacío.
+  - `parserTitulos.test.js` (**+2**): `clasificarCarpeta` con curso saneado, cursos distintos con
+    mismo tema dan carpetas distintas.
+  - `scraper.test.js` (**+10**): Trabajo en clase y Novedades, ignorar vista oculta, tema
+    paginado entero (11), ítem plegado, accesos `.md` para Drive video/YouTube/vínculo, desempate
+    de nombres con material, `authuser` de `/u/N/`, curso vacío sin esperar tope de pintado, corte
+    por visibilidad de pestaña, deduplicación entre vistas.
+- **+4** en `core/cola/procesadorCola.test.ts`: política de cookies de adjuntos (`omit` vs
+  `include`) y rechazo tipado de respuesta HTML cuando el título no es `.html`/`.htm`.
+- **+5** en `core/util/texto.test.ts`: `nombreEnDisco` (conservar dobles espacios, caracteres
+  válidos en disco, basename con slash/backslash, fallback vacío, y test de paridad con
+  `backend/utils.js`).
+- **+3** en `sitio/registro.test.ts`: reclamación de URLs de Classroom, no reclamar `/h`, y
+  `topeEscaneoMs >= 120000` mayor que el de Anatomy.
+
+**De dónde salía el 674** (2026-08-13). Son los 673 de abajo más **+1** en
 `popup/features/pisoVisible.test.js` (`hayPendiente`), que fija el modo de falla que el piso
 estrena: **el código que LEE el DOM justo después de pedir una escritura**. Antes la escritura
 era sincrónica y medir a continuación medía el estado nuevo; con el piso puede estar en cola, y

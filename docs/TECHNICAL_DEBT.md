@@ -14,44 +14,23 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 ## 🔴 Abierto
 
-> ## Estado al 2026-08-13: **CUATRO** entradas abiertas
+> ## Estado al 2026-09-12: **NUEVE** entradas abiertas
 >
-> Re-contadas, no sumadas al número anterior — que es lo que pide el párrafo del error de
-> conteo, unas líneas más abajo. Son:
+> Re-contadas, no sumadas al número anterior (3 🔴, 3 🟠, 3 ⚪):
 >
-> 1. **El mecanismo de popovers sin tests** (última entrada de esta sección). Venía de antes.
-> 2. **El loader no tiene dueño**: se prende y apaga con `style.display` desde **12 lugares**, y
->    los dos que se pisan están coordinados por una bandera (`elEscaneoTomoElLoader`) en vez de
->    por construcción. Medido el 2026-08-13: dos de los cuatro carteles del arranque son
->    destellos —**248 ms** el del loader y **117 ms** el del botón—, y los otros dos duran ~3 s.
->    **El corte ya está diseñado** (dueño único + tokens + demora para aparecer y mínimo visible
->    **por texto**, botón incluido) → `docs/ramas-en-revision.md` §Lo que falta.
-> 3. **`#ui-msg-status` está oculto y nadie se lo destapa**, así que ~20 mensajes son invisibles
->    —incluido el texto de progreso de la descarga—. Arreglo de una línea, lo que falta es la
->    pasada por navegador → `docs/alertas-y-bloqueo-diseno.md` §6.8b.
-> 4. **El banco no puede forzar una descarga en curso** ni sembrar el historial de fallos: sólo
->    envuelve APIs del popup, y eso vive en el service worker.
+> 1. 🔴 **El mecanismo de popovers sin tests** (hallado 2026-08-05).
+> 2. 🔴 **El loader del popup no tiene dueño**: tokens y demora pendientes (hallado 2026-08-12).
+> 3. 🔴 **`#ui-msg-status` está oculto y nadie se lo destapa** (hallado 2026-08-13).
+> 4. 🟠 **El banco de pruebas no alcanza al service worker** (hallado 2026-08-12).
+> 5. 🟠 **`sanitizarTexto` no replica al backend porque colapsa espacios**: afecta videos con dobles espacios; `nombreEnDisco` lo resuelve sólo para adjuntos (hallado 2026-09-12).
+> 6. 🟠 **`/api/seleccionar-carpeta` sólo funciona en Windows** y cambia la raíz compartida de todos los portales (hallado 2026-09-12, lo toma el corte 2).
+> 7. ⚪ **Dos restos de la limpieza de micro-movimientos** (hallado 2026-08-13).
+> 8. ⚪ **Un 403 de un solo archivo de Drive pausa la cola entera** (hallado 2026-09-12).
+> 9. ⚪ **`AGENTS.md:150` cita `.agents/skills/`, que no existe**; sólo queda `skills-lock.json` (hallado 2026-09-12).
 >
-> **Y hay una tanda construida y sin verificar en Chrome**, en `tanda-toolbar-capa-y-pnpm`: pnpm,
-> el bloqueo y la capa flotante reutilizables, los controles que siguen al resultado y los
-> carteles de lista vacía. Qué mirar y en qué orden → `docs/ramas-en-revision.md`. Hasta que se
-> verifique, **eso no está cerrado**: la compuerta en verde no dice nada sobre esta zona.
+> ### Lo que se cerró el 2026-09-12 (Classroom corte 1)
 >
-> La verificación encontró **ocho defectos más**, ninguno alcanzable por la compuerta y cuatro
-> introducidos por el arreglo del anterior; se cerraron en la misma pasada. Tabla y lecciones →
-> `docs/alertas-y-bloqueo-diseno.md` §5.1.
->
-> **Y acá hubo un error de conteo que conviene dejar escrito, porque duró cinco días.** Este
-> mismo encabezado decía, desde el 2026-08-07, que «lo único abierto es el copy genérico», y
-> después «se suman CINCO»: total, seis. Eran **siete**. La entrada de los popovers —hallada el
-> 2026-08-05, marcada `🔴 abierto`, tres secciones más abajo— **no estaba contada**: el resumen
-> ya la omitía el día que se escribió. `AGENTS.md` (entonces `CLAUDE.md`) heredó el número y lo
-> repitió hasta hoy.
->
-> El error entró **por el resumen, no por el inventario**: las siete entradas siempre estuvieron
-> completas y correctas. Es exactamente el modo de falla contra el que existe la convención DRY
-> del proyecto (ADR-0007), aparecido adentro del propio doc canónico. **Al agregar una entrada
-> acá, re-contá la sección en vez de sumarle uno al número que ya estaba.**
+> - **El "ya descargado" de adjuntos por `includes`**: `popup.js` comparaba por `includes` y marcaba descargados archivos por colisión de prefijo (`a.pdf` vs `tabla.pdf`). Ahora compara por igualdad exacta contra `nombreEnDisco(clase.titulo).toLowerCase()`.
 >
 > ### Lo que se cerró el 2026-08-12
 >
@@ -64,11 +43,12 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 >   "6 strings de `popup.js`" hasta que el re-relevamiento del 2026-08-11 lo midió bien —eran
 >   **9 textos en 17 sitios**, y **7 en 12** desde que el rename a Course Downloader cerró de
 >   arrastre los 4 de la marca—. Inventario → `docs/copy-generico-diseno.md`.
->   Su historia vale como recordatorio: pasó de **bloqueado** ("recién cuando exista un segundo
->   portal real") a **postergado** el 2026-08-07, que no es lo mismo; y de ahí a hecho.
->
-> La entrada de la identidad (ADR-0014) sigue **resuelta y conservada acá**, y no en el registro
-> fechado de abajo, porque lo que enseñó vale cada vez que se toca la cola o el escaneo.
+
+### ✅ El "ya descargado" de adjuntos daba positivo falso por includes
+
+- **Estado**: ✅ **RESUELTO el 2026-09-12** (hallado al medir Google Classroom, resuelto en Paso 4).
+- **Qué pasaba**: `popup.js:1508-1519` comparaba `clase.titulo.toLowerCase().trim()` con los nombres en disco aceptando `includes`. Para adjuntos con nombres cortos o genéricos (ej. `a.pdf`), cualquier archivo existente cuyo nombre contuviera esa cadena (ej. `tabla.pdf`) lo marcaba como ya descargado.
+- **Cómo se cerró**: si `clase.tipo === 'adjunto'`, la comparación se hace estrictamente por igualdad exacta contra `setArchivosNormalizados.has(utils.nombreEnDisco(clase.titulo).toLowerCase())` y nunca entra al bucle de `includes`.
 
 ### ✅ El timeout del escaneo salta SIEMPRE en Anatomy, y el mensaje miente
 
@@ -549,6 +529,32 @@ Llegaron acá al mergear la tanda del toolbar (2026-08-13): vivían en
   historial de fallos de la campanita.
 - **Qué haría falta**: contestar IPC de progreso falsos, que es otro mecanismo y no un switch más.
 - **Estado**: 🟠 abierto. El inventario de qué se fuerza y cómo vive en la cabecera del módulo.
+
+### 🟠 `sanitizarTexto` no replica al backend porque colapsa espacios
+
+- **Dónde**: `core/util/texto.ts:40-46` (`sanitizarTexto`).
+- **Qué pasa**: `sanitizarTexto` usa la misma clase de caracteres permitidos que el backend (`backend/utils.js:8`, `sanitizarNombreArchivo`), pero además colapsa secuencias de espacios en uno solo (`\s+` → `" "`). Si un video tiene espacios dobles en el título (ej: `"MC4 2026  - Copia de P2F2"`), el nombre en disco conserva el espacio doble pero la extensión busca con espacio simple.
+- **Por qué sigue abierto**: `nombreEnDisco` (Paso 3 del corte 1 de Classroom) resolvió el problema para los adjuntos sin tocar `sanitizarTexto`. Modificar `sanitizarTexto` cambiaría el nombre esperado de videos ya descargados en instalaciones existentes.
+- **Estado**: 🟠 abierto (hallado el 2026-09-12 al escribir el plan de Classroom).
+
+### 🟠 `/api/seleccionar-carpeta` sólo funciona en Windows y cambia la raíz de todos los portales
+
+- **Dónde**: `backend/handlers.js:325` y `:332`.
+- **Qué pasa**: el endpoint levanta un diálogo con PowerShell (`System.Windows.Forms.FolderBrowserDialog`), lo cual falla en Linux/macOS. Además, al guardar en `config.json` pisa la clave `downloadPath` global, cambiando la carpeta raíz de descarga para **todos** los portales a la vez.
+- **Solución**: queda para el corte 2 de Google Classroom (raíz configurable por portal y ADR-0016).
+- **Estado**: 🟠 abierto (hallado el 2026-09-12).
+
+### ⚪ Un 403 de un solo archivo de Drive pausa la cola entera
+
+- **Dónde**: `core/cola/procesadorCola.ts:474`.
+- **Qué pasa**: la regla general de clasificación trata cualquier HTTP 403 como un `"bloqueo"` sistémico que pausa la cola completa. Si un docente deshabilita la descarga de un archivo puntual en Google Drive (permisos restringidos sobre ese archivo específico), Drive responde 403 y la cola entera se frena en vez de rechazar sólo ese ítem y continuar con los demás. No está medido si ocurre en la práctica con archivos de cátedra.
+- **Estado**: ⚪ abierto (hallado el 2026-09-12).
+
+### ⚪ `AGENTS.md:150` cita `.agents/skills/`, que no existe
+
+- **Dónde**: `AGENTS.md:150`.
+- **Qué pasa**: el texto cita la ruta `.agents/skills/` como ubicación de skills, pero en el repositorio no existe esa carpeta (sólo está `skills-lock.json`).
+- **Estado**: ⚪ abierto (hallado el 2026-09-12).
 
 ## 🔴 Seguridad
 

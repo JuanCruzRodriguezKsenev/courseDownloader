@@ -66,6 +66,8 @@ Lo que hay que saber, y las reglas que salen de eso:
 - **Es opaco para el núcleo.** `core/estado/credencialesPortal.ts` guarda un `Record<string,string>` sin interpretarlo: qué claves lleva lo decide cada adaptador. Eso es lo que evita que el vocabulario de un portal (`idToken`) se filtre a Capa 1.
 - **Borrarlo es seguro**: sin credenciales, la resolución falla con un mensaje explícito que pide re-escanear el portal. No corrompe la cola ni el listado.
 
+**Google Classroom (corte 1):** guarda `authuser` en `credencialesPortal`, que es un índice numérico de cuenta (`/u/N/`) y no un secreto, usando el mismo mecanismo genérico. Las descargas de archivos de Drive se realizan con las cookies de Google del navegador (`credencialesAdjunto: "include"`), acotadas por `host_permissions` estrictamente a `drive.usercontent.google.com`. Por su parte, los archivos `.md` de acceso contienen únicamente la URL y el título del recurso, sin datos privados ni tokens.
+
 ## Cifrado de fragmentos HLS
 
 Los fragmentos `.ts` vienen cifrados con AES-128-CBC según el estándar HLS (`#EXT-X-KEY` en el manifiesto). Se descifran con `crypto.subtle.decrypt` (WebCrypto nativo) en `Utils.descifrarFragmento` — no hay claves ni lógica criptográfica propia del proyecto, solo consumo de la clave que expone el propio manifiesto de la plataforma.
