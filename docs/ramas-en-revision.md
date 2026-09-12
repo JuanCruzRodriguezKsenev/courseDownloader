@@ -14,10 +14,20 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ---
 
-## ✅ Nada en revisión
+## 🚧 En construcción: `classroom-corte-1` (desde el 2026-09-12)
 
-**Al 2026-08-27.** `main` está al día: la tanda `tanda-host-ramonnet-y-conexion` se verificó en
-Chrome y se mergeó. No hay trabajo construido fuera de `main`.
+- **Qué trae**: el tercer portal, Google Classroom. Escanea un curso entero y baja sus archivos
+  de Drive a `raíz/google-classroom/<curso>/`; los videos, YouTube y los vínculos quedan como
+  `.md` con el link.
+  - Plan: `docs/plan-classroom-corte-1.md`.
+  - Diseño y mediciones: `docs/portal-google-classroom-diseno.md`.
+- **Estado**: el plan está escrito y todavía no hay código. Qué mirar en Chrome está en el Paso 9
+  B del plan; quien lo ejecute lo copia acá al terminar.
+- **Lo que no trae**: el mapeo a la carpeta del dueño. Es el corte 2.
+
+## Lo último que se mergeó (2026-08-27)
+
+La tanda `tanda-host-ramonnet-y-conexion` se verificó en Chrome y se mergeó.
 
 Dónde quedó lo que traía, por si venís buscándolo:
 
