@@ -46,6 +46,12 @@ const globalesDelProyecto = {
   ParserTitulosAnatomy: "readonly",
   ScraperAnatomy: "readonly",
   DescargarAdjuntoAnatomy: "readonly",
+
+  // Portal 3: Google Classroom.
+  SitioGoogleClassroom: "readonly",
+  ScraperClassroom: "readonly",
+  ParserTitulosClassroom: "readonly",
+  DescargarAdjuntoClassroom: "readonly",
 };
 
 module.exports = [

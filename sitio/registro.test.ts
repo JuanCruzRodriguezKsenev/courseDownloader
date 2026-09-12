@@ -2,15 +2,16 @@ import { describe, it, expect } from "vitest";
 import { Sitios } from "./registro";
 import { SitioRamonNet } from "./ramonnet/config";
 import { SitioAnatomyByChris } from "./anatomy-by-chris/config";
+import { SitioGoogleClassroom } from "./google-classroom/config";
 
 /**
- * Tests del registro de sitios (multi-sitio, corte 2; ampliado en el corte 7).
+ * Tests del registro de sitios (multi-sitio, corte 2; ampliado en el corte 7 y en classroom-corte-1).
  *
  * Lo que se afirma no es "encuentra Ramón Net" sino el contrato del que depende el bucle de
  * descarga: que un id desconocido devuelve `undefined` y NO cae al portal por defecto, que es
  * el bug que ADR-0010 previene.
  *
- * **Desde el corte 7 hay dos portales registrados**, y con eso una mitad del frente
+ * **Desde Classroom hay tres portales registrados**, y con eso una mitad del frente
  * multiportal deja de tener sólo dobles: que los `esPaginaDelSitio` sean DISJUNTOS se puede
  * afirmar de verdad recién acá.
  */
@@ -18,6 +19,7 @@ describe("Sitios.obtener (por id, como viene de un ítem persistido)", () => {
   it("devuelve el adaptador cuyo id coincide", () => {
     expect(Sitios.obtener("ramonnet")).toBe(SitioRamonNet);
     expect(Sitios.obtener("anatomy-by-chris")).toBe(SitioAnatomyByChris);
+    expect(Sitios.obtener("google-classroom")).toBe(SitioGoogleClassroom);
   });
 
   it("un id desconocido devuelve undefined y NO cae al portal por defecto", () => {
@@ -45,6 +47,20 @@ describe("Sitios.resolverPorUrl (para la pestaña activa)", () => {
     ).toBe(SitioAnatomyByChris);
   });
 
+  it("reconoce Google Classroom por URL de curso en Trabajo en clase o Novedades", () => {
+    expect(
+      Sitios.resolverPorUrl("https://classroom.google.com/u/2/w/MjQzNjkyNDM0NTEw/t/all")
+    ).toBe(SitioGoogleClassroom);
+    expect(
+      Sitios.resolverPorUrl("https://classroom.google.com/c/MjQzNjkyNDM0NTEw")
+    ).toBe(SitioGoogleClassroom);
+  });
+
+  it("Google Classroom NO reclama páginas que no son de un curso (/h o /h/archived)", () => {
+    expect(Sitios.resolverPorUrl("https://classroom.google.com/u/2/h")).toBeUndefined();
+    expect(Sitios.resolverPorUrl("https://classroom.google.com/u/2/h/archived")).toBeUndefined();
+  });
+
   it("una URL ajena no resuelve a ningún portal", () => {
     expect(Sitios.resolverPorUrl("https://www.google.com/")).toBeUndefined();
   });
@@ -59,12 +75,12 @@ describe("Sitios.resolverPorUrl (para la pestaña activa)", () => {
     ).toBeUndefined();
   });
 
-  it("los dos portales son DISJUNTOS: ninguno reclama la URL del otro", () => {
-    // La mitad "el otro portal no se ve afectado" del frente multiportal, que hasta el corte 7
-    // sólo tenía dobles.
+  it("los tres portales son DISJUNTOS: ninguno reclama la URL del otro", () => {
     const urls = [
       "https://ramonnet.com.ar/usuario/clases-grabadas",
       "https://hotmart.com/es/club/anatomy-by-chris/products/6083220/content/ABC",
+      "https://classroom.google.com/u/2/w/MjQzNjkyNDM0NTEw/t/all",
+      "https://classroom.google.com/c/MjQzNjkyNDM0NTEw",
     ];
     for (const url of urls) {
       const reclaman = Sitios.todos().filter((s) => s.esPaginaDelSitio(url));
@@ -143,5 +159,10 @@ describe("topeEscaneoMs: el techo del escaneo es una medición, no un default", 
     // Suena obvio y es la aserción que atrapa un copy-paste entre configs, que es como se
     // escribe un portal nuevo en este proyecto (§Cómo escribir un portal nuevo).
     expect(SitioAnatomyByChris.topeEscaneoMs).toBeGreaterThan(SitioRamonNet.topeEscaneoMs);
+  });
+
+  it("el tope de Classroom es >= 120000 y mayor que el de Anatomy", () => {
+    expect(SitioGoogleClassroom.topeEscaneoMs).toBeGreaterThanOrEqual(120000);
+    expect(SitioGoogleClassroom.topeEscaneoMs).toBeGreaterThan(SitioAnatomyByChris.topeEscaneoMs);
   });
 });

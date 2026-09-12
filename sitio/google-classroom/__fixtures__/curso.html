@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Trabajo en clase de Física II - Classroom</title>
+</head>
+<body>
+  <nav>
+    <a href="/u/2/c/CURSO123">Novedades</a>
+    <a href="/u/2/w/CURSO123/t/all">Trabajo en clase</a>
+  </nav>
+
+  <!-- Vista oculta: no debe ser leída -->
+  <c-wiz aria-hidden="true" id="vista-oculta">
+    <div role="region" aria-label="Tema Oculto">
+      <li data-stream-item-id="item-oculto" data-expandable-row-id="row-oculto">
+        <div role="button" aria-expanded="true" aria-label="Material Oculto"></div>
+        <div data-attachment-id="att-oculto">
+          <a aria-label="Archivo adjunto: PDF: Secreto.pdf" href="https://drive.google.com/file/d/drive-oculto/view"></a>
+        </div>
+      </li>
+    </div>
+  </c-wiz>
+
+  <!-- Vista activa: Trabajo en clase -->
+  <c-wiz id="vista-trabajo">
+    <!-- Región sin tema -->
+    <div role="region" aria-label="Elementos de trabajo en clase sin tema">
+      <li data-stream-item-id="item-sin-tema" data-expandable-row-id="row-sin-tema">
+        <div role="button" aria-expanded="true" aria-label="Material Sin Tema"></div>
+        <div data-attachment-id="att-sin-tema">
+          <a aria-label="Archivo adjunto: PDF: Introduccion.pdf" href="https://drive.google.com/file/d/drive-sin-tema/view"></a>
+          <!-- Duplicado por adjunto según medición de Classroom -->
+          <a aria-label="Archivo adjunto: PDF: Introduccion.pdf" href="https://drive.google.com/file/d/drive-sin-tema/view"></a>
+        </div>
+      </li>
+    </div>
+
+    <!-- Región con temas y varios tipos de adjuntos -->
+    <div role="region" aria-label="Tema Presentaciones">
+      <!-- Material A con Notas.pdf -->
+      <li data-stream-item-id="item-mat-a" data-expandable-row-id="row-mat-a">
+        <div role="button" aria-expanded="true" aria-label="Clase 1"></div>
+        <div data-attachment-id="att-dup-a">
+          <a aria-label="Archivo adjunto: PDF: Notas.pdf" href="https://drive.google.com/file/d/drive-dup-a/view"></a>
+          <a aria-label="Archivo adjunto: PDF: Notas.pdf" href="https://drive.google.com/file/d/drive-dup-a/view"></a>
+        </div>
+        <div data-attachment-id="att-video-drive">
+          <a aria-label="Archivo adjunto: Video: Grabacion Teoria.mp4" href="https://drive.google.com/file/d/drive-video-1/view"></a>
+        </div>
+        <div data-attachment-id="att-youtube">
+          <a aria-label="Archivo adjunto: video de YouTube: Experimento Optica" href="https://www.youtube.com/watch?v=opt123"></a>
+        </div>
+        <div data-attachment-id="att-vinculo">
+          <a aria-label="Archivo adjunto: Vínculo a https://forms.gle/formulario1" href="https://forms.gle/formulario1"></a>
+        </div>
+      </li>
+
+      <!-- Material B con Notas.pdf (mismo nombre, distinto id) -->
+      <li data-stream-item-id="item-mat-b" data-expandable-row-id="row-mat-b">
+        <div role="button" aria-expanded="true" aria-label="Clase 2"></div>
+        <div data-attachment-id="att-dup-b">
+          <a aria-label="Archivo adjunto: PDF: Notas.pdf" href="https://drive.google.com/file/d/drive-dup-b/view"></a>
+        </div>
+      </li>
+
+      <!-- Item plegado (sin data-attachment-id al inicio) -->
+      <li data-stream-item-id="item-plegado" data-expandable-row-id="row-plegado">
+        <div role="button" aria-expanded="false" aria-label="Material Plegado"></div>
+      </li>
+    </div>
+
+    <!-- Región con 11 ítems y Ver más -->
+    <div role="region" aria-label="Tema Trabajos Practicos">
+      <button aria-label="Ver más publicaciones">Ver más publicaciones</button>
+      <li data-stream-item-id="tp-1" data-expandable-row-id="row-tp-1">
+        <div role="button" aria-expanded="true" aria-label="TP 1"></div>
+        <div data-attachment-id="att-tp-1"><a aria-label="Archivo adjunto: PDF: TP1.pdf" href="https://drive.google.com/file/d/drive-tp-1/view"></a></div>
+      </li>
+      <li data-stream-item-id="tp-2" data-expandable-row-id="row-tp-2">
+        <div role="button" aria-expanded="true" aria-label="TP 2"></div>
+        <div data-attachment-id="att-tp-2"><a aria-label="Archivo adjunto: PDF: TP2.pdf" href="https://drive.google.com/file/d/drive-tp-2/view"></a></div>
+      </li>
+      <li data-stream-item-id="tp-3" data-expandable-row-id="row-tp-3">
+        <div role="button" aria-expanded="true" aria-label="TP 3"></div>
+        <div data-attachment-id="att-tp-3"><a aria-label="Archivo adjunto: PDF: TP3.pdf" href="https://drive.google.com/file/d/drive-tp-3/view"></a></div>
+      </li>
+      <li data-stream-item-id="tp-4" data-expandable-row-id="row-tp-4">
+        <div role="button" aria-expanded="true" aria-label="TP 4"></div>
+        <div data-attachment-id="att-tp-4"><a aria-label="Archivo adjunto: PDF: TP4.pdf" href="https://drive.google.com/file/d/drive-tp-4/view"></a></div>
+      </li>
+      <li data-stream-item-id="tp-5" data-expandable-row-id="row-tp-5">
+        <div role="button" aria-expanded="true" aria-label="TP 5"></div>
+        <div data-attachment-id="att-tp-5"><a aria-label="Archivo adjunto: PDF: TP5.pdf" href="https://drive.google.com/file/d/drive-tp-5/view"></a></div>
+      </li>
+      <li data-stream-item-id="tp-6" data-expandable-row-id="row-tp-6">
+        <div role="button" aria-expanded="true" aria-label="TP 6"></div>
+        <div data-attachment-id="att-tp-6"><a aria-label="Archivo adjunto: PDF: TP6.pdf" href="https://drive.google.com/file/d/drive-tp-6/view"></a></div>
+      </li>
+      <li data-stream-item-id="tp-7" data-expandable-row-id="row-tp-7">
+        <div role="button" aria-expanded="true" aria-label="TP 7"></div>
+        <div data-attachment-id="att-tp-7"><a aria-label="Archivo adjunto: PDF: TP7.pdf" href="https://drive.google.com/file/d/drive-tp-7/view"></a></div>
+      </li>
+      <li data-stream-item-id="tp-8" data-expandable-row-id="row-tp-8">
+        <div role="button" aria-expanded="true" aria-label="TP 8"></div>
+        <div data-attachment-id="att-tp-8"><a aria-label="Archivo adjunto: PDF: TP8.pdf" href="https://drive.google.com/file/d/drive-tp-8/view"></a></div>
+      </li>
+      <li data-stream-item-id="tp-9" data-expandable-row-id="row-tp-9">
+        <div role="button" aria-expanded="true" aria-label="TP 9"></div>
+        <div data-attachment-id="att-tp-9"><a aria-label="Archivo adjunto: PDF: TP9.pdf" href="https://drive.google.com/file/d/drive-tp-9/view"></a></div>
+      </li>
+      <li data-stream-item-id="tp-10" data-expandable-row-id="row-tp-10">
+        <div role="button" aria-expanded="true" aria-label="TP 10"></div>
+        <div data-attachment-id="att-tp-10"><a aria-label="Archivo adjunto: PDF: TP10.pdf" href="https://drive.google.com/file/d/drive-tp-10/view"></a></div>
+      </li>
+    </div>
+  </c-wiz>
+
+  <!-- Vista de Novedades (inicialmente aria-hidden="true") -->
+  <c-wiz id="vista-novedades" aria-hidden="true">
+    <div data-stream-item-id="post-nov-1">
+      <h2>Aviso de Parcial</h2>
+      <div data-attachment-id="att-nov-1">
+        <a aria-label="Archivo adjunto: PDF: Cronograma.pdf" href="https://drive.google.com/file/d/drive-cronograma/view"></a>
+      </div>
+      <!-- Adjunto repetido con Trabajo en clase para deduplicación -->
+      <div data-attachment-id="att-nov-dup">
+        <a aria-label="Archivo adjunto: PDF: Introduccion.pdf" href="https://drive.google.com/file/d/drive-sin-tema/view"></a>
+      </div>
+    </div>
+  </c-wiz>
+</body>
+</html>

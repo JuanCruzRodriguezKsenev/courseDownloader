@@ -26,6 +26,10 @@ import '../../sitio/anatomy-by-chris/config.ts';
 import '../../sitio/anatomy-by-chris/parserTitulos.js';
 import '../../sitio/anatomy-by-chris/scraper.js';
 
+import '../../sitio/google-classroom/config.ts';
+import '../../sitio/google-classroom/parserTitulos.js';
+import '../../sitio/google-classroom/scraper.js';
+
 // Núcleo compartido.
 import '../../core/backend/bunClient.ts';
 // Composición: acá se instancian y se publican los globals de los módulos ya desacoplados
