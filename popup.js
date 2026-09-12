@@ -1,7 +1,14 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.24.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.25.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.25.0:
+ * - [CLASSROOM CORTE 1 - Paso 4] Si `clase.tipo === 'adjunto'`, la comparación con disco es por
+ *   coincidencia exacta de `utils.nombreEnDisco(clase.titulo).toLowerCase()`, sin entrar al
+ *   bucle de `includes`.
+ * - [CLASSROOM CORTE 1 - Paso 5] Si `resultado.aviso` tiene texto, el escaneo se corta antes
+ *   de guardar credenciales y muestra la card con `motivo: 'portal'`, restaurando la lista previa.
+ *
  * CHANGELOG v5.24.0:
  * - [SIN PORTAL] La TERCERA forma de morir del escaneo ya avisa. En una página que no es de
  *   ningún portal el escaneo corta antes de correr, y esa rama escribía en `nodos.txtEstado`
@@ -1314,6 +1321,26 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             // scraper de Ramón Net filtrado a la capa genérica, y en el portal equivocado
             // mandaba las clases a `raíz/anatomy-by-chris/biologia/`.
             const resultado = (await res?.result) || { materia: "", enlaces: [] };
+
+            // [CLASSROOM CORTE 1 - Paso 5] Si el escaneo se cortó con un aviso, se muestra la tarjeta
+            // explicativa ('portal') y se restaura el listado anterior sin tocar credenciales.
+            if (resultado.aviso) {
+              ocultarLoader();
+              escaneoMuerto = {
+                motivo: 'portal',
+                portal: utils.escaparHtml(portal.nombre),
+                detalle: utils.escaparHtml(resultado.aviso),
+              };
+              sincronizarBloqueosDeAlerta();
+              configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
+
+              appState.inicializarSincronizacionStorage().then(() => {
+                actualizarBadgeFaceta();
+                renderizarListadoInterfaz();
+              });
+              return;
+            }
+
             const enlaces = resultado.enlaces;
 
             // [CORTE 7] Las credenciales que el portal expone SÓLO dentro de su pestaña
@@ -1505,14 +1532,22 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
               return;
             }
 
-            const tituloNormalizado = clase.titulo.toLowerCase().trim();
-            let yaExiste = setArchivosNormalizados.has(tituloNormalizado);
+            let yaExiste = false;
+            if (clase.tipo === 'adjunto') {
+              // [CLASSROOM CORTE 1 - Paso 4] Con un adjunto se compara por nombre exacto saneado en disco
+              // (docs/plan-classroom-corte-1.md). Evita que a.pdf se dé por descargado si existe tabla.pdf
+              // y alinea el título con el nombre en disco calculado por utils.nombreEnDisco.
+              yaExiste = setArchivosNormalizados.has(utils.nombreEnDisco(clase.titulo).toLowerCase());
+            } else {
+              const tituloNormalizado = clase.titulo.toLowerCase().trim();
+              yaExiste = setArchivosNormalizados.has(tituloNormalizado);
 
-            if (!yaExiste) {
-              for (const nom of setArchivosNormalizados) {
-                if (nom.includes(tituloNormalizado)) {
-                  yaExiste = true;
-                  break;
+              if (!yaExiste) {
+                for (const nom of setArchivosNormalizados) {
+                  if (nom.includes(tituloNormalizado)) {
+                    yaExiste = true;
+                    break;
+                  }
                 }
               }
             }
@@ -1739,6 +1774,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             titulo: 'No estás en un portal reconocido',
             descripcion: `Esta pestaña no es de ningún portal conocido.<br>Abrí una de <strong>${escaneoMuerto.portales}</strong> y tocá <strong>Re-escanear</strong>.`,
             icono: '🧭',
+          },
+          portal: {
+            titulo: 'El escaneo no trajo clases',
+            descripcion: `${escaneoMuerto.detalle}<br>Probá <strong>Re-escanear</strong>.`,
+            icono: '👁️',
           },
         };
         ListaClases.render({ modo: 'card', card: { tipo: 'error', ...cards[escaneoMuerto.motivo] } });

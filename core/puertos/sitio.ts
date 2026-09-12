@@ -108,6 +108,11 @@ export interface ResultadoEscaneo {
    * medir el camino completo del escaneo — ver ese módulo.
    */
   credenciales?: Record<string, string>;
+  /**
+   * [CLASSROOM CORTE 1] El escaneo se cortó por algo que el usuario puede arreglar;
+   * se muestra en lugar del listado y **no** reemplaza la lista anterior.
+   */
+  aviso?: string;
 }
 
 /** Destino de una clase: valor del eje de faceta + carpeta en disco. */
