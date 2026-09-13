@@ -96,7 +96,7 @@ SCRATCH=$(mktemp -d)
 ### Paso 1 — Precondiciones (si una falla, parar y reportar; no seguir)
 
 ```bash
-pgrep -fl obsidian                                          # sin salida: Obsidian cerrado
+pgrep -x obsidian                                           # sin salida: Obsidian cerrado (-x: nombre exacto; con -f se encuentra a sí mismo)
 git branch --show-current                                   # main
 git status --short -- "${MATERIAS[@]}" | grep -v '^??'      # sin salida: nada versionado modificado
 test "$(find "${MATERIAS[@]}" -type f | wc -l)" = 121 && echo OK-121
