@@ -55,8 +55,8 @@ Lección de método: medir un fetch desde una pestaña NO equivale al contexto d
 Ojo: el informe de obra decía "verificación A en verde" con 33 rojos → siempre re-verificar.
 
 Ronda 2026-09-12 noche: plan verif. B ejecutado (`e41e682`) y verificado por mí: 42 archivos/706 tests, lint/tsc/build
-verdes, diff = plan, `urlSondeoInternet` en background.js sólo en CHANGELOG, favicon.ico en los 2 bundles. Push de la
-rama lo bloquea el clasificador de auto mode → lo pushea el dueño.
+verdes, diff = plan, `urlSondeoInternet` en background.js sólo en CHANGELOG, favicon.ico en los 2 bundles. Push: el clasificador de auto mode
+bloquea `git push` por iniciativa propia; con pedido explícito del dueño ("pushea") pasa.
 
 **How to apply:** próxima ronda: el dueño corre la verificación B en Brave (plan verif. B §4.B primero, después checklist de `docs/ramas-en-revision.md` desde el paso 2);
 después merge y plan del corte 2 (mapeo por ruta escrita + ADR-0016). `includes` y `.agents/skills/` ya están enrutados.
