@@ -1,0 +1,1 @@
+- [Classroom corte 1: lista guardada y Explorar](project_classroom_lista_guardada_y_explorar.md) — compuerta de escaneo al abrir, botón 🔄 en toolbar, selector de carpetas Linux vía D-Bus portal

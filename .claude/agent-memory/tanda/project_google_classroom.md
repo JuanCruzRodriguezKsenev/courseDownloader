@@ -69,7 +69,19 @@ C3 (batchexecute) 2026-09-13, dueño pidió medir sin tocar lo que anda: G22 no 
 hace `dpT4Vd` ×13 (≈tema) y `sLc6hf` ×~50 (≈ítem); después, Ver más/abrir ítem NO piden nada. Claude in Chrome: read_network_requests
 NO ve nada en Brave, y un hook XHR puesto después de cargar se pierde los listados; pestaña del grupo sin foco no pinta. → HAR manual
 del dueño a docs/muestras/google-classroom/c3/g22.har (gitignorado). VEREDICTO: `dpT4Vd` (hrcw.qr, por tema, de a 10) trae
-títulos/ids/fechas SIN ids de Drive; `sLc6hf` = comentarios. batchexecute NO viable → D8 (DOM) sigue.
+títulos/ids de ítem SIN Drive; 2do HAR con ítems abiertos (pisó g22.har): `t51ITc` ×49 (uno por ítem,
+`[[idItem,[idCurso]]]`) trae nombre+id Drive+MIME → 57 ids (DOM 56). Tokens en WIZ_global_data (SNlM0e/FdrFJe/cfb2h).
+VIABLE para Trabajo en clase; sin medir: Novedades, YouTube/vínculos, paginación. Corte 1 sigue DOM; API = corte aparte.
+M5 (2026-09-13, consola del dueño, G22): abrir los 49 ítems DE UNA (click a todos + esperar 3 s de quietud) =
+5529 ms, 57 adjuntos, 49/49 abiertos; de a uno (script con 800 ms) dio 56. Hoy scraper.js:282-298 abre de a uno
+(~555 ms/ítem o 1,5 s sinAdjuntos). Dueño: entra al corte 1 antes del merge, plan aparte tras el de obra.
+Plan: `docs/plan-classroom-corte-1-abrir-todos.md` (escrito sin commitear mientras obra ejecutaba el de lista guardada).
+Orden: obra plan lista-guardada → yo verifico y commiteo docs → obra plan abrir-todos.
+Ronda 2026-09-13 (informe lista-guardada, `4623593`): diff revisado = plan; loader OK (compuerta devuelve false sólo con
+escaneo en curso; rama guardada apaga ella), escaneo vacío/abortado conserva lista Y origen (coherente). 🔄 re-habilitado en
+`desbanearFiltros` = mismo patrón que el buscador (la región bloqueada lleva aria-disabled). `__pycache__/` → .gitignore (yo).
+Plan abrir-todos ajustado: baseline literal 716, M5 después de "Verificación B (2026-09-13)".
+Lección: primero di "no viable" con un HAR sólo de carga — no concluir sobre lazy-load sin capturar la interacción.
 Plan escrito: `docs/plan-classroom-corte-1-lista-guardada-y-explorar.md` (origenListado + claveDeListado? + 🔄 + python portal).
 Baseline esperado tras ejecutarlo: 43 archivos / 715 tests.
 

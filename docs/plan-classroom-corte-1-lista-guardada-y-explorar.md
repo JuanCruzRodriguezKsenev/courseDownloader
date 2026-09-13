@@ -16,13 +16,24 @@ Todo lo que sigue está **decidido por el dueño**; no hay opciones abiertas.
 - **"Re-escanear" no está a la vista con una lista en pantalla.** El botón del footer sólo ofrece
   `re-escanear` con un escaneo muerto (`popup.js:2296`); con lista, ofrece descargar/sincronizar.
   Si el popup deja de escanear al abrir, hace falta un control propio.
-- **El escaneo por `batchexecute` no es viable (medición C3, HAR en
-  `docs/muestras/google-classroom/c3/g22.har`, gitignorado).** El listado de "Trabajo en clase"
-  viaja en `dpT4Vd` (`hrcw.qr`), un pedido por tema y de a 10 ítems: trae títulos, descripciones,
-  ids y fechas, y **ningún id de Drive** (13 respuestas, ~48 KB, 3 menciones de `drive.google` y 6
-  de `docs.google` contra 57 enlaces). `sLc6hf` (×49) son comentarios (`hrq.cmt`). El HTML inicial
-  no trae el listado. El pedido lleva una máscara de campos enorme y `bl=boq_apps-edu-classroom-ui_20260907…`,
-  que cambia con cada versión de la app. **Se sigue leyendo el DOM** (D8 del diseño); esto sólo se documenta.
+- **El escaneo por `batchexecute` ES viable para "Trabajo en clase" (medición C3, 2026-09-13, dos
+  HAR de Física II G22; el último, con todos los ítems abiertos, en
+  `docs/muestras/google-classroom/c3/g22.har`, gitignorado).** Este corte **no** lo construye: se
+  sigue leyendo el DOM (D8) y el cambio de escaneo va a un corte aparte. Lo medido:
+  - El HTML inicial no trae el listado.
+  - `dpT4Vd` (`hrcw.qr`): un pedido por tema, de a 10 ítems. Trae títulos, descripciones, ids de
+    ítem y fechas, **sin** ids de Drive (13 respuestas, ~48 KB).
+  - `t51ITc`: un pedido **por ítem** (`[[<idItem>,[<idCurso>]]]`), que se dispara al abrirlo.
+    Los 49 ítems pedidos están todos en el listado de `dpT4Vd`, y la unión de sus respuestas da
+    **57 ids de Drive distintos** (el DOM mostró 56 adjuntos en Trabajo en clase). Cada adjunto
+    trae nombre de archivo, id, tipo MIME (`application/pdf`, `…presentationml.presentation`,
+    `video/mp4`) y URL de Drive. El `t51ITc` que sólo nombra el curso vuelve vacío.
+  - `sLc6hf` (×49) son comentarios (`hrq.cmt`), vacíos.
+  - Los tokens que exige el pedido están en la página: `WIZ_global_data` con `SNlM0e` (`at`),
+    `FdrFJe` (`f.sid`) y `cfb2h` (`bl`, que cambia con cada versión de la app,
+    `boq_apps-edu-classroom-ui_20260907…`). La máscara de campos del `f.req` es larga y sin contrato.
+  - **Sin medir**: Novedades, materiales YouTube/vínculo/formulario (G22 no tiene) y la paginación
+    de `dpT4Vd` más allá de los 10 primeros.
 - **Explorar llama a PowerShell** (`backend/handlers.js:325-327`): en Linux no puede andar.
   En la máquina del dueño (Hyprland, Wayland) **no hay zenity ni kdialog**, pero
   `xdg-desktop-portal` está activo con el backend `gtk` para `FileChooser`
@@ -369,9 +380,12 @@ El `throw` cae en el `catch` existente (500 + `log("ERROR", "DISCO", …)`). Si 
    al lado del de `credencialesPortal.ts` (`:309`). El backend no tiene detalle por archivo en ese
    doc (`grep -n "handlers.js" docs/architecture.md` no da nada): `elegirCarpetaLinux.py` se
    documenta sólo en `docs/deployment.md` (punto 2).
-4. `docs/portal-google-classroom-diseno.md` §8, al final: `### C3 (2026-09-13) — batchexecute no
-   trae los adjuntos`, con los datos del §0 de este plan (qué trae `dpT4Vd`, qué es `sLc6hf`, los
-   conteos, el `bl` versionado y la conclusión: D8 sigue, sin reversión). Y
+4. `docs/portal-google-classroom-diseno.md` §8, al final: `### C3 (2026-09-13) — batchexecute:
+   listado por tema y adjuntos por ítem`, con **todos** los datos del bullet de C3 del §0 de este
+   plan (qué trae `dpT4Vd`, `t51ITc` y `sLc6hf`, los conteos 49/57/56, los tokens de
+   `WIZ_global_data`, el `bl` versionado y lo que falta medir). Conclusión a escribir: viable para
+   Trabajo en clase; D8 (DOM) sigue vigente en el corte 1 y el escaneo por pedidos se evalúa en un
+   corte aparte. **No editar D8** en §3. Y
    `### Verificación B (2026-09-13) — re-escaneo al abrir y Explorar`, con los dos hallazgos y
    este plan como enlace.
 5. `docs/TECHNICAL_DEBT.md`:
