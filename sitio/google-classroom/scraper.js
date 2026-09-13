@@ -1,6 +1,11 @@
 /**
- * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.0.0)
+ * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.1.0)
  * ==========================================================================
+ * CHANGELOG v1.1.0:
+ * - [CLASSROOM CORTE 1 — ABRIR TODOS] El paso 7 abre todos los ítems plegados
+ *   en el mismo tick y espera una sola vez a que resuelvan todos. Medido
+ *   (M5): 49 ítems en ~5,5 s con 57 adjuntos, contra 30–70 s de a uno.
+ *
  * CHANGELOG v1.0.0:
  * - [CLASSROOM CORTE 1] Primer scraper de Google Classroom. Escanea Trabajo en clase
  *   y Novedades en una inyección de executeScript serializable y autocontenida.
@@ -24,6 +29,7 @@ const ScraperClassroom = {
         navegacion: 15000,
         verMas: 8000,
         abrir: 8000,
+        abrirTodos: 30000,
         sinAdjuntos: 1500,
       },
       opciones && opciones.tiempos
@@ -277,26 +283,26 @@ const ScraperClassroom = {
       }
       if (!visible()) return avisoVisibilidad;
 
-      // 7. Abrir los ítems
-      const itemsExpandibles = vistaTrabajo.querySelectorAll("li[data-expandable-row-id]");
-      for (const li of itemsExpandibles) {
-        if (li.querySelector("[data-attachment-id]")) continue;
-        const btn = li.querySelector('div[role="button"][aria-expanded]');
-        if (!btn) continue;
-        btn.click();
-
-        let expandidoDetectado = 0;
-        await esperarCondicion(() => {
-          if (li.querySelector("[data-attachment-id]")) return true;
-          if (li.querySelector("[expanded-item-id]")) {
-            if (!expandidoDetectado) expandidoDetectado = Date.now();
-            if (Date.now() - expandidoDetectado >= tiempos.sinAdjuntos) {
-              return true;
-            }
-          }
-          return false;
-        }, tiempos.abrir);
+      // 7. Abrir los ítems — TODOS en el mismo tick, y una sola espera (M5, 2026-09-13).
+      // Classroom no cierra un ítem al abrir otro y resuelve los ~N pedidos de detalle a la vez.
+      // Sólo se hace click en los plegados: un click sobre uno ya abierto lo cerraría.
+      const pendientes = Array.from(
+        vistaTrabajo.querySelectorAll("li[data-expandable-row-id]")
+      ).filter((li) => !li.querySelector("[data-attachment-id]"));
+      for (const li of pendientes) {
+        const btn = li.querySelector('div[role="button"][aria-expanded="false"]');
+        if (btn) btn.click();
       }
+      const expandidoDesde = new Map();
+      await esperarCondicion(() => {
+        const ahora = Date.now();
+        return pendientes.every((li) => {
+          if (li.querySelector("[data-attachment-id]")) return true;
+          if (!li.querySelector("[expanded-item-id]")) return false;
+          if (!expandidoDesde.has(li)) expandidoDesde.set(li, ahora);
+          return ahora - expandidoDesde.get(li) >= tiempos.sinAdjuntos;
+        });
+      }, tiempos.abrirTodos);
       if (!visible()) return avisoVisibilidad;
 
       // 8. Leer "Trabajo en clase"

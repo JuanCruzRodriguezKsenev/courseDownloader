@@ -41,6 +41,10 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
     - Paso 5: botón 🔄 en la toolbar de Disponibles (`entrypoints/popup/index.html`, `popup.js`, `popup/features/filters.js`).
     - Paso 6: selector nativo de carpetas en Linux vía `xdg-desktop-portal` (`backend/elegirCarpetaLinux.py`, `backend/handlers.js`).
     - Paso 7: docs actualizados; Verificación A en verde con 43 archivos, 715 tests.
+  - **Hecho** (`docs/plan-classroom-corte-1-abrir-todos.md`):
+    - Paso 1: el paso 7 de `sitio/google-classroom/scraper.js` abre todos los ítems plegados en el mismo tick y espera una sola vez (`abrirTodos`).
+    - Paso 2: test 11 en `sitio/google-classroom/scraper.test.js` con apertura paralela y contraste con código secuencial anterior (+1 test).
+    - Paso 3: docs actualizados; Verificación A en verde con 43 archivos, 716 tests.
 - **Lo que no trae**: el mapeo a la carpeta del dueño (`U.N.L.P/`). Es el corte 2.
 
 ### Checklist de Verificación B (en navegador)

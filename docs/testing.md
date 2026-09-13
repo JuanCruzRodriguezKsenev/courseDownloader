@@ -30,10 +30,13 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **43 archivos, 715 tests**, todo en verde |
+| `pnpm test` | **43 archivos, 716 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 716** (2026-09-13, abrir todos los ítems de Classroom corte 1). Son los 715 de abajo más
+**+1** test en `sitio/google-classroom/scraper.test.js` (test 11: apertura de todos los ítems plegados en el mismo tick).
 
 **De dónde sale el 715** (2026-09-13, lista guardada y Explorar en Linux para Classroom corte 1). Son los 706 de abajo más
 **+7** en `core/estado/origenListado.test.ts` (archivo nuevo, 42 → 43 archivos), **+1** en `core/estado/appState.test.ts`

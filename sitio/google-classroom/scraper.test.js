@@ -14,6 +14,7 @@ const TIEMPOS_TEST = {
   navegacion: 100,
   verMas: 100,
   abrir: 100,
+  abrirTodos: 1000,
   sinAdjuntos: 10,
 };
 
@@ -227,4 +228,47 @@ describe("ScraperClassroom.escanearListado", () => {
     const repetidos = res.enlaces.filter((e) => e.idArchivo === "drive-sin-tema");
     expect(repetidos.length).toBe(1);
   });
+
+  it("11. abre todos los ítems plegados antes de que cargue el primero", async () => {
+    const liOriginal = document.querySelector('li[data-stream-item-id="item-plegado"]');
+    expect(liOriginal).toBeTruthy();
+    const region = liOriginal.parentElement;
+
+    const clics = [];
+    const cargas = [];
+
+    [2, 3].forEach((n) => {
+      const clon = liOriginal.cloneNode(true);
+      clon.setAttribute("data-stream-item-id", `item-plegado-${n}`);
+      clon.setAttribute("data-expandable-row-id", `row-plegado-${n}`);
+      const btn = clon.querySelector('div[role="button"]');
+      btn.setAttribute("aria-expanded", "false");
+      btn.setAttribute("aria-label", `Material Plegado ${n}`);
+
+      btn.addEventListener("click", () => {
+        clics.push(Date.now());
+        setTimeout(() => {
+          btn.setAttribute("aria-expanded", "true");
+          const divAtt = document.createElement("div");
+          divAtt.setAttribute("data-attachment-id", `att-plegado-${n}`);
+          divAtt.innerHTML = `<a aria-label="Archivo adjunto: PDF: Plegado${n}.pdf" href="https://drive.google.com/file/d/drive-plegado-${n}/view"></a>`;
+          clon.appendChild(divAtt);
+          cargas.push(Date.now());
+        }, 60);
+      });
+
+      region.appendChild(clon);
+    });
+
+    const res = await ScraperClassroom.escanearListado({ tiempos: TIEMPOS_TEST });
+
+    expect(clics.length).toBe(2);
+    expect(Math.max(...clics)).toBeLessThan(Math.min(...cargas));
+
+    const ids = res.enlaces.map((e) => e.idArchivo);
+    expect(ids).toContain("drive-plegado");
+    expect(ids).toContain("drive-plegado-2");
+    expect(ids).toContain("drive-plegado-3");
+  });
 });
+

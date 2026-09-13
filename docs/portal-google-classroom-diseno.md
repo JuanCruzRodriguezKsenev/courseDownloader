@@ -671,4 +671,17 @@ Física II G22 trajo 57 enlaces ✅ en navegador. Destapó dos defectos abordado
 2. **Explorar en Linux**: el backend invocaba PowerShell; se implementó el selector nativo vía
    `xdg-desktop-portal` (`backend/elegirCarpetaLinux.py`).
 
+### M5 (2026-09-13) — abrir todos los ítems de una
+
+Medición en consola de Brave sobre Física II G22 ("Trabajo en clase"): con la página recién cargada
+y los "Ver más" agotados, `click()` a los 49 botones con `aria-expanded="false"` en el mismo tick y
+esperar 3 s de quietud en la cuenta de `[data-attachment-id]`:
+- **5529 ms, 57 adjuntos, 49 de 49 ítems abiertos** (contra 56 de a uno con 800 ms entre clics,
+  que tardaba 30 a 70 s). Classroom no cierra un ítem al abrir otro.
+- Al abrir cada ítem, Classroom pide su detalle por `batchexecute` `t51ITc` (medición C3); abrir
+  todos dispara esos ~49 pedidos a la vez y no perdió ninguno.
+- **Consecuencia**: el paso 7 del scraper (`sitio/google-classroom/scraper.js`) abre todos los
+  ítems plegados en el mismo tick y espera una sola vez a que resuelvan todos (`tiempos.abrirTodos`).
+
+
 
