@@ -94,5 +94,13 @@ Si G22 tarda ~30 s en B paso 1, es eso.
 handler viejo = powershell en Linux. Diagnóstico: `ps -o lstart= -p <pid>` vs `git log -1 --format=%ci -- backend/`; portal gtk
 sin log. Popup traga el error (popup.js:924-929, sólo console.error). Lección: tras commits en backend/, pedir reinicio ANTES de B.
 
+Análisis destino corte 2 (2026-09-13, pedido del dueño "que respete mi estructura"): hoy = raíz global + google-classroom/ +
+curso saneado a minúsculas y _ (sanearNombreCarpeta texto.ts:97; backend .toLowerCase handlers.js:26/75/256; procesadorCola.ts:808).
+Temas reales: G22 12 temas (6 "Guía de TP Nº N…", Laboratorios, Clases Teóricas Módulo I, Cronogramas, Videos, Bibliografía,
+Pruebas diagnósticas); G25 7 (Presentaciones teóricas 20/26). Disco: Fisica 2/{Teorias/{Bianchi,Palacio},Practicas,Parciales}; 14 PDFs
+de Practicas con sufijo " (N)"; Palacio renombrado a mano. DUEÑO DECIDIÓ: el (N) es de bajadas repetidas y NO debe
+estar → el código NO lo compensa (igualdad exacta); la limpieza es del árbol, no de la extensión. Mi recomendación:
+raíz=~/U.N.L.P; por curso elegir carpeta de materia con 📂 (ya hay selector Linux) + tabla tema→subcarpeta con sugerencia editable.
+
 **How to apply:** próxima ronda: el dueño corre la verificación B en Brave (plan abrir-todos §4.B, después checklist de `docs/ramas-en-revision.md` completa, pasos 2 y 8–11);
 después merge y plan del corte 2 (mapeo por ruta escrita + ADR-0016). `includes` y `.agents/skills/` ya están enrutados.
