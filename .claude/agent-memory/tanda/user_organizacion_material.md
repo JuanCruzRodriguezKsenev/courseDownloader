@@ -8,8 +8,9 @@ metadata:
 El dueño estudia en la UNLP (Informática e Ingeniería) y guarda el material en `~/U.N.L.P`, un **repo git + vault de
 Obsidian** (`.git` de 404 MB al 2026-09-12; `.gitignore` en UTF-16 que NO ignora pdf/mp4/jpg; sin LFS).
 
-Estructura: `<Facultad>/<Materia>/<Teorias|Practicas|Parciales|laboratorios>/[<Docente>|Clase N]/archivo`, nombres
-originales, capitalización humana ("Fisica 2"). El mapeo tema→carpeta es suyo: en Física II "Presentaciones teóricas" →
+Estructura: `<Facultad>/<Materia>/<Teorias|Practicas|Laboratorios|Parciales|Finales|Bibliografia>/[<Apellido>]/archivo`,
+capitalización humana en carpetas ("Fisica 2"). Desde 2026-09-13 (commit U.N.L.P `3b7c557`) Ingeniería tiene nombres sencillos
+(`mod1_01_variables_cinematicas.pdf`); Informática sigue con los de la cátedra y `Practica N/`. El mapeo tema→carpeta es suyo: en Física II "Presentaciones teóricas" →
 `Teorias/Bianchi/`, "Guía de trabajos prácticos" → `Practicas/`. **Bianchi y Palacio son dos Classroom distintos (docentes y
 cuatrimestres) de la misma materia.** Ya había bajado a mano 28 de 71 adjuntos del curso de Bianchi.
 

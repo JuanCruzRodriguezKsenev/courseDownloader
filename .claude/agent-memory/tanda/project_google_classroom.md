@@ -114,12 +114,17 @@ sin carpeta en U.N.L.P. Autor de post ≠ titular necesariamente.
 Q5 = Química para Ingeniería, docente Sonia; Personas (/u/2/r/NTQzMTM5MTE1OTUz/sort-last-name) sólo "Comision Q5" → apellido no está (M-2).
 Claude in Chrome: Personas tarda ~5 s en pintar; get_page_text antes da la lista vacía.
 
-2026-09-13 plan de formateo de ~/U.N.L.P/Ingenieria escrito: docs/plan-unlp-formateo-ingenieria.md + .tsv (116 filas,
-121→119 archivos). Formato: minúsculas, NN_tema, modN_ con módulos, parciales modN_AAAA-MM-DD_detalle, sin subcarpetas en
-Ingeniería, Teorias/<Apellido> sólo con >1 docente; vault no se toca. Se ejecuta en el repo U.N.L.P (515 cambios de
-Informática sin commitear → git add por ruta). Pendientes M-1 (C1..C9 = Lucila, md5), M-2 Sonia, M-3 apellido Lucila, C-1..3.
-Trampas: nombres viejos de Mendoza mienten sobre el número de clase (leer 1ra página); `parciales/mod 1.zip` = copia;
-"Proyección…(Resumen).pdf" de MC está en NFD en disco → comparar nombres con normalización o bytes exactos (lo cazó la simulación).
+Formateo ~/U.N.L.P/Ingenieria (plan docs/plan-unlp-formateo-ingenieria.md + .tsv) EJECUTADO y verificado por mí 2026-09-13:
+U.N.L.P `f028086` (39 A) + `3b7c557` (114 R + 2 D), SIN push. Cada destino de la TSV existe y está en HEAD; md5 que faltan = zip + xls;
+Informática intacta (511 líneas de status fuera de Ingenieria antes y después). Formato: minúsculas, NN_tema, modN_, parciales
+modN_AAAA-MM-DD_detalle, Teorias/<Apellido> sólo con >1 docente; vault no se tocó. Pendientes del dueño: M-1..M-3, C-1..C-3 (plan §4).
+Errores MÍOS del plan (no rompieron nada): "*.zip en .gitignore" falso (el .gitignore versionado está vacío, el de disco es UTF-16 →
+`git check-ignore` antes de afirmarlo; el zip estaba versionado desde e38b6cf); "41 sin versionar" eran 39; "515 menos 0" contaba
+líneas de Ingenieria → para aislar, contar `git status --short | grep -v <ruta tocada>`.
+Trampas U.N.L.P: `core.ignorecase=true` en .git/config (Linux) → renombre sólo de mayúsculas: `git add -A` deja D + ?? → add por ruta;
+`core.quotepath` cita rutas con tilde → filtros con `-c core.quotepath=false`. NFD en "Proyección…(Resumen).pdf"; nombres viejos de Mendoza mienten.
+El verificador corre la batería de courseDownloader: no verifica planes sobre otro repo → contraste propio.
 
-**How to apply:** próxima ronda: el dueño corre la verificación B en Brave (plan abrir-todos §4.B, después checklist de `docs/ramas-en-revision.md` completa, pasos 2 y 8–11);
-después merge y plan del corte 2 (mapeo por ruta escrita + ADR-0016). `includes` y `.agents/skills/` ya están enrutados.
+**How to apply:** próxima ronda: reescribir `docs/specs/classroom-destino/` con el formato ya aplicado como regla (reemplaza supuestos
+5, 13, 22) → plan del corte 2 con tabla nombre Classroom → nombre sencillo por curso. Antes (dueño): verificación B en Brave
+(plan abrir-todos §4.B + checklist de `docs/ramas-en-revision.md`), merge. `includes` y `.agents/skills/` ya están enrutados.

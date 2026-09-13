@@ -90,10 +90,13 @@ Quien publica no es necesariamente el titular.
 - **Detalle de nombres**: `resuelto` — minúsculas, `_`, número de 2 dígitos; sin número, sólo el
   tema; con módulos, prefijo `modN_`; parciales aplanados `modN_AAAA-MM-DD_detalle.ext`.
 - Plan de formateo del árbol existente: `docs/plan-unlp-formateo-ingenieria.md` + tabla
-  `docs/plan-unlp-formateo-ingenieria.tsv` (116 filas).
-- Hechos que ya no son supuesto: en `~/U.N.L.P`, `Ingenieria/` no tiene archivos versionados
-  modificados (41 sin agregar, todos nuevos de Física 2 y `Fisica 1/Finales/`); los 515 cambios
-  pendientes son de Informática, así que el plan commitea por ruta.
+  `docs/plan-unlp-formateo-ingenieria.tsv` (116 filas). **Ejecutado y verificado el 2026-09-13**:
+  commits `f028086` y `3b7c557` en `~/U.N.L.P`, sin push. El árbol de las 4 materias ya tiene el
+  formato: los supuestos 5, 13 y 22 de la ronda 1 quedan reemplazados por él.
+- Hechos que ya no son supuesto: en `~/U.N.L.P`, `Ingenieria/` no tenía archivos versionados
+  modificados (39 sin agregar, todos nuevos de Física 2 y `Fisica 1/Finales/`; el plan decía 41);
+  de los 515 cambios pendientes, 511 son de Informática y 4 de `Ingenieria/`, así que el plan
+  commiteó por ruta. `parciales/mod 1.zip` estaba versionado (el plan decía ignorado).
 
 ## Ronda 1 — 2026-09-13
 
