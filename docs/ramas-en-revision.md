@@ -33,12 +33,14 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
     - Paso 2: notificación de fallo abre `urlListado` (`background.js:539`, `core/puertos/sitio.ts`).
     - Paso 3: test de serialización de escaneos inyectados (`sitio/inyeccion.test.js`, +4 tests).
     - Paso 4: docs actualizados; Verificación A en verde con 42 archivos, 706 tests.
-  - **Verificación B retomada el 2026-09-13**: Física II G22 trae 57 ✅. Destapó dos defectos que
-    entran antes del merge, y se midió `batchexecute` (no trae los adjuntos: el escaneo sigue por DOM):
-    - El popup re-escanea cada vez que se abre; en Classroom son minutos.
-    - 📂 Explorar no anda en Linux (PowerShell).
-  - **Pendiente de ejecutar**: `docs/plan-classroom-corte-1-lista-guardada-y-explorar.md`. La
-    checklist de abajo se sigue **después** de ejecutarlo, con sus puntos 8 a 12.
+  - **Hecho** (`docs/plan-classroom-corte-1-lista-guardada-y-explorar.md`):
+    - Paso 1: decisión pura al abrir (`core/estado/origenListado.ts`, +7 tests).
+    - Paso 2: puerto y descriptor con `claveDeListado` (`core/puertos/sitio.ts`, `sitio/google-classroom/config.ts`, +1 test en `sitio/registro.test.ts`).
+    - Paso 3: `AppState.origenListado` persistido y reseteado en sesión (`core/estado/appState.ts`, +1 test en `appState.test.ts`).
+    - Paso 4: compuerta `escanearOUsarGuardada()` en 4 disparadores automáticos y guardado de origen en `popup.js`.
+    - Paso 5: botón 🔄 en la toolbar de Disponibles (`entrypoints/popup/index.html`, `popup.js`, `popup/features/filters.js`).
+    - Paso 6: selector nativo de carpetas en Linux vía `xdg-desktop-portal` (`backend/elegirCarpetaLinux.py`, `backend/handlers.js`).
+    - Paso 7: docs actualizados; Verificación A en verde con 43 archivos, 715 tests.
 - **Lo que no trae**: el mapeo a la carpeta del dueño (`U.N.L.P/`). Es el corte 2.
 
 ### Checklist de Verificación B (en navegador)
@@ -68,6 +70,10 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
    - [ ] Los 6 quedan marcados como descargados tras re-sincronizar
 6. [ ] **Anatomy sigue igual**: bajar un PDF (funciona sin cookies) y comprobar que lo ya descargado sigue marcado como descargado.
 7. [ ] **Aviso de fallo**: la notificación de un ítem de Classroom que falla enfoca la pestaña de Classroom, o si no hay ninguna abre `urlListado` (`background.js:539`, tras el plan de la verificación B).
+8. [ ] **Primera apertura en Física II G22**: escanea (sin origen previo) y trae 57. Cerrar y reabrir el popup en la misma pestaña: la lista aparece al instante sin "Escaneando la pestaña…", y la pestaña de Classroom no se mueve a Novedades.
+9. [ ] **Otro curso** (MC4 1S 2026): abrir el popup ahí escanea solo y trae 13. Volver a G22 y abrir: escanea de nuevo (se guarda una sola lista).
+10. [ ] **🔄**: visible en "Clases Disponibles" y oculto en "Fila de descarga"; en G22 con lista guardada fuerza el escaneo. Con backend caído queda deshabilitado. En Anatomy, abrir el popup sigue escaneando como antes.
+11. [ ] **Explorar en Linux**: 📂 → diálogo nativo "Elegí la carpeta raíz de descargas". Cancelar conserva la ruta; elegir cambia la ruta y la consola del server loguea `📂 [DISCO] Nueva carpeta raiz establecida`. (Restaurar la ruta real al terminar).
 
 ## Lo último que se mergeó (2026-08-27)
 

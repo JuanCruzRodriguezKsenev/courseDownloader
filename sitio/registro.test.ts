@@ -165,4 +165,23 @@ describe("topeEscaneoMs: el techo del escaneo es una medición, no un default", 
     expect(SitioGoogleClassroom.topeEscaneoMs).toBeGreaterThanOrEqual(120000);
     expect(SitioGoogleClassroom.topeEscaneoMs).toBeGreaterThan(SitioAnatomyByChris.topeEscaneoMs);
   });
+
+  it("claveDeListado: Classroom devuelve el id del curso y los otros portales no la declaran", () => {
+    expect(
+      SitioGoogleClassroom.claveDeListado!(
+        "https://classroom.google.com/u/2/w/ODc0ODk1NDcwNTMw/t/all"
+      )
+    ).toBe("ODc0ODk1NDcwNTMw");
+    expect(
+      SitioGoogleClassroom.claveDeListado!(
+        "https://classroom.google.com/u/2/c/ODc0ODk1NDcwNTMw"
+      )
+    ).toBe("ODc0ODk1NDcwNTMw");
+    expect(
+      SitioGoogleClassroom.claveDeListado!("https://classroom.google.com/u/2/h")
+    ).toBeUndefined();
+    expect(SitioGoogleClassroom.claveDeListado!(undefined)).toBeUndefined();
+    expect(SitioRamonNet.claveDeListado).toBeUndefined();
+    expect(SitioAnatomyByChris.claveDeListado).toBeUndefined();
+  });
 });

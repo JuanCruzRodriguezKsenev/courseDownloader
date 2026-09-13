@@ -318,15 +318,30 @@ export async function handleBypassStream(request, corsHeaders) {
 }
 
 /**
- * Abre un selector nativo de carpetas de Windows y actualiza la ruta raiz de guardado
+ * Abre un selector nativo de carpetas (PowerShell en Windows, xdg-desktop-portal en Linux) y actualiza la ruta raiz de guardado
  */
 export async function handleSeleccionarCarpeta(request, corsHeaders) {
   try {
-    const comandoPowerShell = "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; $f.Description = 'Selecciona la carpeta de destino para RamonNet Turbo'; $f.ShowNewFolderButton = $true; $c = $f.ShowDialog(); if ($c -eq 'OK') { $f.SelectedPath }";
-    
-    const proc = Bun.spawn(["powershell", "-Sta", "-Command", comandoPowerShell]);
-    const output = await new Response(proc.stdout).text();
-    const rutaSeleccionada = output.trim();
+    let rutaSeleccionada = "";
+    if (process.platform === "win32") {
+      const comandoPowerShell = "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; $f.Description = 'Selecciona la carpeta de destino para RamonNet Turbo'; $f.ShowNewFolderButton = $true; $c = $f.ShowDialog(); if ($c -eq 'OK') { $f.SelectedPath }";
+      const proc = Bun.spawn(["powershell", "-Sta", "-Command", comandoPowerShell]);
+      const output = await new Response(proc.stdout).text();
+      rutaSeleccionada = output.trim();
+    } else if (process.platform === "linux") {
+      const proc = Bun.spawn(["python3", `${import.meta.dir}/elegirCarpetaLinux.py`], { stdout: "pipe", stderr: "pipe" });
+      const [salida, errores, codigo] = await Promise.all([
+        new Response(proc.stdout).text(),
+        new Response(proc.stderr).text(),
+        proc.exited,
+      ]);
+      if (codigo === 0) rutaSeleccionada = salida.trim();
+      else if (codigo !== 1) throw new Error(`El selector de carpetas de Linux falló (código ${codigo}): ${errores.trim()}`);
+    } else {
+      return new Response(JSON.stringify({ error: `Elegir carpeta no está soportado en ${process.platform}.` }), {
+        status: 501, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
 
     if (rutaSeleccionada) {
       establecerRutaRaiz(rutaSeleccionada);

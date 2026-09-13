@@ -637,3 +637,38 @@ enlaces de Física II G22 en storage, pero la lista no se mostraba en pantalla: 
 - **Lección:** un `fetch` medido desde una pestaña **no** representa al de la extensión, que
   manda cookies y recibe otra respuesta.
 
+### C3 (2026-09-13) — batchexecute: listado por tema y adjuntos por ítem
+
+Medición sobre Física II G22 con dos HAR (el último, con todos los ítems abiertos, en
+`docs/muestras/google-classroom/c3/g22.har`, gitignorado). El escaneo por `batchexecute` ES viable
+para "Trabajo en clase", pero este corte no lo construye: se sigue leyendo el DOM (D8) y el
+cambio de escaneo se evalúa en un corte aparte (D8 en §3 sigue vigente).
+
+- **El HTML inicial no trae el listado.**
+- **`dpT4Vd` (`hrcw.qr`)**: un pedido por tema, de a 10 ítems. Trae títulos, descripciones, ids de
+  ítem y fechas, **sin** ids de Drive (13 respuestas, ~48 KB).
+- **`t51ITc`**: un pedido **por ítem** (`[[<idItem>,[<idCurso>]]]`), que se dispara al abrirlo.
+  Los 49 ítems pedidos están todos en el listado de `dpT4Vd`, y la unión de sus respuestas da
+  **57 ids de Drive distintos** (el DOM mostró 56 adjuntos en Trabajo en clase). Cada adjunto
+  trae nombre de archivo, id, tipo MIME (`application/pdf`, `…presentationml.presentation`,
+  `video/mp4`) y URL de Drive. El `t51ITc` que sólo nombra el curso vuelve vacío.
+- **`sLc6hf` (×49)** son comentarios (`hrq.cmt`), vacíos.
+- **Tokens**: los tokens que exige el pedido están en la página: `WIZ_global_data` con `SNlM0e`
+  (`at`), `FdrFJe` (`f.sid`) y `cfb2h` (`bl`, que cambia con cada versión de la app,
+  `boq_apps-edu-classroom-ui_20260907…`). La máscara de campos del `f.req` es larga y sin contrato.
+- **Sin medir**: Novedades, materiales YouTube/vínculo/formulario (G22 no tiene) y la paginación
+  de `dpT4Vd` más allá de los 10 primeros.
+- **Conclusión**: viable para Trabajo en clase; D8 (DOM) sigue vigente en el corte 1 y el escaneo
+  por pedidos se evalúa en un corte aparte.
+
+### Verificación B (2026-09-13) — re-escaneo al abrir y Explorar
+
+Física II G22 trajo 57 enlaces ✅ en navegador. Destapó dos defectos abordados en
+`docs/plan-classroom-corte-1-lista-guardada-y-explorar.md`:
+1. **Re-escaneo al abrir**: el popup re-escaneaba incondicionalmente en cada apertura. En Classroom
+   tarda minutos, por lo que se implementó `origenListado` en `AppState`, la compuerta
+   `escanearOUsarGuardada()` y el botón 🔄 en la toolbar.
+2. **Explorar en Linux**: el backend invocaba PowerShell; se implementó el selector nativo vía
+   `xdg-desktop-portal` (`backend/elegirCarpetaLinux.py`).
+
+

@@ -316,6 +316,12 @@ lleva lo decide cada adaptador, y por eso Capa 1 no nombra ningún token. Decisi
 → ADR-0013; la parte de seguridad (es la primera credencial que la extensión guarda) →
 `docs/security.md`.
 
+**`core/estado/origenListado.ts` decide si al abrir el popup se debe usar la lista guardada o re-escanear**
+(Classroom corte 1). Función pura `decidirAlAbrir({ origen, sitioId, clave, hayItemsDelPortal })` y
+validador `esOrigenListado`. Sin clave (el portal no declara `claveDeListado`, o la URL no es de un listado)
+o sin origen guardado, siempre escanea; si el portal y la clave coinciden y hay ítems en memoria,
+reutiliza la lista persistente evitando minutos de escaneo redundante.
+
 Detalle de forma en `sincronizarConBackground()`: usa `enviar()` (es una consulta) **y además**
 conserva su timeout de rescate de 3s, porque el puerto sólo promete rechazar cuando no hay
 receptor — no cubre al receptor que acepta, promete responder async y nunca responde.

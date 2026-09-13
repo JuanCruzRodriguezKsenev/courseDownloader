@@ -1,6 +1,10 @@
 /**
- * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: CONFIGURACIÓN (V1.1.0)
+ * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: CONFIGURACIÓN (V1.2.0)
  * ==========================================================================
+ * CHANGELOG v1.2.0:
+ * - [CLASSROOM CORTE 1 — LISTA GUARDADA] Implementa `claveDeListado(url)`: extrae el id del curso
+ *   de URLs `/c/<id>` o `/w/<id>`.
+ *
  * CHANGELOG v1.1.0:
  * - [CLASSROOM VERIFICACIÓN B] `urlSondeoInternet` apunta a `/favicon.ico`: la raíz con sesión
  *   responde `Cross-Origin-Resource-Policy: same-site` y el fetch desde la extensión rechaza
@@ -49,6 +53,12 @@ const SitioGoogleClassroom: PuertoSitio = {
   esPaginaDelSitio(url) {
     if (typeof url !== "string") return false;
     return /^https:\/\/classroom\.google\.com\/(?:u\/\d+\/)?(?:c|w)\/[^/]+/.test(url);
+  },
+
+  claveDeListado(url) {
+    if (typeof url !== "string") return undefined;
+    const m = /^https:\/\/classroom\.google\.com\/(?:u\/\d+\/)?(?:c|w)\/([^/?#]+)/.exec(url);
+    return m ? m[1] : undefined;
   },
 
   get patronPestañas() {

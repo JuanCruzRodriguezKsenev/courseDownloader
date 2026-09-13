@@ -30,10 +30,14 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **42 archivos, 706 tests**, todo en verde |
+| `pnpm test` | **43 archivos, 715 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 715** (2026-09-13, lista guardada y Explorar en Linux para Classroom corte 1). Son los 706 de abajo más
+**+7** en `core/estado/origenListado.test.ts` (archivo nuevo, 42 → 43 archivos), **+1** en `core/estado/appState.test.ts`
+y **+1** en `sitio/registro.test.ts`.
 
 **De dónde sale el 706** (2026-09-12, verificación B de Classroom corte 1). Son los 702 de abajo más
 **+4** tests en `sitio/inyeccion.test.js` (archivo nuevo, 41 → 42 archivos), que fijan que

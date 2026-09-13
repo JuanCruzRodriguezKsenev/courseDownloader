@@ -1,6 +1,11 @@
 /**
- * PUERTO DE SITIO (V1.4.0)
+ * PUERTO DE SITIO (V1.5.0)
  * ==========================================================================
+ * CHANGELOG v1.5.0:
+ * - [CLASSROOM CORTE 1 — LISTA GUARDADA] Miembro nuevo `claveDeListado?(url)` (opcional):
+ *   devuelve una clave estable del listado que muestra la URL (el id de curso en Classroom).
+ *   Si la URL no es de un listado o el portal no la declara, devuelve `undefined`.
+ *
  * CHANGELOG v1.4.0:
  * - [CLASSROOM VERIFICACIÓN B] `urlSondeoInternet`: URL del portal que el daemon sondea; no hace
  *   falta que sea navegable ni que dé 200, y no se abre en una pestaña. Tiene que responder sin
@@ -235,6 +240,18 @@ export interface PuertoSitio {
    * abre la notificación de fallo si no hay ninguna pestaña del portal abierta.
    */
   readonly urlListado: string;
+
+  /**
+   * [CLASSROOM CORTE 1 — LISTA GUARDADA] Qué listado muestra esta URL, como una clave estable
+   * (en Classroom, el id del curso). El popup la guarda al escanear y, al abrirse en una pestaña
+   * con la MISMA clave, muestra la lista guardada en vez de escanear de nuevo.
+   *
+   * - Opcional: un portal que no la declara escanea siempre al abrir (Ramón Net y Anatomy,
+   *   cuyos escaneos duran segundos).
+   * - Corre en el POPUP, no en la pestaña: no va dentro de `escanearListado`.
+   * - Devuelve `undefined` si la URL no es de un listado.
+   */
+  claveDeListado?(url: string | undefined): string | undefined;
 
   /**
    * [COPY GENÉRICA CORTE 2] Cómo se le explica al usuario, en el onboarding, qué va a ver

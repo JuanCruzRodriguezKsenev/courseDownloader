@@ -23,11 +23,12 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 > 3. 🔴 **`#ui-msg-status` está oculto y nadie se lo destapa** (hallado 2026-08-13).
 > 4. 🟠 **El banco de pruebas no alcanza al service worker** (hallado 2026-08-12).
 > 5. 🟠 **`sanitizarTexto` no replica al backend porque colapsa espacios**: afecta videos con dobles espacios; `nombreEnDisco` lo resuelve sólo para adjuntos (hallado 2026-09-12).
-> 6. 🟠 **`/api/seleccionar-carpeta` sólo funciona en Windows** y cambia la raíz compartida de todos los portales (hallado 2026-09-12, lo toma el corte 2).
+> 6. 🟠 **`/api/seleccionar-carpeta` cambia la raíz de todos los portales**: Linux resuelto con `xdg-desktop-portal`; la raíz por portal va al corte 2 (hallado 2026-09-12).
 > 7. ⚪ **Dos restos de la limpieza de micro-movimientos** (hallado 2026-08-13).
 > 8. ⚪ **Un 403 de un solo archivo de Drive pausa la cola entera** (hallado 2026-09-12).
 > 9. ⚪ **`AGENTS.md:150` cita `.agents/skills/`, que no existe**; sólo queda `skills-lock.json` (hallado 2026-09-12).
 > 10. ⚪ **`texto.test.ts` importa `node:fs` bajo un `@ts-expect-error`**: hay alternativa sin supresión, `?raw` (hallado 2026-09-12).
+> 11. ⚪ **Cerrar el popup a mitad del escaneo descarta el resultado** (hallado 2026-09-13).
 >
 > ### Lo que se cerró el 2026-09-12 (Classroom corte 1)
 >
@@ -539,12 +540,18 @@ Llegaron acá al mergear la tanda del toolbar (2026-08-13): vivían en
 - **Por qué sigue abierto**: `nombreEnDisco` (Paso 3 del corte 1 de Classroom) resolvió el problema para los adjuntos sin tocar `sanitizarTexto`. Modificar `sanitizarTexto` cambiaría el nombre esperado de videos ya descargados en instalaciones existentes.
 - **Estado**: 🟠 abierto (hallado el 2026-09-12 al escribir el plan de Classroom).
 
-### 🟠 `/api/seleccionar-carpeta` sólo funciona en Windows y cambia la raíz de todos los portales
+### 🟠 `/api/seleccionar-carpeta` cambia la raíz de todos los portales
 
-- **Dónde**: `backend/handlers.js:325` y `:332`.
-- **Qué pasa**: el endpoint levanta un diálogo con PowerShell (`System.Windows.Forms.FolderBrowserDialog`), lo cual falla en Linux/macOS. Además, al guardar en `config.json` pisa la clave `downloadPath` global, cambiando la carpeta raíz de descarga para **todos** los portales a la vez.
+- **Dónde**: `backend/handlers.js:340` y `:347`.
+- **Qué pasa**: Linux está resuelto con `xdg-desktop-portal` (`backend/elegirCarpetaLinux.py`, 2026-09-13) y otros SO devuelven 501. Al guardar en `config_usuario.json` pisa la clave `rutaRaiz` global, cambiando la carpeta raíz de descarga para **todos** los portales a la vez.
 - **Solución**: queda para el corte 2 de Google Classroom (raíz configurable por portal y ADR-0016).
 - **Estado**: 🟠 abierto (hallado el 2026-09-12).
+
+### ⚪ Cerrar el popup a mitad del escaneo descarta el resultado
+
+- **Dónde**: `popup.js` (`chrome.scripting.executeScript({ func: portal.escanearListado })`).
+- **Qué pasa**: el callback de `executeScript` vive en el popup; si el popup se cierra, el escaneo sigue en la pestaña y nadie guarda lo que devuelve. Con Classroom (minutos) es fácil que pase.
+- **Estado**: ⚪ abierto (hallado el 2026-09-13, no medido).
 
 ### ⚪ Un 403 de un solo archivo de Drive pausa la cola entera
 
