@@ -14,9 +14,9 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 ## 🔴 Abierto
 
-> ## Estado al 2026-09-12: **ONCE** entradas abiertas
+> ## Estado al 2026-09-12: **DIEZ** entradas abiertas
 >
-> Re-contadas, no sumadas al número anterior (3 🔴, 4 🟠, 4 ⚪):
+> Re-contadas, no sumadas al número anterior (3 🔴, 3 🟠, 4 ⚪):
 >
 > 1. 🔴 **El mecanismo de popovers sin tests** (hallado 2026-08-05).
 > 2. 🔴 **El loader del popup no tiene dueño**: tokens y demora pendientes (hallado 2026-08-12).
@@ -28,11 +28,11 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 > 8. ⚪ **Un 403 de un solo archivo de Drive pausa la cola entera** (hallado 2026-09-12).
 > 9. ⚪ **`AGENTS.md:150` cita `.agents/skills/`, que no existe**; sólo queda `skills-lock.json` (hallado 2026-09-12).
 > 10. ⚪ **`texto.test.ts` importa `node:fs` bajo un `@ts-expect-error`**: hay alternativa sin supresión, `?raw` (hallado 2026-09-12).
-> 11. 🟠 **Ningún test serializa las funciones que se inyectan en la pestaña**: el escaneo de Classroom llegó a Chrome sin poder inyectarse (hallado 2026-09-12).
 >
 > ### Lo que se cerró el 2026-09-12 (Classroom corte 1)
 >
 > - **El "ya descargado" de adjuntos por `includes`**: `popup.js` comparaba por `includes` y marcaba descargados archivos por colisión de prefijo (`a.pdf` vs `tabla.pdf`). Ahora compara por igualdad exacta contra `nombreEnDisco(clase.titulo).toLowerCase()`.
+> - **Test de serialización de funciones inyectadas**: `sitio/inyeccion.test.js` verifica que `escanearListado` de cada portal compila como expresión antes de inyectarse por `executeScript`.
 >
 > ### Lo que se cerró el 2026-08-12
 >
@@ -565,12 +565,12 @@ Llegaron acá al mergear la tanda del toolbar (2026-08-13): vivían en
 - **Arreglo, ya medido**: `import fuenteBackend from '../../backend/utils.js?raw'`, el patrón que ya usa `sitio/google-classroom/scraper.test.js:8`. `vite/client` declara `*?raw` y llega por `.wxt/wxt.d.ts` (`wxt/vite-builder-env`); un `.ts` con ese import pasa `tsc --noEmit` contra el `tsconfig.json` del repo. Falta correrlo en Vitest.
 - **Estado**: ⚪ abierto (hallado el 2026-09-12, informe de `obra` del corte 1 de Classroom).
 
-### 🟠 Ningún test serializa las funciones que se inyectan en la pestaña
+### ✅ Ningún test serializa las funciones que se inyectan en la pestaña
 
 - **Dónde**: los tres `sitio/<portal>/scraper.js`; quien las inyecta es `popup.js:1258-1260` (`executeScript({ func: portal.escanearListado })`).
 - **Qué pasó**: `ScraperClassroom` declaró `async escanearListado(opciones) {…}` (método abreviado) aunque el plan pedía `async function (opciones)` (`docs/plan-classroom-corte-1.md:351`). Chrome serializa `func` con `toString()` y la corre como `(…)()`, y un método abreviado ahí es `SyntaxError: Unexpected identifier`: el curso no escaneaba. Los tests la llaman directo (`ScraperClassroom.escanearListado(...)`), así que 702 en verde. Corregido el 2026-09-12 a `escanearListado: async function (opciones)`, la forma de Anatomy (`scraper.js:85`) y Ramón Net (`scraper.js:24`).
 - **Qué falta**: un test por portal que haga `new Function(`(${portal.escanearListado.toString()})`)` sobre la función que entrega el descriptor. No ve closures sobre el módulo (eso sigue siendo del navegador), pero sí la forma.
-- **Estado**: 🟠 abierto (hallado el 2026-09-12, verificación B del corte 1 de Classroom).
+- **Estado**: ✅ cerrado el 2026-09-12 (sitio/inyeccion.test.js).
 
 ## 🔴 Seguridad
 

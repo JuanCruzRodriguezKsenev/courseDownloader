@@ -41,6 +41,9 @@ edit here, never there.
 >    a lo que la extensión enumera: ¿dos de ellas pueden compartir clave? → ADR-0014.
 > 2. **Medir desde una pestaña miente sobre el service worker**: el navegador manda `Origin`,
 >    `Referer` y cookies solo, y el SW no manda ninguno. Tres 401/403 distintos salieron de ahí.
+>    La mentira también corre al revés: desde la extensión viajan las cookies y el portal puede
+>    contestar con `Cross-Origin-Resource-Policy`, que bloquea el `fetch` (Classroom: la sonda del
+>    popup) aunque desde una pestaña resuelva (detalle en `docs/portal-google-classroom-diseno.md` §8).
 > 3. **Un predicado que filtra por extensión filtra más de una cosa.** Aflojar `endsWith(".mp4")`
 >    para que entraran los PDF dejó entrar también los `.part`, y eso marcaba como descargada la
 >    clase que se estaba bajando.

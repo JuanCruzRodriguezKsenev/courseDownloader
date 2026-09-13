@@ -1,6 +1,13 @@
 /**
- * PUERTO DE SITIO (V1.3.0)
+ * PUERTO DE SITIO (V1.4.0)
  * ==========================================================================
+ * CHANGELOG v1.4.0:
+ * - [CLASSROOM VERIFICACIÓN B] `urlSondeoInternet`: URL del portal que el daemon sondea; no hace
+ *   falta que sea navegable ni que dé 200, y no se abre en una pestaña. Tiene que responder sin
+ *   un Cross-Origin-Resource-Policy que la bloquee desde la extensión (el caso de Classroom).
+ * - [CLASSROOM VERIFICACIÓN B] `urlListado`: documentado que también es lo que abre la
+ *   notificación de fallo cuando no hay pestaña del portal.
+ *
  * CHANGELOG v1.3.0:
  * - [CLASSROOM CORTE 1] Miembro nuevo `credencialesAdjunto` ("omit" | "include", opcional).
  *   La descarga del adjunto va con las credenciales de la sesión del navegador en portales
@@ -209,9 +216,13 @@ export interface PuertoSitio {
   color: string;
 
   /**
-   * Origen del portal. Lo usa el daemon de conexión como sonda de "hay internet":
+   * URL del portal que el daemon de conexión sondea como prueba de "hay internet":
    * es deliberadamente el sitio objetivo y no un genérico tipo google.com — lo que
    * importa no es tener red, sino poder llegar A ESTE portal.
+   *
+   * Tiene que responder sin un `Cross-Origin-Resource-Policy` que la bloquee desde la
+   * extensión (el caso de Classroom, donde la raíz bloquea con CORP y se sondea `/favicon.ico`).
+   * No hace falta que sea navegable ni que dé 200, y **no se abre en una pestaña**.
    */
   urlSondeoInternet: string;
 
@@ -219,7 +230,10 @@ export interface PuertoSitio {
   esPaginaDelSitio(url: string | undefined): boolean;
   /** Patrón de match para `chrome.tabs.query`. */
   readonly patronPestañas: string;
-  /** Página del listado de clases, a donde el onboarding manda al usuario. */
+  /**
+   * Página del listado de clases, a donde el onboarding manda al usuario y lo que
+   * abre la notificación de fallo si no hay ninguna pestaña del portal abierta.
+   */
   readonly urlListado: string;
 
   /**

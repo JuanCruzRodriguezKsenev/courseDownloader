@@ -608,3 +608,32 @@ inyectado clickeó el link del menú del curso (`nav a[href="/u/2/c/<id>"]`) y d
   scroll, como ya había medido M2.
 - → **El escaneo lee las dos vistas en UNA sola inyección.** El popup no tiene que orquestar dos,
   y su núcleo (`popup.js`, ADR-0005) no se toca para esto.
+
+### Verificación B (2026-09-12) — la sonda de conexión choca con CORP
+
+Medido en Brave con sesión activa en la cuenta `/u/2/`. El escaneo terminaba y guardaba los 57
+enlaces de Física II G22 en storage, pero la lista no se mostraba en pantalla: la tarjeta
+**"No se pudo contactar el sitio"** ocupaba la región por `internet=false`.
+
+- **Hechos medidos en la consola del popup:**
+  - En cada latido, `HEAD https://classroom.google.com/` fallaba con
+    `net::ERR_BLOCKED_BY_RESPONSE.NotSameSite 200 (OK)` → `🔌 [Conexion] estado → servidor=true internet=false`.
+  - **La causa es `Cross-Origin-Resource-Policy: same-site`.** Con sesión, la raíz de Classroom
+    responde 200 con ese encabezado. La extensión (`chrome-extension://`), al tener permiso de
+    host sobre el dominio, envía las cookies de sesión y recibe la respuesta autenticada con CORP;
+    el navegador la bloquea por no ser same-site y el `fetch` rechaza. `core/conexion/conexion.ts`
+    interpreta cualquier rechazo como pérdida de internet.
+  - **`https://classroom.google.com/favicon.ico` responde sin CORP.** Devuelve 404 básico y sin
+    encabezado CORP; el daemon de conexión no inspecciona el código de estado, sólo la
+    alcanzabilidad de red.
+  - **Medir desde una pestaña mentía:** un `HEAD no-cors` ejecutado desde una página regular
+    resuelve en <1 s porque el navegador no envía cookies de terceros, obteniendo una respuesta
+    anónima sin CORP.
+- **Qué se hizo:**
+  - `sitio/google-classroom/config.ts`: `urlSondeoInternet` se fijó en
+    `https://classroom.google.com/favicon.ico`.
+  - `background.js:539`: la notificación de fallo sin pestaña abierta pasó a abrir `urlListado`
+    en lugar de `urlSondeoInternet` (que en Classroom sería un 404).
+- **Lección:** un `fetch` medido desde una pestaña **no** representa al de la extensión, que
+  manda cookies y recibe otra respuesta.
+

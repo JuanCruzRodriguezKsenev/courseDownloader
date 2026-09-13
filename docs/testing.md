@@ -30,10 +30,14 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **41 archivos, 702 tests**, todo en verde |
+| `pnpm test` | **42 archivos, 706 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 706** (2026-09-12, verificación B de Classroom corte 1). Son los 702 de abajo más
+**+4** tests en `sitio/inyeccion.test.js` (archivo nuevo, 41 → 42 archivos), que fijan que
+`escanearListado` compila como expresión antes de inyectarse por `executeScript`.
 
 **De dónde sale el 702** (2026-09-12, corte 1 de Google Classroom). Son los 674 de abajo más
 **+28** tests nuevos repartidos en 3 archivos nuevos (38 → 41 archivos) y 3 archivos existentes:

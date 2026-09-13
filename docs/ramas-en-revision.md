@@ -28,10 +28,11 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
     - `sitio/anatomy-by-chris/scraper.test.js`: Node >= 25 tapaba el `localStorage` de jsdom.
     - `sitio/google-classroom/scraper.js:19`: método abreviado → `async function`. `executeScript`
       no lo podía inyectar (`SyntaxError`); los tests no lo ven.
-  - **Pendiente, con plan**: `docs/plan-classroom-corte-1-verificacion-b.md`. La sonda de conexión
-    del popup choca con `Cross-Origin-Resource-Policy: same-site` de Classroom
-    (`net::ERR_BLOCKED_BY_RESPONSE.NotSameSite`) → "No se pudo contactar el sitio" tapa la lista.
-    Suma el test de serialización de los escaneos inyectados.
+  - **Hecho** (`docs/plan-classroom-corte-1-verificacion-b.md`):
+    - Paso 1: sonda de Classroom a `/favicon.ico` (`sitio/google-classroom/config.ts`).
+    - Paso 2: notificación de fallo abre `urlListado` (`background.js:539`, `core/puertos/sitio.ts`).
+    - Paso 3: test de serialización de escaneos inyectados (`sitio/inyeccion.test.js`, +4 tests).
+    - Paso 4: docs actualizados; Verificación A en verde con 42 archivos, 706 tests.
 - **Lo que no trae**: el mapeo a la carpeta del dueño (`U.N.L.P/`). Es el corte 2.
 
 ### Checklist de Verificación B (en navegador)

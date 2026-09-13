@@ -1,6 +1,14 @@
 /**
- * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: CONFIGURACIÓN (V1.0.0)
+ * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: CONFIGURACIÓN (V1.1.0)
  * ==========================================================================
+ * CHANGELOG v1.1.0:
+ * - [CLASSROOM VERIFICACIÓN B] `urlSondeoInternet` apunta a `/favicon.ico`: la raíz con sesión
+ *   responde `Cross-Origin-Resource-Policy: same-site` y el fetch desde la extensión rechaza
+ *   (ERR_BLOCKED_BY_RESPONSE.NotSameSite), marcando "sin internet". `/favicon.ico` responde 404
+ *   sin CORP y el daemon no mira el status. Esta URL nunca se abre en pestaña (para eso está
+ *   `urlListado`). Medido el 2026-09-12 en la consola del popup; ver
+ *   `docs/portal-google-classroom-diseno.md` §8.
+ *
  * CHANGELOG v1.0.0:
  * - [CLASSROOM CORTE 1] Primer descriptor de Google Classroom. Portal sin videos HLS:
  *   todos sus materiales son adjuntos (Drive o accesos .md).
@@ -31,7 +39,12 @@ const SitioGoogleClassroom: PuertoSitio = {
   nombre: "Google Classroom",
   color: "#1E8E3E",
 
-  urlSondeoInternet: "https://classroom.google.com",
+  // La raíz con sesión responde `Cross-Origin-Resource-Policy: same-site` y el `fetch` desde la
+  // extensión rechaza (`ERR_BLOCKED_BY_RESPONSE.NotSameSite`), lo que marcaba "sin internet".
+  // `/favicon.ico` responde 404 sin CORP y el daemon no mira el status. Esta URL no se abre
+  // nunca en una pestaña: para eso está `urlListado`. Medido el 2026-09-12 en la consola del
+  // popup; ver `docs/portal-google-classroom-diseno.md` §8.
+  urlSondeoInternet: "https://classroom.google.com/favicon.ico",
 
   esPaginaDelSitio(url) {
     if (typeof url !== "string") return false;
