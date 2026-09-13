@@ -15,7 +15,7 @@ cuatrimestres) de la misma materia.** Ya había bajado a mano 28 de 71 adjuntos 
 
 Espejo: `ObsidianUNLP_Vault/<misma ruta>/<nombre>.md` = PDF convertido a md (frontmatter `materia: [[00_MOC_X]]`), listado
 por wikilink en `00_MOC_<Materia>.md`, e indexado en `ObsidianUNLP_Vault/.neural_memory/`. Renombrar un PDF = PDF + nota + MOC
-(+ índice). 2026-09-13: 48 archivos con " (N)" en todo U.N.L.P, originales y notas espejo; 2 fotos WhatsApp de Prog 3 chocan.
+(+ índice). Los " (N)" de Física 2 vienen así de Classroom: antes de proponer renombres, contrastar con el escaneo.
 
 **How to apply:** mirar su árbol antes de proponer layouts de disco (cortó una pregunta de nombres para mostrarme la carpeta).
 Eligió D9 (destino en su U.N.L.P con mapeo por curso y tema) y D10 (videos no se bajan: acceso .md con link).

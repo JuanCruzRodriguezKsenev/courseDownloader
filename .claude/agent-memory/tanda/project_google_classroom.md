@@ -97,9 +97,10 @@ sin log. Popup traga el error (popup.js:924-929, sólo console.error). Lección:
 Análisis destino corte 2 (2026-09-13, pedido del dueño "que respete mi estructura"): hoy = raíz global + google-classroom/ +
 curso saneado a minúsculas y _ (sanearNombreCarpeta texto.ts:97; backend .toLowerCase handlers.js:26/75/256; procesadorCola.ts:808).
 Temas reales: G22 12 temas (6 "Guía de TP Nº N…", Laboratorios, Clases Teóricas Módulo I, Cronogramas, Videos, Bibliografía,
-Pruebas diagnósticas); G25 7 (Presentaciones teóricas 20/26). Disco: Fisica 2/{Teorias/{Bianchi,Palacio},Practicas,Parciales}; 14 PDFs
-de Practicas con sufijo " (N)"; Palacio renombrado a mano. DUEÑO DECIDIÓ: el (N) es de bajadas repetidas y NO debe
-estar → el código NO lo compensa (igualdad exacta); la limpieza es del árbol, no de la extensión. Mi recomendación:
+Pruebas diagnósticas); G25 7 (Presentaciones teóricas 20/26). Disco: Fisica 2/{Teorias/{Bianchi,Palacio},Practicas,Parciales}. CORREGIDO 2026-09-13: los " (N)" (P3.- Ley de Gauss-2023 (2).pdf,
+02_CampoE (2).pdf) y "Palacio - Clase N…" son los nombres TAL CUAL en Classroom (G25/G22), no bajadas repetidas ni renombres →
+no se renombra nada y la igualdad exacta los reconoce. Tamaño: t51ITc NO trae bytes ni md5 (buscado 930537 en el HAR) →
+sólo se sabe al bajar. Fotos WhatsApp Prog 3 (1)/(2): md5 distintos, no son duplicados. Mi recomendación:
 raíz=~/U.N.L.P; por curso elegir carpeta de materia con 📂 (ya hay selector Linux) + tabla tema→subcarpeta con sugerencia editable.
 
 **How to apply:** próxima ronda: el dueño corre la verificación B en Brave (plan abrir-todos §4.B, después checklist de `docs/ramas-en-revision.md` completa, pasos 2 y 8–11);
