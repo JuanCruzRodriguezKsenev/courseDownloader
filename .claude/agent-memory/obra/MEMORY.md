@@ -1,1 +1,2 @@
 - [Classroom corte 1: lista guardada y Explorar](project_classroom_lista_guardada_y_explorar.md) — compuerta de escaneo al abrir, botón 🔄 en toolbar, selector de carpetas Linux vía D-Bus portal
+- [Classroom corte 1: abrir todos](project_classroom_abrir_todos.md) — apertura de todos los ítems plegados en el mismo tick y espera única durante el escaneo
