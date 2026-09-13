@@ -34,7 +34,25 @@ en PuertoSitio, rechazo de HTML en rama adjunto, `nombreEnDisco` (réplica exact
 espacios), "ya descargado" exacto para adjuntos, `ResultadoEscaneo.aviso` + card `portal`, modulo = "curso › tema",
 accesos = `acceso:<url>:<título>` resueltos a `data:` URL (sin tipo nuevo en la identidad).
 
-**How to apply:** próxima ronda abre con el informe de `obra`: verificar A de forma independiente (subagente verificador),
-enrutar hallazgos, y la verificación B la corre el dueño en Chrome. Después: plan del corte 2 (mapeo + ADR-0016). Después: plan del corte 1
-para `obra` (probablemente partido: escaneo+descarga a carpeta aparte, y destino con mapeo + ADR).
-Hallazgos sin enrutar a TECHNICAL_DEBT: `includes` de popup.js:1512; `AGENTS.md:150` cita `.agents/skills/` inexistente.
+Ronda 2026-09-12 (informe de obra del corte 1): verificación A independiente = lint/tsc/build/--listFiles verdes;
+`pnpm test` tenía 33 rojos PREEXISTENTES en main (`sitio/anatomy-by-chris/scraper.test.js:106`): Node >=25 trae
+localStorage global undefined que tapa el de jsdom. Corregido en el test (reinstala `globalThis.jsdom.window.localStorage`),
+sin commitear al cerrar la ronda. Hallazgo `@ts-expect-error node:fs` → TECHNICAL_DEBT ⚪ (arreglo `?raw`).
+Verificación B, primer intento: "no escanea el curso" = `scraper.js:19` era método abreviado (`async escanearListado(){}`),
+el plan pedía `async function` y obra se apartó; `executeScript` serializa → SyntaxError. Corregido (1 línea), sin commitear.
+Deuda 🟠 #11: test de serialización. Lección: en planes con código inyectado, pedir el test de `toString()` explícito.
+Verificación B, 2do intento: el escaneo SÍ termina (storage con 343 ítems google-classroom, G22 numeroOriginal 57), pero la
+tarjeta "No se pudo contactar el sitio" tapa la lista (popup.js:2485). CONFIRMADO en la consola del popup (`ERR_BLOCKED_BY_RESPONSE.NotSameSite`; `/favicon.ico` → OK basic): con sesión, `classroom.google.com/`
+responde 200 con `CORP: same-site` → el HEAD no-cors del popup (chrome-extension://, manda cookies) rechaza → internet=false.
+`/favicon.ico` da 404 sin CORP. Radio: `background.js:539` abre `urlSondeoInternet` en la notificación de fallo → no cambiar
+esa URL sola; separar sonda de "abrir portal" (urlListado) toca los 3 portales.
+Entorno real: el dueño usa BRAVE (~/.config/BraveSoftware/Brave-Browser/Default), extensión id daameiendaidaagnimcbpmdjkpccfemh;
+chrome.storage.local legible en `Local Extension Settings/<id>/000003.log`; la sonda-sw sigue cargada (inofensiva, sólo onClicked).
+Claude in Chrome maneja ese mismo Brave pero no abre chrome-extension:// → el contexto del popup lo prueba el dueño.
+Dueño decidió (2026-09-12): la notificación abre `urlListado`; el test de serialización (deuda #11) entra al mismo plan.
+Plan: `docs/plan-classroom-corte-1-verificacion-b.md`. Test validado antes de escribirlo (4/4 con control negativo).
+Lección de método: medir un fetch desde una pestaña NO equivale al contexto de la extensión (cookies + CORP) → pedir la consola del popup temprano.
+Ojo: el informe de obra decía "verificación A en verde" con 33 rojos → siempre re-verificar.
+
+**How to apply:** próxima ronda: el dueño corre la verificación B en Chrome (checklist en `docs/ramas-en-revision.md`);
+después merge y plan del corte 2 (mapeo por ruta escrita + ADR-0016). `includes` y `.agents/skills/` ya están enrutados.

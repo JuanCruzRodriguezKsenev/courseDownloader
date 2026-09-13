@@ -21,8 +21,17 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   `.md` con el link.
   - Plan: `docs/plan-classroom-corte-1.md`.
   - Diseño y mediciones: `docs/portal-google-classroom-diseno.md`.
-- **Estado**: código completo (Pasos 1 a 8 implementados, verificación A en verde). Pendiente
-  la Verificación B en navegador con el dueño.
+- **Estado**: código completo (Pasos 1 a 8). Verificación A en verde **desde el 2026-09-12 a la
+  noche**: el informe de ejecución la daba en verde con 33 tests en rojo, preexistentes en `main`.
+  **Verificación B frenada** en el paso 2: el escaneo termina y guarda, pero la lista no se ve.
+  - Arreglado ya (correcciones puntuales, sin plan):
+    - `sitio/anatomy-by-chris/scraper.test.js`: Node >= 25 tapaba el `localStorage` de jsdom.
+    - `sitio/google-classroom/scraper.js:19`: método abreviado → `async function`. `executeScript`
+      no lo podía inyectar (`SyntaxError`); los tests no lo ven.
+  - **Pendiente, con plan**: `docs/plan-classroom-corte-1-verificacion-b.md`. La sonda de conexión
+    del popup choca con `Cross-Origin-Resource-Policy: same-site` de Classroom
+    (`net::ERR_BLOCKED_BY_RESPONSE.NotSameSite`) → "No se pudo contactar el sitio" tapa la lista.
+    Suma el test de serialización de los escaneos inyectados.
 - **Lo que no trae**: el mapeo a la carpeta del dueño (`U.N.L.P/`). Es el corte 2.
 
 ### Checklist de Verificación B (en navegador)
@@ -51,7 +60,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
    - [ ] `MC4 2026  - Copia de P2F2.pdf` (conservando doble espacio)
    - [ ] Los 6 quedan marcados como descargados tras re-sincronizar
 6. [ ] **Anatomy sigue igual**: bajar un PDF (funciona sin cookies) y comprobar que lo ya descargado sigue marcado como descargado.
-7. [ ] **Aviso de fallo**: la notificación de un ítem de Classroom que falla abre la pestaña del portal (`background.js:534`).
+7. [ ] **Aviso de fallo**: la notificación de un ítem de Classroom que falla enfoca la pestaña de Classroom, o si no hay ninguna abre `urlListado` (`background.js:539`, tras el plan de la verificación B).
 
 ## Lo último que se mergeó (2026-08-27)
 
