@@ -103,5 +103,23 @@ no se renombra nada y la igualdad exacta los reconoce. Tamaño: t51ITc NO trae b
 sólo se sabe al bajar. Fotos WhatsApp Prog 3 (1)/(2): md5 distintos, no son duplicados. Mi recomendación:
 raíz=~/U.N.L.P; por curso elegir carpeta de materia con 📂 (ya hay selector Linux) + tabla tema→subcarpeta con sugerencia editable.
 
+Cursos → materia → quién publica en Novedades (recorrido-3, "Publicación de"): G22 → Fisica 2 (Grumel 9, Palacio 3);
+G25 archivado → Fisica 2 (Bianchi 25, Haucke 14); Física I-Grupo G 2024 → Fisica 1 ("Lucila Física" 21, Santillan 9, Sergio R 6);
+MC4/MC2/MC6 → Matematica C (CONFIRMADO; teorías separadas por docente: MC6=Bava, MC4=Rey Grange, MC2 asumido Rey Grange);
+MB5 2024 archivado → Matematica B (CONFIRMADO); Q5 2023 → ¿? vacío,
+sin carpeta en U.N.L.P. Autor de post ≠ titular necesariamente.
+
+2026-09-13 docentes: Física 1 Classroom = Lucila (sin apellido); `teorias pedro 2023` = Pedro Mendoza Zélis (firmado en PDF);
+`teorias/C1..C9` sin firma pero 9/9 temas = "Clases teóricas - Módulo I" de Lucila → el dueño SÍ renombra (CN Tema); M-1 = md5 tras bajar.
+Q5 = Química para Ingeniería, docente Sonia; Personas (/u/2/r/NTQzMTM5MTE1OTUz/sort-last-name) sólo "Comision Q5" → apellido no está (M-2).
+Claude in Chrome: Personas tarda ~5 s en pintar; get_page_text antes da la lista vacía.
+
+2026-09-13 plan de formateo de ~/U.N.L.P/Ingenieria escrito: docs/plan-unlp-formateo-ingenieria.md + .tsv (116 filas,
+121→119 archivos). Formato: minúsculas, NN_tema, modN_ con módulos, parciales modN_AAAA-MM-DD_detalle, sin subcarpetas en
+Ingeniería, Teorias/<Apellido> sólo con >1 docente; vault no se toca. Se ejecuta en el repo U.N.L.P (515 cambios de
+Informática sin commitear → git add por ruta). Pendientes M-1 (C1..C9 = Lucila, md5), M-2 Sonia, M-3 apellido Lucila, C-1..3.
+Trampas: nombres viejos de Mendoza mienten sobre el número de clase (leer 1ra página); `parciales/mod 1.zip` = copia;
+"Proyección…(Resumen).pdf" de MC está en NFD en disco → comparar nombres con normalización o bytes exactos (lo cazó la simulación).
+
 **How to apply:** próxima ronda: el dueño corre la verificación B en Brave (plan abrir-todos §4.B, después checklist de `docs/ramas-en-revision.md` completa, pasos 2 y 8–11);
 después merge y plan del corte 2 (mapeo por ruta escrita + ADR-0016). `includes` y `.agents/skills/` ya están enrutados.
