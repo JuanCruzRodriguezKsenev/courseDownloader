@@ -16,7 +16,7 @@ const ScraperClassroom = {
    * @param {{ tiempos?: Record<string, number> }} [opciones]
    * @returns {Promise<{ materia: string, enlaces: any[], aviso?: string, credenciales?: Record<string, string> }>}
    */
-  async escanearListado(opciones) {
+  escanearListado: async function (opciones) {
     const tiempos = Object.assign(
       {
         pintado: 20000,
