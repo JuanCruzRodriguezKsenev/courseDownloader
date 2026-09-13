@@ -19,6 +19,8 @@ lo corre solo `hooks/regenerar` (PostToolUse Edit|Write en ~/.claude/settings.js
 Remoto: github.com/JuanCruzRodriguezKsenev/agentes (privado); push desde acá por HTTPS con el token de gh, SSH no anda. Construido el
 2026-09-12: copias de Claude verificadas idénticas; las de Gemini corregidas (subagent:false en tanda/obra/forja,
 memoria compartida en `.claude/agent-memory/<nombre>/` indicada en el cuerpo, verificador flash sin acceptEdits).
-Sin verificar en agy: `skills: - skills/spec`, symlinks en ~/.gemini/config/skills, permissionMode, ask_question en
-subagentes (lista en ~/Dev/agentes/README.md). Hallazgo no tocado: el cuerpo de tanda/obra en Claude dice que
+Verificado en agy 1.2.2 (2026-09-12): subagent:false rechaza invoke_subagent, skills/spec resuelve contra
+~/.gemini/config/ y sigue el symlink, agy también lee ~/.agents/skills/; permissionMode se sacó de obra (no está en la
+tabla). Único abierto: ask_question en subagentes (no documentado). Ojo: el informe de agy exageró dos veces ("✅ a la
+perfección" con la skill listada como SKILL.md; "no soportado" por algo sólo no documentado) → re-verificar sus conclusiones. Hallazgo no tocado: el cuerpo de tanda/obra en Claude dice que
 `AGENTS.md` de la raíz "se autocarga", y la memoria de tanda en este repo dice que no aparece autocargado. Ver [[spec-integrada-en-tanda]], [[fuentes-con-url]].
