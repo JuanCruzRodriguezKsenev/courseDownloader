@@ -54,5 +54,9 @@ Plan: `docs/plan-classroom-corte-1-verificacion-b.md`. Test validado antes de es
 Lección de método: medir un fetch desde una pestaña NO equivale al contexto de la extensión (cookies + CORP) → pedir la consola del popup temprano.
 Ojo: el informe de obra decía "verificación A en verde" con 33 rojos → siempre re-verificar.
 
-**How to apply:** próxima ronda: el dueño corre la verificación B en Chrome (checklist en `docs/ramas-en-revision.md`);
+Ronda 2026-09-12 noche: plan verif. B ejecutado (`e41e682`) y verificado por mí: 42 archivos/706 tests, lint/tsc/build
+verdes, diff = plan, `urlSondeoInternet` en background.js sólo en CHANGELOG, favicon.ico en los 2 bundles. Push de la
+rama lo bloquea el clasificador de auto mode → lo pushea el dueño.
+
+**How to apply:** próxima ronda: el dueño corre la verificación B en Brave (plan verif. B §4.B primero, después checklist de `docs/ramas-en-revision.md` desde el paso 2);
 después merge y plan del corte 2 (mapeo por ruta escrita + ADR-0016). `includes` y `.agents/skills/` ya están enrutados.
