@@ -85,5 +85,10 @@ Lección: primero di "no viable" con un HAR sólo de carga — no concluir sobre
 Plan escrito: `docs/plan-classroom-corte-1-lista-guardada-y-explorar.md` (origenListado + claveDeListado? + 🔄 + python portal).
 Baseline esperado tras ejecutarlo: 43 archivos / 715 tests.
 
-**How to apply:** próxima ronda: el dueño corre la verificación B en Brave (plan verif. B §4.B primero, después checklist de `docs/ramas-en-revision.md` desde el paso 2);
+Ronda 2026-09-13 (informe abrir-todos `38ddd5b`, sin hallazgos): verificado por mí = diff idéntico al plan; 43/716, lint/tsc/build
+verdes (verificador); contraste propio: test 11 contra scraper de `4f59c98` FALLA por tiempos (copia temporal en sitio/, borrada).
+Ojo para B: el paso 7 nuevo espera también los li SIN botón (el viejo los salteaba) → si uno nunca expande, 30 s de espera.
+Si G22 tarda ~30 s en B paso 1, es eso.
+
+**How to apply:** próxima ronda: el dueño corre la verificación B en Brave (plan abrir-todos §4.B, después checklist de `docs/ramas-en-revision.md` completa, pasos 2 y 8–11);
 después merge y plan del corte 2 (mapeo por ruta escrita + ADR-0016). `includes` y `.agents/skills/` ya están enrutados.
