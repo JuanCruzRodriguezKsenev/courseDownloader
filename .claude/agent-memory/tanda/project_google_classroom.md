@@ -90,5 +90,9 @@ verdes (verificador); contraste propio: test 11 contra scraper de `4f59c98` FALL
 Ojo para B: el paso 7 nuevo espera también los li SIN botón (el viejo los salteaba) → si uno nunca expande, 30 s de espera.
 Si G22 tarda ~30 s en B paso 1, es eso.
 
+2026-09-13 "Explorar no anda": backend STALE (arrancado 00:09, selector Linux en 4623593 01:44; Bun no recarga) → corría el
+handler viejo = powershell en Linux. Diagnóstico: `ps -o lstart= -p <pid>` vs `git log -1 --format=%ci -- backend/`; portal gtk
+sin log. Popup traga el error (popup.js:924-929, sólo console.error). Lección: tras commits en backend/, pedir reinicio ANTES de B.
+
 **How to apply:** próxima ronda: el dueño corre la verificación B en Brave (plan abrir-todos §4.B, después checklist de `docs/ramas-en-revision.md` completa, pasos 2 y 8–11);
 después merge y plan del corte 2 (mapeo por ruta escrita + ADR-0016). `includes` y `.agents/skills/` ya están enrutados.

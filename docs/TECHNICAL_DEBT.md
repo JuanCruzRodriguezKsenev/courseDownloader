@@ -572,6 +572,12 @@ Llegaron acá al mergear la tanda del toolbar (2026-08-13): vivían en
 - **Arreglo, ya medido**: `import fuenteBackend from '../../backend/utils.js?raw'`, el patrón que ya usa `sitio/google-classroom/scraper.test.js:8`. `vite/client` declara `*?raw` y llega por `.wxt/wxt.d.ts` (`wxt/vite-builder-env`); un `.ts` con ese import pasa `tsc --noEmit` contra el `tsconfig.json` del repo. Falta correrlo en Vitest.
 - **Estado**: ⚪ abierto (hallado el 2026-09-12, informe de `obra` del corte 1 de Classroom).
 
+### ⚪ Explorar falla en silencio cuando el backend devuelve error
+
+- **Dónde**: `popup.js:924-929` (el `.catch` de `backend.seleccionarCarpeta()`) y `backend/handlers.js:362-364` (500 con `{ error }`).
+- **Qué pasa**: si el selector no se puede abrir, el server loguea y devuelve 500; el popup restaura la ruta previa y sólo hace `console.error`. Para el usuario es "no pasó nada". Se vio el 2026-09-13 con un backend arrancado antes de `4623593`, que en Linux seguía lanzando `powershell`.
+- **Estado**: ⚪ abierto (hallado el 2026-09-13, verificación B del corte 1 de Classroom).
+
 ### ✅ Ningún test serializa las funciones que se inyectan en la pestaña
 
 - **Dónde**: los tres `sitio/<portal>/scraper.js`; quien las inyecta es `popup.js:1258-1260` (`executeScript({ func: portal.escanearListado })`).

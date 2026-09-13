@@ -51,6 +51,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 **Antes de empezar:**
 - Levantar el backend: `cd backend && bun run server.js`
+  - Si ya había uno corriendo, **reiniciarlo**: Bun no recarga `backend/`, y uno arrancado antes de `4623593` sigue lanzando `powershell` en Linux (Explorar no abre nada).
 - `pnpm run build` y recargar la extensión desde `.output/chrome-mv3/`
 - Usar la cuenta del curso de Google (`/u/2/`)
 - Dejar la pestaña al frente durante cada escaneo
