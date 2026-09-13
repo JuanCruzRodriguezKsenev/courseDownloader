@@ -1,0 +1,3 @@
+- [spec integrada en tanda](project_spec_integrada_en_tanda.md) — spec sigue skill; tanda la invoca; specs en docs/specs/<slug>/
+- [Fuentes con URL](feedback_fuentes_con_url.md) — citar docs oficiales de Anthropic y Antigravity con URL, verificadas
+- [Fuente única de agentes](project_fuente_unica_agentes.md) — ~/Dev/agentes genera Claude+Gemini con hook; construido, falta probar en agy

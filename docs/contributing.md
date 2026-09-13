@@ -69,6 +69,7 @@ La documentación sigue el mismo principio de *single source of truth* que el c�
 - Baseline de las 4 verificaciones (cantidad de tests, warnings tolerados) y narrativa de cobertura → `docs/testing.md` §Baseline de las verificaciones. Ningún otro doc repite esos números.
 - Estado de la re-arquitectura por fases, qué sigue y con qué riesgo → `docs/rearquitectura-diseno.md`. Es también el hogar de la *historia* de cada corte: qué se migró cuándo y por qué un archivo sigue donde está.
 - Qué hay construido fuera de `main` y sin verificar en Chrome (ramas en vuelo, en qué orden se mergean, cuál es el build cargado) → `docs/ramas-en-revision.md`. **Vivía en el banner de las reglas (entonces `CLAUDE.md`) y se mudó acá**: es estado con fecha de vencimiento, y tenerlo en el archivo que se carga en cada sesión hacía que el 45% de los commits lo editaran. `AGENTS.md` guarda sólo el puntero.
+- Qué tiene que hacer una funcionalidad antes de planificarla (reglas `RN-n`, criterios de aceptación `AC-n`, la traza de supuestos) → `docs/specs/<slug>/`. El doc de diseño del tema es el *cómo* y linkea a la spec; el plan cita los `AC-n` que cubre.
 
 Un overview que orienta y apunta (una frase + link) **no** es duplicación; re-especificar el mismo mecanismo/valores/rationale en dos lugares **sí** lo es. Si al escribir un doc te encontrás re-explicando algo que ya vive en otro, dejá el resumen y linkéalo.
 
