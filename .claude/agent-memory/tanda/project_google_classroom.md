@@ -58,5 +58,20 @@ Ronda 2026-09-12 noche: plan verif. B ejecutado (`e41e682`) y verificado por mí
 verdes, diff = plan, `urlSondeoInternet` en background.js sólo en CHANGELOG, favicon.ico en los 2 bundles. Push: el clasificador de auto mode
 bloquea `git push` por iniciativa propia; con pedido explícito del dueño ("pushea") pasa.
 
+Verif. B 2026-09-13: G22 = 57 ✅. Dueño reportó 2 problemas y DECIDIÓ (entran al corte 1 antes del merge, un plan con lo que
+traiga la checklist): (1) popup re-escanea al abrir SIEMPRE en los 3 portales (popup.js:778/793/841; `listaPersistente` no
+guarda de qué curso salió) → en Classroom mostrar la lista guardada si es del MISMO curso (idCurso de la URL), si no escanear;
+hace falta 🔄 visible en la toolbar (hoy "Re-escanear" sólo aparece con escaneo muerto, popup.js:2296) — lo decidí yo.
+(2) Explorar = PowerShell (backend/handlers.js:325) → en Linux usar xdg-desktop-portal FileChooser (activo: backend gtk en
+Hyprland; python3+gi 3.56 disponible; script de prueba en scratchpad). Prueba 1: Response code 2 + log "Unhandled parent
+window type" → el dueño CONFIRMÓ que apareció y la cerró (code 2 = cerrar ventana). Portal viable. Backend sin tests; contrato en docs/deployment.md:38.
+C3 (batchexecute) 2026-09-13, dueño pidió medir sin tocar lo que anda: G22 no trae listado en el HTML (AF_initData 385 B); la carga
+hace `dpT4Vd` ×13 (≈tema) y `sLc6hf` ×~50 (≈ítem); después, Ver más/abrir ítem NO piden nada. Claude in Chrome: read_network_requests
+NO ve nada en Brave, y un hook XHR puesto después de cargar se pierde los listados; pestaña del grupo sin foco no pinta. → HAR manual
+del dueño a docs/muestras/google-classroom/c3/g22.har (gitignorado). VEREDICTO: `dpT4Vd` (hrcw.qr, por tema, de a 10) trae
+títulos/ids/fechas SIN ids de Drive; `sLc6hf` = comentarios. batchexecute NO viable → D8 (DOM) sigue.
+Plan escrito: `docs/plan-classroom-corte-1-lista-guardada-y-explorar.md` (origenListado + claveDeListado? + 🔄 + python portal).
+Baseline esperado tras ejecutarlo: 43 archivos / 715 tests.
+
 **How to apply:** próxima ronda: el dueño corre la verificación B en Brave (plan verif. B §4.B primero, después checklist de `docs/ramas-en-revision.md` desde el paso 2);
 después merge y plan del corte 2 (mapeo por ruta escrita + ADR-0016). `includes` y `.agents/skills/` ya están enrutados.

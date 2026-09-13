@@ -33,6 +33,12 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
     - Paso 2: notificación de fallo abre `urlListado` (`background.js:539`, `core/puertos/sitio.ts`).
     - Paso 3: test de serialización de escaneos inyectados (`sitio/inyeccion.test.js`, +4 tests).
     - Paso 4: docs actualizados; Verificación A en verde con 42 archivos, 706 tests.
+  - **Verificación B retomada el 2026-09-13**: Física II G22 trae 57 ✅. Destapó dos defectos que
+    entran antes del merge, y se midió `batchexecute` (no trae los adjuntos: el escaneo sigue por DOM):
+    - El popup re-escanea cada vez que se abre; en Classroom son minutos.
+    - 📂 Explorar no anda en Linux (PowerShell).
+  - **Pendiente de ejecutar**: `docs/plan-classroom-corte-1-lista-guardada-y-explorar.md`. La
+    checklist de abajo se sigue **después** de ejecutarlo, con sus puntos 8 a 12.
 - **Lo que no trae**: el mapeo a la carpeta del dueño (`U.N.L.P/`). Es el corte 2.
 
 ### Checklist de Verificación B (en navegador)
