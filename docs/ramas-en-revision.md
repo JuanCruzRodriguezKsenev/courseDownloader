@@ -57,6 +57,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 - Dejar la pestaña al frente durante cada escaneo
 
 1. [ ] **Arranque**: el service worker arranca sin excepciones y el popup renderiza completo (`docs/rearquitectura-diseno.md` §Verificación en navegador, puntos 5 y 6).
+   - **Si el primer escaneo de G22 tarda ~30 s, no es un cuelgue**: el paso 7 nuevo (`abrirTodos`, `38ddd5b`) espera también los `li` sin botón, que el paso 7 viejo salteaba. Anotá el tiempo igual: el plan de abrir-todos pide cronometrarlo.
 2. [ ] **Escaneo curso por curso** (contrastar enlaces con los esperados del §8 del diseño):
    - [ ] Física II G22 (Palacio): 57 enlaces esperados
    - [ ] Física I 2024: 130 enlaces (129 Trabajo en clase + 1 sólo en Novedades)
@@ -79,6 +80,69 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 9. [ ] **Otro curso** (MC4 1S 2026): abrir el popup ahí escanea solo y trae 13. Volver a G22 y abrir: escanea de nuevo (se guarda una sola lista).
 10. [ ] **🔄**: visible en "Clases Disponibles" y oculto en "Fila de descarga"; en G22 con lista guardada fuerza el escaneo. Con backend caído queda deshabilitado. En Anatomy, abrir el popup sigue escaneando como antes.
 11. [ ] **Explorar en Linux**: 📂 → diálogo nativo "Elegí la carpeta raíz de descargas". Cancelar conserva la ruta; elegir cambia la ruta y la consola del server loguea `📂 [DISCO] Nueva carpeta raiz establecida`. (Restaurar la ruta real al terminar).
+
+### Hallazgos de la Verificación B (2026-09-16)
+
+Entran al corte 1 **antes del merge** (decisión del dueño). El plan se escribe cuando la checklist
+termine, con todo lo que aparezca junto.
+
+- 🔴 **El escaneo lee adjuntos a medio hidratar y los da por buenos.** `sitio/google-classroom/scraper.js:297-304`:
+  la espera del paso 7 se cumple en cuanto el `li` tiene un `[data-attachment-id]`, pero ese `div`
+  existe **antes** de que el `<a>` de adentro resuelva. En esa ventana el adjunto lleva el placeholder
+  `aria-label="Archivo adjunto: Desconocido: Archivo de Drive"` y href `drive.google.com/open?id=…`,
+  así que `clasificarAdjunto` cae al fallback de la línea 181 y lo guarda como acceso `.md`.
+  - **Evidencia**: G22, ítem "Pautas a tener en cuenta … Laboratorio obligatorio N° 1" (tema Laboratorios),
+    Drive id `1in-jsGjewUb4130B4A9NW1aLembqJWml`. Primera corrida → `Archivo adjunto_ Desconocido_ Archivo de Drive.md`
+    y el PDF **sin bajar**. Re-escaneo con 🔄, sin tocar código → el mismo adjunto sale bien y baja
+    `G22-2026-Pautas para realizar el informe del Lab_1.pdf` (PDF real, 74 KB). **Intermitente.**
+  - **Origen probable**: `38ddd5b` (abrir los ítems en el mismo tick). Con el escaneo secuencial anterior
+    (~555 ms por ítem) cada uno se hidrataba antes de que le tocara al siguiente; el placeholder no aparece
+    ni una vez en las capturas del 2026-09-12 (`docs/muestras/google-classroom/recorrido-*/`, escaneo secuencial).
+  - **Por qué no lo vio nadie**: falla en silencio y el conteo sigue dando 57 — M5 contó adjuntos, no verificó
+    su contenido. Deja además un `.md` huérfano que nada limpia.
+  - **Decisión del dueño (2026-09-16)**: la espera debe exigir adjuntos **resueltos**, no presentes; si al vencer
+    el tope alguno sigue sin resolver, se descarta y la tarjeta avisa cuántos. Nunca se lista un placeholder.
+
+- 🔴 **Novedades no pagina ni expande: se lee sólo lo que el stream trajo de entrada.**
+  `sitio/google-classroom/scraper.js:371-378` entra a Novedades, hace `esperarQuietud()` y lee el DOM.
+  No hay nada del trabajo que sí se hace en "Trabajo en clase": ni el bucle de `Ver más publicaciones`
+  (paso 6) ni la apertura de ítems plegados (paso 7).
+  - **Evidencia**: `Fisica_II_G25_2026` (archivado, el de stream más largo) — **23 adjuntos del tema
+    "Próximas" no llegaron ni al escaneo**: `Resumen_guia4/5/7/12.pdf`, `1parcial_2..6.jpg`,
+    `Guia11_P4b/c/d.jpeg`, `Guia12_P4a/b.jpeg`, `Guia12_P9a/b/c.jpeg`, `P8a_guia5.jpeg`,
+    `P9_guia4.pdf`, `P11_guia4.pdf`, `resultados-repaso-conceptual.pdf`, `Guia7_P6b/c.jpeg`.
+    Ninguno aparece en `chrome.storage` (ni en lista, ni en cola, ni en descargados), mientras que
+    los que sí se bajaron del mismo curso aparecen — o sea **falla el escaneo, no la descarga**.
+    Todos están en la muestra del 2026-09-12 (`recorrido-3/…G25…-novedades.json`), así que son alcanzables.
+  - **Por qué no se vio antes**: sólo se nota cuando el stream es largo. G22, MC2, Física I y MB5 dieron
+    0 faltantes en Novedades — sus posts entran en la primera carga. D11 se decidió con el conteo de
+    "adjuntos que sólo están en Novedades", que no distingue entre "no está" y "no se cargó".
+
+- ⚠️ **`MC4 1S 2026` desapareció de la portada del dueño** entre el 2026-09-12 y el 2026-09-16, así que no
+  se bajó (esperaba 13). **No es un defecto de la extensión**: en `recorrido-3/00-partida.json` (2026-09-12)
+  figura como curso activo, y en `00-archivadas.json` de ese día sólo estaban G25 y MB5. Candidato principal:
+  el docente lo archivó al cerrar el 1er semestre → estaría en `/u/2/h/archived`. Si no está ahí, es baja o
+  eliminación del curso.
+  - **Toca el punto 9 de la checklist**, que usa MC4 como "otro curso" para probar que la lista guardada se
+    invalida al cambiar de curso: si quedó archivado sirve igual, si no, reemplazarlo por MC2 o MB5.
+  - **Toca la spec del corte 2**: no hay supuesto sobre qué hacer cuando un curso ya asociado deja de aparecer.
+    El material bajado no debe tratarse como huérfano — es cuando la copia local pasa a ser la única.
+
+- ⚪ **Los números esperados de la checklist vencieron para los cursos activos.** G22 ya no trae 57 sino ~63:
+  entre el 2026-09-12 y el 2026-09-16 la cátedra publicó Clase 7, Clase 8 (×2), `Pract.6-Prob.P9`,
+  `CC-Modelización de pilas y baterias` y el cronograma de la semana 14-9. Verificado contra `recorrido-3`.
+  Los únicos totales que siguen firmes son los de los cursos **archivados**: G25 (71) y MB5 (24).
+
+- ⚪ **D12 hace lo que dice, y por eso deja copias idénticas** (hallazgo para el corte 2, no defecto del 1).
+  De 263 binarios hay 258 contenidos únicos: `Informe de laboratorio FISICA I 2024 (Template).docx` está
+  **5 veces con md5 idéntico** (`cb5dc8da…`, el docente lo adjuntó en 5 ítems) e `interferencia2025.pdf`
+  **2 veces** (`2653281d…`). El supuesto 20 de `docs/specs/classroom-destino/assumptions.md` cubre el choque
+  entre dos cursos, pero no éste: mismo curso, mismo archivo, distinto material. Decidir en la spec si el
+  desempate de D12 debe mirar el contenido antes de copiar.
+
+- ✅ **Integridad de lo descargado** (verificada en disco, no por reporte): 53 PDF que son PDF de verdad,
+  1 pptx real, 0 de tamaño nulo, ningún HTML de error disfrazado; el saneo `Nº`→`N_`, `#`→`_`, `,`→`_`
+  se aplicó bien y los `.md` de acceso llevan el link correcto.
 
 ## Lo último que se mergeó (2026-08-27)
 

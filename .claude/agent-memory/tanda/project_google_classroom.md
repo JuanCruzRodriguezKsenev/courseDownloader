@@ -125,6 +125,39 @@ Trampas U.N.L.P: `core.ignorecase=true` en .git/config (Linux) → renombre sól
 `core.quotepath` cita rutas con tilde → filtros con `-c core.quotepath=false`. NFD en "Proyección…(Resumen).pdf"; nombres viejos de Mendoza mienten.
 El verificador corre la batería de courseDownloader: no verifica planes sobre otro repo → contraste propio.
 
-**How to apply:** próxima ronda: reescribir `docs/specs/classroom-destino/` con el formato ya aplicado como regla (reemplaza supuestos
-5, 13, 22) → plan del corte 2 con tabla nombre Classroom → nombre sencillo por curso. Antes (dueño): verificación B en Brave
-(plan abrir-todos §4.B + checklist de `docs/ramas-en-revision.md`), merge. `includes` y `.agents/skills/` ya están enrutados.
+Ronda 2026-09-16 (Verificación B completa + spec del corte 2). Dueño bajó los 8 cursos a `~/Descargas/verificacion-b`
+(318 archivos, 371 MB, 5 carpetas). Verificado por mí en disco: 0 vacíos, 0 HTML disfrazado, tipos reales OK, 55 .md con URL,
+D12 OK, Física I 130/130, MB5 24/24, MC2 25/25. **Dos defectos de escaneo CONFIRMADOS, entran al corte 1 antes del merge:**
+(1) `scraper.js:297-304` la espera del paso 7 se cumple con que exista `[data-attachment-id]`, pero el `<a>` puede estar sin
+hidratar → `aria-label="Archivo adjunto: Desconocido: Archivo de Drive"` + href `open?id=` → cae al fallback de la línea 181 y
+guarda un .md en vez del PDF. INTERMITENTE (mismo ítem salió mal y después bien sin tocar código). Origen probable `38ddd5b`
+(abrirTodos): el placeholder no aparece NI UNA VEZ en las capturas secuenciales del 12-09.
+(2) `scraper.js:371-378` **Novedades no pagina ni expande**: entra, `esperarQuietud` y lee el DOM. Sin "Ver más publicaciones"
+ni apertura de ítems, a diferencia de Trabajo en clase. G25 pierde 23 adjuntos del tema "Próximas" — no llegan ni al storage.
+Sólo se nota con stream largo (los otros 4 cursos: 0 faltantes en Novedades).
+Método que sirvió: contrastar disco contra `recorrido-3/*.json` con match laxo; ojo que NFKD manda `º`→`o` (falsos positivos
+`Nº` vs `N_`) y D12 agrega ` - <material>` (más falsos positivos). Los mtimes de los archivos dan el tiempo por descarga.
+Perf medida: 62 ítems/186 s; .md (sin red) 0.10 s = piso del pipeline; PDF <200 KB mediana 1.36 s, de los cuales ~1.25 s son
+latencia de Drive (TTFB medido 0.38-0.51 s). La cola es estrictamente secuencial (`colaDescargas[0]` + `setTimeout(…,60)`).
+Paralelizar es la única palanca (3x), pero toca estado global (`totalFragmentosEnVideoActual`, `tiempoInicioVideoActual`) y
+ADR-0011 → plan propio, después del merge, y midiendo antes con cuánta concurrencia Drive tira 429.
+`MC4 1S 2026` DESAPARECIÓ de Classroom entre el 12 y el 16-09 y NO está en archivadas → baja o eliminación. No es defecto.
+
+**SPEC DEL CORTE 2 ESCRITA**: `docs/specs/classroom-destino/spec.md` (draft, 482 líneas, 28 RN, 11 AC, tabla de decisión,
+wireframes) + `assumptions.md` con la traza. Decisiones del dueño (2026-09-16): "ya descargado" **por md5, no por nombre**;
+nombre = la extensión propone + el dueño edita + se recuerda **por id de Drive**; índice en **un único
+`~/U.N.L.P/.classroom.json` GITIGNOREADO** (el repo `jcrodriguezUNLP/U.N.L.P` es **PÚBLICO**, y el dueño no quiere que se
+sepa de dónde baja); docente nuevo sobre `Teorias/` con sueltos → no se mueve nada, subcarpeta sólo al nuevo.
+Descartado con medición: xattr (btrfs los soporta pero `git clone` y `cp` sin `-a` los pierden) y metadata interna (cambia el
+md5 y se muerde la cola con la regla de contenido). M-1 CERRADO: 9/9 md5 idénticos, `Fisica 1/Teorias/` sueltas = Classroom
+de Lucila renombrado por el dueño. Falta M-2 (apellido de Sonia, no bloquea).
+Datos del árbol: `Fisica 2/Laboratorios` está SIN formatear (11 nombres crudos) mientras Teorias/Practicas sí; 4 de esos
+archivos tienen md5 idéntico a lo que baja la extensión y nombre distinto (`Lab#1` vs `Lab_1`) → por nombre se re-bajarían.
+`Teorias/` tiene 3 formas conviviendo: F1 = 10 sueltos + `Mendoza/`; F2 = `Bianchi/`+`Palacio/`; MB = 2 sueltos.
+D12 deja copias md5-idénticas: template de Física I ×5, `interferencia2025` ×2 (→ PA-2 de la spec).
+⚠️ `~/U.N.L.P/.gitignore` está en **UTF-16 LE + CRLF**: agregarle `.classroom.json` con `echo >>` lo corrompe.
+⚠️ El árbol `~/U.N.L.P` tiene remoto SSH y su último push es de 2026-05-08: el formateo de septiembre NO está pusheado.
+
+**How to apply:** próxima ronda = **plan del corte 1** con los dos defectos de escaneo juntos (mismo archivo, misma clase de
+falla), verificado contra G25 que es el curso que los destapa; después merge; después plan del corte 2 citando `spec.md` por
+RN-n y AC-n. Sin commitear al cerrar esta ronda: spec.md, assumptions.md, ramas-en-revision.md, portal-…-diseno.md.

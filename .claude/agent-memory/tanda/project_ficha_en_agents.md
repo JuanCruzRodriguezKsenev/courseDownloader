@@ -16,6 +16,7 @@ No escribir la ficha (`## Comandos`, etc.) en `CLAUDE.md`: es un puntero y proh�
 - `docs/rearquitectura-diseno.md` §Estado de avance
 Compuerta: `pnpm test`, `pnpm run lint`, `pnpm exec tsc --noEmit`, `pnpm run build`; números en `docs/testing.md`. Nada se mergea sin probar en Chrome.
 
-Estado al 2026-09-12: nada en revisión; main al 2026-08-28. Abiertos: popovers sin tests, loader sin dueño
+Estado al 2026-09-16: `classroom-corte-1` EN revisión (25 commits sobre `main`, que sigue en `733ec91` del 2026-08-27),
+esperando Verificación B en Brave. Abiertos: popovers sin tests, loader sin dueño
 (doc dice 12 call-sites, en main quedan 4 + bandera `elEscaneoTomoElLoader`), footer `#ui-msg-status` con `display:none`
 (`entrypoints/popup/index.html:132`), banco no alcanza al SW, ⚪ restos de micro-movimientos.

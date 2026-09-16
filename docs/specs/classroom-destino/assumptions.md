@@ -98,7 +98,171 @@ Quien publica no es necesariamente el titular.
   de los 515 cambios pendientes, 511 son de Informática y 4 de `Ingenieria/`, así que el plan
   commiteó por ruta. `parciales/mod 1.zip` estaba versionado (el plan decía ignorado).
 
-## Ronda 1 — 2026-09-13
+## Ronda 2 — 2026-09-13 (sobre el formato ya aplicado)
+
+Reemplaza la ronda 1, que el dueño nunca llegó a revisar: se cortó para hacer el relevamiento, y
+después se decidió y aplicó el formato (`~/U.N.L.P` `3b7c557`). Los supuestos 5, 13 y 22 de la
+ronda 1 quedan sustituidos por el 5, del 11 al 16 y el 19 de esta.
+
+Mediciones que anclan esta ronda (2026-09-13, sobre `docs/muestras/google-classroom/recorrido-3/`,
+316 adjuntos únicos por curso y 291 que son archivos):
+- **Regla mecánica candidata** (número inicial `P`/`C`/`Clase N`, sin prefijo de docente, sin año
+  al final, sin ` (N)`, pasado a minúsculas con `_`): **acierta 15 de 26** nombres que el dueño eligió
+  para archivos de Física 2 bajados de Classroom. Falla cuando el dueño acortó el tema
+  (`P10.- Circuitos de CC en estado transitorio` → `10_circuitos_transitorios`) o lo renombró
+  (`Documento_completo.pdf-PDFA.pdf` → `libro_de_catedra.pdf`).
+- La regla encuentra número en **37 de 291** archivos: el `NN_` casi nunca sale del nombre de Classroom.
+- Quitar ` (N)` y el año genera **3 grupos de choque, con 12 archivos en total**: MC2 Próximas ×2 grupos, y el
+  template de laboratorio de Física I ×3, que ya estaba en D12.
+
+### Alcance
+1. `asumido` — Cubre sólo Google Classroom; Anatomy y RamonNet no cambian de layout.
+2. `asumido` — Vale para los 8 cursos: todos son de Ingeniería.
+3. `asumido` — La extensión nunca renombra, mueve ni borra lo que ya está en `~/U.N.L.P`, ni toca el vault.
+
+### Reglas de negocio — carpetas
+4. `asumido` — La raíz es `~/U.N.L.P` y cada curso se asocia una vez a una carpeta de materia existente (📂).
+5. `asumido` — Los destinos de una materia son exactamente `raíz`, `Teorias/`, `Practicas/`, `Laboratorios/`, `Parciales/`, `Finales/` y `Bibliografia/`, con esa capitalización; si falta alguno, se crea.
+6. `asumido` — `Teorias/<Apellido>/` se usa si el dueño escribe un apellido al asociar el curso; si lo deja vacío, `Teorias/` queda plana.
+7. `asumido` — El destino se decide por tema: todos los adjuntos de un tema van a la misma carpeta.
+8. `asumido` — La extensión sugiere la carpeta de cada tema por palabra clave y el dueño la confirma una vez por curso.
+9. `asumido` — Novedades ("Próximas") y "Sin tema" van a la raíz de la materia.
+10. `asumido` — Un tema que aparece después de configurar el curso va a la raíz y queda marcado para asignar.
+
+### Reglas de negocio — nombres
+11. `asumido` — El nombre final lleva el formato del árbol: minúsculas, sin tildes, `_`, `NN_` si hay número, `modN_` si hay módulo y extensión en minúscula.
+12. `asumido` — La extensión propone el nombre con la regla mecánica medida arriba y el dueño lo puede editar en el popup antes de bajar.
+13. `asumido` — El nombre editado se guarda por id de Drive y se reusa en los escaneos siguientes.
+14. `asumido` — `modN_` sale del nombre del tema ("Clases teóricas - Módulo I" → `mod1_`), nunca del nombre de archivo.
+15. `asumido` — En Parciales la extensión no infiere la fecha: propone `modN_<nombre>` y el dueño la escribe a mano.
+16. `asumido` — D12 se aplica después de simplificar: si dos archivos quedan con el mismo nombre en una carpeta, todos los del grupo llevan `_<título del material>` antes de la extensión.
+17. `asumido` — Los videos y los vínculos son acceso `.md` (D10), con el nombre sencillo del video.
+
+### Reglas de negocio — ya descargado
+18. `asumido` — Un archivo está descargado si su nombre final existe exacto en su carpeta destino; no se compara contenido.
+19. `asumido` — Los 11 archivos que ya están en disco y cuyo nombre la regla no reproduce aparecen como no descargados hasta que el dueño edita ese nombre una vez en el popup.
+20. `asumido` — Si dos cursos de la misma materia mandan el mismo nombre final a la misma carpeta, se baja una sola vez.
+
+### Reglas de negocio — cronograma
+21. `asumido` — Del tema de cronogramas sólo se baja el del cuatrimestre en curso, a la raíz, como `cronograma_AAAA_Nc.<ext>`; los semanales no se bajan.
+
+### Datos
+22. `asumido` — La asociación (curso → materia, apellido, tema → carpeta) y los nombres editados se guardan en el almacenamiento de la extensión, no en el árbol.
+
+### Flujos de error
+23. `asumido` — Un curso sin asociar se escanea y se lista, pero no se descarga hasta asociarlo.
+
+### UX
+24. `asumido` — La asociación se hace en el popup, en una pantalla por curso: 📂 materia, apellido en texto, tabla tema → carpeta con la sugerencia precargada.
+25. `asumido` — Cada ítem de la lista muestra su ruta destino con el nombre final (`Teorias/Palacio/05_capacitores.pdf`), editable ahí mismo.
+
+### Pregunta del dueño en la selección: "¿qué pasa si mañana se agrega otra clase?"
+Respondida recorriendo los supuestos. Deja a la vista dos huecos, pendientes de que el dueño los marque:
+- **10**: G22 abre un tema nuevo por TP ("Guía de TP Nº N"), así que "tema nuevo → raíz" pasaría casi
+  todas las semanas. Candidato: la sugerencia del 8 se aplica sola y el tema no se baja hasta confirmarlo.
+- **12**: una teoría nueva de Física I ("Teoria Grupo G …", sin número) llega sin `NN_`, y hay que
+  editarla siempre.
+
+## Ronda 3 — 2026-09-16 (revisión del dueño, en curso)
+
+Mediciones nuevas de esta ronda, sobre lo descargado en la Verificación B
+(`~/Descargas/verificacion-b/google-classroom/`, 318 archivos de 5 cursos):
+
+- **El "ya descargado" por nombre exacto (supuesto 18) NO reconoce lo que ya está en el árbol.**
+  4 archivos de `Fisica 2/Laboratorios/` tienen **md5 idéntico** al que baja la extensión hoy y
+  **nombre distinto**, porque el backend sanea `#`→`_` y `º`→`_` y el dueño los guardó con el
+  nombre crudo: `F2-G22-…-Lab#1-Grupos de trabajo.pdf` vs `…-Lab_1-….pdf` (ídem Valores medidos,
+  Valores para cada grupo, y Pautas para realizar el informe). Con el supuesto 18 tal cual, se
+  vuelven a bajar los cuatro.
+- **`Fisica 2/Laboratorios/` está sin formatear**: 11 archivos con el nombre crudo de Classroom,
+  mientras `Teorias/` y `Practicas/` de la misma materia sí siguen el formato. El supuesto 11 no
+  distingue carpetas.
+- **D12 deja copias idénticas dentro del mismo curso**: `Informe de laboratorio FISICA I 2024
+  (Template).docx` ×5 con md5 `cb5dc8da…`, `interferencia2025.pdf` ×2 con `2653281d…`. El supuesto
+  20 sólo cubre el choque entre dos cursos.
+- **Formas de `Teorias/` que conviven hoy**: Física 1 = 10 sueltos + `Mendoza/`; Física 2 =
+  `Bianchi/` + `Palacio/` sin sueltos; Matemática C = `Rey Grange/` sin sueltos; Matemática B =
+  2 sueltos sin subcarpetas.
+- **`MC4 1S 2026` desapareció de Classroom** entre el 2026-09-12 y el 2026-09-16 (no está en
+  archivadas: fue baja o eliminación). Origen del supuesto 23.
+
+### Resueltos en esta ronda
+
+- **6 bis / docente que aparece después** — `resuelto` (dueño, 2026-09-16): si `Teorias/` ya tiene
+  archivos sueltos y se asocia un curso con otro docente, **lo viejo no se toca** y sólo el nuevo
+  va a `Teorias/<Apellido>/`. Es el patrón que el árbol ya tiene en Física 1 (sueltos + `Mendoza/`).
+  **Por qué**: respeta el supuesto 3 (la extensión nunca mueve lo que ya está) y no rompe links del
+  vault de Obsidian. **Costo aceptado**: el árbol queda asimétrico y con el tiempo no se sabe de
+  quién son las teorías sueltas.
+- **18 / cómo se sabe si ya está** — `resuelto` (dueño, 2026-09-16): **por contenido, no por nombre.**
+  La extensión baja el archivo, calcula su md5 y si ya existe uno idéntico en la carpeta destino lo
+  descarta sin escribir y lo marca como descargado. **Por qué**: es lo único que reconoce los 4 casos
+  medidos (md5 igual, nombre distinto por el saneo `#`→`_`) y cualquier renombre del dueño, pasado o
+  futuro. Un índice por id de Drive no sirve: no sabe nada de lo que el dueño puso a mano.
+  **Costo aceptado**: se gasta la descarga igual; con 135 KB de mediana es barato.
+  - Reemplaza al supuesto 18 y deja sin objeto al 20 (las 5 copias md5-idénticas del template y las 2
+    de `interferencia2025` colapsan solas).
+- **12 y 13 / cómo se resuelve el nombre** — `resuelto` (dueño, 2026-09-16): la extensión **propone**
+  el nombre con la regla mecánica, el dueño lo **edita en la lista antes de bajar**, y lo editado se
+  **guarda por id de Drive** y se reusa en los escaneos siguientes: cada archivo se corrige una sola vez.
+  **Por qué**: la regla sola acierta 15 de 26 y el dueño acorta temas (`P10.- Circuitos de CC en estado
+  transitorio` → `10_circuitos_transitorios`), que no es una transformación de texto sino criterio.
+  **Costo aceptado**: el primer escaneo de un curso lleva ~15 ediciones sobre 57 archivos.
+
+### M-1 — CERRADO el 2026-09-16 ✅
+
+¿`Fisica 1/Teorias/` sueltas = los PDF del Classroom de Lucila? **Sí: 9 de 9 con md5 idéntico**,
+comparando el árbol contra lo bajado en la Verificación B. Ejemplos: `Teoria Grupo G-Trabajo_energia
+cinetica y potencia.pdf` = `mod1_06_trabajo_y_energia.pdf`; `Cinemáticaf.pdf` = `mod1_05_cinematica.pdf`.
+
+Consecuencias: (a) las teorías sueltas de Física 1 **son de Lucila**, lo que tapa el hueco que el
+supuesto 6 bis dejaba abierto ("no se sabe de quién son las sueltas"); (b) confirma que el dueño
+renombra fuerte, lo que sostiene la decisión 12/13; (c) es el caso de prueba del supuesto 18 nuevo:
+por nombre se re-bajarían los 9, por contenido se reconocen.
+- **22 / dónde vive el mapeo** — `resuelto` (dueño, 2026-09-16): **un único `~/U.N.L.P/.classroom.json`,
+  gitignoreado.** Reemplaza al storage de la extensión como fuente de verdad.
+  - **Por qué no el storage**: el mapeo `id de Drive → nombre elegido` es el trabajo caro (~291 ediciones)
+    y el storage muere al reinstalar la extensión, limpiar el navegador o cambiar de máquina.
+  - **Por qué no metadata pegada al archivo** (xattr o metadata interna): (a) **medido el 2026-09-16**:
+    los xattr funcionan en btrfs pero `git clone` los pierde y `cp` sin `-a` también, y el árbol tiene
+    remoto (`github.com/jcrodriguezUNLP/U.N.L.P`), así que el trabajo no viajaría; (b) escribir metadata
+    interna **cambia el md5** y se muerde la cola con el supuesto 18; (c) viola el supuesto 3; (d) son 7
+    formatos distintos en el árbol.
+  - **Por qué gitignoreado y no versionado**: **el repo es PÚBLICO** (`gh repo view` → `visibility: PUBLIC`).
+    Versionarlo publicaría ids de curso, nombres de curso, apellidos de docentes e ids de Drive de cada
+    archivo. El dueño pidió explícitamente que nada revele de dónde baja su material.
+  - **Costo aceptado**: no viaja con el clon; si el dueño trabaja en otra máquina, copia el archivo a mano.
+  - **Requisito de privacidad confirmado por medición**: los archivos descargados hoy **no llevan ningún
+    xattr ni metadata agregada por la extensión**. Compartir uno por WhatsApp o subirlo a un Drive no
+    revela nada. La decisión de no usar metadata pegada mantiene esa garantía.
+
+  **⚠️ Trampa para quien lo implemente**: `~/U.N.L.P/.gitignore` está en **UTF-16 LE con CRLF**
+  (`file .gitignore`). Agregarle `.classroom.json` con `echo >>` o un heredoc lo corrompe: hay que leerlo,
+  decodificar, agregar la línea y reescribir en el mismo encoding. Hoy `git check-ignore` confirma que
+  `.classroom.json` **no** está ignorado.
+
+  **Reglas de comportamiento del archivo** (van a la spec):
+  1. Si no parsea, la extensión **avisa y no baja nada**. No lo pisa ni lo regenera.
+  2. Si el dueño lo edita a mano, **gana el archivo**: es la fuente de verdad, no una caché.
+  3. Si un archivo del índice no está en disco, se vuelve a bajar con el nombre que el índice dice.
+  4. Si un archivo del índice no está en su ruta anotada pero **su md5 aparece en otro lugar de la
+     materia**, la ruta del índice **se corrige sola**: mover un archivo a mano es una orden, no un error.
+
+  Con el índice, la extensión sabe **antes de bajar** qué tiene (por id de Drive), así que la lista marca
+  "ya descargado" sin descargar. El md5 queda como red para lo que el dueño puso a mano y nunca bajó la
+  extensión (los 4 de `Fisica 2/Laboratorios/`). Resuelve **D-1** y **D-4**.
+
+### Derivados abiertos por la ronda 3 (van a la ronda siguiente, no a ésta)
+
+- **D-1** — El md5 se compara ¿sólo contra la carpeta destino, o contra toda la materia? Un archivo que
+  el dueño guardó en otra carpeta se volvería a bajar si la comparación es sólo local.
+- **D-2** — Si el contenido ya está pero con otro nombre, ¿gana el nombre viejo (no se toca nada) o la
+  extensión propone renombrar? El supuesto 3 dice no tocar, así que el default es el nombre viejo.
+- **D-3** — Con las 5 copias del template colapsadas a una, ¿cuál nombre queda y en qué carpeta? Hoy el
+  criterio sería "el primero que llega", que es arbitrario.
+- **D-4** — ¿Se guarda un índice de md5 ya vistos para no recalcular en cada escaneo?
+
+## Ronda 1 — 2026-09-13 (reemplazada por la ronda 2, sin revisar)
 
 ### Alcance
 1. `asumido` — Cubre sólo Google Classroom; Anatomy y RamonNet no cambian de layout.

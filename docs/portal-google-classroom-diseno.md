@@ -14,6 +14,12 @@ sirve video HLS. Leé §2 antes de creer que esto son "cinco pasos que no tocan 
 
 ---
 
+> **El *qué* del corte 2 vive en otro lado.** El destino de los archivos en `~/U.N.L.P` —a qué
+> carpeta va cada tema, con qué nombre, y cómo se sabe si un archivo ya está— está especificado en
+> [`specs/classroom-destino/spec.md`](./specs/classroom-destino/spec.md) (estado `draft`), con la
+> traza de decisiones en [`specs/classroom-destino/assumptions.md`](./specs/classroom-destino/assumptions.md).
+> Este documento conserva las decisiones D1–D13 del portal; la spec no las repite, las linkea.
+
 ## 1. Lo que se pidió (2026-09-12)
 
 - **Contenido**: los cuatro tipos — videos de Drive (incluidas grabaciones de Meet), PDF y
