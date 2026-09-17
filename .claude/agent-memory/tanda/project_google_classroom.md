@@ -158,6 +158,18 @@ D12 deja copias md5-idénticas: template de Física I ×5, `interferencia2025` �
 ⚠️ `~/U.N.L.P/.gitignore` está en **UTF-16 LE + CRLF**: agregarle `.classroom.json` con `echo >>` lo corrompe.
 ⚠️ El árbol `~/U.N.L.P` tiene remoto SSH y su último push es de 2026-05-08: el formateo de septiembre NO está pusheado.
 
+Ronda 2026-09-17 (cruce md5 + hueco de los accesos). El cruce Classroom-vs-`~/U.N.L.P/Ingenieria` lo hizo **agy**
+(`~/.gemini/antigravity-cli/brain/5f8b9f11-.../informe_colisiones.md`); lo re-verifiqué con md5 propios y da exacto:
+318 A (263 reales + 55 .md) vs 132 B; 55 ya estaban (21%) en 54 rutas; **0 colisiones peligrosas**; 208 nuevos
+(204 únicos); 2 grupos duplicados en A (template ×5, interferencia2025 ×2), 0 en B. Las coincidencias de nombre son
+**9**, no 4 (3 en Teorias/Bianchi por mayúsculas + 6 en Laboratorios por `#`→`_` y `Nº`→`N_`), todas md5-idénticas.
+Hueco cerrado: `archivos.<id>` estaba tipado por id de Drive y los **55 accesos .md no tienen** (17%). Medido:
+54 URLs únicas de 55, y la repetida es legítima (misma animación publicada 2 veces con títulos distintos en Física I)
+→ descarta "URL sola" como clave. Spec ahora **30 RN / 13 AC**: RN-29 clave `acceso:<url>:<título>` (la que ya arma
+`scraper.js:506`, sin eje nuevo → ADR-0014), RN-30 un `.md` existente NO se sobrescribe nunca (el dueño los edita sin
+renombrar y `ObsidianUNLP_Vault` vive en el mismo árbol) + fila 0 de la tabla de decisión + AC-12/AC-13.
+Sin commitear al cerrar: spec.md, assumptions.md, ramas-en-revision.md.
+
 **How to apply:** próxima ronda = **plan del corte 1** con los dos defectos de escaneo juntos (mismo archivo, misma clase de
 falla), verificado contra G25 que es el curso que los destapa; después merge; después plan del corte 2 citando `spec.md` por
 RN-n y AC-n. Sin commitear al cerrar esta ronda: spec.md, assumptions.md, ramas-en-revision.md, portal-…-diseno.md.

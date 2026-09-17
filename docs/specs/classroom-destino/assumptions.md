@@ -163,7 +163,7 @@ Respondida recorriendo los supuestos. Deja a la vista dos huecos, pendientes de 
 - **12**: una teoría nueva de Física I ("Teoria Grupo G …", sin número) llega sin `NN_`, y hay que
   editarla siempre.
 
-## Ronda 3 — 2026-09-16 (revisión del dueño, en curso)
+## Ronda 3 — 2026-09-16 (revisión del dueño, cerrada)
 
 Mediciones nuevas de esta ronda, sobre lo descargado en la Verificación B
 (`~/Descargas/verificacion-b/google-classroom/`, 318 archivos de 5 cursos):
@@ -261,6 +261,37 @@ por nombre se re-bajarían los 9, por contenido se reconocen.
 - **D-3** — Con las 5 copias del template colapsadas a una, ¿cuál nombre queda y en qué carpeta? Hoy el
   criterio sería "el primero que llega", que es arbitrario.
 - **D-4** — ¿Se guarda un índice de md5 ya vistos para no recalcular en cada escaneo?
+
+## Ronda 4 — 2026-09-17 (hueco de los accesos `.md`)
+
+**Hueco detectado al releer la spec**: `archivos.<id>` estaba tipado por id de Drive, pero los
+accesos de RN-17 (videos, YouTube, vínculos) no tienen id de Drive. Son **55 de los 318 archivos
+bajados, el 17%**, y la spec no decía con qué clave entran al índice.
+
+**Pregunta al dueño**: ¿entran al índice con su URL como clave, o quedan fuera y se re-escriben
+siempre (son 2 KB y no tocan la red)?
+
+**Recomendación dada, y lo que la cambió**: la primera intuición fue *URL sola*, más robusta ante un
+cambio de título. La medición sobre los 55 accesos reales la descartó: **54 URLs únicas de 55**, y la
+única repetida es legítima — la animación de `gasaneofisica.uns.edu.ar` publicada en Física I dos
+veces, como "Resortes horizontales" y como "Simulador de resortes-Clase III". Con la URL sola se
+pierde el segundo.
+
+**Decidido (el dueño aceptó la recomendación)**:
+
+- **A-1** `confirmado` — Los accesos entran al índice con `acceso:<url>:<título>`, la clave que ya arma
+  `sitio/google-classroom/scraper.js:506`. No se inventa un eje de identidad nuevo (ADR-0014). → **RN-29**, **AC-12**
+- **A-2** `confirmado` — Quedar fuera del índice se descartó porque el costo de escribir no es el punto:
+  sin índice no se recuerda el nombre editado, se re-crea con el propuesto y queda duplicado —
+  el modo de falla que esta spec existe para evitar.
+- **A-3** `confirmado` — Un `.md` que ya existe no se sobrescribe nunca, cualquiera sea su md5. Es el
+  único tipo que el dueño edita sin renombrar, y `ObsidianUNLP_Vault` vive en el mismo árbol. → **RN-30**, **AC-13**, fila 0 de la tabla de decisión
+- **A-4** `descartado` — Extraer el id de Drive de las 29 URLs `drive.google.com` para unificar la clave:
+  ese id puede coincidir con el de un adjunto bajado de verdad, y serían dos cosas distintas con
+  la misma clave.
+
+**Costo conocido y aceptado**: si el docente edita el título en Classroom cambia la clave, aparece
+un acceso nuevo y el viejo queda (60 bytes; RN-27 ya dice que nada se marca huérfano).
 
 ## Ronda 1 — 2026-09-13 (reemplazada por la ronda 2, sin revisar)
 

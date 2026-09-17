@@ -103,10 +103,18 @@ termine, con todo lo que aparezca junto.
   - **Decisión del dueño (2026-09-16)**: la espera debe exigir adjuntos **resueltos**, no presentes; si al vencer
     el tope alguno sigue sin resolver, se descarta y la tarjeta avisa cuántos. Nunca se lista un placeholder.
 
-- 🔴 **Novedades no pagina ni expande: se lee sólo lo que el stream trajo de entrada.**
+- 🔴 **Novedades pierde los adjuntos de los posts viejos. Causa NO confirmada — hace falta M-6.**
   `sitio/google-classroom/scraper.js:371-378` entra a Novedades, hace `esperarQuietud()` y lee el DOM.
-  No hay nada del trabajo que sí se hace en "Trabajo en clase": ni el bucle de `Ver más publicaciones`
-  (paso 6) ni la apertura de ítems plegados (paso 7).
+  **Corrección del 2026-09-16**: la primera lectura de este hallazgo decía "no pagina ni expande", y eso
+  es falso. El registro de la sonda (`recorrido-3/07-…-novedades.json`) muestra que el stream de G25
+  crece de 76 a 237 `data-stream-item-id` en 6 vueltas de scroll, **sin un solo click**
+  (`clicksVerMas: []`, `expandir: false`), y en ese HTML hay 0 botones "Ver más publicaciones". O sea
+  que en Novedades no hay paginación por botón y `esperarQuietud` hace el scroll correcto en principio.
+  **Hipótesis a medir (M-6)**: `buscarContenedorScroll()` (línea 102) elige el elemento de mayor
+  `scrollHeight` con `overflow-y: auto|scroll`; si en la vista de Novedades ése no es el que scrollea
+  de verdad, el stream nunca crece y se leen sólo los ~76 ítems iniciales — los posts más recientes.
+  Encaja con que falten justo las guías 4, 5, 7, 11 y 12 (las viejas) y con que MB5, de stream corto,
+  saliera completo.
   - **Evidencia**: `Fisica_II_G25_2026` (archivado, el de stream más largo) — **23 adjuntos del tema
     "Próximas" no llegaron ni al escaneo**: `Resumen_guia4/5/7/12.pdf`, `1parcial_2..6.jpg`,
     `Guia11_P4b/c/d.jpeg`, `Guia12_P4a/b.jpeg`, `Guia12_P9a/b/c.jpeg`, `P8a_guia5.jpeg`,
@@ -115,8 +123,13 @@ termine, con todo lo que aparezca junto.
     los que sí se bajaron del mismo curso aparecen — o sea **falla el escaneo, no la descarga**.
     Todos están en la muestra del 2026-09-12 (`recorrido-3/…G25…-novedades.json`), así que son alcanzables.
   - **Por qué no se vio antes**: sólo se nota cuando el stream es largo. G22, MC2, Física I y MB5 dieron
-    0 faltantes en Novedades — sus posts entran en la primera carga. D11 se decidió con el conteo de
+    0 faltantes en Novedades — sus posts entran sin scrollear. D11 se decidió con el conteo de
     "adjuntos que sólo están en Novedades", que no distingue entre "no está" y "no se cargó".
+  - **M-6 — qué medir**: en la consola de Brave, en G25 → Novedades, contar
+    `document.querySelectorAll('[data-attachment-id]').length` y `[data-stream-item-id]`, forzar el
+    scroll como lo hace `buscarContenedorScroll()` y volver a contar. **Decide**: si el contenedor que
+    elige esa función no crece el stream, el arreglo es la elección del scroller; si crece, la causa
+    es otra y hay que medir el corte de `esperarQuietud` (3 vueltas estables con 40 de tope).
 
 - ⚠️ **`MC4 1S 2026` desapareció de la portada del dueño** entre el 2026-09-12 y el 2026-09-16, así que no
   se bajó (esperaba 13). **No es un defecto de la extensión**: en `recorrido-3/00-partida.json` (2026-09-12)

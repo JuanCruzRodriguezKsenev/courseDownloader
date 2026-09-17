@@ -97,7 +97,8 @@ transformación de texto.
 
 ### Qué ya está descargado
 
-- **RN-18** — Antes de bajar, la extensión consulta el índice por **id de Drive**. Si el id figura y
+- **RN-18** — Antes de bajar, la extensión consulta el índice por **id de archivo** (id de Drive
+  para los adjuntos, `acceso:<url>:<título>` para los accesos — RN-29). Si el id figura y
   el archivo está en la ruta anotada, está descargado y no se baja.
 - **RN-19** — Si el id figura pero el archivo no está en la ruta anotada, y **su md5 aparece en otro
   lugar de la misma materia**, la ruta del índice se corrige sola y no se baja. Mover un archivo a
@@ -123,6 +124,18 @@ transformación de texto.
 - **RN-28** — La extensión no escribe metadata de ningún tipo dentro de los archivos ni en sus
   atributos extendidos.
 
+### Los accesos `.md`
+
+- **RN-29** — Los accesos de RN-17 entran al índice como cualquier otro archivo, con la clave
+  `acceso:<url>:<título>` que ya arma el escaneo (`sitio/google-classroom/scraper.js:506`). El
+  título forma parte de la clave a propósito: el mismo recurso publicado dos veces con títulos
+  distintos son **dos** accesos, y el título es la única información que los distingue. Si el
+  docente edita el título en Classroom, aparece un acceso nuevo y el viejo se conserva (RN-27).
+- **RN-30** — Un archivo `.md` que ya existe en la ruta destino **no se sobrescribe nunca**. Si
+  existe y no está en el índice, se anota y no se escribe, cualquiera sea su md5. Es el único tipo
+  que el dueño puede editar sin renombrar, y el árbol tiene un vault de Obsidian: comparar por
+  contenido (RN-20) no alcanza, porque una nota agregada a mano cambia el md5.
+
 ---
 
 ## Tabla de decisión — ¿hay que bajar este adjunto?
@@ -131,6 +144,7 @@ Se evalúa en este orden; la primera fila que coincide, decide.
 
 | # | ¿id en el índice? | ¿está en la ruta anotada? | ¿md5 en la materia? | Acción |
 |---|---|---|---|---|
+| 0 | — | sí, y el destino es un `.md` | — | **No escribir.** Anotar en el índice si falta (RN-30). |
 | 1 | sí | sí | — | No bajar. Marcar descargado. |
 | 2 | sí | no | sí | No bajar. **Corregir la ruta en el índice.** |
 | 3 | sí | no | no | Bajar con el nombre del índice. |
@@ -140,6 +154,9 @@ Se evalúa en este orden; la primera fila que coincide, decide.
 
 La fila 5 es la que reconoce los 4 archivos de `Fisica 2/Laboratorios/` que el dueño puso a mano
 (md5 idéntico, nombre con `#` en vez de `_`) y las 9 teorías de Física 1 que el dueño renombró.
+
+La fila 0 va **antes** que todas porque un `.md` editado a mano tiene md5 propio: sin ella caería
+en la fila 6 y se pisaría (RN-30).
 
 ---
 
@@ -201,6 +218,13 @@ La fila 5 es la que reconoce los 4 archivos de `Fisica 2/Laboratorios/` que el d
       "ruta": "Ingenieria/Fisica 2/Teorias/Palacio",
       "md5": "3f2a9c1b8e4d7a6f",
       "original": "Palacio - Clase 5 - Capacitores.pdf"
+    },
+    "acceso:https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DAbC:Campo%20el%C3%A9ctrico": {
+      "curso": "ODc0ODk1NDcwNTMw",
+      "nombre": "campo_electrico.md",
+      "ruta": "Ingenieria/Fisica 2/Teorias/Palacio",
+      "md5": "9b1c3d5e7f0a2b4c",
+      "original": "Campo eléctrico"
     }
   }
 }
@@ -212,10 +236,10 @@ La fila 5 es la que reconoce los 4 archivos de `Fisica 2/Laboratorios/` que el d
 | `cursos.<id>` | El id de curso de la URL de Classroom. |
 | `cursos.<id>.materia` | Ruta relativa a `~/U.N.L.P`. Tiene que existir (RN-1). |
 | `cursos.<id>.temas.<tema>` | Ruta relativa a la materia. `"."` es la raíz de la materia. |
-| `archivos.<idDrive>` | El id de Drive del adjunto: la identidad estable. |
+| `archivos.<id>` | El id de archivo: id de Drive para los adjuntos, `acceso:<url>:<título>` para los accesos (RN-29). Es la identidad estable, y la misma que viaja por el pipeline — no se inventa un eje nuevo (ADR-0014). |
 | `archivos.<id>.nombre` | El nombre final, editado o propuesto. |
 | `archivos.<id>.ruta` | Ruta relativa a `~/U.N.L.P`. La corrige RN-19. |
-| `archivos.<id>.md5` | Se calcula una vez al bajar y no se recalcula. |
+| `archivos.<id>.md5` | Se calcula una vez al bajar y no se recalcula. En un `.md` es informativo: no decide nada, porque manda RN-30. |
 | `archivos.<id>.original` | El nombre de Classroom. Sólo para que el dueño se ubique. |
 
 **Retención**: nada se borra automáticamente. Un curso que desaparece de Classroom conserva su
@@ -400,6 +424,25 @@ AC-10 — Un curso que desaparece no toca nada
 ```
 
 ```gherkin
+AC-12 — El mismo recurso publicado dos veces son dos accesos
+  Dado el vínculo "gasaneofisica.uns.edu.ar/.../FuerzaElasticaComparativaCosSin.html"
+    publicado en Física I como "Resortes horizontales"
+    y el mismo vínculo publicado como "Simulador de resortes-Clase III"
+  Cuando se escanea el curso
+  Entonces se escriben dos accesos .md
+    y el índice tiene dos entradas, una por título
+```
+
+```gherkin
+AC-13 — Un acceso .md con notas del dueño no se pisa
+  Dado el acceso "campo_electrico.md" ya escrito en la carpeta destino
+    y que el dueño le agregó notas, así que su md5 cambió
+  Cuando se vuelve a escanear el curso
+  Entonces el archivo queda intacto, con las notas
+    y el índice lo anota como descargado
+```
+
+```gherkin
 Esquema del escenario: AC-11 — Nombres que la regla no acierta
   Dado el adjunto de Classroom "<original>"
   Cuando la extensión propone un nombre
@@ -479,8 +522,10 @@ Esquema del escenario: AC-11 — Nombres que la regla no acierta
 ## Medición de respaldo — cruce del árbol contra lo descargado (2026-09-16)
 
 Cruce por md5 de `~/Descargas/verificacion-b/google-classroom/` (318 archivos de 5 cursos) contra
-`~/U.N.L.P/Ingenieria/` (132 archivos). Hecho por un agente y **verificado de forma independiente**:
-los cuatro resultados se reprodujeron exactos.
+`~/U.N.L.P/Ingenieria/` (132 archivos). Hecho por el agente `agy`, que dejó el informe con los md5
+de cada coincidencia en `~/.gemini/antigravity-cli/brain/5f8b9f11-5ab7-4689-89c2-35ef2dc52f71/informe_colisiones.md`
+(fuera del repo, y por eso se cita acá lo que importa). **Verificado de forma independiente** el
+2026-09-17 recontando los md5 de las dos puntas: los cinco resultados se reprodujeron exactos.
 
 | Qué | Resultado | Qué regla respalda |
 |---|---|---|
@@ -490,6 +535,7 @@ los cuatro resultados se reprodujeron exactos.
 | Duplicados por md5 **dentro de Classroom** | **2** grupos (template ×5, `interferencia2025` ×2) | PA-2 |
 | Material **nuevo** para el árbol | 208 documentos (204 únicos) + 55 accesos `.md` | Dimensiona el corte 2 |
 | Control: `mb5_2024` vs `Matematica B` | 24 bajados, 5 en el árbol, **0** en común | Una materia entera sin cubrir |
+| URLs distintas entre los 55 accesos `.md` | **54** de 55 | RN-29: la única URL repetida son dos materiales distintos, así que el título tiene que estar en la clave |
 
 **Lo que esta medición NO cubre**: es un cruce nombre-contra-nombre sobre los nombres crudos. No
 simula el destino final, porque los nombres que el dueño elegiría y el mapeo tema → carpeta son
