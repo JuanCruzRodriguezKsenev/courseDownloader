@@ -1,7 +1,12 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.26.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.27.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.27.0:
+ * - [CLASSROOM CORTE 1 — ADJUNTOS SIN RESOLVER] `adjuntosSinResolverUltimoEscaneo` guarda el
+ *   conteo del escaneo y se pasa al view-model de `ListaClases.render` en `ctx.nota` (sólo en
+ *   Disponibles). Se resetea al iniciar un escaneo automático nuevo.
+ *
  * CHANGELOG v5.26.0:
  * - [CLASSROOM CORTE 1 — LISTA GUARDADA] Se incorpora compuerta `escanearOUsarGuardada()` en los
  *   4 disparadores automáticos: si la lista persistida coincide con el listado del curso
@@ -496,6 +501,8 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     // no lo estuviera, ese destino ya se había descartado para el watchdog por quedar pisado
     // por el diagnóstico de conexión, que es de otro dueño.
     let escaneoMuerto = null;
+    // [CLASSROOM CORTE 1] De la corrida, no del listado persistido (no va a appState).
+    let adjuntosSinResolverUltimoEscaneo = 0;
 
     /**
      * El timeout del escaneo ocupa la región **sólo en Disponibles**, y esto no es un detalle.
@@ -1205,6 +1212,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // hace el `finally` del payload cuando el escaneo TERMINA—, porque desbloquear ahora
       // habilitaría la toolbar sobre la tarjeta de error que sigue en pantalla.
       escaneoMuerto = null;
+      adjuntosSinResolverUltimoEscaneo = 0;
 
       // [LOADERS — ítem 1b] ABANDONO EXPLÍCITO. Cada corrida se lleva su número; el watchdog lo
       // incrementa al vencerse. Un callback que llegue después compara y se calla, en vez de
@@ -1394,6 +1402,8 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
               });
               return;
             }
+
+            adjuntosSinResolverUltimoEscaneo = resultado.adjuntosSinResolver || 0;
 
             const enlaces = resultado.enlaces;
 
@@ -1974,6 +1984,14 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           anclaActiva,
           sinResultados,
           selectionMode,
+          // [CLASSROOM CORTE 1] La nota de adjuntos descartados. Sólo en Disponibles: es del
+          // escaneo, y la Fila no tiene nada que ver con él — el mismo recorte que hace
+          // `escaneoMuertoDominaLaPestaña`. Texto fijo con un número: no lleva nada scrapeado,
+          // así que no hay nada que escapar.
+          nota:
+            appState.pestañaActiva === "disponibles" && adjuntosSinResolverUltimoEscaneo > 0
+              ? `⚠️ ${adjuntosSinResolverUltimoEscaneo} ${adjuntosSinResolverUltimoEscaneo === 1 ? "adjunto no terminó" : "adjuntos no terminaron"} de cargar y ${adjuntosSinResolverUltimoEscaneo === 1 ? "quedó" : "quedaron"} afuera. Probá Re-escanear 🔄.`
+              : null,
           // [ESCANEO-API CORTE 2] El override del input, ya saneado, para que cada fila pueda
           // mostrar a dónde va a ir. **No es adorno**: si el input puede pisar el destino de 103
           // clases, tenés que ver el efecto ANTES de encolar. Escribir algo cambia las 103 filas

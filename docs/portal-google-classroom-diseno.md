@@ -689,5 +689,25 @@ esperar 3 s de quietud en la cuenta de `[data-attachment-id]`:
 - **Consecuencia**: el paso 7 del scraper (`sitio/google-classroom/scraper.js`) abre todos los
   ítems plegados en el mismo tick y espera una sola vez a que resuelvan todos (`tiempos.abrirTodos`).
 
+### Hidratación de adjuntos y señal del href (2026-09-21)
 
+Medición sobre el placeholder de adjuntos a medio hidratar (`docs/plan-classroom-corte-1-adjuntos-sin-resolver.md`):
 
+- **El bundle de Classroom**: los textos de placeholder provienen de defaults internos del cliente web
+  (capturados en `docs/muestras/google-classroom/c3/g22.har`):
+  ```js
+  _.Zi(a,5) ? (h=_.Zi(a,5), this.description=_.wkd(h)) : (vkd(), this.description="Desconocido");
+  this.name || (this.name = "Archivo de Drive");
+  ```
+  Al estar localizados, los literales no son estables entre idiomas; la señal confiable es el **href**
+  (`/file/d/` resuelto vs `drive.google.com/open?id=` sin resolver).
+
+- **Barrido contra las 62 muestras HTML del repo** (`docs/muestras/google-classroom/**`, 8 cursos, Trabajo en clase + Novedades + recorridos):
+
+| Métrica | Valor |
+|---|---|
+| Adjuntos (ids distintos) | **1004** |
+| Sin ningún `a[aria-label][href]` adentro | **0** |
+| Con todas sus anclas en `open?id=` | **0** |
+
+- **Consecuencia**: la espera del paso 7 y 7b/9 exige que cada id de adjunto tenga al menos un ancla resuelta (`!/drive\.google\.com\/open\?id=/.test(href)`). Los que vencen el tope se descartan y se informan en `ResultadoEscaneo.adjuntosSinResolver`.

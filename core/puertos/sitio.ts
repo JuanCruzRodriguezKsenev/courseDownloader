@@ -1,6 +1,10 @@
 /**
- * PUERTO DE SITIO (V1.5.0)
+ * PUERTO DE SITIO (V1.6.0)
  * ==========================================================================
+ * CHANGELOG v1.6.0:
+ * - [CLASSROOM CORTE 1 — ADJUNTOS SIN RESOLVER] Miembro opcional `adjuntosSinResolver`
+ *   en `ResultadoEscaneo`: conteo de adjuntos descartados por hidratación incompleta.
+ *
  * CHANGELOG v1.5.0:
  * - [CLASSROOM CORTE 1 — LISTA GUARDADA] Miembro nuevo `claveDeListado?(url)` (opcional):
  *   devuelve una clave estable del listado que muestra la URL (el id de curso en Classroom).
@@ -125,6 +129,13 @@ export interface ResultadoEscaneo {
    * se muestra en lugar del listado y **no** reemplaza la lista anterior.
    */
   aviso?: string;
+  /**
+   * [CLASSROOM CORTE 1] Cuántos adjuntos se descartaron por no haber terminado de
+   * hidratarse. **No es un `aviso`**: el escaneo salió bien y la lista se muestra entera;
+   * esto se pinta como una nota arriba de las filas. Un portal que no lo devuelve deja
+   * `undefined`, y el consumidor lo lee como 0.
+   */
+  adjuntosSinResolver?: number;
 }
 
 /** Destino de una clase: valor del eje de faceta + carpeta en disco. */

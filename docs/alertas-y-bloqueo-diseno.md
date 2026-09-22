@@ -22,7 +22,9 @@ La región de `#ui-list` puede mostrar tres cosas, y **son excluyentes**:
 | 3 | La **lista** (Clases Disponibles o Fila de Descarga) | ídem, `{modo:'lista'}` |
 
 Lo decide un `if` en el render de la isla #4 (`listaClases.preact.js`), y esa es toda la
-coordinación que hay.
+coordinación que hay. La lista puede llevar adentro elementos que no son filas (`.cola-divisor`,
+`.cola-sin-resultados`, `.lista-nota`), y eso **no** rompe la regla porque los pinta la misma isla
+en el mismo `if`.
 
 **Antes no era así, y de ahí salieron casi todos los defectos.** La alerta vivía en un root
 hermano (`#preact-banner`) y la lista se apagaba desde el vanilla con `setOculta(true)` para

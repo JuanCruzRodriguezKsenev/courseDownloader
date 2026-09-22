@@ -1,6 +1,12 @@
 /**
- * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.1.0)
+ * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.2.0)
  * ==========================================================================
+ * CHANGELOG v1.2.0:
+ * - [CLASSROOM CORTE 1 — ADJUNTOS SIN RESOLVER] El escaneo espera a que los
+ *   adjuntos resuelvan su URL real de Drive antes de listarlos, y descarta los
+ *   que sigan con el href de placeholder (/open?id=). Devuelve el conteo en
+ *   `adjuntosSinResolver` para que la UI pinte una nota no bloqueante.
+ *
  * CHANGELOG v1.1.0:
  * - [CLASSROOM CORTE 1 — ABRIR TODOS] El paso 7 abre todos los ítems plegados
  *   en el mismo tick y espera una sola vez a que resuelvan todos. Medido
@@ -31,6 +37,7 @@ const ScraperClassroom = {
         abrir: 8000,
         abrirTodos: 30000,
         sinAdjuntos: 1500,
+        hidratacion: 10000,
       },
       opciones && opciones.tiempos
     );
@@ -141,6 +148,35 @@ const ScraperClassroom = {
       }
     }
 
+    // Un adjunto está RESUELTO cuando su ancla ya apunta al archivo. Classroom pinta el
+    // contenedor [data-attachment-id] ANTES de resolver el material: en esa ventana el ancla
+    // lleva href .../open?id=<id> y un aria-label con los defaults del propio Classroom
+    // ("Desconocido" / "Archivo de Drive", literales en su bundle — ver el plan). Los textos
+    // están localizados; el href no, así que la señal es el href.
+    function anclaSinResolver(a) {
+      const href = a.getAttribute("href") || "";
+      return /drive\.google\.com\/open\?id=/.test(href);
+    }
+
+    // Por ID de adjunto y no por div: un mismo data-attachment-id aparece en varios div
+    // anidados (medido: 21 div para 15 ids) y alcanza con que UNA de sus anclas resuelva.
+    // Devuelve los ids que siguen sin resolver.
+    function adjuntosSinResolver(raiz) {
+      const estado = new Map();
+      for (const div of raiz.querySelectorAll("div[data-attachment-id]")) {
+        const id = div.getAttribute("data-attachment-id") || "";
+        if (!id) continue;
+        const a = div.querySelector("a[aria-label][href]");
+        const resuelto = Boolean(a) && !anclaSinResolver(a);
+        estado.set(id, Boolean(estado.get(id)) || resuelto);
+      }
+      const sinResolver = [];
+      for (const [id, resuelto] of estado) {
+        if (!resuelto) sinResolver.push(id);
+      }
+      return sinResolver;
+    }
+
     function clasificarAdjunto(a, material, attId) {
       const href = a.getAttribute("href") || "";
       const label = (a.getAttribute("aria-label") || "").trim();
@@ -235,6 +271,7 @@ const ScraperClassroom = {
     const lisTrabajo = vistaTrabajo.querySelectorAll("li[data-stream-item-id]");
     const trabajoVacio = tieneMarcadorVacio && lisTrabajo.length === 0;
 
+    const idsSinResolver = new Set();
     const itemsLeidosTrabajo = [];
 
     if (!trabajoVacio) {
@@ -297,12 +334,23 @@ const ScraperClassroom = {
       await esperarCondicion(() => {
         const ahora = Date.now();
         return pendientes.every((li) => {
-          if (li.querySelector("[data-attachment-id]")) return true;
+          if (li.querySelector("[data-attachment-id]")) {
+            return adjuntosSinResolver(li).length === 0;
+          }
           if (!li.querySelector("[expanded-item-id]")) return false;
           if (!expandidoDesde.has(li)) expandidoDesde.set(li, ahora);
           return ahora - expandidoDesde.get(li) >= tiempos.sinAdjuntos;
         });
       }, tiempos.abrirTodos);
+
+      // 7b. Los ítems que YA estaban abiertos no pasaron por `pendientes`. Esta espera es
+      // sobre la vista entera y en el camino feliz cuesta 0 ms: `esperarCondicion` evalúa el
+      // predicado antes de dormir.
+      await esperarCondicion(
+        () => adjuntosSinResolver(vistaTrabajo).length === 0,
+        tiempos.hidratacion
+      );
+      for (const id of adjuntosSinResolver(vistaTrabajo)) idsSinResolver.add(id);
       if (!visible()) return avisoVisibilidad;
 
       // 8. Leer "Trabajo en clase"
@@ -328,6 +376,12 @@ const ScraperClassroom = {
             const container = a.closest("div[data-attachment-id]");
             const attId = container ? container.getAttribute("data-attachment-id") : "";
             if (attId && vistosAtt.has(attId)) continue;
+            // Ya contado en la espera; acá sólo se lo saltea para no listar un placeholder.
+            // VA ANTES de marcar el id como visto: un ancla sin resolver no puede "gastar" el
+            // adjunto, porque otra ancla del mismo id puede estar resuelta (un mismo
+            // data-attachment-id tiene 2 o 3 anclas). Al revés, el adjunto se perdería en
+            // silencio y `adjuntosSinResolver` —que mira por id— tampoco lo contaría.
+            if (anclaSinResolver(a)) continue;
             if (attId) vistosAtt.add(attId);
 
             const clasif = clasificarAdjunto(a, material, attId);
@@ -373,6 +427,12 @@ const ScraperClassroom = {
 
       if (!visible()) return avisoVisibilidad;
 
+      await esperarCondicion(
+        () => adjuntosSinResolver(vistaNovedades).length === 0,
+        tiempos.hidratacion
+      );
+      for (const id of adjuntosSinResolver(vistaNovedades)) idsSinResolver.add(id);
+
       const todosStream = Array.from(vistaNovedades.querySelectorAll("[data-stream-item-id]"));
       const itemsExternos = todosStream.filter(
         (el) => !el.parentElement.closest("[data-stream-item-id]")
@@ -389,6 +449,12 @@ const ScraperClassroom = {
           const container = a.closest("div[data-attachment-id]");
           const attId = container ? container.getAttribute("data-attachment-id") : "";
           if (attId && vistosAtt.has(attId)) continue;
+          // Ya contado en la espera; acá sólo se lo saltea para no listar un placeholder.
+          // VA ANTES de marcar el id como visto: un ancla sin resolver no puede "gastar" el
+          // adjunto, porque otra ancla del mismo id puede estar resuelta (un mismo
+          // data-attachment-id tiene 2 o 3 anclas). Al revés, el adjunto se perdería en
+          // silencio y `adjuntosSinResolver` —que mira por id— tampoco lo contaría.
+          if (anclaSinResolver(a)) continue;
           if (attId) vistosAtt.add(attId);
 
           const clasif = clasificarAdjunto(a, material, attId);
@@ -411,6 +477,10 @@ const ScraperClassroom = {
       if (linkVolver) linkVolver.click();
     } catch {
       // Ignorar fallo al volver
+    }
+
+    if (idsSinResolver.size > 0) {
+      console.warn("[CLASSROOM] Adjuntos sin resolver, descartados:", [...idsSinResolver]);
     }
 
     // 12. Deduplicar entre vistas
@@ -510,7 +580,10 @@ const ScraperClassroom = {
       return {
         materia: "",
         enlaces: [],
-        aviso: "Este curso no tiene archivos en Trabajo en clase ni en Novedades.",
+        aviso:
+          idsSinResolver.size > 0
+            ? `Classroom no terminó de cargar los ${idsSinResolver.size} adjuntos de este curso. Dejá la pestaña al frente y re-escaneá.`
+            : "Este curso no tiene archivos en Trabajo en clase ni en Novedades.",
       };
     }
 
@@ -518,6 +591,7 @@ const ScraperClassroom = {
       materia: "",
       enlaces,
       credenciales: { authuser: cuenta },
+      ...(idsSinResolver.size > 0 ? { adjuntosSinResolver: idsSinResolver.size } : {}),
     };
   },
 };

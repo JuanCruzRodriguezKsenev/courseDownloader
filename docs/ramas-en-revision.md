@@ -45,6 +45,14 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
     - Paso 1: el paso 7 de `sitio/google-classroom/scraper.js` abre todos los ítems plegados en el mismo tick y espera una sola vez (`abrirTodos`).
     - Paso 2: test 11 en `sitio/google-classroom/scraper.test.js` con apertura paralela y contraste con código secuencial anterior (+1 test).
     - Paso 3: docs actualizados; Verificación A en verde con 43 archivos, 716 tests.
+  - **Hecho** (`docs/plan-classroom-corte-1-adjuntos-sin-resolver.md`):
+    - Paso 1: el escaneo espera adjuntos resueltos (`open?id=` vs `/file/d/`) en Trabajo en clase y Novedades, descarta los no resueltos y expone el conteo (`sitio/google-classroom/scraper.js`).
+    - Paso 2: `ResultadoEscaneo.adjuntosSinResolver?` declarado en el puerto (`core/puertos/sitio.ts`).
+    - Paso 3: `popup.js` captura `adjuntosSinResolverUltimoEscaneo` y alimenta `ctx.nota` en el view-model.
+    - Paso 4: `listaClases.preact.js` renderiza `p.lista-nota` arriba de las filas dentro de `modo:'lista'`.
+    - Paso 5: regla `.lista-nota` en `styles/list.css` con variables de acento naranja.
+    - Paso 6: tests nuevos (+2 en `scraper.test.js`, +1 en `listaClases.preact.test.js`).
+    - Paso 7: docs actualizados; Verificación A en verde con 43 archivos, 719 tests.
 - **Lo que no trae**: el mapeo a la carpeta del dueño (`U.N.L.P/`). Es el corte 2.
 
 ### Checklist de Verificación B (en navegador)
@@ -83,34 +91,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ### Hallazgos de la Verificación B (2026-09-16)
 
-Entran al corte 1 **antes del merge** (decisión del dueño). Se separaron el 2026-09-21: el 🔴 tiene plan
-escrito (`docs/plan-classroom-corte-1-adjuntos-sin-resolver.md`) y el 🟡 no entra a ninguno hasta que
-M-6c lo reproduzca.
-
-- 🔴 **El escaneo lee adjuntos a medio hidratar y los da por buenos.** `sitio/google-classroom/scraper.js:297-304`:
-  la espera del paso 7 se cumple en cuanto el `li` tiene un `[data-attachment-id]`, pero ese `div`
-  existe **antes** de que el `<a>` de adentro resuelva. En esa ventana el adjunto lleva el placeholder
-  `aria-label="Archivo adjunto: Desconocido: Archivo de Drive"` y href `drive.google.com/open?id=…`,
-  así que `clasificarAdjunto` cae al fallback de la línea 181 y lo guarda como acceso `.md`.
-  - **Evidencia**: G22, ítem "Pautas a tener en cuenta … Laboratorio obligatorio N° 1" (tema Laboratorios),
-    Drive id `1in-jsGjewUb4130B4A9NW1aLembqJWml`. Primera corrida → `Archivo adjunto_ Desconocido_ Archivo de Drive.md`
-    y el PDF **sin bajar**. Re-escaneo con 🔄, sin tocar código → el mismo adjunto sale bien y baja
-    `G22-2026-Pautas para realizar el informe del Lab_1.pdf` (PDF real, 74 KB). **Intermitente.**
-  - **Origen probable**: `38ddd5b` (abrir los ítems en el mismo tick). Con el escaneo secuencial anterior
-    (~555 ms por ítem) cada uno se hidrataba antes de que le tocara al siguiente; el placeholder no aparece
-    ni una vez en las capturas del 2026-09-12 (`docs/muestras/google-classroom/recorrido-*/`, escaneo secuencial).
-  - **Por qué no lo vio nadie**: falla en silencio y el conteo sigue dando 57 — M5 contó adjuntos, no verificó
-    su contenido. Deja además un `.md` huérfano que nada limpia.
-  - **Decisión del dueño (2026-09-16)**: la espera debe exigir adjuntos **resueltos**, no presentes; si al vencer
-    el tope alguno sigue sin resolver, se descarta y la tarjeta avisa cuántos. Nunca se lista un placeholder.
-  - **Decisión del dueño (2026-09-21)**, al escribir el plan: el aviso **no** puede ser el mecanismo
-    `ResultadoEscaneo.aviso`, que reemplaza el listado (un adjunto roto de 57 taparía los otros 56). Va como
-    **nota no bloqueante arriba de la lista**, y la espera **no reintenta**: espera al tope y descarta.
-  - **Plan escrito y sin ejecutar**: `docs/plan-classroom-corte-1-adjuntos-sin-resolver.md` (2026-09-21).
-    La señal del placeholder es el **href** (`open?id=` vs `/file/d/`), no el texto del `aria-label`:
-    "Desconocido" y "Archivo de Drive" son los defaults **localizados** del propio bundle de Classroom
-    (citados en el plan desde `docs/muestras/google-classroom/c3/g22.har`). El predicado se barrió contra
-    las 62 muestras HTML del repo: **1004 adjuntos, 0 falsos positivos**.
+Entran al corte 1 **antes del merge** (decisión del dueño). El 🔴 quedó resuelto (`docs/plan-classroom-corte-1-adjuntos-sin-resolver.md`, en la lista de Hecho arriba) y el 🟡 no entra a ninguno hasta que M-6c lo reproduzca.
 
 - 🟡 **Novedades: los adjuntos faltan en el disco, pero el escaneo NO falla. NO REPRODUCIDO — tercer
   diagnóstico, y los dos anteriores eran falsos.** No entra al plan hasta reproducirlo (M-6c).

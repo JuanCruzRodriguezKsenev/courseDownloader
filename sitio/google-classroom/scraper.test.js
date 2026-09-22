@@ -16,6 +16,7 @@ const TIEMPOS_TEST = {
   abrir: 100,
   abrirTodos: 1000,
   sinAdjuntos: 10,
+  hidratacion: 200,
 };
 
 function prepararDom(html = htmlFixture, urlInicial = "https://classroom.google.com/u/2/w/CURSO123/t/all") {
@@ -269,6 +270,66 @@ describe("ScraperClassroom.escanearListado", () => {
     expect(ids).toContain("drive-plegado");
     expect(ids).toContain("drive-plegado-2");
     expect(ids).toContain("drive-plegado-3");
+  });
+
+  it("12. espera a que el adjunto se hidrate y lo lista como archivo, no como acceso .md", async () => {
+    const region = document.querySelector('div[role="region"][aria-label="Tema Trabajos Practicos"]');
+    const li = document.createElement("li");
+    li.setAttribute("data-stream-item-id", "tp-lento");
+    li.setAttribute("data-expandable-row-id", "row-tp-lento");
+    li.innerHTML = `
+      <div role="button" aria-expanded="true" aria-label="TP Lento"></div>
+      <div data-attachment-id="att-lento">
+        <a aria-label="Archivo adjunto: Desconocido: Archivo de Drive" href="https://drive.google.com/open?id=drive-lento"></a>
+      </div>
+    `;
+    region.appendChild(li);
+
+    setTimeout(() => {
+      const a = li.querySelector("a");
+      if (a) {
+        a.setAttribute("aria-label", "Archivo adjunto: PDF: Lento.pdf");
+        a.setAttribute("href", "https://drive.google.com/file/d/drive-lento/view");
+      }
+    }, 50);
+
+    const res = await ScraperClassroom.escanearListado({ tiempos: TIEMPOS_TEST });
+
+    const lento = res.enlaces.filter((e) => e.idArchivo === "drive-lento");
+    expect(lento.length).toBe(1);
+    expect(lento[0].texto).toBe("Lento.pdf");
+
+    const conPlaceholder = res.enlaces.filter((e) => e.texto.startsWith("Archivo adjunto"));
+    expect(conPlaceholder.length).toBe(0);
+    expect(res.adjuntosSinResolver).toBeUndefined();
+  });
+
+  it("13. el adjunto que nunca resuelve se descarta y se cuenta", async () => {
+    const resBase = await ScraperClassroom.escanearListado({ tiempos: TIEMPOS_TEST });
+    const cantBase = resBase.enlaces.length;
+
+    prepararDom();
+
+    const region = document.querySelector('div[role="region"][aria-label="Tema Trabajos Practicos"]');
+    const li = document.createElement("li");
+    li.setAttribute("data-stream-item-id", "tp-lento");
+    li.setAttribute("data-expandable-row-id", "row-tp-lento");
+    li.innerHTML = `
+      <div role="button" aria-expanded="true" aria-label="TP Lento"></div>
+      <div data-attachment-id="att-lento">
+        <a aria-label="Archivo adjunto: Desconocido: Archivo de Drive" href="https://drive.google.com/open?id=drive-lento"></a>
+      </div>
+    `;
+    region.appendChild(li);
+
+    const res = await ScraperClassroom.escanearListado({ tiempos: TIEMPOS_TEST });
+
+    expect(res.adjuntosSinResolver).toBe(1);
+
+    const conPlaceholder = res.enlaces.filter((e) => e.texto.startsWith("Archivo adjunto"));
+    expect(conPlaceholder.length).toBe(0);
+
+    expect(res.enlaces.length).toBe(cantBase);
   });
 });
 
