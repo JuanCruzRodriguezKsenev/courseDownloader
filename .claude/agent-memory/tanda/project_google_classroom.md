@@ -184,6 +184,19 @@ storage" se escribió sin pegar la salida del storage. Regla: un hallazgo de ram
 Sin parser HTML en el sistema (no hay lxml/bs4/html5lib): para aplicar filtros tipo `closest()` sobre un HTML
 guardado, escribir un HTMLParser propio con pila de ancestros — funciona y es barato.
 
-**How to apply:** próxima ronda = **plan del corte 1** con los dos defectos de escaneo juntos (mismo archivo, misma clase de
-falla), verificado contra G25 que es el curso que los destapa; después merge; después plan del corte 2 citando `spec.md` por
-RN-n y AC-n. Sin commitear al cerrar esta ronda: spec.md, assumptions.md, ramas-en-revision.md, portal-…-diseno.md.
+Ronda 2026-09-21 (plan del defecto 🔴, `1978f99`): `docs/plan-classroom-corte-1-adjuntos-sin-resolver.md`, listo para obra.
+Hallazgo que destraba el arreglo: el placeholder son los **defaults de la propia Classroom** — en su bundle (c3/g22.har) está
+literal `this.description="Desconocido"` y `this.name || "Archivo de Drive"` → textos LOCALIZADOS, no sirven de señal. La señal
+es el href: resuelto `/file/d/<id>/view`, sin resolver `open?id=<id>`. Barrido propio de las 62 muestras HTML: 1004 adjuntos,
+0 sin ancla, 0 con `open?id=` → 0 falsos positivos. Un mismo `data-attachment-id` está en 2-3 `div` anidados con anclas
+idénticas → el predicado va **por id**, y el salteo en el lector va ANTES de `vistosAtt.add` o el adjunto se pierde en silencio.
+El fallback de `clasificarAdjunto:181` produjo 1 solo archivo en toda la Verif. B, y fue el defecto.
+Decisiones del dueño (2026-09-21): el aviso NO puede ser `ResultadoEscaneo.aviso` (reemplaza el listado, `popup.js:1381`) ni
+`#ui-msg-status` (display:none, deuda propia) → **nota no bloqueante** en `ctx.nota` del vm, pintada por la isla dentro de
+`modo:'lista'` como `.cola-divisor`; sin reintento. Baseline esperada tras ejecutarlo: 43 archivos / **719** tests.
+Honestidad del plan: 7b (espera global) cubre todo lo que cubre el cambio del predicado del paso 7; ése sólo agrega
+presupuesto (30 s de `abrirTodos` vs 10 s de `hidratacion`) → ningún test lo aísla, y el plan lo dice.
+
+**How to apply:** próxima ronda = verificar el informe de obra de ese plan (compuerta + diff contra el plan) y después la
+checklist en Brave; luego merge a main; después el plan del corte 2 citando `spec.md` por RN-n y AC-n. M-6c (re-escanear G25
+y mirar el storage enseguida) sigue pendiente del dueño y es lo único que puede reabrir el 🟡 de Novedades.
