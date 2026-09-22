@@ -100,7 +100,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ### Hallazgos de la Verificación B (2026-09-16 y 2026-09-21)
 
-Entran al corte 1 **antes del merge** (decisión del dueño). El 🔴 de los adjuntos a medio hidratar quedó resuelto (`docs/plan-classroom-corte-1-adjuntos-sin-resolver.md`, en la lista de Hecho arriba), el 🔴 de identidad del curso quedó resuelto (`docs/plan-classroom-corte-1-identidad-del-curso.md`, en la lista de Hecho arriba) y el 🟡 no entra a ninguno hasta que M-6c lo reproduzca.
+Entran al corte 1 **antes del merge** (decisión del dueño). El 🔴 de los adjuntos a medio hidratar quedó resuelto (`docs/plan-classroom-corte-1-adjuntos-sin-resolver.md`, en la lista de Hecho arriba), el 🔴 de identidad del curso quedó resuelto (`docs/plan-classroom-corte-1-identidad-del-curso.md`, en la lista de Hecho arriba), el 🔴 de identidad en **cursos archivados** tiene plan escrito y **sin ejecutar** (`docs/plan-classroom-corte-1-identidad-en-archivados.md`) y el 🟡 no entra a ninguno hasta que M-6c lo reproduzca.
 
 - 🔴 **El listado se etiqueta con el curso equivocado y los archivos van a la carpeta de otro curso.**
   CONFIRMADO en disco el 2026-09-21. RESUELTO con `docs/plan-classroom-corte-1-identidad-del-curso.md`. `sitio/google-classroom/scraper.js:80-87` leía el nombre del curso de
@@ -124,6 +124,31 @@ Entran al corte 1 **antes del merge** (decisión del dueño). El 🔴 de los adj
   - **Plan ejecutado**: `docs/plan-classroom-corte-1-identidad-del-curso.md` (2026-09-21), con
     las cuatro fuentes medidas y la validación contra las 62 muestras (37 validan, **0 contradicen**, 15 sin
     fuente y son justo las de title genérico). Verificación A en verde con 43 archivos, 723 tests.
+
+- 🔴 **Los dos cursos archivados (G25 y MB5) no se pueden escanear: la identidad del curso nunca se
+  confirma.** Hallado el 2026-09-22 revisando el plan de identidad ya ejecutado (`d61edc0`), **antes**
+  de tocar el navegador. Tiene plan escrito y sin ejecutar:
+  `docs/plan-classroom-corte-1-identidad-en-archivados.md`.
+  - **Qué se ve**: en G25 y MB5 el escaneo espera 8 s (`tiempos.identidadCurso`) y devuelve la tarjeta
+    "No pudimos confirmar de qué curso es esta lista, así que no se muestra nada". No lista nada. Son
+    2 de los 8 cursos, y los únicos cuyos totales de la checklist siguen firmes (G25 = 71, MB5 = 24),
+    así que el **paso 2 de la Verificación B** habría fallado en ellos.
+  - **Causa**: `sitio/google-classroom/scraper.js:153-163` descarta el candidato del `<title>` si su
+    texto coincide con el del ancla que devuelve `buscarLinkNav(regexNovedadesVista)`, y `buscarLinkNav`
+    (`:113`) devuelve **la primera** `nav a[href]` que coincide — que en el DOM real **no** es la
+    pestaña "Novedades" sino el **encabezado del curso** (el `<a>` dentro del `<h1>`), cuyo texto es el
+    nombre del curso. El filtro eliminaba justo a la única fuente que podía confirmar.
+  - **Evidencia** (barrido propio de las 62 muestras, simulando `resolverIdentidadCurso` con un
+    `HTMLParser` con pila de ancestros): **7/7** muestras de curso archivado abortan (G25 ×5, MB5 ×2);
+    en `recorrido-3/07-Fisica_II_G25_2026-trabajo.html` las anclas a `/u/2/c/Nzk0MDIyNDkyNDUx` son, en
+    orden, la del `<h1>` con texto `Fisica_II_G25_2026`, la pestaña `Novedades` y la de Trabajo en clase.
+  - **Los activos no se ven afectados**: resuelven por la rama (a), el sidebar (31/41 muestras lo
+    tienen, con **0** `aria-label` que no sea el nombre del curso), y nunca llegan a la rama (b).
+  - **Arreglo con evidencia**: el confirmante pasa a ser el ancla del curso dentro del `<h1>` — existe
+    en 40 de las 41 muestras de curso, es **única** en todas, confirma el title en **40/40** y
+    contradice en **0**; y excluye a las dos pestañas de vista sin mirarles el texto, que era todo lo
+    que el filtro viejo buscaba. Medido: con el fixture fiel y **sin** el arreglo fallan exactamente
+    los tests 15 y 18 (`Tests 2 failed | 16 passed (18)`); con el arreglo, `18 passed (18)`.
 
 - 🟡 **Novedades: los adjuntos faltan en el disco, pero el escaneo NO falla. NO REPRODUCIDO — tercer
   diagnóstico, y los dos anteriores eran falsos.** No entra al plan hasta reproducirlo (M-6c).
