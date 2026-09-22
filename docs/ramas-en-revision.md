@@ -63,6 +63,24 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
     - Paso 2: fixture `sitio/google-classroom/__fixtures__/curso.html` refleja el DOM real con encabezado en `<h1>`.
     - Paso 3: test 15 prueba el mecanismo real y test 18 (+1 test) verifica que un ancla fuera del `<h1>` no confirma el title en `sitio/google-classroom/scraper.test.js`.
     - Paso 4: docs actualizados; Verificación A en verde con 43 archivos, 724 tests.
+    - **Re-verificado de forma independiente (2026-09-22)**, no por el informe de ejecución:
+      compuerta **43 archivos / 724 tests**, lint 0/0, `tsc` limpio, build OK, y
+      `sitio/google-classroom/scraper.test.js` en **18 tests / 18 pasan**. Y re-simulando
+      `resolverIdentidadCurso` v1.3.1 sobre las 62 muestras: las **11 muestras de curso archivado**
+      (G25, MB5, `c1`, `click/`) que antes abortaban ahora resuelven por `titulo-validado`, y
+      **ninguna** de las 55 muestras de curso resuelve con un nombre equivocado. El ancla al curso
+      dentro del `<h1>` está en **40/55**, es **única** en las 40, vive dentro del `<nav>` en 40/40 y
+      **contradice el title en 0**. Las 15 sin ancla son **todas** de `recorrido-2-pestana-oculta`,
+      con title genérico (`Novedades` / `Trabajo en clase`): el cinturón de visibilidad las corta
+      antes de llegar a la identidad (`scraper.js:421`), así que no son un camino alcanzable.
+    - **`buscarLinkNav` no quedó muerta** tras el arreglo: la usan los tres pasos de navegación
+      (`:289`, `:496`, `:576`). Medido, no asumido: en **40/40** muestras la primera `nav a[href]`
+      que matchea `regexNovedades` es el ancla del `<h1>`, **nunca** la pestaña — pero su `href` es
+      el mismo `/u/<n>/c/<idCurso>`, así que el paso 9 navega igual. `regexTrabajo` (`/w/…/t/all`)
+      no matchea el encabezado, así que los pasos 3 y 10 toman la pestaña real.
+    - **El fixture es fiel en lo que los selectores miran**: el DOM real es
+      `nav > div > div > div > h1 > a` y el fixture `nav > h1 > a`; como `h1 a[href]` y
+      `nav a[href]` son selectores de descendiente, los `div` intermedios no cambian nada.
 - **Lo que no trae**: el mapeo a la carpeta del dueño (`U.N.L.P/`). Es el corte 2.
 
 ### Checklist de Verificación B (en navegador)

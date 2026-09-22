@@ -1,6 +1,6 @@
 ---
 name: google-classroom
-description: Portal 3 (Google Classroom): corte 1 esperando Verificación B en Brave con un 🔴 de archivados planificado sin ejecutar; decisiones D1–D13, mediciones M0–M6 y spec del corte 2
+description: Portal 3 (Google Classroom): corte 1 sin 🔴 abiertos, esperando re-verificación propia y Verificación B en Brave; decisiones D1–D13, mediciones M0–M6 y spec del corte 2
 metadata:
   type: project
 ---
@@ -49,17 +49,24 @@ antes de la extensión, D13 paginar con "Ver más" (botón visible y habilitado 
 
 ## Estado al 2026-09-22
 
-Rama `classroom-corte-1`, **32+ commits** sobre `main` (que sigue en `733ec91` del 2026-08-28). Compuerta verde
-verificada por mí: **43 archivos / 723 tests**, lint 0/0, tsc limpio, build OK.
+Rama `classroom-corte-1`, **34 commits** sobre `main` (que sigue en `733ec91` del 2026-08-28). Baseline declarada
+en `docs/testing.md`: **43 archivos / 724 tests**.
 
-Planes ejecutados y verificados: corte 1 base, verificación B, lista-guardada-y-explorar, abrir-todos,
-adjuntos-sin-resolver, identidad-del-curso. **Falta la Verificación B en Brave** (checklist de 15 pasos en
-`docs/ramas-en-revision.md`) y después el merge. Luego el corte 2 sobre la spec.
+Planes ejecutados: corte 1 base, verificación B, lista-guardada-y-explorar, abrir-todos, adjuntos-sin-resolver,
+identidad-del-curso, **identidad-en-archivados** (`2a0cf6c`, scraper v1.3.1, obra el 2026-09-22 00:24).
 
-**🔴 abierto con plan escrito y SIN ejecutar**: `docs/plan-classroom-corte-1-identidad-en-archivados.md`.
-El plan de identidad dejó **G25 y MB5 sin poder escanearse** (aviso "No pudimos confirmar de qué curso"): la rama de
-archivados excluía por texto las anclas de vista usando `buscarLinkNav`, que devuelve el encabezado del `<h1>` — la
-única fuente que podía confirmar. Arreglo medido: confirmar con `h1 a[href]` + `hrefDelCurso`. Baseline 723 → **724**.
+**No queda ningún 🔴 de Classroom abierto.** Los cuatro planes de defecto están ejecutados y `docs/ramas-en-revision.md`
+los marca RESUELTOS. Lo único 🟡 vivo es Novedades, y no se toca hasta M-6c.
+
+**Re-verificado por mí el 2026-09-22** (batería + contraste contra las 62 muestras, ambos en verde; el detalle
+quedó en `docs/ramas-en-revision.md`). Los 11 HTML de curso archivado que abortaban ahora resuelven, ninguna de las
+55 muestras de curso resuelve con nombre equivocado, y `buscarLinkNav` sigue viva y correcta en sus 3 usos de
+navegación. **La rama no tiene nada pendiente del lado del código.**
+
+**Lo único que falta para el merge: la Verificación B en Brave** — checklist de 15 pasos en
+`docs/ramas-en-revision.md`, la hace el dueño. Ojo al armarla: los totales esperados de los cursos **activos**
+vencieron (G22 ya trae ~63, no 57); los únicos firmes son G25 (71) y MB5 (24), que son justo los archivados que
+este arreglo destrabó. Luego el corte 2 sobre la spec.
 
 **M-6c sigue pendiente del dueño** y es lo único que puede reabrir el 🟡 de Novedades (re-escanear G25 con la pestaña
 al frente y mirar el storage enseguida).
@@ -93,7 +100,11 @@ septiembre NO está pusheado).
 - **Cuando el dueño dice "descarga donde no va", mirar el DISCO primero** (`find -newermt` + md5 cruzado entre
   carpetas) antes de leer código: en 3 comandos quedó claro el alcance.
 - **Revisar el plan ejecutado contra las muestras, no sólo el diff contra el plan.** El 🔴 de archivados estaba en
-  un plan mío, con compuerta verde y diff idéntico: lo cazó simular la función nueva sobre las 62 muestras.
+  un plan mío, con compuerta verde y diff idéntico: lo cazó simular la función nueva sobre las 62 muestras. El
+  2026-09-22 la misma simulación sirvió para lo contrario — **confirmar** que el arreglo funciona sobre el DOM real,
+  antes de mandar al dueño a Brave. Vale para las dos direcciones y cuesta ~15 min con un `HTMLParser` con pila de
+  ancestros (trampa 7). Contrastar también el **fixture** contra el DOM real: los tests pasan igual si el fixture
+  miente, y ahí el navegador es el único que se entera.
 - Los informes de obra dijeron "verificación A en verde" con 33 tests rojos → **siempre re-verificar**.
 - Medir un fetch desde una pestaña **no** equivale al contexto de la extensión (cookies + CORP) → pedir la consola
   del popup temprano.
