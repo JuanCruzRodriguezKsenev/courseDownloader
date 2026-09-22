@@ -1,261 +1,99 @@
 ---
 name: google-classroom
-description: Portal 3 (Google Classroom): corte 1 completo y verificado (compuerta verde) esperando Verificación B en Brave; decisiones D1–D13, mediciones M0–M6 y spec del corte 2
+description: Portal 3 (Google Classroom): corte 1 esperando Verificación B en Brave con un 🔴 de archivados planificado sin ejecutar; decisiones D1–D13, mediciones M0–M6 y spec del corte 2
 metadata:
   type: project
 ---
 
-Classroom es el 3er portal; después viene Moodle. Doc: `docs/portal-google-classroom-diseno.md` (D1–D12, §8 resultados).
-Sonda descartable: `docs/muestras/google-classroom/sonda-sw/` (gitignorada + ignorada por eslint), baja a
-`~/Descargas/medicion-classroom/`; yo muevo lo medido a `docs/muestras/google-classroom/`.
+Classroom es el 3er portal; después viene Moodle. Diseño y mediciones: `docs/portal-google-classroom-diseno.md`.
+**El estado detallado de la rama vive versionado en `docs/ramas-en-revision.md`** (hallazgos 🔴/🟡/⚠️/⚪ con su
+evidencia) — leerlo ahí y no duplicarlo acá.
+Sonda descartable: `docs/muestras/google-classroom/sonda-sw/` (gitignorada, baja a `~/Descargas/medicion-classroom/`).
+62 muestras HTML en `docs/muestras/google-classroom/{click,recorrido-1..4,c3}`: son la base de casi toda medición.
 
-Hecho: M0 (SW manda cookies; `authuser=N` obligatorio), C1, M1 (abrir ítems con click), M1b (espera por estabilidad alcanza),
-M2 en 6 cursos activos. 8 cursos: 6 activos + 2 archivados (Bianchi `Fisica_II_G25_2026`, `MB5 2024`). Palacio = Física II G22.
-Decidido por el dueño: D9 destino en ~/U.N.L.P con mapeo por CURSO y tema (rompe contrato de disco → ADR nueva),
-D10 videos/YouTube/vínculos = acceso .md. Decidido por evidencia: D11 escanear también Novedades (19 adjuntos sólo ahí),
-D12 nombres repetidos en una carpeta → título del material antes de la extensión, sólo para el grupo.
+8 cursos: 6 activos + 2 **archivados** (G25 `Fisica_II_G25_2026`, `MB5 2024`). Palacio = Física II G22.
+`MC4 1S 2026` desapareció de Classroom entre el 12 y el 16-09 (no es defecto). Cursos → materia → docentes
+(recorrido-3, "Publicación de"): G22→Fisica 2 (Grumel, Palacio); G25→Fisica 2 (Bianchi, Haucke); Física I-Grupo G
+2024→Fisica 1 (Lucila, Santillan, Sergio R); MC6=Bava, MC4/MC2=Rey Grange→Matematica C; MB5→Matematica B;
+Q5 = Química para Ingeniería, docente Sonia (apellido no está en Personas — M-2, no bloquea).
 
-**Why:** defectos silenciosos medidos: lista cortada (C1), adjuntos perezosos, Novedades, choques de nombre en 2/6 cursos,
-"ya descargado" con `includes` y sin nombre saneado (`popup.js:1508-1519`, afecta Anatomy en main), curso vacío espera 20 s.
+Decidido por el dueño: D9 destino en `~/U.N.L.P` por CURSO y tema (rompe contrato de disco → ADR nueva), D10
+videos/YouTube/vínculos = acceso `.md`, DOS cortes, mapeo por ruta escrita, Novedades → subcarpeta (corte 2).
+Por evidencia: D11 escanear también Novedades (52 adjuntos sólo ahí), D12 nombres repetidos → título del material
+antes de la extensión, D13 paginar con "Ver más" (botón visible y habilitado → click → esperar que crezca; `disabled`
+= cargando; la "espera por estabilidad" NO alcanza).
 
-Trampas medidas en Chrome (2026-09-12): (1) con la pestaña en segundo plano Classroom NO pinta → toda medición o escaneo
-con la pestaña al frente; (2) cada tema muestra 10 ítems + `button[aria-label="Ver más publicaciones"]` (en todos los temas;
-`disabled` cuando ya cargó todo) → la "espera por estabilidad" NO alcanza; retiré M1b por eso. Sonda guarda por el server Bun.
+## Trampas del portal (medidas en Chrome/Brave)
 
-M3 ✅: pagina de a 10; señal = botón VISIBLE y habilitado → click, esperar que crezca, repetir (`disabled` = cargando). → D13.
-Medición COMPLETA al 2026-09-12 (evidencia en docs/muestras/google-classroom/{click,recorrido-1..4}). Totales: ~296 adjuntos
-en Trabajo en clase + ~52 sólo en Novedades, en 8 cursos.
+1. **Con la pestaña en segundo plano Classroom NO pinta** → toda medición o escaneo con la pestaña al frente.
+2. Cada tema muestra 10 ítems + `button[aria-label="Ver más publicaciones"]`.
+3. **`document.title` se desfasa** de la URL y del contenido en la SPA, y a veces es genérico. Fuentes del nombre
+   medidas en las 62 muestras: sidebar `a[aria-current="page"]` → `aria-label` es exacto pero falta en archivados;
+   **el ancla del curso dentro del `<h1>` (encabezado) existe en 40/41 muestras de curso, es única, y confirma el
+   title en 40/40**; el texto del header viene **sin espacios** (nombre partido en nodos) → sólo sirve normalizado
+   (NFKD, sin espacios, minúsculas); `span#UGb2Qe` viene abreviado.
+4. `buscarLinkNav` (`scraper.js:113`) devuelve **la PRIMERA `nav a[href]`** que coincide, y en el DOM real ésa es el
+   ancla del `<h1>`, no la pestaña de vista. Los tres usos de navegación funcionan igual (mismo href).
+5. Entorno real: el dueño usa **BRAVE** (`~/.config/BraveSoftware/Brave-Browser/Default`), extensión
+   `daameiendaidaagnimcbpmdjkpccfemh`; el storage es legible con grep en
+   `Local Extension Settings/<id>/000003.log` y da `modulo` y `origenListado` sin pedirle nada al dueño.
+   `backend/config_usuario.json` tiene la raíz real. Claude in Chrome maneja ese Brave pero **no** abre
+   `chrome-extension://` (el popup lo prueba el dueño) y `read_network_requests` no ve nada ahí.
+6. **Tras commits en `backend/`, pedir reinicio del server ANTES de la Verificación B**: Bun no recarga y el popup
+   se traga el error (`popup.js:924-929`). Diagnóstico: `ps -o lstart= -p <pid>` vs `git log -1 --format=%ci -- backend/`.
+7. **No hay lxml/bs4/html5lib en el sistema**: para filtros tipo `closest()` sobre HTML guardado, escribir un
+   `HTMLParser` propio con pila de ancestros. Es barato y ya resolvió cuatro mediciones.
+8. El **verificador corre la batería de courseDownloader**: no verifica planes sobre otro repo (`~/U.N.L.P`) → ahí,
+   contraste propio.
+9. **`git push` por iniciativa propia lo bloquea el clasificador de auto mode**; con pedido explícito del dueño pasa.
 
-M4 ✅: "Novedades" por el nav del curso es navegación interna (el script sobrevive) → un escaneo, una inyección.
-Dueño decidió (2026-09-12): DOS cortes; mapeo por ruta escrita (el selector del backend es PowerShell y cambia la raíz
-de todos los portales); Novedades → subcarpeta `Novedades` por defecto (corte 2).
-Plan corte 1: `docs/plan-classroom-corte-1.md`, rama `classroom-corte-1`. Claves del plan: `credencialesAdjunto` opcional
-en PuertoSitio, rechazo de HTML en rama adjunto, `nombreEnDisco` (réplica exacta del backend; sanitizarTexto colapsa
-espacios), "ya descargado" exacto para adjuntos, `ResultadoEscaneo.aviso` + card `portal`, modulo = "curso › tema",
-accesos = `acceso:<url>:<título>` resueltos a `data:` URL (sin tipo nuevo en la identidad).
+## Estado al 2026-09-22
 
-Ronda 2026-09-12 (informe de obra del corte 1): verificación A independiente = lint/tsc/build/--listFiles verdes;
-`pnpm test` tenía 33 rojos PREEXISTENTES en main (`sitio/anatomy-by-chris/scraper.test.js:106`): Node >=25 trae
-localStorage global undefined que tapa el de jsdom. Corregido en el test (reinstala `globalThis.jsdom.window.localStorage`),
-sin commitear al cerrar la ronda. Hallazgo `@ts-expect-error node:fs` → TECHNICAL_DEBT ⚪ (arreglo `?raw`).
-Verificación B, primer intento: "no escanea el curso" = `scraper.js:19` era método abreviado (`async escanearListado(){}`),
-el plan pedía `async function` y obra se apartó; `executeScript` serializa → SyntaxError. Corregido (1 línea), sin commitear.
-Deuda 🟠 #11: test de serialización. Lección: en planes con código inyectado, pedir el test de `toString()` explícito.
-Verificación B, 2do intento: el escaneo SÍ termina (storage con 343 ítems google-classroom, G22 numeroOriginal 57), pero la
-tarjeta "No se pudo contactar el sitio" tapa la lista (popup.js:2485). CONFIRMADO en la consola del popup (`ERR_BLOCKED_BY_RESPONSE.NotSameSite`; `/favicon.ico` → OK basic): con sesión, `classroom.google.com/`
-responde 200 con `CORP: same-site` → el HEAD no-cors del popup (chrome-extension://, manda cookies) rechaza → internet=false.
-`/favicon.ico` da 404 sin CORP. Radio: `background.js:539` abre `urlSondeoInternet` en la notificación de fallo → no cambiar
-esa URL sola; separar sonda de "abrir portal" (urlListado) toca los 3 portales.
-Entorno real: el dueño usa BRAVE (~/.config/BraveSoftware/Brave-Browser/Default), extensión id daameiendaidaagnimcbpmdjkpccfemh;
-chrome.storage.local legible en `Local Extension Settings/<id>/000003.log`; la sonda-sw sigue cargada (inofensiva, sólo onClicked).
-Claude in Chrome maneja ese mismo Brave pero no abre chrome-extension:// → el contexto del popup lo prueba el dueño.
-Dueño decidió (2026-09-12): la notificación abre `urlListado`; el test de serialización (deuda #11) entra al mismo plan.
-Plan: `docs/plan-classroom-corte-1-verificacion-b.md`. Test validado antes de escribirlo (4/4 con control negativo).
-Lección de método: medir un fetch desde una pestaña NO equivale al contexto de la extensión (cookies + CORP) → pedir la consola del popup temprano.
-Ojo: el informe de obra decía "verificación A en verde" con 33 rojos → siempre re-verificar.
+Rama `classroom-corte-1`, **32+ commits** sobre `main` (que sigue en `733ec91` del 2026-08-28). Compuerta verde
+verificada por mí: **43 archivos / 723 tests**, lint 0/0, tsc limpio, build OK.
 
-Ronda 2026-09-12 noche: plan verif. B ejecutado (`e41e682`) y verificado por mí: 42 archivos/706 tests, lint/tsc/build
-verdes, diff = plan, `urlSondeoInternet` en background.js sólo en CHANGELOG, favicon.ico en los 2 bundles. Push: el clasificador de auto mode
-bloquea `git push` por iniciativa propia; con pedido explícito del dueño ("pushea") pasa.
+Planes ejecutados y verificados: corte 1 base, verificación B, lista-guardada-y-explorar, abrir-todos,
+adjuntos-sin-resolver, identidad-del-curso. **Falta la Verificación B en Brave** (checklist de 15 pasos en
+`docs/ramas-en-revision.md`) y después el merge. Luego el corte 2 sobre la spec.
 
-Verif. B 2026-09-13: G22 = 57 ✅. Dueño reportó 2 problemas y DECIDIÓ (entran al corte 1 antes del merge, un plan con lo que
-traiga la checklist): (1) popup re-escanea al abrir SIEMPRE en los 3 portales (popup.js:778/793/841; `listaPersistente` no
-guarda de qué curso salió) → en Classroom mostrar la lista guardada si es del MISMO curso (idCurso de la URL), si no escanear;
-hace falta 🔄 visible en la toolbar (hoy "Re-escanear" sólo aparece con escaneo muerto, popup.js:2296) — lo decidí yo.
-(2) Explorar = PowerShell (backend/handlers.js:325) → en Linux usar xdg-desktop-portal FileChooser (activo: backend gtk en
-Hyprland; python3+gi 3.56 disponible; script de prueba en scratchpad). Prueba 1: Response code 2 + log "Unhandled parent
-window type" → el dueño CONFIRMÓ que apareció y la cerró (code 2 = cerrar ventana). Portal viable. Backend sin tests; contrato en docs/deployment.md:38.
-C3 (batchexecute) 2026-09-13, dueño pidió medir sin tocar lo que anda: G22 no trae listado en el HTML (AF_initData 385 B); la carga
-hace `dpT4Vd` ×13 (≈tema) y `sLc6hf` ×~50 (≈ítem); después, Ver más/abrir ítem NO piden nada. Claude in Chrome: read_network_requests
-NO ve nada en Brave, y un hook XHR puesto después de cargar se pierde los listados; pestaña del grupo sin foco no pinta. → HAR manual
-del dueño a docs/muestras/google-classroom/c3/g22.har (gitignorado). VEREDICTO: `dpT4Vd` (hrcw.qr, por tema, de a 10) trae
-títulos/ids de ítem SIN Drive; 2do HAR con ítems abiertos (pisó g22.har): `t51ITc` ×49 (uno por ítem,
-`[[idItem,[idCurso]]]`) trae nombre+id Drive+MIME → 57 ids (DOM 56). Tokens en WIZ_global_data (SNlM0e/FdrFJe/cfb2h).
-VIABLE para Trabajo en clase; sin medir: Novedades, YouTube/vínculos, paginación. Corte 1 sigue DOM; API = corte aparte.
-M5 (2026-09-13, consola del dueño, G22): abrir los 49 ítems DE UNA (click a todos + esperar 3 s de quietud) =
-5529 ms, 57 adjuntos, 49/49 abiertos; de a uno (script con 800 ms) dio 56. Hoy scraper.js:282-298 abre de a uno
-(~555 ms/ítem o 1,5 s sinAdjuntos). Dueño: entra al corte 1 antes del merge, plan aparte tras el de obra.
-Plan: `docs/plan-classroom-corte-1-abrir-todos.md` (escrito sin commitear mientras obra ejecutaba el de lista guardada).
-Orden: obra plan lista-guardada → yo verifico y commiteo docs → obra plan abrir-todos.
-Ronda 2026-09-13 (informe lista-guardada, `4623593`): diff revisado = plan; loader OK (compuerta devuelve false sólo con
-escaneo en curso; rama guardada apaga ella), escaneo vacío/abortado conserva lista Y origen (coherente). 🔄 re-habilitado en
-`desbanearFiltros` = mismo patrón que el buscador (la región bloqueada lleva aria-disabled). `__pycache__/` → .gitignore (yo).
-Plan abrir-todos ajustado: baseline literal 716, M5 después de "Verificación B (2026-09-13)".
-Lección: primero di "no viable" con un HAR sólo de carga — no concluir sobre lazy-load sin capturar la interacción.
-Plan escrito: `docs/plan-classroom-corte-1-lista-guardada-y-explorar.md` (origenListado + claveDeListado? + 🔄 + python portal).
-Baseline esperado tras ejecutarlo: 43 archivos / 715 tests.
+**🔴 abierto con plan escrito y SIN ejecutar**: `docs/plan-classroom-corte-1-identidad-en-archivados.md`.
+El plan de identidad dejó **G25 y MB5 sin poder escanearse** (aviso "No pudimos confirmar de qué curso"): la rama de
+archivados excluía por texto las anclas de vista usando `buscarLinkNav`, que devuelve el encabezado del `<h1>` — la
+única fuente que podía confirmar. Arreglo medido: confirmar con `h1 a[href]` + `hrefDelCurso`. Baseline 723 → **724**.
 
-Ronda 2026-09-13 (informe abrir-todos `38ddd5b`, sin hallazgos): verificado por mí = diff idéntico al plan; 43/716, lint/tsc/build
-verdes (verificador); contraste propio: test 11 contra scraper de `4f59c98` FALLA por tiempos (copia temporal en sitio/, borrada).
-Ojo para B: el paso 7 nuevo espera también los li SIN botón (el viejo los salteaba) → si uno nunca expande, 30 s de espera.
-Si G22 tarda ~30 s en B paso 1, es eso.
+**M-6c sigue pendiente del dueño** y es lo único que puede reabrir el 🟡 de Novedades (re-escanear G25 con la pestaña
+al frente y mirar el storage enseguida).
 
-2026-09-13 "Explorar no anda": backend STALE (arrancado 00:09, selector Linux en 4623593 01:44; Bun no recarga) → corría el
-handler viejo = powershell en Linux. Diagnóstico: `ps -o lstart= -p <pid>` vs `git log -1 --format=%ci -- backend/`; portal gtk
-sin log. Popup traga el error (popup.js:924-929, sólo console.error). Lección: tras commits en backend/, pedir reinicio ANTES de B.
+## Spec del corte 2 (destino en ~/U.N.L.P)
 
-Análisis destino corte 2 (2026-09-13, pedido del dueño "que respete mi estructura"): hoy = raíz global + google-classroom/ +
-curso saneado a minúsculas y _ (sanearNombreCarpeta texto.ts:97; backend .toLowerCase handlers.js:26/75/256; procesadorCola.ts:808).
-Temas reales: G22 12 temas (6 "Guía de TP Nº N…", Laboratorios, Clases Teóricas Módulo I, Cronogramas, Videos, Bibliografía,
-Pruebas diagnósticas); G25 7 (Presentaciones teóricas 20/26). Disco: Fisica 2/{Teorias/{Bianchi,Palacio},Practicas,Parciales}. CORREGIDO 2026-09-13: los " (N)" (P3.- Ley de Gauss-2023 (2).pdf,
-02_CampoE (2).pdf) y "Palacio - Clase N…" son los nombres TAL CUAL en Classroom (G25/G22), no bajadas repetidas ni renombres →
-no se renombra nada y la igualdad exacta los reconoce. Tamaño: t51ITc NO trae bytes ni md5 (buscado 930537 en el HAR) →
-sólo se sabe al bajar. Fotos WhatsApp Prog 3 (1)/(2): md5 distintos, no son duplicados. Mi recomendación:
-raíz=~/U.N.L.P; por curso elegir carpeta de materia con 📂 (ya hay selector Linux) + tabla tema→subcarpeta con sugerencia editable.
+`docs/specs/classroom-destino/spec.md` (draft, **30 RN / 13 AC**, tabla de decisión, wireframes) + `assumptions.md`.
+Decisiones del dueño: "ya descargado" **por md5, no por nombre**; el nombre lo propone la extensión y el dueño lo
+edita, y se recuerda **por id de Drive**; índice en un único `~/U.N.L.P/.classroom.json` **gitignoreado** (el repo
+`jcrodriguezUNLP/U.N.L.P` es PÚBLICO y no quiere que se sepa de dónde baja); docente nuevo sobre `Teorias/` con
+sueltos → no se mueve nada. RN-29 clave `acceso:<url>:<título>` para los 55 `.md` sin id de Drive (ADR-0014);
+RN-30 un `.md` existente **nunca** se sobrescribe (el dueño los edita y el vault vive en el mismo árbol).
+Descartado con medición: xattr (se pierden en `git clone` y `cp` sin `-a`) y metadata interna (cambia el md5).
+Cruce md5 verificado: 318 A vs 132 B, 55 ya estaban (21%), **0 colisiones peligrosas**, 208 nuevos; las 9
+coincidencias de nombre son todas md5-idénticas. `Fisica 2/Laboratorios` está sin formatear (`Lab#1` vs `Lab_1`).
+Perf medida: cola estrictamente secuencial, 62 ítems/186 s, PDF mediana 1.36 s de los cuales ~1.25 s son Drive.
+Paralelizar es la única palanca (3x) pero toca estado global y ADR-0011 → plan propio **después** del merge.
 
-Cursos → materia → quién publica en Novedades (recorrido-3, "Publicación de"): G22 → Fisica 2 (Grumel 9, Palacio 3);
-G25 archivado → Fisica 2 (Bianchi 25, Haucke 14); Física I-Grupo G 2024 → Fisica 1 ("Lucila Física" 21, Santillan 9, Sergio R 6);
-MC4/MC2/MC6 → Matematica C (CONFIRMADO; teorías separadas por docente: MC6=Bava, MC4=Rey Grange, MC2 asumido Rey Grange);
-MB5 2024 archivado → Matematica B (CONFIRMADO); Q5 2023 → ¿? vacío,
-sin carpeta en U.N.L.P. Autor de post ≠ titular necesariamente.
+Trampas de `~/U.N.L.P`: `.gitignore` en **UTF-16 LE + CRLF** (`echo >>` lo corrompe); `core.ignorecase=true` →
+renombre sólo de mayúsculas necesita `git add` por ruta; `core.quotepath` cita tildes → filtros con
+`-c core.quotepath=false`; NFD en algunos nombres; remoto SSH y último push del 2026-05-08 (el formateo de
+septiembre NO está pusheado).
 
-2026-09-13 docentes: Física 1 Classroom = Lucila (sin apellido); `teorias pedro 2023` = Pedro Mendoza Zélis (firmado en PDF);
-`teorias/C1..C9` sin firma pero 9/9 temas = "Clases teóricas - Módulo I" de Lucila → el dueño SÍ renombra (CN Tema); M-1 = md5 tras bajar.
-Q5 = Química para Ingeniería, docente Sonia; Personas (/u/2/r/NTQzMTM5MTE1OTUz/sort-last-name) sólo "Comision Q5" → apellido no está (M-2).
-Claude in Chrome: Personas tarda ~5 s en pintar; get_page_text antes da la lista vacía.
+## Lecciones de método que ya pagaron
 
-Formateo ~/U.N.L.P/Ingenieria (plan docs/plan-unlp-formateo-ingenieria.md + .tsv) EJECUTADO y verificado por mí 2026-09-13:
-U.N.L.P `f028086` (39 A) + `3b7c557` (114 R + 2 D), SIN push. Cada destino de la TSV existe y está en HEAD; md5 que faltan = zip + xls;
-Informática intacta (511 líneas de status fuera de Ingenieria antes y después). Formato: minúsculas, NN_tema, modN_, parciales
-modN_AAAA-MM-DD_detalle, Teorias/<Apellido> sólo con >1 docente; vault no se tocó. Pendientes del dueño: M-1..M-3, C-1..C-3 (plan §4).
-Errores MÍOS del plan (no rompieron nada): "*.zip en .gitignore" falso (el .gitignore versionado está vacío, el de disco es UTF-16 →
-`git check-ignore` antes de afirmarlo; el zip estaba versionado desde e38b6cf); "41 sin versionar" eran 39; "515 menos 0" contaba
-líneas de Ingenieria → para aislar, contar `git status --short | grep -v <ruta tocada>`.
-Trampas U.N.L.P: `core.ignorecase=true` en .git/config (Linux) → renombre sólo de mayúsculas: `git add -A` deja D + ?? → add por ruta;
-`core.quotepath` cita rutas con tilde → filtros con `-c core.quotepath=false`. NFD en "Proyección…(Resumen).pdf"; nombres viejos de Mendoza mienten.
-El verificador corre la batería de courseDownloader: no verifica planes sobre otro repo → contraste propio.
-
-Ronda 2026-09-16 (Verificación B completa + spec del corte 2). Dueño bajó los 8 cursos a `~/Descargas/verificacion-b`
-(318 archivos, 371 MB, 5 carpetas). Verificado por mí en disco: 0 vacíos, 0 HTML disfrazado, tipos reales OK, 55 .md con URL,
-D12 OK, Física I 130/130, MB5 24/24, MC2 25/25. **Dos defectos de escaneo CONFIRMADOS, entran al corte 1 antes del merge:**
-(1) `scraper.js:297-304` la espera del paso 7 se cumple con que exista `[data-attachment-id]`, pero el `<a>` puede estar sin
-hidratar → `aria-label="Archivo adjunto: Desconocido: Archivo de Drive"` + href `open?id=` → cae al fallback de la línea 181 y
-guarda un .md en vez del PDF. INTERMITENTE (mismo ítem salió mal y después bien sin tocar código). Origen probable `38ddd5b`
-(abrirTodos): el placeholder no aparece NI UNA VEZ en las capturas secuenciales del 12-09.
-(2) `scraper.js:371-378` **Novedades no pagina ni expande**: entra, `esperarQuietud` y lee el DOM. Sin "Ver más publicaciones"
-ni apertura de ítems, a diferencia de Trabajo en clase. G25 pierde 23 adjuntos del tema "Próximas" — no llegan ni al storage.
-Sólo se nota con stream largo (los otros 4 cursos: 0 faltantes en Novedades).
-Método que sirvió: contrastar disco contra `recorrido-3/*.json` con match laxo; ojo que NFKD manda `º`→`o` (falsos positivos
-`Nº` vs `N_`) y D12 agrega ` - <material>` (más falsos positivos). Los mtimes de los archivos dan el tiempo por descarga.
-Perf medida: 62 ítems/186 s; .md (sin red) 0.10 s = piso del pipeline; PDF <200 KB mediana 1.36 s, de los cuales ~1.25 s son
-latencia de Drive (TTFB medido 0.38-0.51 s). La cola es estrictamente secuencial (`colaDescargas[0]` + `setTimeout(…,60)`).
-Paralelizar es la única palanca (3x), pero toca estado global (`totalFragmentosEnVideoActual`, `tiempoInicioVideoActual`) y
-ADR-0011 → plan propio, después del merge, y midiendo antes con cuánta concurrencia Drive tira 429.
-`MC4 1S 2026` DESAPARECIÓ de Classroom entre el 12 y el 16-09 y NO está en archivadas → baja o eliminación. No es defecto.
-
-**SPEC DEL CORTE 2 ESCRITA**: `docs/specs/classroom-destino/spec.md` (draft, 482 líneas, 28 RN, 11 AC, tabla de decisión,
-wireframes) + `assumptions.md` con la traza. Decisiones del dueño (2026-09-16): "ya descargado" **por md5, no por nombre**;
-nombre = la extensión propone + el dueño edita + se recuerda **por id de Drive**; índice en **un único
-`~/U.N.L.P/.classroom.json` GITIGNOREADO** (el repo `jcrodriguezUNLP/U.N.L.P` es **PÚBLICO**, y el dueño no quiere que se
-sepa de dónde baja); docente nuevo sobre `Teorias/` con sueltos → no se mueve nada, subcarpeta sólo al nuevo.
-Descartado con medición: xattr (btrfs los soporta pero `git clone` y `cp` sin `-a` los pierden) y metadata interna (cambia el
-md5 y se muerde la cola con la regla de contenido). M-1 CERRADO: 9/9 md5 idénticos, `Fisica 1/Teorias/` sueltas = Classroom
-de Lucila renombrado por el dueño. Falta M-2 (apellido de Sonia, no bloquea).
-Datos del árbol: `Fisica 2/Laboratorios` está SIN formatear (11 nombres crudos) mientras Teorias/Practicas sí; 4 de esos
-archivos tienen md5 idéntico a lo que baja la extensión y nombre distinto (`Lab#1` vs `Lab_1`) → por nombre se re-bajarían.
-`Teorias/` tiene 3 formas conviviendo: F1 = 10 sueltos + `Mendoza/`; F2 = `Bianchi/`+`Palacio/`; MB = 2 sueltos.
-D12 deja copias md5-idénticas: template de Física I ×5, `interferencia2025` ×2 (→ PA-2 de la spec).
-⚠️ `~/U.N.L.P/.gitignore` está en **UTF-16 LE + CRLF**: agregarle `.classroom.json` con `echo >>` lo corrompe.
-⚠️ El árbol `~/U.N.L.P` tiene remoto SSH y su último push es de 2026-05-08: el formateo de septiembre NO está pusheado.
-
-Ronda 2026-09-17 (cruce md5 + hueco de los accesos). El cruce Classroom-vs-`~/U.N.L.P/Ingenieria` lo hizo **agy**
-(`~/.gemini/antigravity-cli/brain/5f8b9f11-.../informe_colisiones.md`); lo re-verifiqué con md5 propios y da exacto:
-318 A (263 reales + 55 .md) vs 132 B; 55 ya estaban (21%) en 54 rutas; **0 colisiones peligrosas**; 208 nuevos
-(204 únicos); 2 grupos duplicados en A (template ×5, interferencia2025 ×2), 0 en B. Las coincidencias de nombre son
-**9**, no 4 (3 en Teorias/Bianchi por mayúsculas + 6 en Laboratorios por `#`→`_` y `Nº`→`N_`), todas md5-idénticas.
-Hueco cerrado: `archivos.<id>` estaba tipado por id de Drive y los **55 accesos .md no tienen** (17%). Medido:
-54 URLs únicas de 55, y la repetida es legítima (misma animación publicada 2 veces con títulos distintos en Física I)
-→ descarta "URL sola" como clave. Spec ahora **30 RN / 13 AC**: RN-29 clave `acceso:<url>:<título>` (la que ya arma
-`scraper.js:506`, sin eje nuevo → ADR-0014), RN-30 un `.md` existente NO se sobrescribe nunca (el dueño los edita sin
-renombrar y `ObsidianUNLP_Vault` vive en el mismo árbol) + fila 0 de la tabla de decisión + AC-12/AC-13.
-Sin commitear al cerrar: spec.md, assumptions.md, ramas-en-revision.md.
-
-M-6/M-6b (2026-09-17, consola del dueño, G25 Novedades): **el 2do defecto de la Verif. B NO se reproduce.**
-`buscarContenedorScroll()` devuelve el `<html>` = `scrollingElement` = único que dispara scroll; el bucle de
-`esperarQuietud` lleva 40→237 posts en 6 vueltas y corta en la 9 (de 40); los 14 contenedores candidatos a vista
-ven lo mismo que `document`. La sonda del 12-09 da idéntico (237 posts / 28 adjuntos en su HTML). Los 26 adjuntos
-que faltan en disco SÍ tenían `data-attachment-id`, cuelgan de items externos (66 ext / 171 anidados → `itemsExternos`
-no descarta) y tienen 0 ids en común con Trabajo en clase (→ el dedup de :418 tampoco). O sea: **el escaneo de
-Novedades no tiene defecto medible**; el síntoma en disco es real pero la causa está sin identificar (M-6c:
-re-escanear G25 y mirar el storage enseguida). Lección dura: en esta rama escribí TRES diagnósticos seguidos sin
-reproducir —"no pagina", "no crece el stream", "vista equivocada"—, todos falsos; y la frase "no llegan ni al
-storage" se escribió sin pegar la salida del storage. Regla: un hallazgo de ramas-en-revision.md no se escribe en
-🔴 sin reproducirlo, y si no se reprodujo va en 🟡 con "NO REPRODUCIDO" en el título.
-Sin parser HTML en el sistema (no hay lxml/bs4/html5lib): para aplicar filtros tipo `closest()` sobre un HTML
-guardado, escribir un HTMLParser propio con pila de ancestros — funciona y es barato.
-
-Ronda 2026-09-21 (plan del defecto 🔴, `1978f99`): `docs/plan-classroom-corte-1-adjuntos-sin-resolver.md`, listo para obra.
-Hallazgo que destraba el arreglo: el placeholder son los **defaults de la propia Classroom** — en su bundle (c3/g22.har) está
-literal `this.description="Desconocido"` y `this.name || "Archivo de Drive"` → textos LOCALIZADOS, no sirven de señal. La señal
-es el href: resuelto `/file/d/<id>/view`, sin resolver `open?id=<id>`. Barrido propio de las 62 muestras HTML: 1004 adjuntos,
-0 sin ancla, 0 con `open?id=` → 0 falsos positivos. Un mismo `data-attachment-id` está en 2-3 `div` anidados con anclas
-idénticas → el predicado va **por id**, y el salteo en el lector va ANTES de `vistosAtt.add` o el adjunto se pierde en silencio.
-El fallback de `clasificarAdjunto:181` produjo 1 solo archivo en toda la Verif. B, y fue el defecto.
-Decisiones del dueño (2026-09-21): el aviso NO puede ser `ResultadoEscaneo.aviso` (reemplaza el listado, `popup.js:1381`) ni
-`#ui-msg-status` (display:none, deuda propia) → **nota no bloqueante** en `ctx.nota` del vm, pintada por la isla dentro de
-`modo:'lista'` como `.cola-divisor`; sin reintento. Baseline esperada tras ejecutarlo: 43 archivos / **719** tests.
-Honestidad del plan: 7b (espera global) cubre todo lo que cubre el cambio del predicado del paso 7; ése sólo agrega
-presupuesto (30 s de `abrirTodos` vs 10 s de `hidratacion`) → ningún test lo aísla, y el plan lo dice.
-
-Ronda 2026-09-21 noche (verificación del informe de obra del plan 🔴, commits `29d7919` + `6dba3c4`).
-Compuerta verde (verificador): 43 archivos / 719 tests, lint 0/0, tsc limpio, build OK. Diff = plan, literal, en los 11
-archivos (código, tests y los 4 docs); los 3 comandos extra del plan §4 también: `adjuntosSinResolver` ×2 y `lista-nota`
-en `.output/chrome-mv3/chunks/popup-B4krJPGI.js`, `inyeccion.test.js` 4/4.
-**Defecto de verificación que encontré (corregido por mí, 2 líneas):** el plan afirmaba "el test 12 falla con el código de
-hoy" y NO era cierto — con `setTimeout(…, 50)` el test pasaba igual contra el scraper de `e51d73a`. Medido con un sondeo
-propio (ambos scrapers × retrasos 0/50/150/300/500/900/nunca, copia temporal en `sitio/`, borrada): **el escaneo viejo lee
-la vista a los ~250-300 ms**, así que todo retraso ≤150 ms se hidrata solo y no prueba nada; a partir de 300 ms el viejo
-lista el placeholder. El nuevo salva 300 ms con `hidratacion:200` y descarta desde 500 ms. Dejé el test 12 en
-**retraso 400 ms + `hidratacion: 1500`** (3 corridas estables: viejo placeholder=1, nuevo okPdf=1). El test 13 sí tenía
-poder de detección (falla con el viejo por `adjuntosSinResolver` undefined Y por listar el placeholder).
-**Regla nueva**: un test que el plan declara como "falla sin el arreglo" se corre contra el código viejo ANTES de darlo por
-bueno — copiar el archivo viejo a `sitio/<nombre>.tmp.js` + un test temporal que lo importe es barato (5 min) y ya cazó dos
-cosas en esta rama (acá, y los tiempos del test 11 en la ronda de abrir-todos).
-Riesgo de diseño descartado con medición propia: `adjuntosSinResolver` usa `div.querySelector("a[aria-label][href]")`, que
-podría robar el ancla de un adjunto anidado. Barrido de las 62 muestras con HTMLParser propio (pila de ancestros):
-1028 divs, 346 ids, **0 divs con otro id de adjunto entre sus ancestros** y **0 de 4121 anclas con 2+ ids en su pila** → no
-puede pasar con lo medido.
-Hallazgo menor no arreglado: si el ancla resuelve entre el vencimiento de 7b y el lector (ventana de ms), el id queda
-contado en `idsSinResolver` y el enlace igual se lista bien → la nota sobreestima de 1. Cosmético, no vale plan.
-Obra borró el bloque 🔴 entero de `ramas-en-revision.md` (el plan pedía "pasarlo a Hecho"): la evidencia detallada del
-defecto (ítem de G22, id de Drive, origen `38ddd5b`, intermitencia) ahora vive sólo en el plan, que está versionado. OK.
-Agregué yo los pasos 12-14 a la checklist de Verificación B del doc (el plan §4 los definía y la checklist no los tenía).
-Sin commitear al cerrar: `sitio/google-classroom/scraper.test.js` (test 12) y `docs/ramas-en-revision.md` (checklist).
-
-🔴 DEFECTO GRANDE hallado el 2026-09-21 mirando el disco (el dueño avisó "descarga cosas donde no van"):
-**el listado se etiqueta con el curso equivocado.** `scraper.js:80-87` lee el nombre del curso de
-`document.title` UNA vez al arrancar y `:571` lo estampa en el `modulo` de todos los ítems → la carpeta
-(`popup.js:1466` → `parserTitulos`) sale del curso equivocado. En una SPA el title se sincroniza DESPUÉS de
-la URL y del contenido, y `popup.js:789` escanea en `tabs.onUpdated status==='complete'`, que llega antes.
-Evidencia: carpeta `2026_2c_mc6_mate_c` con **81 archivos md5-idénticos a G22** y 0 propios; storage con
-`modulo = "2026 - 2C - MC6 :: Mate C › <tema de G22>"` y `origenListado.clave = ODc0ODk1NDcwNTMw` = **idCurso
-de G22** (46 hrefs `/c/<id>/m/` en su muestra). Borré la carpeta (0 md5 huérfanos; quedan 336 archivos en 5).
-NO lo introdujo el plan de hidratación (el title se lee así desde v1.0.0), pero ese plan agrandó la ventana
-del escaneo a ~50 s, que es el otro camino al mismo defecto. **La cola está bien**: `ItemCola.carpeta` viaja
-con el ítem (procesadorCola.ts:172/808) y el destino se calcula al escanear — los 18 que ya bajaban fueron
-a la carpeta correcta. El dueño me corrigió la hipótesis: yo miraba el scraper, él preguntó por la cola
-(como en RamonNet) y justamente eso ya estaba resuelto.
-Fuentes del nombre, medidas en las 62 muestras: `document.title` se desfasa y a veces es genérico
-("Trabajo en clase"/"Novedades" en 15 muestras) → inservible; `a[aria-current="page"]` del sidebar es
-**exacto** (12/12 idéntico al nombre de hoy → cambiar la fuente NO renombra ni re-baja nada) pero **falta en
-los 2 archivados** (G25, MB5) y con la pestaña oculta; el texto del header viene **sin espacios** (nombre
-partido en nodos); `span#UGb2Qe` viene **abreviado** ("Q5"). Validación title↔ancla `/c/<id>` normalizada
-(NFKD, sin espacios, minúsculas): **37 validan, 0 contradicen, 15 sin fuente** y son justo las de title
-genérico. TRAMPA medida: las 37 anclas validadoras están **todas dentro de un `<nav>`** → no se puede
-filtrar por `closest("nav")`; los textos de las 2 vistas se excluyen con `buscarLinkNav` (devuelve el
-ELEMENTO, `return a` en :103 — verificado antes de escribirlo) y los patrones ya existen en :223 y :402.
-Plan escrito: `docs/plan-classroom-corte-1-identidad-del-curso.md` (identidad después del paso 7b, 2
-cinturones: ids `/c/<otro>/m/` en la vista y URL re-leída al final; +4 tests → **723**; el fixture necesita
-el ancla de sidebar o los 13 tests dan aviso).
-Lecciones de esta ronda: (1) escribí DOS diagnósticos falsos seguidos antes de medir —"el título viejo con
-DOM nuevo" y "ODc0… es el id de MC6"—; el id estaba en 2 muestras cualesquiera y sólo los hrefs `/c/<id>/m/`
-lo atan al curso. (2) Cuando el dueño dice "descarga donde no va", mirar el DISCO primero
-(`find -newermt` + md5 cruzado entre carpetas) antes de leer código: en 3 comandos quedó claro el alcance.
-(3) `backend/config_usuario.json` tiene la raíz real (`~/Descargas/verificacion-b`); el storage de Brave es
-legible con grep y da el `modulo` y el `origenListado` sin pedirle nada al dueño.
-
-**How to apply:** próxima ronda = obra ejecuta `docs/plan-classroom-corte-1-identidad-del-curso.md`; después
-verifico y va la Verificación B en Brave con los pasos 12-14 de la checklist más los 5 del §4 de ese plan
-(incluido cambiar de curso a mitad de escaneo). Recién después el merge, y luego el corte 2 sobre `spec.md`.
-M-6c (re-escanear G25 y mirar el storage enseguida) sigue pendiente del dueño y es lo único que puede
-reabrir el 🟡 de Novedades.
+- **Un test que el plan declara "falla sin el arreglo" se corre contra el código viejo ANTES de darlo por bueno.**
+  Copiar el archivo viejo a `sitio/<nombre>.tmp.js` (o aplicar el fixture nuevo sin el arreglo) cuesta 5 minutos y
+  ya cazó tres cosas en esta rama: los tiempos del test 11, el test 12 sin poder de detección, y los tests 15/18.
+- **Un hallazgo no reproducido no se escribe en 🔴**: va en 🟡 con "NO REPRODUCIDO" en el título. En esta rama
+  escribí cinco diagnósticos falsos antes de medir (tres sobre Novedades, dos sobre la identidad del curso).
+- **Cuando el dueño dice "descarga donde no va", mirar el DISCO primero** (`find -newermt` + md5 cruzado entre
+  carpetas) antes de leer código: en 3 comandos quedó claro el alcance.
+- **Revisar el plan ejecutado contra las muestras, no sólo el diff contra el plan.** El 🔴 de archivados estaba en
+  un plan mío, con compuerta verde y diff idéntico: lo cazó simular la función nueva sobre las 62 muestras.
+- Los informes de obra dijeron "verificación A en verde" con 33 tests rojos → **siempre re-verificar**.
+- Medir un fetch desde una pestaña **no** equivale al contexto de la extensión (cookies + CORP) → pedir la consola
+  del popup temprano.

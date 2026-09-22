@@ -16,7 +16,7 @@ No escribir la ficha (`## Comandos`, etc.) en `CLAUDE.md`: es un puntero y proh�
 - `docs/rearquitectura-diseno.md` §Estado de avance
 Compuerta: `pnpm test`, `pnpm run lint`, `pnpm exec tsc --noEmit`, `pnpm run build`; números en `docs/testing.md`. Nada se mergea sin probar en Chrome.
 
-Estado al 2026-09-21: `classroom-corte-1` EN revisión (32 commits sobre `main`, que sigue en `733ec91` del 2026-08-28).
-Baseline: **43 archivos / 719 tests**. Todos los planes del corte 1 ejecutados y con compuerta verde; falta la
-**Verificación B en Brave** (checklist de 14 pasos en `docs/ramas-en-revision.md`) y después el merge. Abiertos: popovers sin
-tests, loader sin dueño, footer `#ui-msg-status` con `display:none` (`entrypoints/popup/index.html:132`), banco no alcanza al SW.
+Estado al 2026-09-22: `classroom-corte-1` EN revisión. Baseline **43 archivos / 719 tests** → hoy **723**
+(compuerta verde verificada). El estado fino de la rama está en `docs/ramas-en-revision.md`; el del portal, en mi
+memoria de Classroom. Abiertos de fondo: popovers sin tests, loader sin dueño, footer `#ui-msg-status` con
+`display:none` (`entrypoints/popup/index.html:132`), banco no alcanza al SW.
