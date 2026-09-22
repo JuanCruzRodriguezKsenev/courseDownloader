@@ -285,15 +285,18 @@ describe("ScraperClassroom.escanearListado", () => {
     `;
     region.appendChild(li);
 
+    // 400 ms y un tope holgado: MEDIDO contra el scraper de `e51d73a` (el de antes del
+    // arreglo), que lee la vista a los ~250-300 ms y con este retraso lista el placeholder.
+    // Con 50 ms el test pasaba también SIN el arreglo, así que no fijaba nada.
     setTimeout(() => {
       const a = li.querySelector("a");
       if (a) {
         a.setAttribute("aria-label", "Archivo adjunto: PDF: Lento.pdf");
         a.setAttribute("href", "https://drive.google.com/file/d/drive-lento/view");
       }
-    }, 50);
+    }, 400);
 
-    const res = await ScraperClassroom.escanearListado({ tiempos: TIEMPOS_TEST });
+    const res = await ScraperClassroom.escanearListado({ tiempos: { ...TIEMPOS_TEST, hidratacion: 1500 } });
 
     const lento = res.enlaces.filter((e) => e.idArchivo === "drive-lento");
     expect(lento.length).toBe(1);

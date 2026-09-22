@@ -88,6 +88,9 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 9. [ ] **Otro curso** (MC4 1S 2026): abrir el popup ahí escanea solo y trae 13. Volver a G22 y abrir: escanea de nuevo (se guarda una sola lista).
 10. [ ] **🔄**: visible en "Clases Disponibles" y oculto en "Fila de descarga"; en G22 con lista guardada fuerza el escaneo. Con backend caído queda deshabilitado. En Anatomy, abrir el popup sigue escaneando como antes.
 11. [ ] **Explorar en Linux**: 📂 → diálogo nativo "Elegí la carpeta raíz de descargas". Cancelar conserva la ruta; elegir cambia la ruta y la consola del server loguea `📂 [DISCO] Nueva carpeta raiz establecida`. (Restaurar la ruta real al terminar).
+12. [ ] **Adjuntos hidratados** (plan de adjuntos sin resolver, 2026-09-21): G22 con la pestaña al frente, Re-escanear 🔄 → 57 adjuntos y **ningún** archivo cuyo nombre empiece con `Archivo adjunto`; la nota `⚠️ … quedó afuera` **no** aparece arriba de la lista.
+13. [ ] **Consola de la pestaña de Classroom** (no la del popup): con todo bien no hay ninguna línea `[CLASSROOM] Adjuntos sin resolver`. Si aparece, anotar los ids: son los que se descartaron.
+14. [ ] **G25** (el curso con Novedades larga): la cuenta no bajó respecto de la Verificación B del 2026-09-16 (71 Trabajo en clase + hasta 28 en Novedades).
 
 ### Hallazgos de la Verificación B (2026-09-16)
 
