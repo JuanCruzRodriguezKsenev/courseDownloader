@@ -2,4 +2,5 @@
 - [Classroom corte 1: abrir todos](project_classroom_abrir_todos.md) — apertura de todos los ítems plegados en el mismo tick y espera única durante el escaneo
 - [Classroom corte 1: adjuntos sin resolver](project_classroom_adjuntos_sin_resolver.md) — espera de hidratación por href, descarte de placeholders y aviso no bloqueante en UI
 - [Classroom corte 1: identidad del curso](project_classroom_identidad_del_curso.md) — validación por sidebar y DOM antes de listar y cinturones contra cambio de curso
+- [Classroom corte 1: identidad en archivados](project_classroom_identidad_en_archivados.md) — confirmación por h1 a[href] en archivados sin sidebar, fixture con orden real de nav
 - [Formateo U.N.L.P Ingeniería](project_unlp_formateo_ingenieria.md) — formateo previo al corte 2 de Classroom, core.ignorecase en git y renombres sin colisión
