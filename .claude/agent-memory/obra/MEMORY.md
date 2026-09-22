@@ -1,3 +1,4 @@
 - [Classroom corte 1: lista guardada y Explorar](project_classroom_lista_guardada_y_explorar.md) — compuerta de escaneo al abrir, botón 🔄 en toolbar, selector de carpetas Linux vía D-Bus portal
 - [Classroom corte 1: abrir todos](project_classroom_abrir_todos.md) — apertura de todos los ítems plegados en el mismo tick y espera única durante el escaneo
+- [Classroom corte 1: adjuntos sin resolver](project_classroom_adjuntos_sin_resolver.md) — espera de hidratación por href, descarte de placeholders y aviso no bloqueante en UI
 - [Formateo U.N.L.P Ingeniería](project_unlp_formateo_ingenieria.md) — formateo previo al corte 2 de Classroom, core.ignorecase en git y renombres sin colisión
