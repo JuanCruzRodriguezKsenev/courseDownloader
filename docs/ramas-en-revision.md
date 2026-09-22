@@ -92,9 +92,32 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 13. [ ] **Consola de la pestaña de Classroom** (no la del popup): con todo bien no hay ninguna línea `[CLASSROOM] Adjuntos sin resolver`. Si aparece, anotar los ids: son los que se descartaron.
 14. [ ] **G25** (el curso con Novedades larga): la cuenta no bajó respecto de la Verificación B del 2026-09-16 (71 Trabajo en clase + hasta 28 en Novedades).
 
-### Hallazgos de la Verificación B (2026-09-16)
+### Hallazgos de la Verificación B (2026-09-16 y 2026-09-21)
 
-Entran al corte 1 **antes del merge** (decisión del dueño). El 🔴 quedó resuelto (`docs/plan-classroom-corte-1-adjuntos-sin-resolver.md`, en la lista de Hecho arriba) y el 🟡 no entra a ninguno hasta que M-6c lo reproduzca.
+Entran al corte 1 **antes del merge** (decisión del dueño). El 🔴 de los adjuntos a medio hidratar quedó resuelto (`docs/plan-classroom-corte-1-adjuntos-sin-resolver.md`, en la lista de Hecho arriba) y el 🟡 no entra a ninguno hasta que M-6c lo reproduzca.
+
+- 🔴 **El listado se etiqueta con el curso equivocado y los archivos van a la carpeta de otro curso.**
+  CONFIRMADO en disco el 2026-09-21. `sitio/google-classroom/scraper.js:80-87` lee el nombre del curso de
+  `document.title` una vez al arrancar y `:571` lo estampa en el `modulo` de todos los ítems; en una SPA el
+  título se sincroniza **después** de la URL y del contenido, y `popup.js:789` dispara el escaneo en
+  `tabs.onUpdated` con `status === 'complete'`, que llega antes.
+  - **Evidencia**: `~/Descargas/verificacion-b/google-classroom/2026_2c_mc6_mate_c/` (carpeta de MC6) tenía
+    **81 archivos md5-idénticos** a 81 de los 82 de la carpeta de G22, y 0 propios. En el storage esos ítems
+    quedaron con `modulo = "2026 - 2C - MC6 :: Mate C › <tema de G22>"`, mientras `origenListado.clave` era
+    `ODc0ODk1NDcwNTMw`, el **idCurso de G22** (46 hrefs `/c/ODc0…/m/` en su muestra). O sea: URL, DOM y
+    adjuntos de G22; sólo el título decía MC6. La carpeta se borró tras confirmar los 81 duplicados.
+  - **La cola no tiene la culpa**: `ItemCola.carpeta` viaja con el ítem (`core/cola/procesadorCola.ts:172`,
+    `:808`) y el destino se calcula al escanear (`popup.js:1466` → `parserTitulos.js:17-24`). Los 18 ítems
+    que ya estaban bajando cuando el dueño cambió de curso fueron a la carpeta correcta.
+  - **No lo introdujo** el plan de adjuntos sin resolver: el título se lee así desde `v1.0.0` del scraper.
+    Lo que sí hizo ese plan es agrandar la ventana del escaneo (hasta ~50 s), que es el otro camino al
+    mismo defecto (cambiar de curso a mitad de escaneo).
+  - **Decisiones del dueño (2026-09-21)**: el nombre sale del sidebar validado por idCurso, el title sólo
+    si el DOM lo confirma; si no se puede confirmar, esperar y reintentar y después **abortar con aviso**
+    sin listar nada.
+  - **Plan escrito y sin ejecutar**: `docs/plan-classroom-corte-1-identidad-del-curso.md` (2026-09-21), con
+    las cuatro fuentes medidas y la validación contra las 62 muestras (37 validan, **0 contradicen**, 15 sin
+    fuente y son justo las de title genérico).
 
 - 🟡 **Novedades: los adjuntos faltan en el disco, pero el escaneo NO falla. NO REPRODUCIDO — tercer
   diagnóstico, y los dos anteriores eran falsos.** No entra al plan hasta reproducirlo (M-6c).

@@ -1,6 +1,6 @@
 ---
 name: google-classroom
-description: Portal 3 (Google Classroom) en medición desde 2026-09-12; decisiones D1–D12, resultados M0–M2 y qué destraba la próxima ronda
+description: Portal 3 (Google Classroom): corte 1 completo y verificado (compuerta verde) esperando Verificación B en Brave; decisiones D1–D13, mediciones M0–M6 y spec del corte 2
 metadata:
   type: project
 ---
@@ -197,6 +197,65 @@ Decisiones del dueño (2026-09-21): el aviso NO puede ser `ResultadoEscaneo.avis
 Honestidad del plan: 7b (espera global) cubre todo lo que cubre el cambio del predicado del paso 7; ése sólo agrega
 presupuesto (30 s de `abrirTodos` vs 10 s de `hidratacion`) → ningún test lo aísla, y el plan lo dice.
 
-**How to apply:** próxima ronda = verificar el informe de obra de ese plan (compuerta + diff contra el plan) y después la
-checklist en Brave; luego merge a main; después el plan del corte 2 citando `spec.md` por RN-n y AC-n. M-6c (re-escanear G25
-y mirar el storage enseguida) sigue pendiente del dueño y es lo único que puede reabrir el 🟡 de Novedades.
+Ronda 2026-09-21 noche (verificación del informe de obra del plan 🔴, commits `29d7919` + `6dba3c4`).
+Compuerta verde (verificador): 43 archivos / 719 tests, lint 0/0, tsc limpio, build OK. Diff = plan, literal, en los 11
+archivos (código, tests y los 4 docs); los 3 comandos extra del plan §4 también: `adjuntosSinResolver` ×2 y `lista-nota`
+en `.output/chrome-mv3/chunks/popup-B4krJPGI.js`, `inyeccion.test.js` 4/4.
+**Defecto de verificación que encontré (corregido por mí, 2 líneas):** el plan afirmaba "el test 12 falla con el código de
+hoy" y NO era cierto — con `setTimeout(…, 50)` el test pasaba igual contra el scraper de `e51d73a`. Medido con un sondeo
+propio (ambos scrapers × retrasos 0/50/150/300/500/900/nunca, copia temporal en `sitio/`, borrada): **el escaneo viejo lee
+la vista a los ~250-300 ms**, así que todo retraso ≤150 ms se hidrata solo y no prueba nada; a partir de 300 ms el viejo
+lista el placeholder. El nuevo salva 300 ms con `hidratacion:200` y descarta desde 500 ms. Dejé el test 12 en
+**retraso 400 ms + `hidratacion: 1500`** (3 corridas estables: viejo placeholder=1, nuevo okPdf=1). El test 13 sí tenía
+poder de detección (falla con el viejo por `adjuntosSinResolver` undefined Y por listar el placeholder).
+**Regla nueva**: un test que el plan declara como "falla sin el arreglo" se corre contra el código viejo ANTES de darlo por
+bueno — copiar el archivo viejo a `sitio/<nombre>.tmp.js` + un test temporal que lo importe es barato (5 min) y ya cazó dos
+cosas en esta rama (acá, y los tiempos del test 11 en la ronda de abrir-todos).
+Riesgo de diseño descartado con medición propia: `adjuntosSinResolver` usa `div.querySelector("a[aria-label][href]")`, que
+podría robar el ancla de un adjunto anidado. Barrido de las 62 muestras con HTMLParser propio (pila de ancestros):
+1028 divs, 346 ids, **0 divs con otro id de adjunto entre sus ancestros** y **0 de 4121 anclas con 2+ ids en su pila** → no
+puede pasar con lo medido.
+Hallazgo menor no arreglado: si el ancla resuelve entre el vencimiento de 7b y el lector (ventana de ms), el id queda
+contado en `idsSinResolver` y el enlace igual se lista bien → la nota sobreestima de 1. Cosmético, no vale plan.
+Obra borró el bloque 🔴 entero de `ramas-en-revision.md` (el plan pedía "pasarlo a Hecho"): la evidencia detallada del
+defecto (ítem de G22, id de Drive, origen `38ddd5b`, intermitencia) ahora vive sólo en el plan, que está versionado. OK.
+Agregué yo los pasos 12-14 a la checklist de Verificación B del doc (el plan §4 los definía y la checklist no los tenía).
+Sin commitear al cerrar: `sitio/google-classroom/scraper.test.js` (test 12) y `docs/ramas-en-revision.md` (checklist).
+
+🔴 DEFECTO GRANDE hallado el 2026-09-21 mirando el disco (el dueño avisó "descarga cosas donde no van"):
+**el listado se etiqueta con el curso equivocado.** `scraper.js:80-87` lee el nombre del curso de
+`document.title` UNA vez al arrancar y `:571` lo estampa en el `modulo` de todos los ítems → la carpeta
+(`popup.js:1466` → `parserTitulos`) sale del curso equivocado. En una SPA el title se sincroniza DESPUÉS de
+la URL y del contenido, y `popup.js:789` escanea en `tabs.onUpdated status==='complete'`, que llega antes.
+Evidencia: carpeta `2026_2c_mc6_mate_c` con **81 archivos md5-idénticos a G22** y 0 propios; storage con
+`modulo = "2026 - 2C - MC6 :: Mate C › <tema de G22>"` y `origenListado.clave = ODc0ODk1NDcwNTMw` = **idCurso
+de G22** (46 hrefs `/c/<id>/m/` en su muestra). Borré la carpeta (0 md5 huérfanos; quedan 336 archivos en 5).
+NO lo introdujo el plan de hidratación (el title se lee así desde v1.0.0), pero ese plan agrandó la ventana
+del escaneo a ~50 s, que es el otro camino al mismo defecto. **La cola está bien**: `ItemCola.carpeta` viaja
+con el ítem (procesadorCola.ts:172/808) y el destino se calcula al escanear — los 18 que ya bajaban fueron
+a la carpeta correcta. El dueño me corrigió la hipótesis: yo miraba el scraper, él preguntó por la cola
+(como en RamonNet) y justamente eso ya estaba resuelto.
+Fuentes del nombre, medidas en las 62 muestras: `document.title` se desfasa y a veces es genérico
+("Trabajo en clase"/"Novedades" en 15 muestras) → inservible; `a[aria-current="page"]` del sidebar es
+**exacto** (12/12 idéntico al nombre de hoy → cambiar la fuente NO renombra ni re-baja nada) pero **falta en
+los 2 archivados** (G25, MB5) y con la pestaña oculta; el texto del header viene **sin espacios** (nombre
+partido en nodos); `span#UGb2Qe` viene **abreviado** ("Q5"). Validación title↔ancla `/c/<id>` normalizada
+(NFKD, sin espacios, minúsculas): **37 validan, 0 contradicen, 15 sin fuente** y son justo las de title
+genérico. TRAMPA medida: las 37 anclas validadoras están **todas dentro de un `<nav>`** → no se puede
+filtrar por `closest("nav")`; los textos de las 2 vistas se excluyen con `buscarLinkNav` (devuelve el
+ELEMENTO, `return a` en :103 — verificado antes de escribirlo) y los patrones ya existen en :223 y :402.
+Plan escrito: `docs/plan-classroom-corte-1-identidad-del-curso.md` (identidad después del paso 7b, 2
+cinturones: ids `/c/<otro>/m/` en la vista y URL re-leída al final; +4 tests → **723**; el fixture necesita
+el ancla de sidebar o los 13 tests dan aviso).
+Lecciones de esta ronda: (1) escribí DOS diagnósticos falsos seguidos antes de medir —"el título viejo con
+DOM nuevo" y "ODc0… es el id de MC6"—; el id estaba en 2 muestras cualesquiera y sólo los hrefs `/c/<id>/m/`
+lo atan al curso. (2) Cuando el dueño dice "descarga donde no va", mirar el DISCO primero
+(`find -newermt` + md5 cruzado entre carpetas) antes de leer código: en 3 comandos quedó claro el alcance.
+(3) `backend/config_usuario.json` tiene la raíz real (`~/Descargas/verificacion-b`); el storage de Brave es
+legible con grep y da el `modulo` y el `origenListado` sin pedirle nada al dueño.
+
+**How to apply:** próxima ronda = obra ejecuta `docs/plan-classroom-corte-1-identidad-del-curso.md`; después
+verifico y va la Verificación B en Brave con los pasos 12-14 de la checklist más los 5 del §4 de ese plan
+(incluido cambiar de curso a mitad de escaneo). Recién después el merge, y luego el corte 2 sobre `spec.md`.
+M-6c (re-escanear G25 y mirar el storage enseguida) sigue pendiente del dueño y es lo único que puede
+reabrir el 🟡 de Novedades.
