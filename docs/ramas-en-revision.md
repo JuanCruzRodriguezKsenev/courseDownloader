@@ -83,8 +83,9 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ### Hallazgos de la Verificación B (2026-09-16)
 
-Entran al corte 1 **antes del merge** (decisión del dueño). El plan se escribe cuando la checklist
-termine, con todo lo que aparezca junto.
+Entran al corte 1 **antes del merge** (decisión del dueño). Se separaron el 2026-09-21: el 🔴 tiene plan
+escrito (`docs/plan-classroom-corte-1-adjuntos-sin-resolver.md`) y el 🟡 no entra a ninguno hasta que
+M-6c lo reproduzca.
 
 - 🔴 **El escaneo lee adjuntos a medio hidratar y los da por buenos.** `sitio/google-classroom/scraper.js:297-304`:
   la espera del paso 7 se cumple en cuanto el `li` tiene un `[data-attachment-id]`, pero ese `div`
@@ -102,6 +103,14 @@ termine, con todo lo que aparezca junto.
     su contenido. Deja además un `.md` huérfano que nada limpia.
   - **Decisión del dueño (2026-09-16)**: la espera debe exigir adjuntos **resueltos**, no presentes; si al vencer
     el tope alguno sigue sin resolver, se descarta y la tarjeta avisa cuántos. Nunca se lista un placeholder.
+  - **Decisión del dueño (2026-09-21)**, al escribir el plan: el aviso **no** puede ser el mecanismo
+    `ResultadoEscaneo.aviso`, que reemplaza el listado (un adjunto roto de 57 taparía los otros 56). Va como
+    **nota no bloqueante arriba de la lista**, y la espera **no reintenta**: espera al tope y descarta.
+  - **Plan escrito y sin ejecutar**: `docs/plan-classroom-corte-1-adjuntos-sin-resolver.md` (2026-09-21).
+    La señal del placeholder es el **href** (`open?id=` vs `/file/d/`), no el texto del `aria-label`:
+    "Desconocido" y "Archivo de Drive" son los defaults **localizados** del propio bundle de Classroom
+    (citados en el plan desde `docs/muestras/google-classroom/c3/g22.har`). El predicado se barrió contra
+    las 62 muestras HTML del repo: **1004 adjuntos, 0 falsos positivos**.
 
 - 🟡 **Novedades: los adjuntos faltan en el disco, pero el escaneo NO falla. NO REPRODUCIDO — tercer
   diagnóstico, y los dos anteriores eran falsos.** No entra al plan hasta reproducirlo (M-6c).
