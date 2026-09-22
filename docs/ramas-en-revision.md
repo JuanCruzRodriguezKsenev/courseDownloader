@@ -53,6 +53,11 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
     - Paso 5: regla `.lista-nota` en `styles/list.css` con variables de acento naranja.
     - Paso 6: tests nuevos (+2 en `scraper.test.js`, +1 en `listaClases.preact.test.js`).
     - Paso 7: docs actualizados; Verificación A en verde con 43 archivos, 719 tests.
+  - **Hecho** (`docs/plan-classroom-corte-1-identidad-del-curso.md`):
+    - Paso 1: `sitio/google-classroom/scraper.js` resuelve identidad por sidebar (`aria-label`) validado por idCurso en activos y por `<title>` confirmado por el DOM en archivados; cinturones de URL e ítems contra cambio de curso a mitad de escaneo.
+    - Paso 2: fixture `sitio/google-classroom/__fixtures__/curso.html` incorpora el ancla del sidebar del curso activo.
+    - Paso 3: tests 14–17 en `sitio/google-classroom/scraper.test.js` (+4 tests; control negativo del test 14 verificado contra `29d7919`).
+    - Paso 4: docs actualizados; Verificación A en verde con 43 archivos, 723 tests.
 - **Lo que no trae**: el mapeo a la carpeta del dueño (`U.N.L.P/`). Es el corte 2.
 
 ### Checklist de Verificación B (en navegador)
@@ -91,14 +96,15 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 12. [ ] **Adjuntos hidratados** (plan de adjuntos sin resolver, 2026-09-21): G22 con la pestaña al frente, Re-escanear 🔄 → 57 adjuntos y **ningún** archivo cuyo nombre empiece con `Archivo adjunto`; la nota `⚠️ … quedó afuera` **no** aparece arriba de la lista.
 13. [ ] **Consola de la pestaña de Classroom** (no la del popup): con todo bien no hay ninguna línea `[CLASSROOM] Adjuntos sin resolver`. Si aparece, anotar los ids: son los que se descartaron.
 14. [ ] **G25** (el curso con Novedades larga): la cuenta no bajó respecto de la Verificación B del 2026-09-16 (71 Trabajo en clase + hasta 28 en Novedades).
+15. [ ] **Cambio de curso a mitad de escaneo**: arrancar el escaneo en un curso y navegar a otro antes de que termine. Esperado: card de aviso de cambio de curso y no se lista nada del curso anterior.
 
 ### Hallazgos de la Verificación B (2026-09-16 y 2026-09-21)
 
-Entran al corte 1 **antes del merge** (decisión del dueño). El 🔴 de los adjuntos a medio hidratar quedó resuelto (`docs/plan-classroom-corte-1-adjuntos-sin-resolver.md`, en la lista de Hecho arriba) y el 🟡 no entra a ninguno hasta que M-6c lo reproduzca.
+Entran al corte 1 **antes del merge** (decisión del dueño). El 🔴 de los adjuntos a medio hidratar quedó resuelto (`docs/plan-classroom-corte-1-adjuntos-sin-resolver.md`, en la lista de Hecho arriba), el 🔴 de identidad del curso quedó resuelto (`docs/plan-classroom-corte-1-identidad-del-curso.md`, en la lista de Hecho arriba) y el 🟡 no entra a ninguno hasta que M-6c lo reproduzca.
 
 - 🔴 **El listado se etiqueta con el curso equivocado y los archivos van a la carpeta de otro curso.**
-  CONFIRMADO en disco el 2026-09-21. `sitio/google-classroom/scraper.js:80-87` lee el nombre del curso de
-  `document.title` una vez al arrancar y `:571` lo estampa en el `modulo` de todos los ítems; en una SPA el
+  CONFIRMADO en disco el 2026-09-21. RESUELTO con `docs/plan-classroom-corte-1-identidad-del-curso.md`. `sitio/google-classroom/scraper.js:80-87` leía el nombre del curso de
+  `document.title` una vez al arrancar y `:571` lo estampaba en el `modulo` de todos los ítems; en una SPA el
   título se sincroniza **después** de la URL y del contenido, y `popup.js:789` dispara el escaneo en
   `tabs.onUpdated` con `status === 'complete'`, que llega antes.
   - **Evidencia**: `~/Descargas/verificacion-b/google-classroom/2026_2c_mc6_mate_c/` (carpeta de MC6) tenía
@@ -115,9 +121,9 @@ Entran al corte 1 **antes del merge** (decisión del dueño). El 🔴 de los adj
   - **Decisiones del dueño (2026-09-21)**: el nombre sale del sidebar validado por idCurso, el title sólo
     si el DOM lo confirma; si no se puede confirmar, esperar y reintentar y después **abortar con aviso**
     sin listar nada.
-  - **Plan escrito y sin ejecutar**: `docs/plan-classroom-corte-1-identidad-del-curso.md` (2026-09-21), con
+  - **Plan ejecutado**: `docs/plan-classroom-corte-1-identidad-del-curso.md` (2026-09-21), con
     las cuatro fuentes medidas y la validación contra las 62 muestras (37 validan, **0 contradicen**, 15 sin
-    fuente y son justo las de title genérico).
+    fuente y son justo las de title genérico). Verificación A en verde con 43 archivos, 723 tests.
 
 - 🟡 **Novedades: los adjuntos faltan en el disco, pero el escaneo NO falla. NO REPRODUCIDO — tercer
   diagnóstico, y los dos anteriores eran falsos.** No entra al plan hasta reproducirlo (M-6c).

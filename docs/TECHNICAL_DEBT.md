@@ -14,9 +14,9 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 ## 🔴 Abierto
 
-> ## Estado al 2026-09-12: **DIEZ** entradas abiertas
+> ## Estado al 2026-09-21: **DOCE** entradas abiertas
 >
-> Re-contadas, no sumadas al número anterior (3 🔴, 3 🟠, 4 ⚪):
+> Re-contadas, no sumadas al número anterior (3 🔴, 3 🟠, 6 ⚪):
 >
 > 1. 🔴 **El mecanismo de popovers sin tests** (hallado 2026-08-05).
 > 2. 🔴 **El loader del popup no tiene dueño**: tokens y demora pendientes (hallado 2026-08-12).
@@ -29,6 +29,7 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 > 9. ⚪ **`AGENTS.md:150` cita `.agents/skills/`, que no existe**; sólo queda `skills-lock.json` (hallado 2026-09-12).
 > 10. ⚪ **`texto.test.ts` importa `node:fs` bajo un `@ts-expect-error`**: hay alternativa sin supresión, `?raw` (hallado 2026-09-12).
 > 11. ⚪ **Cerrar el popup a mitad del escaneo descarta el resultado** (hallado 2026-09-13).
+> 12. ⚪ **`popup.js:789` escanea en `status === 'complete'`, que en una SPA no significa "la vista está lista"** (hallado 2026-09-21): en Classroom corte 1 se tapó en el scraper esperando que el DOM confirme la identidad del curso; el disparador sigue siendo prematuro para otros portales.
 >
 > ### Lo que se cerró el 2026-09-12 (Classroom corte 1)
 >

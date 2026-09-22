@@ -711,3 +711,26 @@ Medición sobre el placeholder de adjuntos a medio hidratar (`docs/plan-classroo
 | Con todas sus anclas en `open?id=` | **0** |
 
 - **Consecuencia**: la espera del paso 7 y 7b/9 exige que cada id de adjunto tenga al menos un ancla resuelta (`!/drive\.google\.com\/open\?id=/.test(href)`). Los que vencen el tope se descartan y se informan en `ResultadoEscaneo.adjuntosSinResolver`.
+
+### Identidad del curso y fuentes del nombre (2026-09-21)
+
+Medición sobre las 62 muestras HTML del repo ante el defecto de título desfasado (`docs/plan-classroom-corte-1-identidad-del-curso.md`):
+
+- **Las cuatro fuentes posibles del nombre:**
+
+| Fuente | Exactitud | Cobertura |
+|---|---|---|
+| `document.title` | **se desfasa** (es el defecto) y a veces es genérico: `"Trabajo en clase"` / `"Novedades"` en 15 muestras | siempre presente |
+| `a[aria-current="page"][href*="/c/<id>"]` → `aria-label` | **exacta**: en 12/12 muestras con ancla, idéntica carácter por carácter al nombre que hoy sale del title | falta en los 2 cursos **archivados** (G25, MB5) y con la pestaña oculta (3/18 en `recorrido-2`) |
+| texto de un `a[href$="/c/<id>"]` (header) | el nombre viene **partido en varios nodos**, así que `textContent` lo devuelve **sin espacios** (`"Física II G22 2026 2do cuatrimestreFacultad…"`) | presente también en archivados |
+| `span#UGb2Qe` | **abreviado** (`"Q5"` en vez de `"Q5 Primer Cuatrimestre 2023"`) | falta en 19 muestras |
+
+- **Validación del title contra el DOM:**
+  Comparando el title-derivado con el texto de las anclas a `/c/<idCurso>` normalizado (NFKD, sin espacios, minúsculas), sobre las 45 muestras de curso:
+  - **37 validan**
+  - **0 contradicen**
+  - **15 sin ninguna fuente para validar** (exactamente las de title genérico como `"Trabajo en clase"` o `"Novedades"`, donde no se debe confiar en el title).
+  - **Nota de nav**: las 37 anclas validadoras están **todas dentro de un `<nav>`** (0 fuera), por lo que no se puede filtrar candidatos excluyendo `<nav>`; en su lugar, se descartan los textos que coincidan con los links de vista ("Novedades", "Trabajo en clase").
+
+- **Consecuencia**: en cursos activos el nombre sale del sidebar (`aria-label`) validado por idCurso (12/12 idéntico al title sin desfasar, conservando la identidad del ítem). En archivados, sale del title sólo si el DOM lo confirma. Si no se puede confirmar, se aborta con aviso para no mezclar archivos entre cursos.
+

@@ -30,10 +30,15 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **43 archivos, 719 tests**, todo en verde |
+| `pnpm test` | **43 archivos, 723 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 723** (2026-09-21, validar identidad del curso en Classroom corte 1). Son los 719 de abajo más
+**+4** tests en `sitio/google-classroom/scraper.test.js`: test 14 (title desfasado no manda sobre el sidebar),
+test 15 (curso archivado valida title contra anclas del DOM), test 16 (title genérico sin sidebar no lista y avisa),
+y test 17 (ítem de otro curso aborta escaneo para no mezclar archivos).
 
 **De dónde sale el 719** (2026-09-21, no listar adjuntos a medio hidratar en Classroom corte 1). Son los 716 de abajo más
 **+2** tests en `sitio/google-classroom/scraper.test.js` (test 12: espera de hidratación; test 13: descarte y conteo de adjunto no resuelto)

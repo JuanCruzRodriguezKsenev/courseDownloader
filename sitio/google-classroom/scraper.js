@@ -1,6 +1,12 @@
 /**
- * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.2.0)
+ * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.3.0)
  * ==========================================================================
+ * CHANGELOG v1.3.0:
+ * - [CLASSROOM CORTE 1 — IDENTIDAD DEL CURSO] El nombre del curso sale del
+ *   sidebar validado por idCurso en cursos activos, y del <title> validado
+ *   contra anclas del DOM en archivados; si no valida, aborta con aviso.
+ *   Verifica que los ítems y la URL pertenezcan a este curso.
+ *
  * CHANGELOG v1.2.0:
  * - [CLASSROOM CORTE 1 — ADJUNTOS SIN RESOLVER] El escaneo espera a que los
  *   adjuntos resuelvan su URL real de Drive antes de listarlos, y descarta los
@@ -38,6 +44,7 @@ const ScraperClassroom = {
         abrirTodos: 30000,
         sinAdjuntos: 1500,
         hidratacion: 10000,
+        identidadCurso: 8000,
       },
       opciones && opciones.tiempos
     );
@@ -59,6 +66,13 @@ const ScraperClassroom = {
       enlaces: [],
       aviso: "Cambiaste de pestaña durante el escaneo y Classroom dejó de cargar la página. Dejá Classroom al frente y re-escaneá.",
     };
+    const avisoCursoCambiado = {
+      materia: "",
+      enlaces: [],
+      aviso:
+        "Cambiaste de curso mientras escaneábamos, así que descartamos lo leído para no " +
+        "mezclar los archivos. Re-escaneá en el curso que quieras bajar.",
+    };
 
     // 1. Visibilidad inicial
     if (!visible()) return avisoVisibilidad;
@@ -77,14 +91,16 @@ const ScraperClassroom = {
     const cuentaMatch = /^\/u\/(\d+)\//.exec(path);
     const cuenta = cuentaMatch ? cuentaMatch[1] : "0";
 
-    let nombreCurso = document.title || "";
-    if (nombreCurso.startsWith("Trabajo en clase de ")) {
-      nombreCurso = nombreCurso.slice("Trabajo en clase de ".length);
+    // El título de la SPA se sincroniza DESPUÉS de la URL y del contenido: por eso no se puede
+    // usar como fuente del nombre (defecto del 2026-09-21: 81 archivos de G22 en la carpeta de
+    // MC6). Se conserva sólo como candidato A VALIDAR contra el DOM.
+    function nombreSegunTitulo() {
+      let t = document.title || "";
+      if (t.startsWith("Trabajo en clase de ")) t = t.slice("Trabajo en clase de ".length);
+      if (t.startsWith("Novedades de ")) t = t.slice("Novedades de ".length);
+      if (t.endsWith(" - Classroom")) t = t.slice(0, -" - Classroom".length);
+      return t.trim();
     }
-    if (nombreCurso.endsWith(" - Classroom")) {
-      nombreCurso = nombreCurso.slice(0, -" - Classroom".length);
-    }
-    nombreCurso = nombreCurso.trim();
 
     function obtenerVistaActiva() {
       const wizzes = document.querySelectorAll("body > c-wiz");
@@ -101,6 +117,55 @@ const ScraperClassroom = {
         const pathname = a.pathname || "";
         if (patronRegex.test(href) || patronRegex.test(pathname)) {
           return a;
+        }
+      }
+      return null;
+    }
+
+    function normalizarNombre(s) {
+      return (s || "").normalize("NFKD").replace(/\s+/g, "").toLowerCase();
+    }
+
+    function hrefDelCurso(a) {
+      const href = (a.getAttribute("href") || "").split(/[?#]/)[0];
+      return href.endsWith("/c/" + idCurso);
+    }
+
+    // Devuelve { nombre, fuente } o null. NUNCA devuelve un nombre que el DOM no confirme.
+    function resolverIdentidadCurso() {
+      // (a) Cursos activos: el ancla del curso actual en la barra lateral. Su `aria-label` trae
+      // el nombre completo en UN atributo, así que no se parte en nodos (medido: 12/12 idéntico
+      // al nombre que hoy sale del title).
+      for (const a of document.querySelectorAll('a[aria-current="page"][href*="/c/"]')) {
+        const etiqueta = (a.getAttribute("aria-label") || "").trim();
+        if (etiqueta && hrefDelCurso(a)) return { nombre: etiqueta, fuente: "sidebar" };
+      }
+
+      // (b) Cursos ARCHIVADOS: no están en la barra lateral (medido: G25 y MB5 no tienen ningún
+      // `aria-current="page"`). Ahí el nombre sale del title, pero SÓLO si alguna ancla al curso
+      // actual lo confirma. La comparación es normalizada porque el header parte el nombre en
+      // varios nodos y `textContent` lo devuelve sin espacios.
+      const candidato = nombreSegunTitulo();
+      if (!candidato) return null;
+      const objetivo = normalizarNombre(candidato);
+      if (!objetivo) return null;
+
+      // Los textos de los dos links de vista NO sirven de confirmación: apuntan al mismo
+      // `/c/<id>` y un title genérico ("Novedades") coincidiría con ellos. Se los excluye por
+      // href, con `buscarLinkNav` y los MISMOS patrones que ya arma el archivo en `:223`
+      // (Trabajo en clase) y `:402` (Novedades) — anclados y con el `idCurso` interpolado:
+      const regexTrabajoVista = new RegExp(`^(?:/u/\\d+)?/w/${idCurso}/t/all(?:$|\\?)`);
+      const regexNovedadesVista = new RegExp(`^(?:/u/\\d+)?/c/${idCurso}(?:$|\\?)`);
+      const vistas = [buscarLinkNav(regexNovedadesVista), buscarLinkNav(regexTrabajoVista)];
+      const textosDeVista = vistas
+        .filter(Boolean)
+        .map((a) => normalizarNombre(a.textContent || ""));
+      if (textosDeVista.includes(objetivo)) return null;
+
+      for (const a of document.querySelectorAll("a[href]")) {
+        if (!hrefDelCurso(a)) continue;
+        if (normalizarNombre(a.textContent || "") === objetivo) {
+          return { nombre: candidato, fuente: "titulo-validado" };
         }
       }
       return null;
@@ -271,6 +336,8 @@ const ScraperClassroom = {
     const lisTrabajo = vistaTrabajo.querySelectorAll("li[data-stream-item-id]");
     const trabajoVacio = tieneMarcadorVacio && lisTrabajo.length === 0;
 
+    let nombreCurso = "";
+    let identidad = null;
     const idsSinResolver = new Set();
     const itemsLeidosTrabajo = [];
 
@@ -353,6 +420,25 @@ const ScraperClassroom = {
       for (const id of adjuntosSinResolver(vistaTrabajo)) idsSinResolver.add(id);
       if (!visible()) return avisoVisibilidad;
 
+      // Identidad del curso: recién acá el DOM ya está pintado. En el camino feliz esta espera
+      // cuesta 0 ms (`esperarCondicion` evalúa el predicado antes de dormir).
+      identidad = resolverIdentidadCurso();
+      if (!identidad) {
+        await esperarCondicion(() => Boolean(resolverIdentidadCurso()), tiempos.identidadCurso);
+        identidad = resolverIdentidadCurso();
+      }
+      if (!identidad) {
+        return {
+          materia: "",
+          enlaces: [],
+          aviso:
+            "No pudimos confirmar de qué curso es esta lista, así que no se muestra nada " +
+            "(el riesgo es bajar los archivos a la carpeta de otro curso). Dejá Classroom al " +
+            "frente, esperá a que el curso termine de cargar y re-escaneá.",
+        };
+      }
+      nombreCurso = identidad.nombre;
+
       // 8. Leer "Trabajo en clase"
       const regionesActualizadas = vistaTrabajo.querySelectorAll('div[role="region"][aria-label]');
       for (const region of regionesActualizadas) {
@@ -367,6 +453,13 @@ const ScraperClassroom = {
 
         const lis = region.querySelectorAll("li[data-stream-item-id]");
         for (const li of lis) {
+          // Un `/c/<otroId>/m/` en la vista significa DOM de otro curso todavía montado.
+          const anclaItem = li.querySelector('a[href*="/m/"]');
+          if (anclaItem) {
+            const m = /\/c\/([^/?#]+)\/m\//.exec(anclaItem.getAttribute("href") || "");
+            if (m && m[1] !== idCurso) return avisoCursoCambiado;
+          }
+
           const btn = li.querySelector('div[role="button"][aria-expanded]');
           const material = btn ? (btn.getAttribute("aria-label") || "").trim() : "";
 
@@ -439,6 +532,13 @@ const ScraperClassroom = {
       );
 
       for (const post of itemsExternos) {
+        // Un `/c/<otroId>/m/` en la vista significa DOM de otro curso todavía montado.
+        const anclaItem = post.querySelector('a[href*="/m/"]');
+        if (anclaItem) {
+          const m = /\/c\/([^/?#]+)\/m\//.exec(anclaItem.getAttribute("href") || "");
+          if (m && m[1] !== idCurso) return avisoCursoCambiado;
+        }
+
         const heading = post.querySelector('h2, [role="heading"]');
         const material = heading ? (heading.textContent || "").trim() : "Novedad";
         const tema = "Novedades";
@@ -481,6 +581,9 @@ const ScraperClassroom = {
 
     if (idsSinResolver.size > 0) {
       console.warn("[CLASSROOM] Adjuntos sin resolver, descartados:", [...idsSinResolver]);
+    }
+    if (identidad) {
+      console.log("[CLASSROOM] Curso:", idCurso, "→", nombreCurso, `(${identidad.fuente})`);
     }
 
     // 12. Deduplicar entre vistas
@@ -585,6 +688,13 @@ const ScraperClassroom = {
             ? `Classroom no terminó de cargar los ${idsSinResolver.size} adjuntos de este curso. Dejá la pestaña al frente y re-escaneá.`
             : "Este curso no tiene archivos en Trabajo en clase ni en Novedades.",
       };
+    }
+
+    const pathFinal = location.pathname || "";
+    const idCursoFinalMatch = /\/(?:c|w)\/([^/]+)/.exec(pathFinal);
+    const idCursoFinal = idCursoFinalMatch ? idCursoFinalMatch[1] : null;
+    if (idCursoFinal !== idCurso) {
+      return avisoCursoCambiado;
     }
 
     return {

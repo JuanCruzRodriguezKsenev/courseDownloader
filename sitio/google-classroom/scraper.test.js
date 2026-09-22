@@ -17,6 +17,7 @@ const TIEMPOS_TEST = {
   abrirTodos: 1000,
   sinAdjuntos: 10,
   hidratacion: 200,
+  identidadCurso: 200,
 };
 
 function prepararDom(html = htmlFixture, urlInicial = "https://classroom.google.com/u/2/w/CURSO123/t/all") {
@@ -333,6 +334,64 @@ describe("ScraperClassroom.escanearListado", () => {
     expect(conPlaceholder.length).toBe(0);
 
     expect(res.enlaces.length).toBe(cantBase);
+  });
+
+  it("14. el title desfasado no manda: el nombre sale del sidebar", async () => {
+    document.title = "Trabajo en clase de OTRO CURSO - Classroom";
+
+    const res = await ScraperClassroom.escanearListado({ tiempos: TIEMPOS_TEST });
+
+    expect(res.aviso).toBeUndefined();
+    expect(res.enlaces.length).toBeGreaterThan(0);
+    for (const e of res.enlaces) {
+      expect(e.modulo.startsWith("Física II › ")).toBe(true);
+      expect(e.modulo.includes("OTRO CURSO")).toBe(false);
+    }
+  });
+
+  it("15. curso archivado: sin sidebar, el title vale si el DOM lo confirma", async () => {
+    const anclaSidebar = document.querySelector('a[aria-current="page"]');
+    if (anclaSidebar) anclaSidebar.removeAttribute("aria-current");
+
+    const nav = document.querySelector("nav");
+    const anclaArchivado = document.createElement("a");
+    anclaArchivado.setAttribute("href", "/u/2/c/CURSO123");
+    anclaArchivado.innerHTML = "Física<span> II</span>";
+    nav.appendChild(anclaArchivado);
+
+    const res = await ScraperClassroom.escanearListado({ tiempos: TIEMPOS_TEST });
+
+    expect(res.aviso).toBeUndefined();
+    expect(res.enlaces.length).toBeGreaterThan(0);
+    for (const e of res.enlaces) {
+      expect(e.modulo.startsWith("Física II › ")).toBe(true);
+    }
+  });
+
+  it("16. title genérico y sin sidebar: no lista nada y avisa", async () => {
+    const anclaSidebar = document.querySelector('a[aria-current="page"]');
+    if (anclaSidebar) anclaSidebar.removeAttribute("aria-current");
+    document.title = "Trabajo en clase";
+
+    const res = await ScraperClassroom.escanearListado({ tiempos: TIEMPOS_TEST });
+
+    expect(res.enlaces.length).toBe(0);
+    expect(res.aviso).toBeDefined();
+    expect(res.aviso).toContain("curso");
+  });
+
+  it("17. un ítem de otro curso en la vista aborta el escaneo", async () => {
+    const region = document.querySelector('#vista-trabajo div[role="region"]');
+    const li = document.createElement("li");
+    li.setAttribute("data-stream-item-id", "item-otro-curso");
+    li.innerHTML = `<a href="/u/2/c/OTRO999/m/item-1/details">Item de otro curso</a>`;
+    region.appendChild(li);
+
+    const res = await ScraperClassroom.escanearListado({ tiempos: TIEMPOS_TEST });
+
+    expect(res.enlaces.length).toBe(0);
+    expect(res.aviso).toBeDefined();
+    expect(res.aviso).toContain("Cambiaste de curso");
   });
 });
 
