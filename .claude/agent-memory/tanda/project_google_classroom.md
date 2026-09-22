@@ -170,6 +170,20 @@ Hueco cerrado: `archivos.<id>` estaba tipado por id de Drive y los **55 accesos 
 renombrar y `ObsidianUNLP_Vault` vive en el mismo árbol) + fila 0 de la tabla de decisión + AC-12/AC-13.
 Sin commitear al cerrar: spec.md, assumptions.md, ramas-en-revision.md.
 
+M-6/M-6b (2026-09-17, consola del dueño, G25 Novedades): **el 2do defecto de la Verif. B NO se reproduce.**
+`buscarContenedorScroll()` devuelve el `<html>` = `scrollingElement` = único que dispara scroll; el bucle de
+`esperarQuietud` lleva 40→237 posts en 6 vueltas y corta en la 9 (de 40); los 14 contenedores candidatos a vista
+ven lo mismo que `document`. La sonda del 12-09 da idéntico (237 posts / 28 adjuntos en su HTML). Los 26 adjuntos
+que faltan en disco SÍ tenían `data-attachment-id`, cuelgan de items externos (66 ext / 171 anidados → `itemsExternos`
+no descarta) y tienen 0 ids en común con Trabajo en clase (→ el dedup de :418 tampoco). O sea: **el escaneo de
+Novedades no tiene defecto medible**; el síntoma en disco es real pero la causa está sin identificar (M-6c:
+re-escanear G25 y mirar el storage enseguida). Lección dura: en esta rama escribí TRES diagnósticos seguidos sin
+reproducir —"no pagina", "no crece el stream", "vista equivocada"—, todos falsos; y la frase "no llegan ni al
+storage" se escribió sin pegar la salida del storage. Regla: un hallazgo de ramas-en-revision.md no se escribe en
+🔴 sin reproducirlo, y si no se reprodujo va en 🟡 con "NO REPRODUCIDO" en el título.
+Sin parser HTML en el sistema (no hay lxml/bs4/html5lib): para aplicar filtros tipo `closest()` sobre un HTML
+guardado, escribir un HTMLParser propio con pila de ancestros — funciona y es barato.
+
 **How to apply:** próxima ronda = **plan del corte 1** con los dos defectos de escaneo juntos (mismo archivo, misma clase de
 falla), verificado contra G25 que es el curso que los destapa; después merge; después plan del corte 2 citando `spec.md` por
 RN-n y AC-n. Sin commitear al cerrar esta ronda: spec.md, assumptions.md, ramas-en-revision.md, portal-…-diseno.md.

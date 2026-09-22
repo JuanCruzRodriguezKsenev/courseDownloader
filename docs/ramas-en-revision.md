@@ -103,33 +103,38 @@ termine, con todo lo que aparezca junto.
   - **Decisión del dueño (2026-09-16)**: la espera debe exigir adjuntos **resueltos**, no presentes; si al vencer
     el tope alguno sigue sin resolver, se descarta y la tarjeta avisa cuántos. Nunca se lista un placeholder.
 
-- 🔴 **Novedades pierde los adjuntos de los posts viejos. Causa NO confirmada — hace falta M-6.**
-  `sitio/google-classroom/scraper.js:371-378` entra a Novedades, hace `esperarQuietud()` y lee el DOM.
-  **Corrección del 2026-09-16**: la primera lectura de este hallazgo decía "no pagina ni expande", y eso
-  es falso. El registro de la sonda (`recorrido-3/07-…-novedades.json`) muestra que el stream de G25
-  crece de 76 a 237 `data-stream-item-id` en 6 vueltas de scroll, **sin un solo click**
-  (`clicksVerMas: []`, `expandir: false`), y en ese HTML hay 0 botones "Ver más publicaciones". O sea
-  que en Novedades no hay paginación por botón y `esperarQuietud` hace el scroll correcto en principio.
-  **Hipótesis a medir (M-6)**: `buscarContenedorScroll()` (línea 102) elige el elemento de mayor
-  `scrollHeight` con `overflow-y: auto|scroll`; si en la vista de Novedades ése no es el que scrollea
-  de verdad, el stream nunca crece y se leen sólo los ~76 ítems iniciales — los posts más recientes.
-  Encaja con que falten justo las guías 4, 5, 7, 11 y 12 (las viejas) y con que MB5, de stream corto,
-  saliera completo.
-  - **Evidencia**: `Fisica_II_G25_2026` (archivado, el de stream más largo) — **23 adjuntos del tema
-    "Próximas" no llegaron ni al escaneo**: `Resumen_guia4/5/7/12.pdf`, `1parcial_2..6.jpg`,
-    `Guia11_P4b/c/d.jpeg`, `Guia12_P4a/b.jpeg`, `Guia12_P9a/b/c.jpeg`, `P8a_guia5.jpeg`,
-    `P9_guia4.pdf`, `P11_guia4.pdf`, `resultados-repaso-conceptual.pdf`, `Guia7_P6b/c.jpeg`.
-    Ninguno aparece en `chrome.storage` (ni en lista, ni en cola, ni en descargados), mientras que
-    los que sí se bajaron del mismo curso aparecen — o sea **falla el escaneo, no la descarga**.
-    Todos están en la muestra del 2026-09-12 (`recorrido-3/…G25…-novedades.json`), así que son alcanzables.
-  - **Por qué no se vio antes**: sólo se nota cuando el stream es largo. G22, MC2, Física I y MB5 dieron
-    0 faltantes en Novedades — sus posts entran sin scrollear. D11 se decidió con el conteo de
-    "adjuntos que sólo están en Novedades", que no distingue entre "no está" y "no se cargó".
-  - **M-6 — qué medir**: en la consola de Brave, en G25 → Novedades, contar
-    `document.querySelectorAll('[data-attachment-id]').length` y `[data-stream-item-id]`, forzar el
-    scroll como lo hace `buscarContenedorScroll()` y volver a contar. **Decide**: si el contenedor que
-    elige esa función no crece el stream, el arreglo es la elección del scroller; si crece, la causa
-    es otra y hay que medir el corte de `esperarQuietud` (3 vueltas estables con 40 de tope).
+- 🟡 **Novedades: los adjuntos faltan en el disco, pero el escaneo NO falla. NO REPRODUCIDO — tercer
+  diagnóstico, y los dos anteriores eran falsos.** No entra al plan hasta reproducirlo (M-6c).
+  - **Lo que se creyó y es falso**: (1) "no pagina ni expande" — en Novedades no hay botón "Ver más
+    publicaciones", la carga es por scroll; (2) "el stream no crece porque `buscarContenedorScroll()`
+    elige mal el scroller" — M-6 lo niega.
+  - **M-6 (2026-09-17, consola de Brave, G25 → Novedades)**: `buscarContenedorScroll()` (`scraper.js:102`)
+    devuelve el `<html>`, que es exactamente `document.scrollingElement` y el **único** elemento que
+    dispara `scroll`. Replicando el bucle de `esperarQuietud` tal cual (40 vueltas, 1500 ms, corte a 3
+    estables): **40 → 237 posts en 6 vueltas, corta en la 9**, y con el scroller "real" da lo mismo.
+    Reproduce clavada la sonda del 2026-09-12, cuyo registro es `76→237 en 6 vueltas` y cuyo HTML
+    guardado tiene **237 `data-stream-item-id` y 28 `data-attachment-id`** — los mismos números.
+  - **M-6b**: los 14 contenedores candidatos a "vista activa" (`[role="main"]`, `c-wiz`, `[jsname]`)
+    ven **todos** el mismo stream que `document`. No hay vista vacía que corte el bucle antes.
+  - **Los 26 adjuntos faltantes SÍ estaban en el DOM**: `Resumen_guia4.pdf` tiene
+    `data-attachment-id="37014713914"` y su `<a aria-label="Archivo adjunto: PDF: …">`, que es
+    literalmente lo que busca el selector de `scraper.js:387`.
+  - **Tampoco se pierden en los filtros**: parseando el HTML de la sonda, los 28 adjuntos cuelgan de un
+    `[data-stream-item-id]` externo (66 externos / 171 anidados), así que `itemsExternos` (línea 379) no
+    descarta ninguno; y cruzando ids de Drive, Novedades y Trabajo en clase de G25 tienen **0 en común**,
+    así que el dedup de la línea 418 tampoco.
+  - **Evidencia del síntoma** (sigue siendo real): `Fisica_II_G25_2026` — 23 archivos del tema "Próximas"
+    no están en el disco de la Verificación B: `Resumen_guia4/5/7/12.pdf`, `1parcial_2..6.jpg`,
+    `Guia11_P4b/c/d.jpeg`, `Guia12_P4a/b.jpeg`, `Guia12_P9a/b/c.jpeg`, `P8a_guia5.jpeg`, `P9_guia4.pdf`,
+    `P11_guia4.pdf`, `resultados-repaso-conceptual.pdf`, `Guia7_P6b/c.jpeg`. Son exactamente los 26 ids
+    que sólo viven en Novedades, menos los 3 que sí bajaron.
+  - **Ojo con la afirmación vieja "no llegan ni al storage"**: se escribió sin pegar la salida del storage.
+    El storage actual (2026-09-17) no tiene esos nombres, pero corresponde a otro escaneo, así que **no
+    prueba nada**. Tratarla como no verificada.
+  - **M-6c — qué falta, y es lo único que decide**: re-escanear G25 con el build actual, con la pestaña al
+    frente, y mirar el storage **inmediatamente después**. Si los 26 aparecen, el escaneo está bien y el
+    defecto está aguas abajo (cola o descarga) o fue puntual de aquella corrida; si no aparecen, recién
+    ahí hay un defecto de escaneo que perseguir, y habrá que instrumentar el paso 9 con logs.
 
 - ⚠️ **`MC4 1S 2026` desapareció de la portada del dueño** entre el 2026-09-12 y el 2026-09-16, así que no
   se bajó (esperaba 13). **No es un defecto de la extensión**: en `recorrido-3/00-partida.json` (2026-09-12)
