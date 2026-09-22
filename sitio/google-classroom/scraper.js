@@ -1,6 +1,11 @@
 /**
- * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.3.0)
+ * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.3.1)
  * ==========================================================================
+ * CHANGELOG v1.3.1:
+ * - [CLASSROOM CORTE 1 — IDENTIDAD EN ARCHIVADOS] En cursos archivados el title lo confirma el
+ *   ancla del `<h1>` (el encabezado del curso), no "cualquier ancla al curso menos los links de
+ *   vista": ese filtro descartaba al propio encabezado y dejaba G25 y MB5 sin poder escanearse.
+ *
  * CHANGELOG v1.3.0:
  * - [CLASSROOM CORTE 1 — IDENTIDAD DEL CURSO] El nombre del curso sale del
  *   sidebar validado por idCurso en cursos activos, y del <title> validado
@@ -142,27 +147,22 @@ const ScraperClassroom = {
       }
 
       // (b) Cursos ARCHIVADOS: no están en la barra lateral (medido: G25 y MB5 no tienen ningún
-      // `aria-current="page"`). Ahí el nombre sale del title, pero SÓLO si alguna ancla al curso
-      // actual lo confirma. La comparación es normalizada porque el header parte el nombre en
-      // varios nodos y `textContent` lo devuelve sin espacios.
+      // `aria-current="page"`). Ahí el nombre sale del title, pero SÓLO si el ancla al curso
+      // actual dentro del `<h1>` lo confirma. La comparación es normalizada porque el header parte
+      // el nombre en varios nodos y `textContent` lo devuelve sin espacios.
       const candidato = nombreSegunTitulo();
       if (!candidato) return null;
       const objetivo = normalizarNombre(candidato);
       if (!objetivo) return null;
 
-      // Los textos de los dos links de vista NO sirven de confirmación: apuntan al mismo
-      // `/c/<id>` y un title genérico ("Novedades") coincidiría con ellos. Se los excluye por
-      // href, con `buscarLinkNav` y los MISMOS patrones que ya arma el archivo en `:223`
-      // (Trabajo en clase) y `:402` (Novedades) — anclados y con el `idCurso` interpolado:
-      const regexTrabajoVista = new RegExp(`^(?:/u/\\d+)?/w/${idCurso}/t/all(?:$|\\?)`);
-      const regexNovedadesVista = new RegExp(`^(?:/u/\\d+)?/c/${idCurso}(?:$|\\?)`);
-      const vistas = [buscarLinkNav(regexNovedadesVista), buscarLinkNav(regexTrabajoVista)];
-      const textosDeVista = vistas
-        .filter(Boolean)
-        .map((a) => normalizarNombre(a.textContent || ""));
-      if (textosDeVista.includes(objetivo)) return null;
-
-      for (const a of document.querySelectorAll("a[href]")) {
+      // El único confirmante aceptable es el ancla al curso actual dentro del `<h1>`: el
+      // encabezado del curso. Medido sobre las 62 muestras (2026-09-22): existe en 40 de las 41
+      // muestras de curso, es única en todas, y su texto normalizado confirma el title en 40/40,
+      // sin ninguna contradicción. Las dos pestañas de vista quedan afuera por no vivir en un
+      // `<h1>`, sin mirarles el texto: filtrarlas por `buscarLinkNav` era el defecto del
+      // 2026-09-21, porque `buscarLinkNav` devuelve la PRIMERA `nav a[href]` que coincide y en el
+      // DOM real ésa es justamente el encabezado (el único que puede confirmar).
+      for (const a of document.querySelectorAll("h1 a[href]")) {
         if (!hrefDelCurso(a)) continue;
         if (normalizarNombre(a.textContent || "") === objetivo) {
           return { nombre: candidato, fuente: "titulo-validado" };

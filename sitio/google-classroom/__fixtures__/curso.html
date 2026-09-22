@@ -5,10 +5,15 @@
   <title>Trabajo en clase de Física II - Classroom</title>
 </head>
 <body>
+  <!-- Orden medido en las 62 muestras: encabezado del curso (dentro de un <h1>), después el
+       ancla del sidebar del curso activo, y al final las dos pestañas de vista. El encabezado va
+       PRIMERO porque es el que `buscarLinkNav` devuelve en el DOM real, y el nombre viene partido
+       en nodos (`textContent` lo da sin espacios). -->
   <nav>
+    <h1><a href="/u/2/c/CURSO123">Física<span> II</span></a></h1>
+    <a aria-current="page" href="/u/2/c/CURSO123" aria-label="Física II">Física II</a>
     <a href="/u/2/c/CURSO123">Novedades</a>
     <a href="/u/2/w/CURSO123/t/all">Trabajo en clase</a>
-    <a aria-current="page" href="/u/2/c/CURSO123" aria-label="Física II">Física II</a>
   </nav>
 
   <!-- Vista oculta: no debe ser leída -->

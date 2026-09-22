@@ -58,6 +58,11 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
     - Paso 2: fixture `sitio/google-classroom/__fixtures__/curso.html` incorpora el ancla del sidebar del curso activo.
     - Paso 3: tests 14–17 en `sitio/google-classroom/scraper.test.js` (+4 tests; control negativo del test 14 verificado contra `29d7919`).
     - Paso 4: docs actualizados; Verificación A en verde con 43 archivos, 723 tests.
+  - **Hecho** (`docs/plan-classroom-corte-1-identidad-en-archivados.md`):
+    - Paso 1: `sitio/google-classroom/scraper.js` confirma identidad en archivados con el ancla al curso dentro del `<h1>` (v1.3.1), descartando el filtro por links de vista que eliminaba al propio encabezado.
+    - Paso 2: fixture `sitio/google-classroom/__fixtures__/curso.html` refleja el DOM real con encabezado en `<h1>`.
+    - Paso 3: test 15 prueba el mecanismo real y test 18 (+1 test) verifica que un ancla fuera del `<h1>` no confirma el title en `sitio/google-classroom/scraper.test.js`.
+    - Paso 4: docs actualizados; Verificación A en verde con 43 archivos, 724 tests.
 - **Lo que no trae**: el mapeo a la carpeta del dueño (`U.N.L.P/`). Es el corte 2.
 
 ### Checklist de Verificación B (en navegador)
@@ -74,8 +79,8 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 2. [ ] **Escaneo curso por curso** (contrastar enlaces con los esperados del §8 del diseño):
    - [ ] Física II G22 (Palacio): 57 enlaces esperados
    - [ ] Física I 2024: 130 enlaces (129 Trabajo en clase + 1 sólo en Novedades)
-   - [ ] Fisica_II_G25_2026 (Bianchi, archivado): 71 Trabajo en clase + hasta 28 en Novedades
-   - [ ] MB5 2024: 24 enlaces
+   - [ ] Fisica_II_G25_2026 (Bianchi, archivado): 71 Trabajo en clase + hasta 28 en Novedades (si aparece la tarjeta «No pudimos confirmar de qué curso es esta lista», es el defecto del 2026-09-22 y el arreglo no está en el build)
+   - [ ] MB5 2024: 24 enlaces (si aparece la tarjeta «No pudimos confirmar de qué curso es esta lista», es el defecto del 2026-09-22 y el arreglo no está en el build)
    - [ ] MC4 1S 2026: 13 enlaces
    - [ ] MC2 2025: 25 enlaces
    - [ ] MC6 y Q5: tarjeta "El escaneo no trajo clases" en segundos, sin esperar tope de 20 s
@@ -100,7 +105,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ### Hallazgos de la Verificación B (2026-09-16 y 2026-09-21)
 
-Entran al corte 1 **antes del merge** (decisión del dueño). El 🔴 de los adjuntos a medio hidratar quedó resuelto (`docs/plan-classroom-corte-1-adjuntos-sin-resolver.md`, en la lista de Hecho arriba), el 🔴 de identidad del curso quedó resuelto (`docs/plan-classroom-corte-1-identidad-del-curso.md`, en la lista de Hecho arriba), el 🔴 de identidad en **cursos archivados** tiene plan escrito y **sin ejecutar** (`docs/plan-classroom-corte-1-identidad-en-archivados.md`) y el 🟡 no entra a ninguno hasta que M-6c lo reproduzca.
+Entran al corte 1 **antes del merge** (decisión del dueño). El 🔴 de los adjuntos a medio hidratar quedó resuelto (`docs/plan-classroom-corte-1-adjuntos-sin-resolver.md`, en la lista de Hecho arriba), el 🔴 de identidad del curso quedó resuelto (`docs/plan-classroom-corte-1-identidad-del-curso.md`, en la lista de Hecho arriba), el 🔴 de identidad en **cursos archivados** quedó resuelto (`docs/plan-classroom-corte-1-identidad-en-archivados.md`, en la lista de Hecho arriba) y el 🟡 no entra a ninguno hasta que M-6c lo reproduzca.
 
 - 🔴 **El listado se etiqueta con el curso equivocado y los archivos van a la carpeta de otro curso.**
   CONFIRMADO en disco el 2026-09-21. RESUELTO con `docs/plan-classroom-corte-1-identidad-del-curso.md`. `sitio/google-classroom/scraper.js:80-87` leía el nombre del curso de
@@ -126,9 +131,11 @@ Entran al corte 1 **antes del merge** (decisión del dueño). El 🔴 de los adj
     fuente y son justo las de title genérico). Verificación A en verde con 43 archivos, 723 tests.
 
 - 🔴 **Los dos cursos archivados (G25 y MB5) no se pueden escanear: la identidad del curso nunca se
-  confirma.** Hallado el 2026-09-22 revisando el plan de identidad ya ejecutado (`d61edc0`), **antes**
-  de tocar el navegador. Tiene plan escrito y sin ejecutar:
-  `docs/plan-classroom-corte-1-identidad-en-archivados.md`.
+  confirma.** RESUELTO con `docs/plan-classroom-corte-1-identidad-en-archivados.md`. Rompía el escaneo
+  en G25 y MB5 devolviendo tarjeta de aviso sin listar nada. Detectado el 2026-09-22 por barrido de las
+  62 muestras simulando `resolverIdentidadCurso` (7/7 archivados abortaban porque `buscarLinkNav`
+  descartaba el encabezado del curso) antes de tocar el navegador. Arreglado confirmando el title
+  exclusivamente contra el ancla al curso dentro del `<h1>` (40/41 presencia, 40/40 valida, 0 contradice).
   - **Qué se ve**: en G25 y MB5 el escaneo espera 8 s (`tiempos.identidadCurso`) y devuelve la tarjeta
     "No pudimos confirmar de qué curso es esta lista, así que no se muestra nada". No lista nada. Son
     2 de los 8 cursos, y los únicos cuyos totales de la checklist siguen firmes (G25 = 71, MB5 = 24),

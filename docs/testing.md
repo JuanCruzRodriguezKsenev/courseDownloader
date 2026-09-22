@@ -30,10 +30,13 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **43 archivos, 723 tests**, todo en verde |
+| `pnpm test` | **43 archivos, 724 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 724** (2026-09-22, identidad en cursos archivados de Classroom corte 1). Son los 723 de abajo más
+**+1** test en `sitio/google-classroom/scraper.test.js` (test 18: un ancla del curso fuera del `<h1>` no confirma el title; el test 15 no suma, cambia para probar el mecanismo real sin el ancla inventada).
 
 **De dónde sale el 723** (2026-09-21, validar identidad del curso en Classroom corte 1). Son los 719 de abajo más
 **+4** tests en `sitio/google-classroom/scraper.test.js`: test 14 (title desfasado no manda sobre el sidebar),

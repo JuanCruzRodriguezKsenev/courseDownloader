@@ -353,12 +353,6 @@ describe("ScraperClassroom.escanearListado", () => {
     const anclaSidebar = document.querySelector('a[aria-current="page"]');
     if (anclaSidebar) anclaSidebar.removeAttribute("aria-current");
 
-    const nav = document.querySelector("nav");
-    const anclaArchivado = document.createElement("a");
-    anclaArchivado.setAttribute("href", "/u/2/c/CURSO123");
-    anclaArchivado.innerHTML = "Física<span> II</span>";
-    nav.appendChild(anclaArchivado);
-
     const res = await ScraperClassroom.escanearListado({ tiempos: TIEMPOS_TEST });
 
     expect(res.aviso).toBeUndefined();
@@ -372,6 +366,21 @@ describe("ScraperClassroom.escanearListado", () => {
     const anclaSidebar = document.querySelector('a[aria-current="page"]');
     if (anclaSidebar) anclaSidebar.removeAttribute("aria-current");
     document.title = "Trabajo en clase";
+
+    const res = await ScraperClassroom.escanearListado({ tiempos: TIEMPOS_TEST });
+
+    expect(res.enlaces.length).toBe(0);
+    expect(res.aviso).toBeDefined();
+    expect(res.aviso).toContain("curso");
+  });
+
+  it("18. un ancla del curso fuera del <h1> no confirma el title", async () => {
+    document.querySelector('a[aria-current="page"]').remove();
+    document.querySelector("nav h1").remove();
+    const suelta = document.createElement("a");
+    suelta.setAttribute("href", "/u/2/c/CURSO123");
+    suelta.textContent = "Física II";
+    document.querySelector("nav").appendChild(suelta);
 
     const res = await ScraperClassroom.escanearListado({ tiempos: TIEMPOS_TEST });
 
