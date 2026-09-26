@@ -2136,6 +2136,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // línea divisoria y si lo de abajo quedó vacío por el filtro.
       let anclaActiva = false;
       let sinResultados = false;
+      let grupos = undefined;
       if (appState.pestañaActiva === "cola") {
         const busqueda = nodos.search.value.toLowerCase().trim();
 
@@ -2178,6 +2179,40 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         // los criterios de cada una. Con el default ('nombre' + ordenAscendente) el resultado
         // es idéntico al orden por título que había acá.
         filtrados.sort(_orden.comparador());
+
+        // [CLASSROOM ESCANEAR TODAS] Agrupar por curso si hay origen 'todos' y más de un curso
+        if (appState.origenListado?.clave === "todos") {
+          const nombreCurso = (c) => (c && c.modulo ? c.modulo.split(" › ")[0] : "");
+          const ordenCursosGlobal = [];
+          for (const c of appState.listadoClasesGlobal) {
+            const cur = nombreCurso(c);
+            if (cur && !ordenCursosGlobal.includes(cur)) {
+              ordenCursosGlobal.push(cur);
+            }
+          }
+          const cursosEnFiltrados = new Set(filtrados.map(nombreCurso).filter(Boolean));
+          if (cursosEnFiltrados.size > 1) {
+            const indiceCurso = new Map(ordenCursosGlobal.map((nombre, i) => [nombre, i]));
+            filtrados.sort((a, b) => {
+              const idxA = indiceCurso.has(nombreCurso(a)) ? indiceCurso.get(nombreCurso(a)) : 999999;
+              const idxB = indiceCurso.has(nombreCurso(b)) ? indiceCurso.get(nombreCurso(b)) : 999999;
+              return idxA - idxB;
+            });
+
+            grupos = [];
+            let cursor = 0;
+            for (const curso of ordenCursosGlobal) {
+              if (!cursosEnFiltrados.has(curso)) continue;
+              const conteo = filtrados.filter(c => nombreCurso(c) === curso).length;
+              grupos.push({
+                desde: cursor,
+                titulo: curso,
+                conteo,
+              });
+              cursor += conteo;
+            }
+          }
+        }
       }
 
       // [VACÍO POR QUÉ] `filtrados.length === 0` es cierto por DOS causas muy distintas, y
@@ -2248,6 +2283,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           anclaActiva,
           sinResultados,
           selectionMode,
+          grupos,
           // [CLASSROOM CORTE 1] La nota de adjuntos descartados y [CLASSROOM ESCANEAR TODAS]
           // resumen de recorrido. Sólo en Disponibles: es del escaneo, y la Fila no tiene
           // nada que ver con él — el mismo recorte que hace `escaneoMuertoDominaLaPestaña`.
