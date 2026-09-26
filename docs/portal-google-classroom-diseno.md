@@ -19,6 +19,9 @@ sirve video HLS. Leé §2 antes de creer que esto son "cinco pasos que no tocan 
 > [`specs/classroom-destino/spec.md`](./specs/classroom-destino/spec.md) (estado `draft`), con la
 > traza de decisiones en [`specs/classroom-destino/assumptions.md`](./specs/classroom-destino/assumptions.md).
 > Este documento conserva las decisiones D1–D13 del portal; la spec no las repite, las linkea.
+>
+> **Escanear todos los cursos desde la portada** (antes del corte 2, por orden del dueño) →
+> [`specs/classroom-escanear-todas/spec.md`](./specs/classroom-escanear-todas/spec.md) (estado `draft`).
 
 ## 1. Lo que se pidió (2026-09-12)
 
