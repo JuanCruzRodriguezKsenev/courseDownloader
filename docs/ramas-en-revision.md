@@ -14,9 +14,13 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ---
 
-## Nada en revisión
+## 📝 En preparación: `classroom-escanear-todas` (desde el 2026-09-25)
 
-`main` es lo último (2026-09-25).
+- **Qué va a traer**: escanear todos los cursos de Classroom desde la portada, en un solo recorrido
+  que sobrevive a cerrar el popup.
+  - Spec: `docs/specs/classroom-escanear-todas/spec.md` (`draft`; supuestos aprobados sin leer).
+  - Plan: `docs/plan-classroom-escanear-todas.md`.
+- **Estado**: sólo spec y plan. **Sin código**: `main` sigue siendo lo último que funciona.
 
 ## Lo último que se mergeó (2026-09-25)
 
