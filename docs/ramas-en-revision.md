@@ -14,13 +14,36 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ---
 
-## 📝 En preparación: `classroom-escanear-todas` (desde el 2026-09-25)
+## 🚧 En revisión: `classroom-escanear-todas` (desde el 2026-09-25)
 
-- **Qué va a traer**: escanear todos los cursos de Classroom desde la portada, en un solo recorrido
+- **Qué trae**: escanear todos los cursos de Classroom desde la portada, en un solo recorrido
   que sobrevive a cerrar el popup.
-  - Spec: `docs/specs/classroom-escanear-todas/spec.md` (`draft`; supuestos aprobados sin leer).
+  - Spec: `docs/specs/classroom-escanear-todas/spec.md`.
   - Plan: `docs/plan-classroom-escanear-todas.md`.
-- **Estado**: En ejecución. Pasos 1 a 7 completados (ScraperClassroom todos, config Classroom portada, recorridoTodos puro, manejador SW, origenListado v1.1.0, popup v5.28.0, listaClases v1.4.0 con grupos por curso).
+- **Hecho por paso**:
+  - Paso 1: `ScraperClassroom` con `modo: "todos"`, cancelación entre cursos/latidos y emisión de eventos `recorrido_evento` vía `chrome.runtime.sendMessage`. 24 tests con control negativo probado.
+  - Paso 2: Contrato `PuertoSitio` v1.7.0 con `esPortada?`, config Classroom v1.3.0 (`claveDeListado: "todos"` en portada, instruccionEscaneo).
+  - Paso 3: Módulo puro `core/estado/recorridoTodos.ts` (reductor, vigencia, resumen, enlacesDe) y lector `RecorridoTodos` exportado en `plataforma/composicion.ts`. 14 tests.
+  - Paso 4: Manejador IPC `recorrido_evento` en `background.js` persistiendo en `storage.local.recorridoTodos`. 30 tests.
+  - Paso 5: `decidirAlAbrir` v1.1.0 en `core/estado/origenListado.ts` con 5 filas y `"recorridoTodos"` en `CLAVES_DE_SESION`. 15 tests.
+  - Paso 6: Orquestador `popup.js` v5.28.0 (lanzar, mirar, materializar recorrido multi-curso, cards de progreso/oferta/terminado-sin-material).
+  - Paso 7: Lista agrupada por curso (`ctx.grupos`), estilos `.grupo-curso` y `.lista-nota: white-space: pre-line` en `styles/list.css`, isla `listaClases.preact.js` v1.4.0. 39 tests.
+  - Paso 8: Revisión de copy en onboarding (slide 3).
+  - Paso 9: Documentación (ADR-0016, README ADRs, `AGENTS.md`, `data-model.md`, `patterns.md`, `architecture.md`, `multisitio-diseno.md`, `portal-google-classroom-diseno.md`, `TECHNICAL_DEBT.md`, `testing.md`).
+- **Verificación B — en Brave, la hace el dueño**:
+  - [ ] 1. **M-1**: con el escaneo de un curso (como en `main`), cronometrar cada curso por separado. Si el promedio se aleja de 45 s, corregir texto en Paso 6f y NFR-1.
+  - [ ] 2. **AC-1**: Portada `/u/2/h`, abrir el popup: tarjeta "Todas mis clases", botón "Escanear todos los cursos", y la pestaña **no** se mueve.
+  - [ ] 3. **AC-2 / AC-8**: Apretar el botón con la pestaña al frente, esperar sin tocar. Al final: resumen con los cursos de hoy (5 activos + 2 archivados = 7), G25 con 71 de Trabajo en clase y MB5 con 24, un encabezado por curso con material, y MC6 y Q5 sin grupo, contados como vacíos. Cronometrar el total (NFR-1: menos de 6 min).
+  - [ ] 4. **AC-4**: Relanzar con 🔄. En el curso 2, cerrar el popup. A los 60 s, reabrirlo: progreso en un curso posterior. Al terminar, la lista está completa.
+  - [ ] 5. **AC-5**: A mitad del recorrido, abrir el popup (la pestaña está dentro de un curso): se ve el progreso y **no** aparece "Escaneando la pestaña…".
+  - [ ] 6. **AC-3**: Terminado el recorrido, entrar a MC2 y escanearla sola: mismos ítems y nombres que en su grupo.
+  - [ ] 7. **AC-6**: Relanzar y, en el curso 4, cambiar de pestaña. Volver y abrir el popup: resumen "Se cortó en el curso 4 de 7: Classroom quedó en segundo plano", con los 3 completos en la lista. Repetir haciendo click en otro curso del sidebar: "navegaste fuera del recorrido".
+  - [ ] 8. **AC-9**: Si algún archivo de Drive está en dos cursos, aparece en los dos grupos, y bajarlo desde uno no lo marca en el otro.
+  - [ ] 9. **AC-10**: Bajar un PDF de G22 y uno de MC2: cada uno en `raíz/google-classroom/<curso>/`.
+  - [ ] 10. **AC-11**: Con la lista de todos, entrar a MC2 y abrir el popup: escanea MC2. Volver a la portada y abrir el popup: tarjeta "Todas mis clases", no la lista de todos.
+  - [ ] 11. **AC-12**: En la portada con lista de todos, 🔄 arranca un recorrido nuevo desde el curso 1.
+  - [ ] 12. **AC-13**: Dentro de G22, sin recorrido: el popup se comporta igual que en `main`.
+  - [ ] 13. **Consola del SW**: llegan los `recorrido_evento`, sin errores.
 
 ## Lo último que se mergeó (2026-09-25)
 

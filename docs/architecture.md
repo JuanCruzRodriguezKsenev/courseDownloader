@@ -51,7 +51,9 @@ en la extensión: **la pestaña del portal**, donde el popup inyecta `Scraper.es
 vía `chrome.scripting.executeScript`. Corre en el mundo aislado de la página y no comparte nada
 con las zonas de arriba — ni siquiera el módulo del que salió. La regla que impone está abajo,
 en §Capa 2 — `sitio/<portal>/`, y es de las pocas del proyecto que ninguna de las cuatro
-verificaciones detecta si se rompe.
+verificaciones detecta si se rompe. Excepción: durante el escaneo multi-curso de Classroom, el script
+inyectado habla directamente con el Service Worker vía `chrome.runtime.sendMessage` para reportar
+eventos del recorrido ([ADR-0016](adr/0016-escaneo-inyectado-avisa-al-sw.md)).
 
 Ver `docs/patterns.md` para el detalle de cómo se comunican estas zonas y qué patrones sostienen esa comunicación.
 

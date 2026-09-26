@@ -27,5 +27,7 @@ Registro formal de las decisiones de arquitectura significativas del proyecto.
 | [0012](0012-la-faceta-elegida-es-por-portal.md) | La faceta elegida es por portal, y `claveEstado` sale del puerto | Aceptada |
 | [0013](0013-credenciales-por-portal.md) | Las credenciales de un portal son suyas y del usuario, no de la clase | Aceptada |
 | [0014](0014-identidad-compuesta-de-clase.md) | La identidad de un ítem es (portal, módulo, tipo, título) | Aceptada |
+| [0015](0015-un-solo-repo-para-extension-y-backend.md) | La extensión y su backend viven en un solo repo | Aceptada |
+| [0016](0016-escaneo-inyectado-avisa-al-sw.md) | Un script inyectado puede avisar al service worker vía IPC | Aceptada |
 
 Estados posibles: `Propuesta` → `Aceptada` | `Rechazada` | `Diferida` → (eventualmente) `Superseded by NNNN`.

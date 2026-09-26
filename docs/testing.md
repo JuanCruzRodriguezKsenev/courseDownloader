@@ -30,10 +30,17 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **43 archivos, 724 tests**, todo en verde |
+| `pnpm test` | **44 archivos, 758 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 758** (2026-09-25, `classroom-escanear-todas`). Son los 724 de abajo más **+34** tests:
+**+6** en `sitio/google-classroom/scraper.test.js` (tests 19–24: modo todos, eventos, visibilidad, curso fallido, curso vacío, tope curso),
+**+14** en el archivo nuevo `core/estado/recorridoTodos.test.ts` (reductor puro, vigencia, resumen, enlacesDe),
+**+5** en `background.test.js` (manejador IPC `recorrido_evento` persistiendo en `storage.local.recorridoTodos`),
+**+6** en `core/estado/origenListado.test.ts` (decisión al abrir con recorrido y portada, 9 → 15 tests),
+y **+3** en `popup/features/listaClases.preact.test.js` (`ctx.grupos` de cursos, 36 → 39 tests).
 
 **De dónde sale el 724** (2026-09-22, identidad en cursos archivados de Classroom corte 1). Son los 723 de abajo más
 **+1** test en `sitio/google-classroom/scraper.test.js` (test 18: un ancla del curso fuera del `<h1>` no confirma el title; el test 15 no suma, cambia para probar el mecanismo real sin el ancla inventada).

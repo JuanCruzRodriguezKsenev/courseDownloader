@@ -373,6 +373,7 @@ proyecto cobra caro).
    de `credentials`). Radio de impacto ya visto: `core/cola/procesadorCola.ts`,
    `core/cola/procesadorCola.test.ts`, `core/puertos/sitio.ts`, `sitio/anatomy-by-chris/descargarAdjunto.js`
    (el único que hoy implementa `resolverAdjunto`), `core/cola/identidadClase.test.ts`.
+1b. **Escanear todos los cursos desde la portada** → **plan: `docs/plan-classroom-escanear-todas.md`** (spec: `docs/specs/classroom-escanear-todas/spec.md`). Recorrido multi-curso que navega por el DOM/sidebar desde `/h`, reporta eventos al Service Worker vía `chrome.runtime.sendMessage` ([ADR-0016](adr/0016-escaneo-inyectado-avisa-al-sw.md)), sobrevive al cierre del popup y agrupa la lista por curso.
 2. **Docs / Slides / Sheets** exportados, con nombre y extensión elegidos.
 3. ~~**Videos de Drive**: lectura por bloques desde `respuesta.body`.~~ **Fuera por D10**
    (2026-09-12): los videos se guardan como acceso. Vuelve si algún día se decide bajarlos.

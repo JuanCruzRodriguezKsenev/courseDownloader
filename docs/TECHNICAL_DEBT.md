@@ -555,7 +555,7 @@ Llegaron acá al mergear la tanda del toolbar (2026-08-13): vivían en
 ### ⚪ Cerrar el popup a mitad del escaneo descarta el resultado
 
 - **Dónde**: `popup.js` (`chrome.scripting.executeScript({ func: portal.escanearListado })`).
-- **Qué pasa**: el callback de `executeScript` vive en el popup; si el popup se cierra, el escaneo sigue en la pestaña y nadie guarda lo que devuelve. Con Classroom (minutos) es fácil que pase.
+- **Qué pasa**: el callback de `executeScript` vive en el popup; si el popup se cierra, el escaneo sigue en la pestaña y nadie guarda lo que devuelve. El recorrido multi-curso de Classroom ya no lo sufre porque reporta eventos directo al SW vía `chrome.runtime.sendMessage` ([ADR-0016](adr/0016-escaneo-inyectado-avisa-al-sw.md)); el escaneo de un solo curso sí lo sigue sufriendo, a propósito (RN-19).
 - **Estado**: ⚪ abierto (hallado el 2026-09-13, no medido).
 
 ### ⚪ Un 403 de un solo archivo de Drive pausa la cola entera
