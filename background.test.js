@@ -26,6 +26,7 @@ const OTRO_PORTAL = {
   nombre: 'Otro Portal',
   patronPestañas: 'https://otro/*',
   urlSondeoInternet: 'https://otro',
+  urlListado: 'https://otro/listado',
 };
 
 const store = { local: {}, session: {} };
@@ -148,6 +149,7 @@ beforeAll(async () => {
     id: 'ramonnet',
     patronPestañas: 'https://portal/*',
     urlSondeoInternet: 'https://portal',
+    urlListado: 'https://portal/listado',
   };
   globalThis.HlsEngine = {
     descargarYAnalizarIndexM3u8: async (...args) => motor.analizar(...args),
@@ -704,7 +706,7 @@ describe('click en la notificación de fallo → pestaña del portal DEL ÍTEM',
 
     await onClickedNotificacion(idDeFalloPara('otroportal'));
 
-    expect(tabsCreadas).toEqual([{ url: OTRO_PORTAL.urlSondeoInternet }]);
+    expect(tabsCreadas).toEqual([{ url: OTRO_PORTAL.urlListado }]);
   });
 
   it('dos fallos de portales distintos llevan cada uno al suyo (la cola mezclada)', async () => {
@@ -715,15 +717,15 @@ describe('click en la notificación de fallo → pestaña del portal DEL ÍTEM',
     await onClickedNotificacion(idB);
 
     expect(tabsCreadas).toEqual([
-      { url: globalThis.SitioActivo.urlSondeoInternet },
-      { url: OTRO_PORTAL.urlSondeoInternet },
+      { url: globalThis.SitioActivo.urlListado },
+      { url: OTRO_PORTAL.urlListado },
     ]);
   });
 
   it('un ítem sin sitioId (dato pre multi-sitio) resuelve al portal legado', async () => {
     await onClickedNotificacion(idDeFalloPara(undefined));
 
-    expect(tabsCreadas).toEqual([{ url: globalThis.SitioActivo.urlSondeoInternet }]);
+    expect(tabsCreadas).toEqual([{ url: globalThis.SitioActivo.urlListado }]);
   });
 
   it('un notificationId viejo (anterior al corte 8) también resuelve al legado', async () => {
@@ -731,7 +733,7 @@ describe('click en la notificación de fallo → pestaña del portal DEL ÍTEM',
     // extensión: su id no tiene el formato nuevo y no debe romper el click.
     await onClickedNotificacion('generado-por-chrome-123');
 
-    expect(tabsCreadas).toEqual([{ url: globalThis.SitioActivo.urlSondeoInternet }]);
+    expect(tabsCreadas).toEqual([{ url: globalThis.SitioActivo.urlListado }]);
   });
 
   it('portal huérfano: NO abre ninguna pestaña (adivinar es el bug)', async () => {

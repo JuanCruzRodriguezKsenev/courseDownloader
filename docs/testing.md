@@ -30,12 +30,55 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **38 archivos, 674 tests**, todo en verde |
+| `pnpm test` | **43 archivos, 724 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
 
-**De dónde sale el 674** (2026-08-13). Son los 673 de abajo más **+1** en
+**De dónde sale el 724** (2026-09-22, identidad en cursos archivados de Classroom corte 1). Son los 723 de abajo más
+**+1** test en `sitio/google-classroom/scraper.test.js` (test 18: un ancla del curso fuera del `<h1>` no confirma el title; el test 15 no suma, cambia para probar el mecanismo real sin el ancla inventada).
+
+**De dónde sale el 723** (2026-09-21, validar identidad del curso en Classroom corte 1). Son los 719 de abajo más
+**+4** tests en `sitio/google-classroom/scraper.test.js`: test 14 (title desfasado no manda sobre el sidebar),
+test 15 (curso archivado valida title contra anclas del DOM), test 16 (title genérico sin sidebar no lista y avisa),
+y test 17 (ítem de otro curso aborta escaneo para no mezclar archivos).
+
+**De dónde sale el 719** (2026-09-21, no listar adjuntos a medio hidratar en Classroom corte 1). Son los 716 de abajo más
+**+2** tests en `sitio/google-classroom/scraper.test.js` (test 12: espera de hidratación; test 13: descarte y conteo de adjunto no resuelto)
+y **+1** en `popup/features/listaClases.preact.test.js` (`ctx.nota` en modo lista).
+
+**De dónde sale el 716** (2026-09-13, abrir todos los ítems de Classroom corte 1). Son los 715 de abajo más
+**+1** test en `sitio/google-classroom/scraper.test.js` (test 11: apertura de todos los ítems plegados en el mismo tick).
+
+**De dónde sale el 715** (2026-09-13, lista guardada y Explorar en Linux para Classroom corte 1). Son los 706 de abajo más
+**+7** en `core/estado/origenListado.test.ts` (archivo nuevo, 42 → 43 archivos), **+1** en `core/estado/appState.test.ts`
+y **+1** en `sitio/registro.test.ts`.
+
+**De dónde sale el 706** (2026-09-12, verificación B de Classroom corte 1). Son los 702 de abajo más
+**+4** tests en `sitio/inyeccion.test.js` (archivo nuevo, 41 → 42 archivos), que fijan que
+`escanearListado` compila como expresión antes de inyectarse por `executeScript`.
+
+**De dónde sale el 702** (2026-09-12, corte 1 de Google Classroom). Son los 674 de abajo más
+**+28** tests nuevos repartidos en 3 archivos nuevos (38 → 41 archivos) y 3 archivos existentes:
+
+- **+16** en `sitio/google-classroom/` (3 archivos nuevos):
+  - `descargarAdjunto.test.js` (**+4**): URL de Drive con `authuser`, rechazo sin `authuser`,
+    data URI markdown de acceso con tildes, id vacío.
+  - `parserTitulos.test.js` (**+2**): `clasificarCarpeta` con curso saneado, cursos distintos con
+    mismo tema dan carpetas distintas.
+  - `scraper.test.js` (**+10**): Trabajo en clase y Novedades, ignorar vista oculta, tema
+    paginado entero (11), ítem plegado, accesos `.md` para Drive video/YouTube/vínculo, desempate
+    de nombres con material, `authuser` de `/u/N/`, curso vacío sin esperar tope de pintado, corte
+    por visibilidad de pestaña, deduplicación entre vistas.
+- **+4** en `core/cola/procesadorCola.test.ts`: política de cookies de adjuntos (`omit` vs
+  `include`) y rechazo tipado de respuesta HTML cuando el título no es `.html`/`.htm`.
+- **+5** en `core/util/texto.test.ts`: `nombreEnDisco` (conservar dobles espacios, caracteres
+  válidos en disco, basename con slash/backslash, fallback vacío, y test de paridad con
+  `backend/utils.js`).
+- **+3** en `sitio/registro.test.ts`: reclamación de URLs de Classroom, no reclamar `/h`, y
+  `topeEscaneoMs >= 120000` mayor que el de Anatomy.
+
+**De dónde salía el 674** (2026-08-13). Son los 673 de abajo más **+1** en
 `popup/features/pisoVisible.test.js` (`hayPendiente`), que fija el modo de falla que el piso
 estrena: **el código que LEE el DOM justo después de pedir una escritura**. Antes la escritura
 era sincrónica y medir a continuación medía el estado nuevo; con el piso puede estar en cola, y

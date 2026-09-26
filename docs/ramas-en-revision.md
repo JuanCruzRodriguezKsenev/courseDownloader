@@ -14,22 +14,26 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ---
 
-## ✅ Nada en revisión
+## Nada en revisión
 
-**Al 2026-08-27.** `main` está al día: la tanda `tanda-host-ramonnet-y-conexion` se verificó en
-Chrome y se mergeó. No hay trabajo construido fuera de `main`.
+`main` es lo último (2026-09-25).
 
-Dónde quedó lo que traía, por si venís buscándolo:
+## Lo último que se mergeó (2026-09-25)
 
-- **La migración de host** (`plataforma.ramonnet.com.ar` → `ramonnet.com.ar`, dado de baja el
-  primero) → el changelog de `sitio/ramonnet/config.ts` (v2.2.0) y `host_permissions` en
-  `wxt.config.ts`. Verificado con clases reales escaneadas sobre el host nuevo.
-- **El copy de conexión caída** ("Sin conexión a internet" → "No se pudo contactar el sitio",
-  porque el daemon sondea el host del portal, no internet en general) → el changelog de
-  `bannerConexion.preact.js` (v1.2.0), replicado en `conexionHeader.preact.js` y
-  `notificaciones.ts`. Verificado en Chrome.
-- **El badge de cátedra que se salía del popup** → el comentario sobre `min-width: 0` en
-  `.input-path`, `styles/components/path-bar.css`. Verificado en Chrome.
+`classroom-corte-1` (41 commits, desde el 2026-09-12): el tercer portal, Google Classroom. Escanea
+un curso entero y baja sus archivos de Drive a `raíz/google-classroom/<curso>/`; videos, YouTube y
+vínculos quedan como `.md` con el link.
+
+- **Verificado en Brave por el dueño (2026-09-25)**: escaneo curso por curso y descarga. Los
+  tres 🔴 de la Verificación B quedaron resueltos antes del merge.
+- **NO verificado en navegador**: los pasos 4, 6, 7, 10, 11, 13 y 15 de la checklist → entrada ⚪
+  en `docs/TECHNICAL_DEBT.md` §🔴 Abierto.
+- **Dónde quedó**:
+  - El registro completo de la rama (planes ejecutados, checklist, hallazgos con su evidencia) →
+    `docs/portal-google-classroom-diseno.md` §9.
+  - Lo abierto (el 🟡 de Novedades con M-6c pendiente, y los dos insumos de la spec del corte 2)
+    → `docs/TECHNICAL_DEBT.md` §🔴 Abierto.
+  - La baseline → `docs/testing.md` §Baseline.
 
 ---
 

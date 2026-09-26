@@ -1,6 +1,11 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: FILTROS Y BÚSQUEDA (V2.4.0)
+ * CLON DOWNLOADHELPER - FEATURE: FILTROS Y BÚSQUEDA (V2.5.0)
  * ==========================================================================
+ * CHANGELOG v2.5.0:
+ * - [CLASSROOM CORTE 1 — BOTÓN 🔄] `desbanearFiltros` re-habilita `nodos.btnRescan`
+ *   incondicionalmente junto con el buscador y filtros: es una salida, no actúa
+ *   sobre el resultado.
+ *
  * CHANGELOG v2.4.0:
  * - [LA SELECCIÓN SIGUE AL FILTRO] `aplicarFiltrosCruzados` deselecciona lo que deja de ser
  *   visible. Antes la selección sobrevivía al filtro sin verse: marcar "Todos" sin filtro y
@@ -288,6 +293,7 @@ const FilterFeature = {
       // sacar el filtro que lo dejó así (§2.2 de alertas-y-bloqueo-diseno.md). Lo único que
       // los apaga es la COLECCIÓN vacía, y eso lo decide `bloquearToolbar` afuera.
       nodos.search.disabled = false;
+      if (nodos.btnRescan) nodos.btnRescan.disabled = false;
       nodos.btnFilterPills.disabled = false;
 
       // Ordenar y "Seleccionar" sí: actúan SOBRE el resultado y no sacan de ninguna parte.

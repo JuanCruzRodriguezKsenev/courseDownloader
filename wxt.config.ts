@@ -53,6 +53,9 @@ export default defineConfig({
       // lecciones (`hot-club-api`, no el gateway), y es fácil darlo por cubierto de un vistazo.
       'https://api-club-hot-club-api.cb.hotmart.com/*',                    // firma del adjunto
       'https://hotmart-club-files.cb.hotmart.com/*',                       // el archivo (CloudFront)
+      // --- Portal 3: Google Classroom ---
+      'https://classroom.google.com/*',                                    // inyección del escaneo
+      'https://drive.usercontent.google.com/*',                            // descarga de archivos de Drive
       // --- Backend local ---
       'http://localhost:3001/*',
     ],

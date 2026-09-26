@@ -14,44 +14,31 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 ## 🔴 Abierto
 
-> ## Estado al 2026-08-13: **CUATRO** entradas abiertas
+> ## Estado al 2026-09-25: **DIECISÉIS** entradas abiertas
 >
-> Re-contadas, no sumadas al número anterior — que es lo que pide el párrafo del error de
-> conteo, unas líneas más abajo. Son:
+> Re-contadas, no sumadas al número anterior (3 🔴, 4 🟠, 9 ⚪):
 >
-> 1. **El mecanismo de popovers sin tests** (última entrada de esta sección). Venía de antes.
-> 2. **El loader no tiene dueño**: se prende y apaga con `style.display` desde **12 lugares**, y
->    los dos que se pisan están coordinados por una bandera (`elEscaneoTomoElLoader`) en vez de
->    por construcción. Medido el 2026-08-13: dos de los cuatro carteles del arranque son
->    destellos —**248 ms** el del loader y **117 ms** el del botón—, y los otros dos duran ~3 s.
->    **El corte ya está diseñado** (dueño único + tokens + demora para aparecer y mínimo visible
->    **por texto**, botón incluido) → `docs/ramas-en-revision.md` §Lo que falta.
-> 3. **`#ui-msg-status` está oculto y nadie se lo destapa**, así que ~20 mensajes son invisibles
->    —incluido el texto de progreso de la descarga—. Arreglo de una línea, lo que falta es la
->    pasada por navegador → `docs/alertas-y-bloqueo-diseno.md` §6.8b.
-> 4. **El banco no puede forzar una descarga en curso** ni sembrar el historial de fallos: sólo
->    envuelve APIs del popup, y eso vive en el service worker.
+> 1. 🔴 **El mecanismo de popovers sin tests** (hallado 2026-08-05).
+> 2. 🔴 **El loader del popup no tiene dueño**: tokens y demora pendientes (hallado 2026-08-12).
+> 3. 🔴 **`#ui-msg-status` está oculto y nadie se lo destapa** (hallado 2026-08-13).
+> 4. 🟠 **El banco de pruebas no alcanza al service worker** (hallado 2026-08-12).
+> 5. 🟠 **`sanitizarTexto` no replica al backend porque colapsa espacios**: afecta videos con dobles espacios; `nombreEnDisco` lo resuelve sólo para adjuntos (hallado 2026-09-12).
+> 6. 🟠 **`/api/seleccionar-carpeta` cambia la raíz de todos los portales**: Linux resuelto con `xdg-desktop-portal`; la raíz por portal va al corte 2 (hallado 2026-09-12).
+> 7. ⚪ **Dos restos de la limpieza de micro-movimientos** (hallado 2026-08-13).
+> 8. ⚪ **Un 403 de un solo archivo de Drive pausa la cola entera** (hallado 2026-09-12).
+> 9. ⚪ **`AGENTS.md:150` cita `.agents/skills/`, que no existe**; sólo queda `skills-lock.json` (hallado 2026-09-12).
+> 10. ⚪ **`texto.test.ts` importa `node:fs` bajo un `@ts-expect-error`**: hay alternativa sin supresión, `?raw` (hallado 2026-09-12).
+> 11. ⚪ **Cerrar el popup a mitad del escaneo descarta el resultado** (hallado 2026-09-13).
+> 12. ⚪ **`popup.js:789` escanea en `status === 'complete'`, que en una SPA no significa "la vista está lista"** (hallado 2026-09-21): en Classroom corte 1 se tapó en el scraper esperando que el DOM confirme la identidad del curso; el disparador sigue siendo prematuro para otros portales.
+> 13. 🟠 **Classroom: adjuntos de Novedades faltan en disco — NO REPRODUCIDO** (hallado 2026-09-16): decide M-6c.
+> 14. ⚪ **Classroom corte 1: siete pasos de la Verificación B sin mirar en navegador** (mergeado 2026-09-25).
+> 15. ⚪ **Spec corte 2: un curso ya asociado deja de aparecer** (`MC4 1S 2026`, hallado 2026-09-16).
+> 16. ⚪ **Spec corte 2: D12 deja copias md5-idénticas dentro de un mismo curso** (hallado 2026-09-21).
 >
-> **Y hay una tanda construida y sin verificar en Chrome**, en `tanda-toolbar-capa-y-pnpm`: pnpm,
-> el bloqueo y la capa flotante reutilizables, los controles que siguen al resultado y los
-> carteles de lista vacía. Qué mirar y en qué orden → `docs/ramas-en-revision.md`. Hasta que se
-> verifique, **eso no está cerrado**: la compuerta en verde no dice nada sobre esta zona.
+> ### Lo que se cerró el 2026-09-12 (Classroom corte 1)
 >
-> La verificación encontró **ocho defectos más**, ninguno alcanzable por la compuerta y cuatro
-> introducidos por el arreglo del anterior; se cerraron en la misma pasada. Tabla y lecciones →
-> `docs/alertas-y-bloqueo-diseno.md` §5.1.
->
-> **Y acá hubo un error de conteo que conviene dejar escrito, porque duró cinco días.** Este
-> mismo encabezado decía, desde el 2026-08-07, que «lo único abierto es el copy genérico», y
-> después «se suman CINCO»: total, seis. Eran **siete**. La entrada de los popovers —hallada el
-> 2026-08-05, marcada `🔴 abierto`, tres secciones más abajo— **no estaba contada**: el resumen
-> ya la omitía el día que se escribió. `AGENTS.md` (entonces `CLAUDE.md`) heredó el número y lo
-> repitió hasta hoy.
->
-> El error entró **por el resumen, no por el inventario**: las siete entradas siempre estuvieron
-> completas y correctas. Es exactamente el modo de falla contra el que existe la convención DRY
-> del proyecto (ADR-0007), aparecido adentro del propio doc canónico. **Al agregar una entrada
-> acá, re-contá la sección en vez de sumarle uno al número que ya estaba.**
+> - **El "ya descargado" de adjuntos por `includes`**: `popup.js` comparaba por `includes` y marcaba descargados archivos por colisión de prefijo (`a.pdf` vs `tabla.pdf`). Ahora compara por igualdad exacta contra `nombreEnDisco(clase.titulo).toLowerCase()`.
+> - **Test de serialización de funciones inyectadas**: `sitio/inyeccion.test.js` verifica que `escanearListado` de cada portal compila como expresión antes de inyectarse por `executeScript`.
 >
 > ### Lo que se cerró el 2026-08-12
 >
@@ -64,11 +51,12 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 >   "6 strings de `popup.js`" hasta que el re-relevamiento del 2026-08-11 lo midió bien —eran
 >   **9 textos en 17 sitios**, y **7 en 12** desde que el rename a Course Downloader cerró de
 >   arrastre los 4 de la marca—. Inventario → `docs/copy-generico-diseno.md`.
->   Su historia vale como recordatorio: pasó de **bloqueado** ("recién cuando exista un segundo
->   portal real") a **postergado** el 2026-08-07, que no es lo mismo; y de ahí a hecho.
->
-> La entrada de la identidad (ADR-0014) sigue **resuelta y conservada acá**, y no en el registro
-> fechado de abajo, porque lo que enseñó vale cada vez que se toca la cola o el escaneo.
+
+### ✅ El "ya descargado" de adjuntos daba positivo falso por includes
+
+- **Estado**: ✅ **RESUELTO el 2026-09-12** (hallado al medir Google Classroom, resuelto en Paso 4).
+- **Qué pasaba**: `popup.js:1508-1519` comparaba `clase.titulo.toLowerCase().trim()` con los nombres en disco aceptando `includes`. Para adjuntos con nombres cortos o genéricos (ej. `a.pdf`), cualquier archivo existente cuyo nombre contuviera esa cadena (ej. `tabla.pdf`) lo marcaba como ya descargado.
+- **Cómo se cerró**: si `clase.tipo === 'adjunto'`, la comparación se hace estrictamente por igualdad exacta contra `setArchivosNormalizados.has(utils.nombreEnDisco(clase.titulo).toLowerCase())` y nunca entra al bucle de `includes`.
 
 ### ✅ El timeout del escaneo salta SIEMPRE en Anatomy, y el mensaje miente
 
@@ -549,6 +537,84 @@ Llegaron acá al mergear la tanda del toolbar (2026-08-13): vivían en
   historial de fallos de la campanita.
 - **Qué haría falta**: contestar IPC de progreso falsos, que es otro mecanismo y no un switch más.
 - **Estado**: 🟠 abierto. El inventario de qué se fuerza y cómo vive en la cabecera del módulo.
+
+### 🟠 `sanitizarTexto` no replica al backend porque colapsa espacios
+
+- **Dónde**: `core/util/texto.ts:40-46` (`sanitizarTexto`).
+- **Qué pasa**: `sanitizarTexto` usa la misma clase de caracteres permitidos que el backend (`backend/utils.js:8`, `sanitizarNombreArchivo`), pero además colapsa secuencias de espacios en uno solo (`\s+` → `" "`). Si un video tiene espacios dobles en el título (ej: `"MC4 2026  - Copia de P2F2"`), el nombre en disco conserva el espacio doble pero la extensión busca con espacio simple.
+- **Por qué sigue abierto**: `nombreEnDisco` (Paso 3 del corte 1 de Classroom) resolvió el problema para los adjuntos sin tocar `sanitizarTexto`. Modificar `sanitizarTexto` cambiaría el nombre esperado de videos ya descargados en instalaciones existentes.
+- **Estado**: 🟠 abierto (hallado el 2026-09-12 al escribir el plan de Classroom).
+
+### 🟠 `/api/seleccionar-carpeta` cambia la raíz de todos los portales
+
+- **Dónde**: `backend/handlers.js:340` y `:347`.
+- **Qué pasa**: Linux está resuelto con `xdg-desktop-portal` (`backend/elegirCarpetaLinux.py`, 2026-09-13) y otros SO devuelven 501. Al guardar en `config_usuario.json` pisa la clave `rutaRaiz` global, cambiando la carpeta raíz de descarga para **todos** los portales a la vez.
+- **Solución**: queda para el corte 2 de Google Classroom (raíz configurable por portal y ADR-0016).
+- **Estado**: 🟠 abierto (hallado el 2026-09-12).
+
+### ⚪ Cerrar el popup a mitad del escaneo descarta el resultado
+
+- **Dónde**: `popup.js` (`chrome.scripting.executeScript({ func: portal.escanearListado })`).
+- **Qué pasa**: el callback de `executeScript` vive en el popup; si el popup se cierra, el escaneo sigue en la pestaña y nadie guarda lo que devuelve. Con Classroom (minutos) es fácil que pase.
+- **Estado**: ⚪ abierto (hallado el 2026-09-13, no medido).
+
+### ⚪ Un 403 de un solo archivo de Drive pausa la cola entera
+
+- **Dónde**: `core/cola/procesadorCola.ts:474`.
+- **Qué pasa**: la regla general de clasificación trata cualquier HTTP 403 como un `"bloqueo"` sistémico que pausa la cola completa. Si un docente deshabilita la descarga de un archivo puntual en Google Drive (permisos restringidos sobre ese archivo específico), Drive responde 403 y la cola entera se frena en vez de rechazar sólo ese ítem y continuar con los demás. No está medido si ocurre en la práctica con archivos de cátedra.
+- **Estado**: ⚪ abierto (hallado el 2026-09-12).
+
+### ⚪ `AGENTS.md:150` cita `.agents/skills/`, que no existe
+
+- **Dónde**: `AGENTS.md:150`.
+- **Qué pasa**: el texto cita la ruta `.agents/skills/` como ubicación de skills, pero en el repositorio no existe esa carpeta (sólo está `skills-lock.json`).
+- **Estado**: ⚪ abierto (hallado el 2026-09-12).
+
+### ⚪ `texto.test.ts` importa `node:fs` bajo un `@ts-expect-error`
+
+- **Dónde**: `core/util/texto.test.ts:11-12` y el test de paridad de `:107-110`.
+- **Qué pasa**: el test de paridad lee `backend/utils.js` con `readFileSync`; la extensión no tiene `@types/node` (y no conviene sumarlos: cambian los tipos de `setTimeout` en todo el grafo), así que el import se tapa con `@ts-expect-error`. La supresión apaga cualquier otro error de esa línea.
+- **Arreglo, ya medido**: `import fuenteBackend from '../../backend/utils.js?raw'`, el patrón que ya usa `sitio/google-classroom/scraper.test.js:8`. `vite/client` declara `*?raw` y llega por `.wxt/wxt.d.ts` (`wxt/vite-builder-env`); un `.ts` con ese import pasa `tsc --noEmit` contra el `tsconfig.json` del repo. Falta correrlo en Vitest.
+- **Estado**: ⚪ abierto (hallado el 2026-09-12, informe de `obra` del corte 1 de Classroom).
+
+### ⚪ Explorar falla en silencio cuando el backend devuelve error
+
+- **Dónde**: `popup.js:924-929` (el `.catch` de `backend.seleccionarCarpeta()`) y `backend/handlers.js:362-364` (500 con `{ error }`).
+- **Qué pasa**: si el selector no se puede abrir, el server loguea y devuelve 500; el popup restaura la ruta previa y sólo hace `console.error`. Para el usuario es "no pasó nada". Se vio el 2026-09-13 con un backend arrancado antes de `4623593`, que en Linux seguía lanzando `powershell`.
+- **Estado**: ⚪ abierto (hallado el 2026-09-13, verificación B del corte 1 de Classroom).
+
+### 🟠 Classroom: adjuntos de Novedades faltan en disco — NO REPRODUCIDO
+
+- **Dónde**: escaneo de Novedades en `sitio/google-classroom/scraper.js` (paso 9), o aguas abajo (cola/descarga).
+- **Qué pasa**: en la Verificación B del 2026-09-16 faltaron en disco 23 archivos de G25 que sólo viven en Novedades. Dos diagnósticos previos resultaron falsos (M-6 y M-6b los niegan: el DOM los tiene y los filtros no los descartan).
+- **Qué decide**: M-6c — re-escanear G25 con la pestaña al frente y mirar el storage enseguida. Si aparecen los 26, el defecto no es del escaneo.
+- **Evidencia completa**: `docs/portal-google-classroom-diseno.md` §9, hallazgo 🟡 de Novedades.
+- **Estado**: 🟠 abierto, pendiente del dueño (hallado el 2026-09-16).
+
+### ⚪ Classroom corte 1: siete pasos de la Verificación B sin mirar en navegador
+
+- **Dónde**: checklist en `docs/portal-google-classroom-diseno.md` §9 (Checklist de Verificación B).
+- **Qué pasa**: se mergeó con escaneo y descarga verificados en Brave; quedaron sin mirar los pasos 4 (pestaña oculta), 6 (Anatomy sigue igual), 7 (aviso de fallo), 10 (🔄), 11 (Explorar en Linux), 13 (consola sin `Adjuntos sin resolver`) y 15 (cambio de curso a mitad de escaneo).
+- **Estado**: ⚪ abierto (2026-09-25). Se cierra mirándolos, en cualquier verificación futura de Classroom.
+
+### ⚪ Spec corte 2: un curso ya asociado deja de aparecer
+
+- **Dónde**: `docs/specs/classroom-destino/` (no tiene supuesto para esto).
+- **Qué pasa**: `MC4 1S 2026` desapareció de la portada entre el 12 y el 16-09 (probable archivado). El material ya bajado no debe tratarse como huérfano: es cuando la copia local pasa a ser la única.
+- **Estado**: ⚪ abierto, entra a la spec del corte 2 (hallado el 2026-09-16).
+
+### ⚪ Spec corte 2: D12 deja copias md5-idénticas dentro de un mismo curso
+
+- **Dónde**: `docs/specs/classroom-destino/assumptions.md` (el supuesto 20 cubre dos cursos, no éste).
+- **Qué pasa**: `Informe de laboratorio FISICA I 2024 (Template).docx` quedó 5 veces con md5 idéntico e `interferencia2025.pdf` 2 veces: mismo curso, mismo archivo, distinto material. Decidir si el desempate de D12 mira el contenido antes de copiar.
+- **Estado**: ⚪ abierto, entra a la spec del corte 2 (hallado el 2026-09-21).
+
+### ✅ Ningún test serializa las funciones que se inyectan en la pestaña
+
+- **Dónde**: los tres `sitio/<portal>/scraper.js`; quien las inyecta es `popup.js:1258-1260` (`executeScript({ func: portal.escanearListado })`).
+- **Qué pasó**: `ScraperClassroom` declaró `async escanearListado(opciones) {…}` (método abreviado) aunque el plan pedía `async function (opciones)` (`docs/plan-classroom-corte-1.md:351`). Chrome serializa `func` con `toString()` y la corre como `(…)()`, y un método abreviado ahí es `SyntaxError: Unexpected identifier`: el curso no escaneaba. Los tests la llaman directo (`ScraperClassroom.escanearListado(...)`), así que 702 en verde. Corregido el 2026-09-12 a `escanearListado: async function (opciones)`, la forma de Anatomy (`scraper.js:85`) y Ramón Net (`scraper.js:24`).
+- **Qué falta**: un test por portal que haga `new Function(`(${portal.escanearListado.toString()})`)` sobre la función que entrega el descriptor. No ve closures sobre el módulo (eso sigue siendo del navegador), pero sí la forma.
+- **Estado**: ✅ cerrado el 2026-09-12 (sitio/inyeccion.test.js).
 
 ## 🔴 Seguridad
 

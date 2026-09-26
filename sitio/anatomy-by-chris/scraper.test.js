@@ -103,6 +103,11 @@ function mockearApi(respuesta, { ok = true, adjuntosPorHash = {} } = {}) {
 }
 
 beforeEach(() => {
+  // Node >= 25 trae su propio localStorage global (sin --localstorage-file vale undefined) y
+  // tapa el de jsdom al poblar los globales: se reinstala el de la ventana de jsdom.
+  if (!window.localStorage) {
+    Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: globalThis.jsdom.window.localStorage });
+  }
   window.localStorage.clear();
   window.localStorage.setItem('token', 'ID_TOKEN_FALSO');
   estarEn(URL_CLASE);

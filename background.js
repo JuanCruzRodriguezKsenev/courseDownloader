@@ -1,6 +1,11 @@
 /**
- * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V7.1.0)
+ * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V7.2.0)
  * ==========================================================================
+ * CHANGELOG v7.2.0:
+ * - [CLASSROOM VERIFICACIÓN B] La notificación de fallo sin pestaña abre `urlListado`
+ *   y no `urlSondeoInternet`: la sonda de conexión dejó de ser una página navegable (en
+ *   Classroom apunta a `/favicon.ico` para evitar el bloqueo por CORS/CORP).
+ *
  * CHANGELOG v7.1.0:
  * - [MULTISITIO CORTE 8] El click en la notificación de fallo enfocaba la pestaña del portal
  *   ASUMIDO. Con la cola mezclada eso abre el portal equivocado — el mismo defecto que el
@@ -536,7 +541,7 @@ export function iniciarServiceWorker({
           await chrome.tabs.update(tab.id, { active: true });
           await chrome.windows.update(tab.windowId, { focused: true });
         } else {
-          await chrome.tabs.create({ url: sitioDelFallo.urlSondeoInternet });
+          await chrome.tabs.create({ url: sitioDelFallo.urlListado });
         }
       } catch (e) {
         console.warn(`[SW] No se pudo enfocar/abrir la pestaña del portal:`, e);

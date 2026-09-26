@@ -46,12 +46,18 @@ const globalesDelProyecto = {
   ParserTitulosAnatomy: "readonly",
   ScraperAnatomy: "readonly",
   DescargarAdjuntoAnatomy: "readonly",
+
+  // Portal 3: Google Classroom.
+  SitioGoogleClassroom: "readonly",
+  ScraperClassroom: "readonly",
+  ParserTitulosClassroom: "readonly",
+  DescargarAdjuntoClassroom: "readonly",
 };
 
 module.exports = [
   // No lintear dependencias, el PoC descartable, el vendor de Preact ni las salidas
   // del bundler.
-  { ignores: ["node_modules/**", "prototype/**", "popup/vendor/**", ".output/**", ".wxt/**"] },
+  { ignores: ["node_modules/**", "prototype/**", "popup/vendor/**", ".output/**", ".wxt/**", "docs/muestras/**"] },
 
   // TypeScript (núcleo migrado + config del bundler). Mismas reglas que el JS: la red
   // es mínima a propósito. `no-undef` se apaga porque en TS lo cubre el compilador y

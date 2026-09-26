@@ -1,0 +1,4 @@
+- [Ficha en AGENTS.md](project_ficha_en_agents.md) — sin ficha en CLAUDE.md; qué docs de estado leer al arrancar y estado al 2026-09-22
+- [Organización del material](user_organizacion_material.md) — ~/U.N.L.P: árbol git+Obsidian por facultad/materia/docente; mirar antes de proponer layouts
+- [Google Classroom](project_google_classroom.md) — portal 3, corte 1 sin 🔴 abiertos: falta re-verificarlo y la Verificación B en Brave
+- [Flota de agentes](reference_flota_antigravity.md) — generada desde ~/Dev/agentes a Claude y agy; `generar --check`; qué quedó derivado a forja

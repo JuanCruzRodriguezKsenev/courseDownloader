@@ -1,8 +1,16 @@
 /**
- * PROCESADOR DE LA COLA DE DESCARGA (V1.2.0)
+ * PROCESADOR DE LA COLA DE DESCARGA (V1.3.0)
  * ==========================================================================
  * Capa 1. Salió de `background.js` en la Fase 6b — es el bloque de lógica más grande que
  * tenía el service worker, y el más sensible del proyecto.
+ *
+ * CHANGELOG v1.3.0:
+ * - [CLASSROOM CORTE 1] `SitioDeDescarga.credencialesAdjunto` opcional ("omit" | "include").
+ *   El fetch de descarga del adjunto usa `sitio.credencialesAdjunto ?? "omit"`, habilitando
+ *   cookies para Drive sin alterar a Anatomy.
+ * - [CLASSROOM CORTE 1] Una respuesta `text/html` para un archivo que no sea `.html`/`.htm` es
+ *   un rechazo tipado en origen (`tipoPortal = "rechazo"`), evitando guardar páginas de login
+ *   o advertencias de virus como si fueran el archivo.
  *
  * CHANGELOG v1.2.0:
  * - [FIX — el cartel mentiroso] Dos ramas nuevas para los fallos del PORTAL (`tipoPortal`:
@@ -144,6 +152,7 @@ export interface SitioDeDescarga {
     signal: AbortSignal,
     credenciales?: Record<string, string>
   ): Promise<string>;
+  readonly credencialesAdjunto?: "omit" | "include";
 }
 
 /**
@@ -427,9 +436,9 @@ export function crearProcesadorCola(deps: DependenciasCola) {
    * 1. **La URL firmada se pide ACÁ**, al bajar, no al escanear: vive 1 hora (CloudFront), y
    *    resolverla al encolar haría que una cola larga de PDF empiece a fallar a mitad de camino
    *    con un error que parece del portal (riesgo R8).
-   * 2. **El último salto va sin credenciales** (`credentials: "omit"`), y está medido: la URL
-   *    firmada responde a un `curl` pelado. Mandar cookies ahí no aporta y puede hacer que
-   *    CloudFront rechace.
+   * 2. **El último salto va según la política del portal** (`credentials: sitio.credencialesAdjunto ?? "omit"`):
+   *    Anatomy va sin credenciales ("omit") porque la URL firmada responde a un `curl` pelado y
+   *    mandar cookies puede hacer que CloudFront rechace; Drive (Classroom) las necesita ("include").
    * 3. **Se corta en bloques en vez de mandar el archivo entero**: da progreso real y reusa el
    *    contrato de fragmento del backend en lugar de inventar un endpoint.
    *
@@ -464,7 +473,10 @@ export function crearProcesadorCola(deps: DependenciasCola) {
       credencialesDelPortal
     );
 
-    const respuesta = await fetch(urlFirmada, { signal, credentials: "omit" });
+    const respuesta = await fetch(urlFirmada, {
+      signal,
+      credentials: sitio.credencialesAdjunto ?? "omit",
+    });
     if (!respuesta.ok) {
       const e: ErrorTipado = new Error(
         `[${sitio.id}] el archivo "${titulo}" respondió HTTP ${respuesta.status}`
@@ -473,6 +485,17 @@ export function crearProcesadorCola(deps: DependenciasCola) {
       // Un 403 acá es la firma vencida: sistémico para toda una cola de PDF, no de este archivo.
       if (respuesta.status === 403) e.tipoPortal = "bloqueo";
       else if (respuesta.status >= 400 && respuesta.status < 500) e.tipoPortal = "rechazo";
+      throw e;
+    }
+
+    const tipoContenido = (respuesta.headers.get("content-type") || "").toLowerCase();
+    const tituloLower = titulo.toLowerCase();
+    const esArchivoHtml = tituloLower.endsWith(".html") || tituloLower.endsWith(".htm");
+    if (tipoContenido.startsWith("text/html") && !esArchivoHtml) {
+      const e: ErrorTipado = new Error(
+        `[${sitio.id}] el archivo "${titulo}" llegó como una página web y no como el archivo`
+      );
+      e.tipoPortal = "rechazo";
       throw e;
     }
 

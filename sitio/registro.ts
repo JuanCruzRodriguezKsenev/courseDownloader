@@ -1,5 +1,5 @@
 /**
- * REGISTRO DE SITIOS (V1.0.0)
+ * REGISTRO DE SITIOS (V1.1.0)
  * ==========================================================================
  * Capa 2, pero **genérico**: no es de ningún portal. Es la única lista de qué adaptadores
  * conoce esta build, y las dos formas de llegar a uno.
@@ -7,6 +7,9 @@
  * Es lo que ADR-0009 decidió (una sola extensión que resuelve el adaptador en runtime) y
  * ADR-0010 completó (el sitio es un dato del ítem, no de la build). Diseño de ejecución y
  * orden de cortes: `docs/multisitio-diseno.md`.
+ *
+ * CHANGELOG v1.1.0:
+ * - [CLASSROOM CORTE 1] Suma `SitioGoogleClassroom` como tercer portal.
  *
  * CHANGELOG v1.0.0:
  * - [MULTISITIO CORTE 2] Creado con **un solo portal adentro**. Con N=1 el comportamiento es
@@ -30,24 +33,28 @@
 import type { PuertoSitio } from "../core/puertos/sitio";
 import { SitioRamonNet } from "./ramonnet/config";
 import { SitioAnatomyByChris } from "./anatomy-by-chris/config";
+import { SitioGoogleClassroom } from "./google-classroom/config";
 
 /**
  * Los adaptadores que conoce esta build. **Sumar un portal es agregarlo acá** (más su carpeta
  * en `sitio/<portal>/`, y su origen + ruleset dNR en `wxt.config.ts`, que es estático).
  *
- * El orden importa sólo para `resolverPorUrl`: gana el primero que reconoce la URL. **Desde el
- * corte 7 hay dos portales y eso dejó de ser teórico**: los dos `esPaginaDelSitio` tienen que
- * ser disjuntos. El de Anatomy by Chris matchea el SLUG del curso y no el host, justamente
- * porque `hotmart.com` hospeda miles de cursos ajenos y un match por host convertiría este
- * "gana el primero" en descargas con el adaptador equivocado. Que sean disjuntos lo afirma
- * `registro.test.ts`; si dos reclamaran la misma URL, es un bug del descriptor y no algo que
- * este registro deba desempatar.
+ * El orden importa sólo para `resolverPorUrl`: gana el primero que reconoce la URL. **Hay tres
+ * portales y eso dejó de ser teórico**: los tres `esPaginaDelSitio` tienen que ser disjuntos.
+ * El de Anatomy by Chris matchea el SLUG del curso y no el host, justamente porque `hotmart.com`
+ * hospeda miles de cursos ajenos. Google Classroom matchea el curso por ruta en su dominio.
+ * Que sean disjuntos lo afirma `registro.test.ts`; si dos reclamaran la misma URL, es un bug
+ * del descriptor y no algo que este registro deba desempatar.
  */
 //
 // El tipo es una **tupla no vacía** a propósito: obliga a que siempre haya al menos un portal
 // registrado, que es lo que hace seguro el `SITIOS[0]` del andamio de abajo. Lo pidió `tsc`,
 // no un criterio estético.
-const SITIOS: readonly [PuertoSitio, ...PuertoSitio[]] = [SitioRamonNet, SitioAnatomyByChris];
+const SITIOS: readonly [PuertoSitio, ...PuertoSitio[]] = [
+  SitioRamonNet,
+  SitioAnatomyByChris,
+  SitioGoogleClassroom,
+];
 
 export const Sitios = {
   /**

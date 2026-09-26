@@ -1,6 +1,28 @@
 /**
- * PUERTO DE SITIO (V1.2.0)
+ * PUERTO DE SITIO (V1.6.0)
  * ==========================================================================
+ * CHANGELOG v1.6.0:
+ * - [CLASSROOM CORTE 1 — ADJUNTOS SIN RESOLVER] Miembro opcional `adjuntosSinResolver`
+ *   en `ResultadoEscaneo`: conteo de adjuntos descartados por hidratación incompleta.
+ *
+ * CHANGELOG v1.5.0:
+ * - [CLASSROOM CORTE 1 — LISTA GUARDADA] Miembro nuevo `claveDeListado?(url)` (opcional):
+ *   devuelve una clave estable del listado que muestra la URL (el id de curso en Classroom).
+ *   Si la URL no es de un listado o el portal no la declara, devuelve `undefined`.
+ *
+ * CHANGELOG v1.4.0:
+ * - [CLASSROOM VERIFICACIÓN B] `urlSondeoInternet`: URL del portal que el daemon sondea; no hace
+ *   falta que sea navegable ni que dé 200, y no se abre en una pestaña. Tiene que responder sin
+ *   un Cross-Origin-Resource-Policy que la bloquee desde la extensión (el caso de Classroom).
+ * - [CLASSROOM VERIFICACIÓN B] `urlListado`: documentado que también es lo que abre la
+ *   notificación de fallo cuando no hay pestaña del portal.
+ *
+ * CHANGELOG v1.3.0:
+ * - [CLASSROOM CORTE 1] Miembro nuevo `credencialesAdjunto` ("omit" | "include", opcional).
+ *   La descarga del adjunto va con las credenciales de la sesión del navegador en portales
+ *   que lo requieran (Classroom con Drive, donde sin cookies da 401). El default sigue siendo
+ *   "omit" para no romper CloudFront en Anatomy.
+ *
  * CHANGELOG v1.2.0:
  * - [LOADERS — ítem 1] Miembro nuevo `topeEscaneoMs` (el puerto pasa de 12 a 13). El
  *   `safetyTimeout` del escaneo era 6000 fijo en popup.js contra ~11 s reales de Anatomy
@@ -102,6 +124,18 @@ export interface ResultadoEscaneo {
    * medir el camino completo del escaneo — ver ese módulo.
    */
   credenciales?: Record<string, string>;
+  /**
+   * [CLASSROOM CORTE 1] El escaneo se cortó por algo que el usuario puede arreglar;
+   * se muestra en lugar del listado y **no** reemplaza la lista anterior.
+   */
+  aviso?: string;
+  /**
+   * [CLASSROOM CORTE 1] Cuántos adjuntos se descartaron por no haber terminado de
+   * hidratarse. **No es un `aviso`**: el escaneo salió bien y la lista se muestra entera;
+   * esto se pinta como una nota arriba de las filas. Un portal que no lo devuelve deja
+   * `undefined`, y el consumidor lo lee como 0.
+   */
+  adjuntosSinResolver?: number;
 }
 
 /** Destino de una clase: valor del eje de faceta + carpeta en disco. */
@@ -198,9 +232,13 @@ export interface PuertoSitio {
   color: string;
 
   /**
-   * Origen del portal. Lo usa el daemon de conexión como sonda de "hay internet":
+   * URL del portal que el daemon de conexión sondea como prueba de "hay internet":
    * es deliberadamente el sitio objetivo y no un genérico tipo google.com — lo que
    * importa no es tener red, sino poder llegar A ESTE portal.
+   *
+   * Tiene que responder sin un `Cross-Origin-Resource-Policy` que la bloquee desde la
+   * extensión (el caso de Classroom, donde la raíz bloquea con CORP y se sondea `/favicon.ico`).
+   * No hace falta que sea navegable ni que dé 200, y **no se abre en una pestaña**.
    */
   urlSondeoInternet: string;
 
@@ -208,8 +246,23 @@ export interface PuertoSitio {
   esPaginaDelSitio(url: string | undefined): boolean;
   /** Patrón de match para `chrome.tabs.query`. */
   readonly patronPestañas: string;
-  /** Página del listado de clases, a donde el onboarding manda al usuario. */
+  /**
+   * Página del listado de clases, a donde el onboarding manda al usuario y lo que
+   * abre la notificación de fallo si no hay ninguna pestaña del portal abierta.
+   */
   readonly urlListado: string;
+
+  /**
+   * [CLASSROOM CORTE 1 — LISTA GUARDADA] Qué listado muestra esta URL, como una clave estable
+   * (en Classroom, el id del curso). El popup la guarda al escanear y, al abrirse en una pestaña
+   * con la MISMA clave, muestra la lista guardada en vez de escanear de nuevo.
+   *
+   * - Opcional: un portal que no la declara escanea siempre al abrir (Ramón Net y Anatomy,
+   *   cuyos escaneos duran segundos).
+   * - Corre en el POPUP, no en la pestaña: no va dentro de `escanearListado`.
+   * - Devuelve `undefined` si la URL no es de un listado.
+   */
+  claveDeListado?(url: string | undefined): string | undefined;
 
   /**
    * [COPY GENÉRICA CORTE 2] Cómo se le explica al usuario, en el onboarding, qué va a ver
@@ -286,6 +339,19 @@ export interface PuertoSitio {
     signal?: AbortSignal,
     credenciales?: Record<string, string>
   ): Promise<string>;
+
+  /**
+   * [CLASSROOM CORTE 1] Política de credenciales (`fetch(urlFirmada, { credentials })`)
+   * para la descarga directa de un adjunto.
+   *
+   * - Default: `"omit"`.
+   * - Opcional: un portal sin adjuntos no lo necesita, y Anatomy queda en el valor
+   *   medido sin declararlo (CloudFront responde a curl pelado y mandar cookies puede
+   *   hacer que rechace).
+   * - Classroom lo declara `"include"`: Google Drive necesita las cookies de sesión del
+   *   navegador junto con `authuser` para autorizar la descarga (diseño D1 y M0).
+   */
+  readonly credencialesAdjunto?: "omit" | "include";
 
   /**
    * Función que se INYECTA en la pestaña del portal (`chrome.scripting.executeScript`)

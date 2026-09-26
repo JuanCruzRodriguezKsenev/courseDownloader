@@ -486,4 +486,29 @@ describe('Isla Preact: ListaClases — la alerta comparte contenedor', () => {
     expect(root.querySelector('.server-error-card')).toBeNull();
     expect(root.querySelectorAll('.video-item').length).toBe(1);
   });
+
+  it('con ctx.nota en el view-model de modo lista, aparece .lista-nota antes de la primera fila', async () => {
+    const textoNota = '⚠️ 1 adjunto no terminó de cargar y quedó afuera. Probá Re-escanear 🔄.';
+    puente.render({
+      modo: 'lista',
+      items: [{ id: 1, titulo: 'A', estado: 'pending' }],
+      ctx: ctxBase({ nota: textoNota }),
+    });
+    await flush();
+
+    const notaEl = root.querySelector('.lista-nota');
+    expect(notaEl).not.toBeNull();
+    expect(notaEl.textContent).toBe(textoNota);
+    expect(root.firstElementChild).toBe(notaEl);
+
+    // Sin nota no hay ningún .lista-nota
+    puente.render({
+      modo: 'lista',
+      items: [{ id: 1, titulo: 'A', estado: 'pending' }],
+      ctx: ctxBase({ nota: null }),
+    });
+    await flush();
+
+    expect(root.querySelector('.lista-nota')).toBeNull();
+  });
 });

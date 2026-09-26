@@ -28,3 +28,11 @@ descargas/
 Thumbs.db
 *.log
 *.part
+
+# Evidencia de medición del portal Google Classroom (docs/portal-google-classroom-diseno.md §4):
+# páginas guardadas, HAR y la sonda descartable del service worker. Los HAR pueden llevar datos
+# de la cuenta aunque se exporten sanitizados. eslint.config.js también la ignora.
+docs/muestras/
+
+# Bytecode de Python: lo genera `python3 -m py_compile backend/elegirCarpetaLinux.py` al verificar.
+__pycache__/

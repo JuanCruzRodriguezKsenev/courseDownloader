@@ -1,6 +1,11 @@
 /**
- * MAQUINARIA DE ESTADO CENTRAL DEL POPUP (V6.3.0)
+ * MAQUINARIA DE ESTADO CENTRAL DEL POPUP (V6.4.0)
  * ==============================================================================================
+ * CHANGELOG v6.4.0:
+ * - [CLASSROOM CORTE 1 — LISTA GUARDADA] Se incorpora `origenListado` a `CLAVES_PERSISTIDAS`
+ *   y `CLAVES_DE_SESION`. Se guarda en `respaldar()`, se valida con `esOrigenListado` al cargar
+ *   y se resetea a `null` en `limpiarSesionLocal()`.
+ *
  * CHANGELOG v6.3.0:
  * - [MULTISITIO CORTE 6D — ADR-0011] Normalización de una sola vez de `colaDescargas` por
  *   `fechaEncolado` para las instalaciones anteriores al corte 6b. Desde este corte el array
@@ -58,6 +63,7 @@
  */
 import type { PuertoAlmacenamiento } from "../puertos/almacenamiento";
 import type { PuertoMensajeria } from "../puertos/mensajeria";
+import { esOrigenListado, type OrigenListado } from "./origenListado";
 
 /**
  * Forma mínima de una clase de la lista: sólo los campos que ESTE módulo toca. El modelo real
@@ -88,6 +94,7 @@ export interface RespuestaFondo {
 
 const CLAVES_PERSISTIDAS = [
   "listaPersistente",
+  "origenListado",
   "colaDescargas",
   "faseDiscoOk",
   "facetasElegidas",
@@ -164,12 +171,13 @@ const CLAVE_FACETA_UNICA_LEGACY = "facetaElegida";
 export const SITIO_LEGADO = "ramonnet";
 
 /** Claves que se borran al cerrar una sesión de trabajo (la faceta elegida sobrevive). */
-const CLAVES_DE_SESION = ["listaPersistente", "colaDescargas", "faseDiscoOk"];
+const CLAVES_DE_SESION = ["listaPersistente", "origenListado", "colaDescargas", "faseDiscoOk"];
 
 const TIMEOUT_IPC_MS = 3000;
 
 interface DatosPersistidos {
   listaPersistente?: ClaseEnLista[];
+  origenListado?: OrigenListado | null;
   colaDescargas?: unknown[];
   faseDiscoOk?: boolean;
   /** La elección por portal: `{ [sitioId]: valor }`. Ver MIGRACION_FACETA. */
@@ -198,6 +206,8 @@ interface DatosPersistidos {
 export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: PuertoMensajeria) {
   const app = {
     listadoClasesGlobal: [] as ClaseEnLista[],
+    /** De qué portal y clave de listado salió la lista guardada. */
+    origenListado: null as OrigenListado | null,
     colaDescargas: [] as unknown[], // 🚀 Cola desacoplada
     ráfagaEnCurso: false,
     banderaFrenadoSolicitado: false,
@@ -248,6 +258,7 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: 
         const estado = c.estado === "error" ? "pending" : c.estado;
         return { ...c, estado, sitioId: c.sitioId || SITIO_LEGADO };
       });
+      app.origenListado = esOrigenListado(data.origenListado) ? data.origenListado : null;
       app.colaDescargas = (data.colaDescargas || []).map((c) =>
         c ? { ...c, sitioId: (c as ClaseEnLista).sitioId || SITIO_LEGADO } : c
       );
@@ -355,6 +366,7 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: 
       void almacenamiento
         .guardarLocal({
           listaPersistente: app.listadoClasesGlobal,
+          origenListado: app.origenListado,
           colaDescargas: app.colaDescargas,
           faseDiscoOk: app.sincronizacionDiscoCompletada,
           facetasElegidas: app.facetasElegidas,
@@ -448,6 +460,7 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: 
 
     limpiarSesionLocal(): void {
       app.listadoClasesGlobal = [];
+      app.origenListado = null;
       app.colaDescargas = [];
       app.ráfagaEnCurso = false;
       app.banderaFrenadoSolicitado = false;

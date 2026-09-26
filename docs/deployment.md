@@ -35,7 +35,7 @@ Lo que la extensión **espera** del backend, derivado de `core/backend/bunClient
 | `GET /api/health` | — | JSON con `ruta` (la carpeta raíz configurada). Doble función: liveness probe del daemon `Conexion` **y** lectura de la ruta. Timeout duro de 4000 ms. |
 | `GET /api/escanear-disco?carpeta=<sub>&sitio=<id>` | query `carpeta` y `sitio` (URL-encoded) | JSON `{ archivos: string[] }` — nombres ya guardados, para pintar clases como descargadas. **`sitio` es opcional**: sin él se mira el layout viejo de un solo nivel. |
 | `POST /api/bypass-stream` | headers `x-video-title` (URL-encoded), `x-chunk-index`, `x-total-chunks`, `x-target-folder`, **`x-site-folder`**, `x-session-id`, **`x-file-name`** (URL-encoded, sólo en adjuntos — ver abajo); body = fragmento binario descifrado | Sólo importa el status. Timeout 30 s. |
-| `GET /api/seleccionar-carpeta` | — | JSON `{ success: boolean, ruta: string }` — abre el diálogo nativo de carpeta. |
+| `GET /api/seleccionar-carpeta` | — | JSON `{ success: boolean, ruta: string }` — abre el diálogo nativo de carpeta (Windows → PowerShell; Linux → `backend/elegirCarpetaLinux.py`, necesita `python3` + PyGObject y `xdg-desktop-portal` con un backend que implemente `FileChooser`; otro SO → 501). |
 | `GET /api/cancelar-descarga?titulo=&sessionId=&sitio=` | query | Sólo el status; los fallos se tragan (best-effort). **`sitio` importa**: sin él el backend podría borrar el `.part` de la clase homónima de otro portal. |
 | `POST /api/actualizar-consola` | JSON `{ titulo, porcentaje, terminados, totales, velocidad }` | Sólo el status; los fallos se tragan (telemetría a la consola gráfica del server). |
 

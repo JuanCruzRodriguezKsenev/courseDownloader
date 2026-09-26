@@ -158,6 +158,19 @@
   color: var(--text-muted);
 }
 
+/* [CLASSROOM CORTE 1] Nota del escaneo arriba de las filas: algo quedó afuera, pero la lista
+   sirve. No es una .info-card (ésa ocupa la región entera y taparía el listado). */
+.lista-nota {
+  margin: 0 0 var(--space-xs);
+  padding: var(--space-sm);
+  border-left: 3px solid var(--accent-orange);
+  background-color: rgba(var(--accent-orange-rgb), 0.06);
+  border-radius: var(--radius-xs);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
 /* Botón de acción interna de fila */
 .btn-row-action {
   background-color: var(--bg-main);

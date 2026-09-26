@@ -692,14 +692,21 @@ describe("la rama del adjunto", () => {
   };
 
   /** Sitio doble que resuelve adjuntos, con el `fetch` global sirviendo los bytes. */
-  function montarConAdjuntos(bytes = 12, over: Record<string, any> = {}) {
+  function montarConAdjuntos(
+    bytes = 12,
+    over: Record<string, any> = {},
+    credencialesAdjunto?: "omit" | "include",
+    tipo = "application/pdf"
+  ) {
     const resolverAdjunto = vi.fn().mockResolvedValue("https://cdn/firmada.pdf");
     const enviarBloqueAdjunto = vi.fn().mockResolvedValue({ ok: true });
 
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      headers: { get: () => String(bytes) },
+      headers: {
+        get: (h: string) => (h.toLowerCase() === "content-type" ? tipo : String(bytes)),
+      },
       arrayBuffer: async () => new ArrayBuffer(bytes),
     }) as unknown as typeof fetch;
 
@@ -713,6 +720,7 @@ describe("la rama del adjunto", () => {
                 resolverAdjunto,
                 nombre: "Portal de Prueba",
                 id: "prueba",
+                ...(credencialesAdjunto ? { credencialesAdjunto } : {}),
               }
             : undefined,
       },
@@ -836,5 +844,70 @@ describe("la rama del adjunto", () => {
 
     // Determinístico: reintentarlo no lo arregla, así que la cola sigue en vez de pausarse.
     expect((await sesion.get()).colaPausadaPorError).toBeFalsy();
+  });
+
+  it("sin credencialesAdjunto, el fetch sale con credentials: 'omit'", async () => {
+    const { cola, almacenamiento, sesion } = montarConAdjuntos();
+    await sesion.set({ rafagaCorriendo: true, modoTurboBunActivo: true });
+    await almacenamiento.guardarLocal({ colaDescargas: [PDF], listaPersistente: [] });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "https://cdn/firmada.pdf",
+      expect.objectContaining({ credentials: "omit" })
+    );
+  });
+
+  it("con credencialesAdjunto: 'include', sale con 'include'", async () => {
+    const { cola, almacenamiento, sesion } = montarConAdjuntos(12, {}, "include");
+    await sesion.set({ rafagaCorriendo: true, modoTurboBunActivo: true });
+    await almacenamiento.guardarLocal({ colaDescargas: [PDF], listaPersistente: [] });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "https://cdn/firmada.pdf",
+      expect.objectContaining({ credentials: "include" })
+    );
+  });
+
+  it("respuesta HTML con título .pdf es rechazo y no envía bloques al backend", async () => {
+    const { cola, almacenamiento, sesion, enviarBloqueAdjunto } = montarConAdjuntos(
+      12,
+      {},
+      undefined,
+      "text/html; charset=utf-8"
+    );
+    await sesion.set({ rafagaCorriendo: true, modoTurboBunActivo: true });
+    await almacenamiento.guardarLocal({ colaDescargas: [PDF], listaPersistente: [] });
+
+    cola.arrancarSiNoCorre();
+    await esperar(150);
+
+    expect(enviarBloqueAdjunto).not.toHaveBeenCalled();
+    expect((await sesion.get()).colaPausadaPorError).toBeFalsy();
+  });
+
+  it("respuesta HTML con título .html se baja normal", async () => {
+    const HTML_ITEM = {
+      ...PDF,
+      titulo: "pagina.html",
+    };
+    const { cola, almacenamiento, sesion, enviarBloqueAdjunto } = montarConAdjuntos(
+      12,
+      {},
+      undefined,
+      "text/html; charset=utf-8"
+    );
+    await sesion.set({ rafagaCorriendo: true, modoTurboBunActivo: true });
+    await almacenamiento.guardarLocal({ colaDescargas: [HTML_ITEM], listaPersistente: [] });
+
+    cola.arrancarSiNoCorre();
+    await esperar(150);
+
+    expect(enviarBloqueAdjunto).toHaveBeenCalled();
   });
 });

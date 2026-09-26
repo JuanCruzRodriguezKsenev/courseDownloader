@@ -1,6 +1,10 @@
 /**
- * ISLA PREACT #4 (Etapa 2) — la región #ui-list: listas y alerta (V1.2.0)
+ * ISLA PREACT #4 (Etapa 2) — la región #ui-list: listas y alerta (V1.3.0)
  * ==========================================================================
+ * CHANGELOG v1.3.0:
+ * - [CLASSROOM CORTE 1 — ADJUNTOS SIN RESOLVER] Si `ctx.nota` está presente en `modo:'lista'`,
+ *   pinta `<p class="lista-nota">${ctx.nota}</p>` arriba de las filas.
+ *
  * CHANGELOG v1.2.0:
  * - [ALERTA EN EL CONTENEDOR] Esta isla pasa a pintar también la ALERTA de conexión, que hasta
  *   ahora vivía en un root hermano (#preact-banner, isla #2). Los dos se repartían la misma
@@ -30,7 +34,7 @@
  * View-model (vm) discriminado:
  *   - { modo:'card', card:{ tipo, titulo, descripcion, icono } } → una tarjeta de estado.
  *   - { modo:'lista', items:[...clases], ctx:{ pestaña, sincronizado, enCurso,
- *       videoActivo, anclaActiva, sinResultados, selectionMode,
+ *       videoActivo, anclaActiva, sinResultados, selectionMode, nota,
  *       onCheckChange(clase,checked), onRemoverClick(clase) } }
  *
  * `anclaActiva` (corte 6a del multi-sitio): el primer ítem es la clase que se está bajando y
@@ -250,10 +254,15 @@ export function ListaClases() {
   const { items, ctx } = vm;
   const filas = items.map((clase) => html`<${FilaClase} key=${clase.id} clase=${clase} ctx=${ctx} />`);
 
+  // [CLASSROOM CORTE 1] La nota del escaneo va DENTRO de la lista, como `.cola-divisor`: la
+  // región sigue teniendo un solo dueño (esta isla) y un solo `if`, que es la regla de
+  // `docs/alertas-y-bloqueo-diseno.md` §1. Texto plano: no usa dangerouslySetInnerHTML.
+  const nota = ctx.nota ? html`<p class="lista-nota" key="nota">${ctx.nota}</p>` : null;
+
   // [MULTISITIO CORTE 6A] La fila anclada (la que se está bajando) llega SIEMPRE primera —
   // eso lo decide popup.js al armar el vm, no la isla. Acá sólo se pinta la línea divisoria
   // detrás de ella, que es puro asunto de vista.
-  if (!ctx.anclaActiva || filas.length === 0) return filas;
+  if (!ctx.anclaActiva || filas.length === 0) return nota ? [nota, ...filas] : filas;
 
   const divisor = html`<div class="cola-divisor" key="divisor"><span>En cola</span></div>`;
   const resto = ctx.sinResultados
@@ -262,7 +271,7 @@ export function ListaClases() {
     ? [html`<p class="cola-sin-resultados" key="vacio">Ninguna otra clase coincide con el filtro.</p>`]
     : filas.slice(1);
 
-  return [filas[0], divisor, ...resto];
+  return nota ? [nota, filas[0], divisor, ...resto] : [filas[0], divisor, ...resto];
 }
 
 export function montar(root) {

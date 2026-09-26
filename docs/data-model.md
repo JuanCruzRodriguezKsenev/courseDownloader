@@ -11,6 +11,7 @@ Escrito principalmente por `AppState.respaldar()` (`core/estado/appState.ts`) de
 | `listaPersistente` | `Clase[]` (ver abajo) | popup (`AppState.respaldar`), SW (varios handlers IPC) | Lista completa de clases scrapeadas de la última sesión, con su estado actual. |
 | `colaDescargas` | `ColaItem[]` (ver abajo) | popup, SW | Cola de descarga desacoplada — separada de `listaPersistente` para poder sobrevivir a cambios de materia/pestaña sin perder el progreso. **El array ES el orden de descarga** desde el corte 6d (ADR-0011): lo escribe el popup y el SW lo obedece. |
 | `faseDiscoOk` | `boolean` | popup | Si ya se corrió una sincronización con el disco (vía `escanear_carpeta_local`) en esta sesión. |
+| `origenListado` | `{ sitioId: string, clave: string } \| null` | popup | De qué listado salió `listaPersistente` (en Classroom, el id del curso). Si coincide con la pestaña, el popup muestra la lista guardada en vez de escanear. Se borra con `listaPersistente` (`limpiarSesionLocal`). Sin migración: si falta, se escanea. |
 | `facetasElegidas` | `Record<sitioId, string \| null>` | popup | El valor de faceta que el usuario eligió **en cada portal** (en Ramón Net: la cátedra A–D). No se lee directo: `AppState.facetaElegidaDe(sitioId)` / `.fijarFacetaElegida(...)`. **Era un valor único (`facetaElegida`) hasta el 2026-08-06** y eso vaciaba el listado al cambiar de portal — ver ADR-0012 y la nota de migración abajo. Antes todavía se llamó `catedraElegida` (hasta el 2026-08-03). |
 | `ocultarAdvExplorar` | `boolean` | popup | Preferencia: no volver a mostrar el aviso al explorar carpeta. |
 | `ocultarAdvAula` | `boolean` | popup | Preferencia: no volver a mostrar el aviso al cambiar de aula. |
@@ -20,7 +21,7 @@ Escrito principalmente por `AppState.respaldar()` (`core/estado/appState.ts`) de
 | `criterioOrdenDisponibles` | `"nombre" \| "faceta" \| "estado"` | popup | **Sólo pestaña Disponibles** (corte 6b). Sus ejes son otros que los de la Cola: no hay `llegada` —ese listado no se encoló, se escaneó— ni `portal`, porque sale del scrapeo de **una** pestaña. La faceta se lee con `faceta.leer` (campo ya parseado), no con `leerDeCola` (que re-deriva del título). **Sin migración**: el default `"nombre"` reproduce exactamente el orden por título que había antes, y el sentido lo sigue dando `ordenAscendente`. |
 | `tutorialCompletado` | `boolean` | popup | Si el onboarding ya se completó/saltó. |
 | `SW_ESTADOS_PROGRESO` | `Record<string, EstadoClase>` | SW (`persistirEstadoFondo`) | Mapa **`<sitioId>\|<titulo>` → estado** de progreso, espejo liviano para que el popup pueda reconciliar sin pedir el detalle completo. La clave era el título solo hasta el 2026-08-06 — ver §La identidad de una clase. Las claves viejas se migran **al leer**, prefijándolas con el portal legado. |
-| `credencialesPortal` | `Record<sitioId, Record<string, string>>` | popup (al escanear, vía `credencialesPortal.guardar`) | **Credenciales que un portal expone sólo dentro de su pestaña** y que su `resolverManifiesto` necesita después, desde el SW (corte 7: el `id_token` de la API de Hotmart Club). No se lee directo: `core/estado/credencialesPortal.ts` — el mismo módulo lo escribe el popup y lo lee el SW. **No viaja con la clase ni con el ítem de la cola**: es de la sesión del usuario en el portal, no de un video, así que se guarda una vez por portal y re-escanear renueva el token de toda la cola de ese portal. El contenido es **opaco** para el núcleo: qué claves lleva lo decide cada adaptador. **Sin migración**: la clave ausente se lee como `{}`, y un portal que no la use (Ramón Net) nunca la escribe. |
+| `credencialesPortal` | `Record<sitioId, Record<string, string>>` | popup (al escanear, vía `credencialesPortal.guardar`) | **Credenciales que un portal expone sólo dentro de su pestaña** y que su `resolverManifiesto` o `resolverAdjunto` necesita después, desde el SW (Anatomy: el `id_token` de la API de Hotmart Club; Classroom: `{ authuser }`). No se lee directo: `core/estado/credencialesPortal.ts` — el mismo módulo lo escribe el popup y lo lee el SW. **No viaja con la clase ni con el ítem de la cola**: es de la sesión del usuario en el portal, no de un video, así que se guarda una vez por portal y re-escanear renueva el token de toda la cola de ese portal. El contenido es **opaco** para el núcleo: qué claves lleva lo decide cada adaptador. **Sin migración**: la clave ausente se lee como `{}`, y un portal que no la use (Ramón Net) nunca la escribe. |
 | `historialFallos` | `HistorialFallo[]` (ver abajo) | SW (`registrarFallo` → `HistorialFallos.registrar`), popup (marcar leídas / limpiar) | Historial acotado (últimos 50, más-reciente-primero) de fallos terminales de descarga (rechazo 4xx / sesión / servidor / internet). Fuente de la campanita del popup; la escribe el SW aun con el popup cerrado. |
 
 ### Migración: `sitioId` en `Clase` y `ColaItem` (2026-08-04)
@@ -93,8 +94,9 @@ adopta la vieja, la borra al adoptarla, y con las dos presentes gana la nueva.
                                   // identidad, no destino: `carpeta` la puede pisar el override
                                   // del input y `modulo` NO. Ausente en portales de un nivel.
   tipo?: "video" | "adjunto",     // [ADR-0014] ausente = "video" (todo lo persistido de antes)
-  idArchivo?: string,             // sólo en adjuntos: el `fileMembershipId` con el que el portal
-                                  // entrega la URL firmada. Se resuelve al BAJAR, no al escanear
+  idArchivo?: string,             // sólo en adjuntos: el id de Drive / `fileMembershipId` con el que el
+                                  // portal entrega la URL firmada, o `acceso:<url>:<título>` en Classroom.
+                                  // Se resuelve al BAJAR, no al escanear
   bytes?: number,                 // sólo en adjuntos: peso declarado por el portal, para la UI
   catedra?: "A"|"B"|"C"|"D"|"COMUN",
   estado: "pending" | "process" | "downloaded",
@@ -116,7 +118,7 @@ adopta la vieja, la borra al adoptarla, y con las dos presentes gana la nueva.
   modulo?: string,                // [ADR-0014] hereda el de la clase. NO se deriva de `carpeta`:
                                   // con el override activo son valores distintos
   tipo?: "video" | "adjunto",     // [ADR-0014] ausente = "video"
-  idArchivo?: string,             // sólo en adjuntos
+  idArchivo?: string,             // sólo en adjuntos: id de Drive, membershipId, o `acceso:<url>:<título>`
   bytes?: number,                 // sólo en adjuntos
   fechaEncolado: number,          // Date.now() al encolar. Desde ADR-0011 NO es la fuente del
                                   // orden: es el dato del criterio "de llegada" y el que
