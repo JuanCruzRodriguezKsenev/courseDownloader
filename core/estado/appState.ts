@@ -171,7 +171,13 @@ const CLAVE_FACETA_UNICA_LEGACY = "facetaElegida";
 export const SITIO_LEGADO = "ramonnet";
 
 /** Claves que se borran al cerrar una sesión de trabajo (la faceta elegida sobrevive). */
-const CLAVES_DE_SESION = ["listaPersistente", "origenListado", "colaDescargas", "faseDiscoOk"];
+const CLAVES_DE_SESION = [
+  "listaPersistente",
+  "origenListado",
+  "colaDescargas",
+  "faseDiscoOk",
+  "recorridoTodos",
+];
 
 const TIMEOUT_IPC_MS = 3000;
 
