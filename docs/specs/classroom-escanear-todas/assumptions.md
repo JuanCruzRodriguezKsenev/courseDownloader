@@ -55,7 +55,7 @@ encabezado y señala los tres de más filo (14 → RN-15, 11 → RN-16/RN-18, 8 
 ## Hechos separados de los supuestos (no se preguntan, se miden)
 
 - **21 (menos de 6 min)** queda como NFR-1 pero depende de **M-1** (cronometrar los 8 en Brave).
-- **2 (archivados)** depende de **M-2**: si el click a `/h/archived` navega en la SPA o recarga.
+- **2 (archivados)**: **M-2 cerrado** el 2026-09-25 en Brave — portada → archivadas → curso → portada navega todo por la SPA (una marca en `window` sobrevive). Hoy: 5 activos + 2 archivados.
 - **6 (orden de la portada)**: **M-3 cerrado** el 2026-09-25 sobre las muestras — la portada trae
   los 6 activos sin "Ver más" y el link a archivadas; la página de archivadas enumera los 8.
 

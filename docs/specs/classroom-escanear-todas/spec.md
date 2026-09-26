@@ -1,6 +1,6 @@
 # Classroom: escanear todos los cursos desde la portada
 
-**Estado**: `draft` — RN-2 y NFR-1 dependen de **M-1** y **M-2** (§Mediciones pendientes). M-3 cerrado.
+**Estado**: `draft` — NFR-1 y el número de RN-21 dependen de **M-1** (§Mediciones pendientes). M-2 y M-3 cerrados.
 **Fecha**: 2026-09-25
 **Traza de decisiones**: [`assumptions.md`](./assumptions.md)
 **Diseño del portal**: [`../../portal-google-classroom-diseno.md`](../../portal-google-classroom-diseno.md) (D1–D13)
@@ -62,7 +62,7 @@ y que el rediseño de la extensión, por orden del dueño.
 - **RN-1** — En la portada de Classroom (`/u/<n>/h` y sus vistas) el popup ofrece el botón
   **"Escanear todos los cursos"**. Abrir el popup ahí **no** escanea solo.
 - **RN-2** — Entran todos los cursos de la cuenta `/u/<n>` de la pestaña: los activos y los
-  archivados (`/u/<n>/h/archived`). *Depende de M-2: cómo se llega a los archivados desde la portada.*
+  archivados (`/u/<n>/h/archived`). (M-2: se llega por la SPA, sin recargar.)
 - **RN-3** — De cada curso se escanea exactamente lo que escanea hoy el escaneo de un curso; el
   escaneo de un curso no cambia en nada (RN-19).
 - **RN-4** — El recorrido termina en la lista. No encola ni descarga nada.
@@ -338,11 +338,11 @@ AC-14 — Todo vacío o fallido
 | M | Qué medir | Cómo | Qué decide |
 |---|---|---|---|
 | **M-1** | Cuánto tarda cada curso hoy, con la pestaña al frente | Cronometrar el escaneo de un curso en los 8, en Brave, con el build de `main` | Si la suma pasa de 6 min, NFR-1 se relaja al valor medido + 20 % y el aviso de RN-21 usa ese número |
-| **M-2** | Cómo se llega a los archivados desde la portada sin recargar | En Brave, desde `/u/2/h`: ¿hay link en `nav` a `/h/archived`? ¿el click navega en la SPA o recarga? | Si navega en la SPA, un solo script inyectado recorre todo. Si recarga, el script muere y el recorrido necesita re-inyectarse por curso (lo resuelve el plan, no cambia ninguna regla) |
+| ~~M-2~~ ✅ | Cómo se llega a los archivados desde la portada sin recargar | Medido 2026-09-25 en Brave (Claude in Chrome, `/u/2/`): marca `window.__marca = 1` en la portada, `click()` sobre `nav a[href$="/h/archived"]` → URL `/h/archived` y la marca **sigue** (SPA). Desde ahí, `click()` en la tarjeta de G25 → `/c/Nzk0MDIyNDkyNDUx`, marca sigue; `click()` en "Página principal" del `nav` → `/h/st`, marca sigue | **Un solo script inyectado puede recorrer todo**: portada → archivadas → cada curso → portada, sin recargar. Dato nuevo: hoy la portada tiene **5** activos (MC4 ya no está) y archivadas enumera **7** ids (5 activos + G25 + MB5) |
 | ~~M-3~~ ✅ | Si la portada entrega todos los cursos activos | Medido 2026-09-25 sobre `docs/muestras/google-classroom/recorrido-3/`: `00-partida.html` tiene **6** ids `/u/2/c/<id>` distintos (los 6 activos de M2), 0 "Ver más", y un link a `/h/archived`; `00-archivadas.html` tiene **8** (los 6 activos, por el sidebar, + G25 y MB5) | RN-6 queda firme. Dato para el plan: la página de archivadas sola ya enumera los 8 |
 
-M-1 y M-2 necesitan al dueño en Brave. Para M-2, el link a `/h/archived` **existe** en la portada
-(M-3); falta saber si el click navega en la SPA o recarga.
+**M-1 necesita al dueño**: desde Claude in Chrome la pestaña queda con `visibilityState = "hidden"`
+(medido), y el scraper aborta con el aviso de visibilidad en ese estado.
 
 ## Supuestos resueltos
 
