@@ -16,7 +16,7 @@ No escribir la ficha (`## Comandos`, etc.) en `CLAUDE.md`: es un puntero y proh�
 - `docs/rearquitectura-diseno.md` §Estado de avance
 Compuerta: `pnpm test`, `pnpm run lint`, `pnpm exec tsc --noEmit`, `pnpm run build`; números en `docs/testing.md`. Nada se mergea sin probar en Chrome.
 
-Estado al 2026-09-22: `classroom-corte-1` EN revisión. Baseline declarada **43 archivos / 724 tests**
-(la de 724 la reportó obra, no la verifiqué yo). El estado fino de la rama está en `docs/ramas-en-revision.md`; el del portal, en mi
-memoria de Classroom. Abiertos de fondo: popovers sin tests, loader sin dueño, footer `#ui-msg-status` con
-`display:none` (`entrypoints/popup/index.html:132`), banco no alcanza al SW.
+Estado al 2026-09-25: `main` = `080f7aa` (Classroom corte 1 mergeado, sin push); `ramas-en-revision.md` dice
+"nada en revisión". Rama de trabajo `classroom-escanear-todas` (sólo spec). Baseline 43 archivos / 724 tests.
+Deuda: 16 abiertas (3 🔴, 4 🟠, 9 ⚪). Abiertos de fondo: popovers sin tests, loader sin dueño, footer
+`#ui-msg-status` oculto, banco no alcanza al SW.

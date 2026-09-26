@@ -47,29 +47,21 @@ antes de la extensión, D13 paginar con "Ver más" (botón visible y habilitado 
    contraste propio.
 9. **`git push` por iniciativa propia lo bloquea el clasificador de auto mode**; con pedido explícito del dueño pasa.
 
-## Estado al 2026-09-22
+## Estado al 2026-09-25
 
-Rama `classroom-corte-1`, **34 commits** sobre `main` (que sigue en `733ec91` del 2026-08-28). Baseline declarada
-en `docs/testing.md`: **43 archivos / 724 tests**.
+**Corte 1 MERGEADO** a `main` (`080f7aa`, sin push) con escaneo + descarga verificados en Brave por el dueño.
+Pasos 4/6/7/10/11/13/15 de la Verificación B sin mirar → ⚪ en TECHNICAL_DEBT. El registro entero de la rama
+(planes, checklist, hallazgos) se mudó a `docs/portal-google-classroom-diseno.md` §9. M-6c (Novedades) → 🟠 en deuda.
 
-Planes ejecutados: corte 1 base, verificación B, lista-guardada-y-explorar, abrir-todos, adjuntos-sin-resolver,
-identidad-del-curso, **identidad-en-archivados** (`2a0cf6c`, scraper v1.3.1, obra el 2026-09-22 00:24).
-
-**No queda ningún 🔴 de Classroom abierto.** Los cuatro planes de defecto están ejecutados y `docs/ramas-en-revision.md`
-los marca RESUELTOS. Lo único 🟡 vivo es Novedades, y no se toca hasta M-6c.
-
-**Re-verificado por mí el 2026-09-22** (batería + contraste contra las 62 muestras, ambos en verde; el detalle
-quedó en `docs/ramas-en-revision.md`). Los 11 HTML de curso archivado que abortaban ahora resuelven, ninguna de las
-55 muestras de curso resuelve con nombre equivocado, y `buscarLinkNav` sigue viva y correcta en sus 3 usos de
-navegación. **La rama no tiene nada pendiente del lado del código.**
-
-**Lo único que falta para el merge: la Verificación B en Brave** — checklist de 15 pasos en
-`docs/ramas-en-revision.md`, la hace el dueño. Ojo al armarla: los totales esperados de los cursos **activos**
-vencieron (G22 ya trae ~63, no 57); los únicos firmes son G25 (71) y MB5 (24), que son justo los archivados que
-este arreglo destrabó. Luego el corte 2 sobre la spec.
-
-**M-6c sigue pendiente del dueño** y es lo único que puede reabrir el 🟡 de Novedades (re-escanear G25 con la pestaña
-al frente y mirar el storage enseguida).
+Orden del dueño: **escanear todos los cursos desde la portada** → destino en `~/U.N.L.P` (corte 2) → rediseño de la extensión.
+Rama `classroom-escanear-todas`: spec `docs/specs/classroom-escanear-todas/spec.md` (draft, 21 RN / 14 AC,
+tabla de decisión al abrir el popup). **El dueño aprobó los 23 supuestos "sin leer"** → avisado en el encabezado;
+filo: RN-15 (sobrevivir al popup = la deuda ⚪ de cerrar popup), RN-16 (no re-escanear el curso donde está parada la
+pestaña a mitad del recorrido), RN-18 (una sola lista). M-3 cerrado sobre muestras (portada 6 activos + link
+`/h/archived`; archivadas enumera los 8). **Faltan M-1 (cronometrar cada curso) y M-2 (¿`/h/archived` navega por SPA?)
+del dueño en Brave; después, el plan.** Radio de impacto ya visto: `config.ts:53-56` (`esPaginaDelSitio` no reclama
+`/h`), `scraper.js` devuelve UNA `materia`, `popup.js:1166,1516` origen de lista único, `decidirAlAbrir`
+(`core/estado/origenListado.ts`).
 
 ## Spec del corte 2 (destino en ~/U.N.L.P)
 
