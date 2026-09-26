@@ -14,9 +14,9 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 ## 🔴 Abierto
 
-> ## Estado al 2026-09-21: **DOCE** entradas abiertas
+> ## Estado al 2026-09-25: **DIECISÉIS** entradas abiertas
 >
-> Re-contadas, no sumadas al número anterior (3 🔴, 3 🟠, 6 ⚪):
+> Re-contadas, no sumadas al número anterior (3 🔴, 4 🟠, 9 ⚪):
 >
 > 1. 🔴 **El mecanismo de popovers sin tests** (hallado 2026-08-05).
 > 2. 🔴 **El loader del popup no tiene dueño**: tokens y demora pendientes (hallado 2026-08-12).
@@ -30,6 +30,10 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 > 10. ⚪ **`texto.test.ts` importa `node:fs` bajo un `@ts-expect-error`**: hay alternativa sin supresión, `?raw` (hallado 2026-09-12).
 > 11. ⚪ **Cerrar el popup a mitad del escaneo descarta el resultado** (hallado 2026-09-13).
 > 12. ⚪ **`popup.js:789` escanea en `status === 'complete'`, que en una SPA no significa "la vista está lista"** (hallado 2026-09-21): en Classroom corte 1 se tapó en el scraper esperando que el DOM confirme la identidad del curso; el disparador sigue siendo prematuro para otros portales.
+> 13. 🟠 **Classroom: adjuntos de Novedades faltan en disco — NO REPRODUCIDO** (hallado 2026-09-16): decide M-6c.
+> 14. ⚪ **Classroom corte 1: siete pasos de la Verificación B sin mirar en navegador** (mergeado 2026-09-25).
+> 15. ⚪ **Spec corte 2: un curso ya asociado deja de aparecer** (`MC4 1S 2026`, hallado 2026-09-16).
+> 16. ⚪ **Spec corte 2: D12 deja copias md5-idénticas dentro de un mismo curso** (hallado 2026-09-21).
 >
 > ### Lo que se cerró el 2026-09-12 (Classroom corte 1)
 >
@@ -578,6 +582,32 @@ Llegaron acá al mergear la tanda del toolbar (2026-08-13): vivían en
 - **Dónde**: `popup.js:924-929` (el `.catch` de `backend.seleccionarCarpeta()`) y `backend/handlers.js:362-364` (500 con `{ error }`).
 - **Qué pasa**: si el selector no se puede abrir, el server loguea y devuelve 500; el popup restaura la ruta previa y sólo hace `console.error`. Para el usuario es "no pasó nada". Se vio el 2026-09-13 con un backend arrancado antes de `4623593`, que en Linux seguía lanzando `powershell`.
 - **Estado**: ⚪ abierto (hallado el 2026-09-13, verificación B del corte 1 de Classroom).
+
+### 🟠 Classroom: adjuntos de Novedades faltan en disco — NO REPRODUCIDO
+
+- **Dónde**: escaneo de Novedades en `sitio/google-classroom/scraper.js` (paso 9), o aguas abajo (cola/descarga).
+- **Qué pasa**: en la Verificación B del 2026-09-16 faltaron en disco 23 archivos de G25 que sólo viven en Novedades. Dos diagnósticos previos resultaron falsos (M-6 y M-6b los niegan: el DOM los tiene y los filtros no los descartan).
+- **Qué decide**: M-6c — re-escanear G25 con la pestaña al frente y mirar el storage enseguida. Si aparecen los 26, el defecto no es del escaneo.
+- **Evidencia completa**: `docs/portal-google-classroom-diseno.md` §9, hallazgo 🟡 de Novedades.
+- **Estado**: 🟠 abierto, pendiente del dueño (hallado el 2026-09-16).
+
+### ⚪ Classroom corte 1: siete pasos de la Verificación B sin mirar en navegador
+
+- **Dónde**: checklist en `docs/portal-google-classroom-diseno.md` §9 (Checklist de Verificación B).
+- **Qué pasa**: se mergeó con escaneo y descarga verificados en Brave; quedaron sin mirar los pasos 4 (pestaña oculta), 6 (Anatomy sigue igual), 7 (aviso de fallo), 10 (🔄), 11 (Explorar en Linux), 13 (consola sin `Adjuntos sin resolver`) y 15 (cambio de curso a mitad de escaneo).
+- **Estado**: ⚪ abierto (2026-09-25). Se cierra mirándolos, en cualquier verificación futura de Classroom.
+
+### ⚪ Spec corte 2: un curso ya asociado deja de aparecer
+
+- **Dónde**: `docs/specs/classroom-destino/` (no tiene supuesto para esto).
+- **Qué pasa**: `MC4 1S 2026` desapareció de la portada entre el 12 y el 16-09 (probable archivado). El material ya bajado no debe tratarse como huérfano: es cuando la copia local pasa a ser la única.
+- **Estado**: ⚪ abierto, entra a la spec del corte 2 (hallado el 2026-09-16).
+
+### ⚪ Spec corte 2: D12 deja copias md5-idénticas dentro de un mismo curso
+
+- **Dónde**: `docs/specs/classroom-destino/assumptions.md` (el supuesto 20 cubre dos cursos, no éste).
+- **Qué pasa**: `Informe de laboratorio FISICA I 2024 (Template).docx` quedó 5 veces con md5 idéntico e `interferencia2025.pdf` 2 veces: mismo curso, mismo archivo, distinto material. Decidir si el desempate de D12 mira el contenido antes de copiar.
+- **Estado**: ⚪ abierto, entra a la spec del corte 2 (hallado el 2026-09-21).
 
 ### ✅ Ningún test serializa las funciones que se inyectan en la pestaña
 
