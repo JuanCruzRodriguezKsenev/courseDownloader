@@ -1,7 +1,14 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.27.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.28.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.28.0:
+ * - [CLASSROOM ESCANEAR TODAS] Recorrido multi-curso (portada Classroom /h):
+ *   - Lanza recorrido en modo "todos" vía `lanzarRecorridoTodos()`.
+ *   - Suscripción a `recorridoTodos` para progreso vivo y materialización al reabrir/terminar.
+ *   - `decidirAlAbrir` extendido con 'mostrar-recorrido', 'materializar-recorrido', 'ofrecer-todos'.
+ *   - Tarjetas de progreso, oferta y fin sin material en Disponibles.
+ *
  * CHANGELOG v5.27.0:
  * - [CLASSROOM CORTE 1 — ADJUNTOS SIN RESOLVER] `adjuntosSinResolverUltimoEscaneo` guarda el
  *   conteo del escaneo y se pasa al view-model de `ListaClases.render` en `ctx.nota` (sólo en
@@ -345,6 +352,7 @@ import ListaClases from './popup/features/listaClases.preact.js';
 import RutaDisco from './popup/features/rutaDisco.preact.js';
 import BannerConexion from './popup/features/bannerConexion.preact.js';
 import { decidirAlAbrir } from './core/estado/origenListado.ts';
+import { esVigente, resumen, textoResumen, enlacesDe } from './core/estado/recorridoTodos.ts';
 
 /**
  * Arranca el popup con sus dependencias ya resueltas (Fase 7b).
@@ -378,7 +386,7 @@ import { decidirAlAbrir } from './core/estado/origenListado.ts';
  *                                  `identidadClase`.
  * @param {object} deps.renderers   Pintado vanilla que todavía no es isla.
  */
-export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, sitios, identidadClase, credencialesPortal, renderers }) {
+export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, sitios, identidadClase, credencialesPortal, renderers, recorridoTodos }) {
   document.addEventListener('DOMContentLoaded', async () => {
     console.log("🤖 [POPUP-CORE] Orquestador unificado V5.4.1 activo. Sincronización de escáner híbrido (Chrome/Bun) integrada.");
 
@@ -503,6 +511,28 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     let escaneoMuerto = null;
     // [CLASSROOM CORTE 1] De la corrida, no del listado persistido (no va a appState).
     let adjuntosSinResolverUltimoEscaneo = 0;
+    // [CLASSROOM ESCANEAR TODAS] Recorrido multi-curso
+    let recorrido = null;
+    let recorridoSinEnlaces = false;
+    let pestañaActivaUrl = "";
+    let pestañaActivaId = null;
+
+    recorridoTodos?.suscribir((r) => {
+      recorrido = r;
+      if (recorrido?.estado === "escaneando") {
+        renderizarListadoInterfaz();
+      } else if (
+        recorrido &&
+        recorrido.estado !== "escaneando" &&
+        !recorrido.materializado
+      ) {
+        chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+          if (tab && tab.id === recorrido.tabId) {
+            materializarRecorrido();
+          }
+        });
+      }
+    });
 
     /**
      * El timeout del escaneo ocupa la región **sólo en Disponibles**, y esto no es un detalle.
@@ -545,7 +575,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
      * tiene que negarse a escanear. No se cae al portal legado a propósito: adivinar el portal
      * de una pestaña cualquiera es exactamente el bug que ADR-0010 previene.
      */
-    function adoptarPortalDePestaña(url) {
+    function adoptarPortalDePestaña(url, tabId) {
+      if (typeof url === "string") pestañaActivaUrl = url;
+      if (typeof tabId === "number") pestañaActivaId = tabId;
       const resuelto = sitios.resolverPorUrl(url);
       if (resuelto) sitioActivo = resuelto;
       return resuelto;
@@ -873,6 +905,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     }
 
     try {
+      recorrido = (await recorridoTodos?.leer()) || null;
       await appState.inicializarSincronizacionStorage();
       actualizarIconoSorteo();
       actualizarBadgeFaceta();
@@ -1058,7 +1091,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     let timerSincronizacionDebounce = null;
     nodos.folder.addEventListener('input', () => {
       const modoActual = nodos.btnAction.getAttribute('data-modo');
-      if (modoActual === 're-escanear') return; 
+      if (modoActual === 're-escanear' || modoActual === 'escanear-todos') return; 
 
       const nuevaRuta = nodos.folder.value.trim();
 
@@ -1152,31 +1185,73 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       aplicarFiltrosCruzados();
     }
 
-    // [CLASSROOM CORTE 1 — LISTA GUARDADA] Los disparadores AUTOMÁTICOS pasan por acá; los que
-    // pidió el usuario (footer "Re-escanear", 🔄) llaman directo a ejecutarPaso1. Devuelve `true`
-    // = el loader es mío, con el mismo contrato que ejecutarPaso1 (lo lee conectarYArrancar).
-    function escanearOUsarGuardada() {
-      if (escaneoEnCurso) return false;
-      chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-        // Otro disparador pudo arrancar un escaneo mientras esperábamos: ése es dueño del loader.
-        if (escaneoEnCurso) return;
-        const portal = !chrome.runtime.lastError && tab ? sitios.resolverPorUrl(tab.url) : undefined;
-        const decision = portal
-          ? decidirAlAbrir({
-              origen: appState.origenListado,
-              sitioId: portal.id,
-              clave: portal.claveDeListado?.(tab.url),
-              hayItemsDelPortal: appState.listadoClasesGlobal.some(c => c && c.sitioId === portal.id),
-            })
-          : 'escanear';
-        if (decision === 'usar-guardada') {
-          adoptarPortalDePestaña(tab.url);
-          mostrarListaGuardada();
-          return;
-        }
-        ejecutarPaso1EscaneoRamonAutomatico();
+    function aplicarEnlacesEscaneados(portal, url, enlaces) {
+      const itemsEnCola = appState.listadoClasesGlobal.filter(c => c.estado === 'process');
+      const nuevasClases = enlaces.map((item, idx) => {
+        // [ESCANEO-API CORTE 1] La base de la carpeta sale del MÓDULO de la clase si el
+        // portal es de dos niveles, y sólo cae al input cuando no lo es. Así
+        // `clasificarCarpeta` ya devuelve la carpeta por clase y no hubo que tocar el
+        // parser de títulos de ningún portal.
+        const materiaBase = item.modulo || nodos.folder.value.trim();
+        // [ESCANEO-API CORTE 5] Un ADJUNTO no pasa por el parser de títulos. Ese parser
+        // existe para normalizar títulos de clase scrapeados (fechas, cátedras, basura
+        // del DOM); el nombre de un PDF ya es un nombre de archivo con su extensión, y
+        // pasarlo por ahí lo mutilaría — perdería el `.pdf`, entre otras cosas.
+        const esAdjunto = item.tipo === 'adjunto';
+        const tituloFinalEstandar = esAdjunto
+          ? item.texto
+          : portal.parsearTitulo(item.texto, materiaBase);
+        const clasif = portal.clasificarCarpeta(item.texto, materiaBase);
+
+        return {
+          id: idx + Date.now(), // ID único dinámico para evitar colisiones con clases persistidas
+          numeroOriginal: idx + 1,
+          titulo: tituloFinalEstandar,
+          urlInterna: item.href,
+          // El módulo de ORIGEN. Es media identidad de la clase
+          // (`core/cola/identidadClase.ts`) y por eso se persiste con ella: sin él, los
+          // 7 títulos que Anatomy repite en dos módulos son un solo ítem para la cola.
+          // No confundir con `carpeta`, que es el destino y lo puede pisar el override.
+          modulo: item.modulo,
+          // [CORTE 5] Qué es. Ausente sería `video`, pero se estampa explícito porque
+          // también es parte de la identidad y viaja en cada mensaje IPC del ítem.
+          tipo: item.tipo || 'video',
+          idArchivo: item.idArchivo,
+          bytes: item.bytes,
+          // ADR-0010: de qué portal salió. Se estampa ACÁ, que es el único momento en
+          // que se sabe con certeza — el escaneo corre sobre una pestaña concreta.
+          // Después la cola es independiente de la pestaña y ya no habría cómo deducirlo.
+          sitioId: portal.id,
+          catedra: clasif.catedra,
+          carpeta: clasif.carpeta,
+          estado: 'pending',
+          seleccionado: false,
+          visible: true
+        };
       });
-      return true;
+
+      // Combinar evitando duplicar elementos que ya están en la cola
+      // [MULTIPORTAL D] Por (portal, título), no por título: dos portales pueden tener
+      // una clase homónima y con la clave pelada la del portal recién escaneado se
+      // descartaba en silencio por culpa de una encolada del otro.
+      const yaEnCola = new Set(itemsEnCola.map(c => identidadClase.clave(c)));
+      const clasesNuevasFiltradas = nuevasClases.filter(c => !yaEnCola.has(identidadClase.clave(c)));
+
+      appState.listadoClasesGlobal = [...itemsEnCola, ...clasesNuevasFiltradas];
+      appState.sincronizacionDiscoCompletada = false;
+      // [CLASSROOM CORTE 1 — LISTA GUARDADA] `tab` es la pestaña sobre la que se inyectó
+      // (el callback de chrome.tabs.query de arriba). Sin clave, sin origen: ese portal
+      // vuelve a escanear siempre.
+      const claveOrigen = portal.claveDeListado?.(url);
+      appState.origenListado = claveOrigen ? { sitioId: portal.id, clave: claveOrigen } : null;
+      appState.respaldar();
+      desbanearFiltros(); 
+      nodos.masterCheck.checked = false;
+      renderizarListadoInterfaz();
+      // Mostrar asistente de autoselección si es multicátedra
+      verificarYMostrarAsistenteFaceta();
+      // Auto-sincronizar inmediatamente
+      ejecutarPaso2SincronizarDiscoVeloz();
     }
 
     // Lo mismo que hace el final feliz del escaneo (la rama `else` que arma `nuevasClases`),
@@ -1194,6 +1269,186 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       verificarYMostrarAsistenteFaceta();
       ocultarLoader();
       ejecutarPaso2SincronizarDiscoVeloz();
+    }
+
+    async function materializarRecorrido() {
+      if (!recorrido) return;
+      const portal = sitios.obtener(recorrido.sitioId || "google-classroom") || sitioActivo;
+      const { enlaces, adjuntosSinResolver } = enlacesDe(recorrido);
+      if (enlaces && enlaces.length > 0) {
+        adjuntosSinResolverUltimoEscaneo = adjuntosSinResolver;
+        nodos.folder.value = "";
+        recorridoSinEnlaces = false;
+        let authUser = "0";
+        const matchUrl = pestañaActivaUrl?.match(/\/u\/(\d+)\//);
+        if (matchUrl) {
+          authUser = matchUrl[1];
+        } else {
+          const creds = await credencialesPortal?.para(portal?.id);
+          if (creds?.authuser) {
+            authUser = creds.authuser;
+          }
+        }
+        const urlPortada = `https://classroom.google.com/u/${authUser}/h`;
+        aplicarEnlacesEscaneados(portal, urlPortada, enlaces);
+      } else {
+        recorridoSinEnlaces = true;
+        renderizarListadoInterfaz();
+      }
+      mensajeria.enviar({
+        action: "recorrido_evento",
+        idRecorrido: recorrido.idRecorrido,
+        tipo: "materializado",
+      });
+    }
+
+    function lanzarRecorridoTodos() {
+      if (escaneoEnCurso) return false;
+      escaneoEnCurso = true;
+      chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+        if (!tab) {
+          escaneoEnCurso = false;
+          return;
+        }
+        const portal = sitios.resolverPorUrl(tab.url);
+        if (!portal || !portal.esPortada?.(tab.url)) {
+          escaneoEnCurso = false;
+          return;
+        }
+        adoptarPortalDePestaña(tab.url, tab.id);
+        const idRecorrido = Date.now();
+        recorridoSinEnlaces = false;
+        recorrido = {
+          idRecorrido,
+          tabId: tab.id,
+          sitioId: portal.id,
+          estado: "escaneando",
+          cursos: [],
+          indice: 0,
+          ultimaSenal: Date.now(),
+          materializado: false,
+        };
+        renderizarListadoInterfaz();
+
+        chrome.scripting.executeScript(
+          {
+            target: { tabId: tab.id },
+            func: portal.escanearListado,
+            args: [
+              {
+                modo: "todos",
+                idRecorrido,
+                tabId: tab.id,
+                sitioId: portal.id,
+                topeCursoMs: portal.topeEscaneoMs,
+              },
+            ],
+          },
+          () => {
+            escaneoEnCurso = false;
+            if (chrome.runtime.lastError) {
+              const motivoCrudo = chrome.runtime.lastError.message;
+              console.error("❌ [POPUP-SCRIPT-ERROR] Falló inyección de script de recorrido:", motivoCrudo);
+              ocultarLoader();
+              escaneoMuerto = {
+                motivo: "inyeccion",
+                portal: utils.escaparHtml(portal.nombre),
+                detalle: utils.escaparHtml(motivoCrudo || "sin detalle"),
+              };
+              sincronizarBloqueosDeAlerta();
+              configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
+              appState.inicializarSincronizacionStorage().then(() => {
+                actualizarBadgeFaceta();
+                renderizarListadoInterfaz();
+              });
+            }
+          }
+        );
+      });
+      return true;
+    }
+
+    function reescanearSegunPestaña() {
+      chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+        const portal = tab ? sitios.resolverPorUrl(tab.url) : null;
+        if (portal?.esPortada?.(tab.url)) {
+          lanzarRecorridoTodos();
+        } else {
+          ejecutarPaso1EscaneoRamonAutomatico();
+        }
+      });
+    }
+
+    // [CLASSROOM CORTE 1 — LISTA GUARDADA] Los disparadores AUTOMÁTICOS pasan por acá; los que
+    // pidió el usuario (footer "Re-escanear", 🔄) llaman directo a ejecutarPaso1. Devuelve `true`
+    // = el loader es mío, con el mismo contrato que ejecutarPaso1 (lo lee conectarYArrancar).
+    function escanearOUsarGuardada() {
+      if (escaneoEnCurso) return false;
+      chrome.tabs.query({ active: true, currentWindow: true }, async ([tab]) => {
+        // Otro disparador pudo arrancar un escaneo mientras esperábamos: ése es dueño del loader.
+        if (escaneoEnCurso) return;
+        const portal = !chrome.runtime.lastError && tab ? sitios.resolverPorUrl(tab.url) : undefined;
+        if (tab) {
+          adoptarPortalDePestaña(tab.url, tab.id);
+        }
+
+        if (
+          recorrido &&
+          recorrido.estado === "escaneando" &&
+          !esVigente(recorrido, Date.now(), portal?.topeEscaneoMs || 60000)
+        ) {
+          await mensajeria.enviar({
+            action: "recorrido_evento",
+            idRecorrido: recorrido.idRecorrido,
+            tipo: "fin",
+            estado: "cortado",
+            motivoCorte: "sin-respuesta",
+          });
+          recorrido = (await recorridoTodos?.leer()) || null;
+        }
+
+        const decision = portal
+          ? decidirAlAbrir({
+              origen: appState.origenListado,
+              sitioId: portal.id,
+              clave: portal.claveDeListado?.(tab.url),
+              hayItemsDelPortal: appState.listadoClasesGlobal.some(c => c && c.sitioId === portal.id),
+              esPortada: portal.esPortada?.(tab.url) ?? false,
+              recorrido: recorrido
+                ? {
+                    tabId: recorrido.tabId,
+                    estado: recorrido.estado,
+                    vigente: esVigente(recorrido, Date.now(), portal.topeEscaneoMs || 60000),
+                    materializado: recorrido.materializado,
+                  }
+                : null,
+              tabId: tab?.id,
+            })
+          : 'escanear';
+
+        if (decision === 'mostrar-recorrido') {
+          adoptarPortalDePestaña(tab.url, tab.id);
+          renderizarListadoInterfaz();
+          return;
+        }
+        if (decision === 'materializar-recorrido') {
+          materializarRecorrido();
+          return;
+        }
+        if (decision === 'ofrecer-todos') {
+          adoptarPortalDePestaña(tab.url, tab.id);
+          configurarBotonesUX("escanear-todos", "Escanear todos los cursos", false);
+          renderizarListadoInterfaz();
+          return;
+        }
+        if (decision === 'usar-guardada') {
+          adoptarPortalDePestaña(tab.url, tab.id);
+          mostrarListaGuardada();
+          return;
+        }
+        ejecutarPaso1EscaneoRamonAutomatico();
+      });
+      return true;
     }
 
     function ejecutarPaso1EscaneoRamonAutomatico() {
@@ -1243,7 +1498,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         // portal sale cada clase. Se resuelve una vez y se usa `portal` —el local— en todo el
         // resto del escaneo: leer `sitioActivo` más abajo dejaría la puerta abierta a que otro
         // listener lo cambie a mitad de camino.
-        const portal = tab && adoptarPortalDePestaña(tab.url);
+        const portal = tab && adoptarPortalDePestaña(tab.url, tab.id);
         if (!portal) {
           clearTimeout(safetyTimeout);
           terminarEscaneo();
@@ -1273,6 +1528,20 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           // Sin el `if (length > 0)` que tenía: el repintado corre SIEMPRE, que es lo que
           // faltaba para que la pantalla refleje lo que acaba de pasar.
           aplicarFiltrosCruzados();
+          return;
+        }
+
+        if (
+          recorrido &&
+          recorrido.estado === "escaneando" &&
+          tab &&
+          recorrido.tabId === tab.id &&
+          esVigente(recorrido, Date.now(), portal.topeEscaneoMs || 60000)
+        ) {
+          clearTimeout(safetyTimeout);
+          terminarEscaneo();
+          ocultarLoader();
+          renderizarListadoInterfaz();
           return;
         }
 
@@ -1458,71 +1727,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
               configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
             } else {
-              const nuevasClases = enlaces.map((item, idx) => {
-                // [ESCANEO-API CORTE 1] La base de la carpeta sale del MÓDULO de la clase si el
-                // portal es de dos niveles, y sólo cae al input cuando no lo es. Así
-                // `clasificarCarpeta` ya devuelve la carpeta por clase y no hubo que tocar el
-                // parser de títulos de ningún portal.
-                const materiaBase = item.modulo || nodos.folder.value.trim();
-                // [ESCANEO-API CORTE 5] Un ADJUNTO no pasa por el parser de títulos. Ese parser
-                // existe para normalizar títulos de clase scrapeados (fechas, cátedras, basura
-                // del DOM); el nombre de un PDF ya es un nombre de archivo con su extensión, y
-                // pasarlo por ahí lo mutilaría — perdería el `.pdf`, entre otras cosas.
-                const esAdjunto = item.tipo === 'adjunto';
-                const tituloFinalEstandar = esAdjunto
-                  ? item.texto
-                  : portal.parsearTitulo(item.texto, materiaBase);
-                const clasif = portal.clasificarCarpeta(item.texto, materiaBase);
-
-                return {
-                  id: idx + Date.now(), // ID único dinámico para evitar colisiones con clases persistidas
-                  numeroOriginal: idx + 1,
-                  titulo: tituloFinalEstandar,
-                  urlInterna: item.href,
-                  // El módulo de ORIGEN. Es media identidad de la clase
-                  // (`core/cola/identidadClase.ts`) y por eso se persiste con ella: sin él, los
-                  // 7 títulos que Anatomy repite en dos módulos son un solo ítem para la cola.
-                  // No confundir con `carpeta`, que es el destino y lo puede pisar el override.
-                  modulo: item.modulo,
-                  // [CORTE 5] Qué es. Ausente sería `video`, pero se estampa explícito porque
-                  // también es parte de la identidad y viaja en cada mensaje IPC del ítem.
-                  tipo: item.tipo || 'video',
-                  idArchivo: item.idArchivo,
-                  bytes: item.bytes,
-                  // ADR-0010: de qué portal salió. Se estampa ACÁ, que es el único momento en
-                  // que se sabe con certeza — el escaneo corre sobre una pestaña concreta.
-                  // Después la cola es independiente de la pestaña y ya no habría cómo deducirlo.
-                  sitioId: portal.id,
-                  catedra: clasif.catedra,
-                  carpeta: clasif.carpeta,
-                  estado: 'pending',
-                  seleccionado: false,
-                  visible: true
-                };
-              });
-
-              // Combinar evitando duplicar elementos que ya están en la cola
-              // [MULTIPORTAL D] Por (portal, título), no por título: dos portales pueden tener
-              // una clase homónima y con la clave pelada la del portal recién escaneado se
-              // descartaba en silencio por culpa de una encolada del otro.
-              const yaEnCola = new Set(itemsEnCola.map(c => identidadClase.clave(c)));
-              const clasesNuevasFiltradas = nuevasClases.filter(c => !yaEnCola.has(identidadClase.clave(c)));
-
-              appState.listadoClasesGlobal = [...itemsEnCola, ...clasesNuevasFiltradas];
-              appState.sincronizacionDiscoCompletada = false;
-              // [CLASSROOM CORTE 1 — LISTA GUARDADA] `tab` es la pestaña sobre la que se inyectó
-              // (el callback de chrome.tabs.query de arriba). Sin clave, sin origen: ese portal
-              // vuelve a escanear siempre.
-              const claveOrigen = portal.claveDeListado?.(tab.url);
-              appState.origenListado = claveOrigen ? { sitioId: portal.id, clave: claveOrigen } : null;
-              appState.respaldar();
-              desbanearFiltros(); 
-              nodos.masterCheck.checked = false;
-              renderizarListadoInterfaz();
-              // Mostrar asistente de autoselección si es multicátedra
-              verificarYMostrarAsistenteFaceta();
-              // Auto-sincronizar inmediatamente
-              ejecutarPaso2SincronizarDiscoVeloz();
+              aplicarEnlacesEscaneados(portal, tab.url, enlaces);
             }
           } catch (e) {
             console.error("❌ Error procesando payload de inyección:", e);
@@ -1711,7 +1916,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     nodos.btnAction.addEventListener('click', () => {
       const modo = nodos.btnAction.getAttribute('data-modo');
       if (modo === 're-escanear') {
-        ejecutarPaso1EscaneoRamonAutomatico();
+        reescanearSegunPestaña();
+      } else if (modo === 'escanear-todos') {
+        lanzarRecorridoTodos();
       } else if (modo === 'sincronizar-disco') {
         ejecutarPaso2SincronizarDiscoVeloz();
       } else if (modo === 'descargar') {
@@ -1725,7 +1932,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       }
     });
 
-    nodos.btnRescan?.addEventListener('click', () => ejecutarPaso1EscaneoRamonAutomatico());
+    nodos.btnRescan?.addEventListener('click', () => reescanearSegunPestaña());
 
     nodos.btnStartQueue.addEventListener('click', () => _queue.iniciarDescargaCola());
 
@@ -1808,6 +2015,63 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           }});
         }
         return;
+      }
+
+      if (appState.pestañaActiva === "disponibles") {
+        if (
+          recorrido &&
+          recorrido.estado === "escaneando" &&
+          recorrido.tabId === pestañaActivaId &&
+          esVigente(recorrido, Date.now(), sitioActivo?.topeEscaneoMs || 60000)
+        ) {
+          let descripcion;
+          if (!recorrido.cursos || recorrido.cursos.length === 0) {
+            descripcion = "Buscando tus cursos…";
+          } else {
+            const r = resumen(recorrido);
+            const cursoActual = recorrido.cursos[recorrido.indice] || { nombre: "" };
+            descripcion = `Curso ${recorrido.indice + 1} de ${recorrido.cursos.length}: ${utils.escaparHtml(cursoActual.nombre || "")}<br>Listos: ${r.ok} · Vacíos: ${r.vacios} · Fallidos: ${r.fallidos.length}<br>Dejá Classroom al frente. Podés cerrar este popup.`;
+          }
+          ListaClases.render({
+            modo: 'card',
+            card: {
+              tipo: 'info',
+              icono: '🗂️',
+              titulo: 'Escaneando todos los cursos',
+              descripcion,
+            },
+          });
+          return;
+        }
+
+        if (nodos.btnAction.getAttribute('data-modo') === 'escanear-todos') {
+          ListaClases.render({
+            modo: 'card',
+            card: {
+              tipo: 'info',
+              icono: '📚',
+              titulo: 'Todas mis clases',
+              descripcion:
+                'Escaneamos todos tus cursos, activos y archivados, uno por uno. Tarda unos 45 s por curso.<br>Dejá esta pestaña al frente hasta que termine. Podés cerrar este popup.',
+            },
+          });
+          return;
+        }
+
+        if (recorridoSinEnlaces && recorrido) {
+          const descCruda = textoResumen(recorrido);
+          const descripcion = utils.escaparHtml(descCruda).replace(/\n/g, '<br>');
+          ListaClases.render({
+            modo: 'card',
+            card: {
+              tipo: 'info',
+              icono: '🗂️',
+              titulo: 'El recorrido no trajo material',
+              descripcion,
+            },
+          });
+          return;
+        }
       }
 
       // [LOADERS — ítem 1f] El escaneo que murió por timeout se pinta ACÁ, derivado del estado,
@@ -1984,14 +2248,21 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           anclaActiva,
           sinResultados,
           selectionMode,
-          // [CLASSROOM CORTE 1] La nota de adjuntos descartados. Sólo en Disponibles: es del
-          // escaneo, y la Fila no tiene nada que ver con él — el mismo recorte que hace
-          // `escaneoMuertoDominaLaPestaña`. Texto fijo con un número: no lleva nada scrapeado,
-          // así que no hay nada que escapar.
-          nota:
-            appState.pestañaActiva === "disponibles" && adjuntosSinResolverUltimoEscaneo > 0
-              ? `⚠️ ${adjuntosSinResolverUltimoEscaneo} ${adjuntosSinResolverUltimoEscaneo === 1 ? "adjunto no terminó" : "adjuntos no terminaron"} de cargar y ${adjuntosSinResolverUltimoEscaneo === 1 ? "quedó" : "quedaron"} afuera. Probá Re-escanear 🔄.`
-              : null,
+          // [CLASSROOM CORTE 1] La nota de adjuntos descartados y [CLASSROOM ESCANEAR TODAS]
+          // resumen de recorrido. Sólo en Disponibles: es del escaneo, y la Fila no tiene
+          // nada que ver con él — el mismo recorte que hace `escaneoMuertoDominaLaPestaña`.
+          nota: (() => {
+            if (appState.pestañaActiva !== "disponibles") return null;
+            const partes = [];
+            if (appState.origenListado?.clave === "todos" && recorrido && recorrido.materializado) {
+              const res = textoResumen(recorrido);
+              if (res) partes.push(res);
+            }
+            if (adjuntosSinResolverUltimoEscaneo > 0) {
+              partes.push(`⚠️ ${adjuntosSinResolverUltimoEscaneo} ${adjuntosSinResolverUltimoEscaneo === 1 ? "adjunto no terminó" : "adjuntos no terminaron"} de cargar y ${adjuntosSinResolverUltimoEscaneo === 1 ? "quedó" : "quedaron"} afuera. Probá Re-escanear 🔄.`);
+            }
+            return partes.length > 0 ? partes.join("\n") : null;
+          })(),
           // [ESCANEO-API CORTE 2] El override del input, ya saneado, para que cada fila pueda
           // mostrar a dónde va a ir. **No es adorno**: si el input puede pisar el destino de 103
           // clases, tenés que ver el efecto ANTES de encolar. Escribir algo cambia las 103 filas
@@ -2440,7 +2711,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       nodos.btnStartQueue.style.display = 'none';
     
       const modoActual = nodos.btnAction.getAttribute('data-modo');
-      if (modoActual === 're-escanear') return; 
+      if (modoActual === 're-escanear' || modoActual === 'escanear-todos') return; 
 
       if (!appState.sincronizacionDiscoCompletada) {
         // `isOffline` equivale a "el banner de conexión está en pantalla": el input de carpeta

@@ -20,7 +20,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   que sobrevive a cerrar el popup.
   - Spec: `docs/specs/classroom-escanear-todas/spec.md` (`draft`; supuestos aprobados sin leer).
   - Plan: `docs/plan-classroom-escanear-todas.md`.
-- **Estado**: En ejecución. Pasos 1 a 5 completados (ScraperClassroom todos, config Classroom portada, recorridoTodos puro, manejador SW, origenListado v1.1.0 con 5 filas y CLAVES_DE_SESION).
+- **Estado**: En ejecución. Pasos 1 a 6 completados (ScraperClassroom todos, config Classroom portada, recorridoTodos puro, manejador SW, origenListado v1.1.0, popup v5.28.0 con lanzar/mirar/materializar recorrido).
 
 ## Lo último que se mergeó (2026-09-25)
 

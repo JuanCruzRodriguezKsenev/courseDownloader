@@ -43,7 +43,7 @@ import '../../plataforma/composicion.ts';
 // `DOMContentLoaded` se registra en el mismo momento que antes — los módulos ES son
 // diferidos, así que todo esto corre antes de que el evento dispare.
 import { iniciarPopup } from '../../popup.js';
-import { AppState, Conexion, credencialesPortal, HistorialFallos, identidadClase, mensajeria, sitios, Utils } from '../../plataforma/composicion.ts';
+import { AppState, Conexion, credencialesPortal, HistorialFallos, identidadClase, mensajeria, sitios, Utils, RecorridoTodos } from '../../plataforma/composicion.ts';
 import BunClient from '../../core/backend/bunClient.ts';
 import crearRenderers from '../../renderers.js';
 
@@ -68,6 +68,7 @@ iniciarPopup({
   // [CORTE 7] Donde el escaneo deja las credenciales del portal para que las lea el SW.
   credencialesPortal,
   renderers: crearRenderers(Utils),
+  recorridoTodos: RecorridoTodos,
 });
 
 // Islas Preact.
