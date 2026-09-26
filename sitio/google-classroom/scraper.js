@@ -862,7 +862,7 @@ const ScraperClassroom = {
         continue;
       }
       resCurso = carrera.res;
-    } catch (err) {
+    } catch {
       if (timer) clearTimeout(timer);
       await avisar({ tipo: "curso", indice: i, resultado: "fallido", motivo: "error inesperado" });
       continue;
