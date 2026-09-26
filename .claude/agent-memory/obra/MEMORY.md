@@ -4,3 +4,4 @@
 - [Classroom corte 1: identidad del curso](project_classroom_identidad_del_curso.md) — validación por sidebar y DOM antes de listar y cinturones contra cambio de curso
 - [Classroom corte 1: identidad en archivados](project_classroom_identidad_en_archivados.md) — confirmación por h1 a[href] en archivados sin sidebar, fixture con orden real de nav
 - [Formateo U.N.L.P Ingeniería](project_unlp_formateo_ingenieria.md) — formateo previo al corte 2 de Classroom, core.ignorecase en git y renombres sin colisión
+- [Classroom: Escaneo multi-curso](project_classroom_escanear_todas.md) — ADR-0016 script inyectado avisando al SW vía IPC, estado puro, tabla de decisión al abrir y lista agrupada en Preact
