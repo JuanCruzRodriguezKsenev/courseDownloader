@@ -1,6 +1,10 @@
 /**
- * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V7.2.0)
+ * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V7.3.0)
  * ==========================================================================
+ * CHANGELOG v7.3.0:
+ * - [CLASSROOM ESCANEAR TODAS] Manejador IPC `recorrido_evento`: reduce los eventos
+ *   del recorrido multi-curso en `storage.local.recorridoTodos` (Paso 4).
+ *
  * CHANGELOG v7.2.0:
  * - [CLASSROOM VERIFICACIÓN B] La notificación de fallo sin pestaña abre `urlListado`
  *   y no `urlSondeoInternet`: la sonda de conexión dejó de ser una página navegable (en
@@ -223,6 +227,7 @@ export function iniciarServiceWorker({
   cola,
   backend,
   resolverSitioDeNotificacion,
+  recorrido,
 }) {
   // Los helpers de progreso (SW_ESTADOS_PROGRESO) y el volcado legacy a disco (offscreen +
   // chrome.downloads) se fueron en la Fase 6b a `core/cola/estadosProgreso.ts` y
@@ -263,6 +268,20 @@ export function iniciarServiceWorker({
   // `detener`, `abortarRafaga`). El objeto se exporta para tests.
   // ─────────────────────────────────────────────────────────────────────────────
   const manejadoresIPC = {
+    // ─── EVENTOS DE RECORRIDO MULTI-CURSO ──────────────────────────────────────
+    async recorrido_evento(request, sendResponse) {
+      const { recorridoTodos: prev } = await almacenamiento.obtenerLocal(["recorridoTodos"]);
+      const sig = recorrido.aplicarEvento(
+        recorrido.esRecorridoTodos(prev) ? prev : null,
+        request,
+        Date.now()
+      );
+      if (sig !== prev) {
+        await almacenamiento.guardarLocal({ recorridoTodos: sig });
+      }
+      return sendResponse({ status: "ok" });
+    },
+
     // ─── ESCANEO DE CARPETA LOCAL OPTIMIZADO NATIVO ────────────────────────
     async escanear_carpeta_local(request, sendResponse) {
       const materiaObjetivo = request.carpeta ? request.carpeta.trim().toLowerCase() : "";
