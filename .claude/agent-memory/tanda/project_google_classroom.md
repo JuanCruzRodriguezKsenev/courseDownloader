@@ -46,6 +46,8 @@ antes de la extensión, D13 paginar con "Ver más" (botón visible y habilitado 
 8. El **verificador corre la batería de courseDownloader**: no verifica planes sobre otro repo (`~/U.N.L.P`) → ahí,
    contraste propio.
 9. **`git push` por iniciativa propia lo bloquea el clasificador de auto mode**; con pedido explícito del dueño pasa.
+10. **Claude in Chrome: su pestaña queda con `visibilityState = "hidden"`** aunque pinte → sirve para medir navegación
+    y DOM, pero NO para correr el scraper (aborta por visibilidad). Cronometrar escaneos = el dueño.
 
 ## Estado al 2026-09-25
 
@@ -58,8 +60,11 @@ Rama `classroom-escanear-todas`: spec `docs/specs/classroom-escanear-todas/spec.
 tabla de decisión al abrir el popup). **El dueño aprobó los 23 supuestos "sin leer"** → avisado en el encabezado;
 filo: RN-15 (sobrevivir al popup = la deuda ⚪ de cerrar popup), RN-16 (no re-escanear el curso donde está parada la
 pestaña a mitad del recorrido), RN-18 (una sola lista). M-3 cerrado sobre muestras (portada 6 activos + link
-`/h/archived`; archivadas enumera los 8). **Faltan M-1 (cronometrar cada curso) y M-2 (¿`/h/archived` navega por SPA?)
-del dueño en Brave; después, el plan.** Radio de impacto ya visto: `config.ts:53-56` (`esPaginaDelSitio` no reclama
+`/h/archived`; archivadas enumera los 8). M-2 CERRADO por mí en Brave (todo navega por SPA; hoy 5 activos + 2 archivados).
+**Plan escrito: `docs/plan-classroom-escanear-todas.md`** (9 pasos): recorrido en UNA inyección en la pestaña que
+avisa al SW con `chrome.runtime.sendMessage` (acción `recorrido_evento`, clave `recorridoTodos`, ADR-0016 nuevo);
+el popup materializa con la rama feliz extraída; lector vía `crearLectorRecorrido` en composicion (el popup NO recibe
+`almacenamiento`). M-1 va en la Verificación B (estimación 45 s/curso). Próximo: obra ejecuta; yo re-verifico. Radio de impacto ya visto: `config.ts:53-56` (`esPaginaDelSitio` no reclama
 `/h`), `scraper.js` devuelve UNA `materia`, `popup.js:1166,1516` origen de lista único, `decidirAlAbrir`
 (`core/estado/origenListado.ts`).
 
