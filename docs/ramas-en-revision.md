@@ -20,7 +20,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   que sobrevive a cerrar el popup.
   - Spec: `docs/specs/classroom-escanear-todas/spec.md` (`draft`; supuestos aprobados sin leer).
   - Plan: `docs/plan-classroom-escanear-todas.md`.
-- **Estado**: sólo spec y plan. **Sin código**: `main` sigue siendo lo último que funciona.
+- **Estado**: En ejecución. Paso 1 completado (modo "todos" en ScraperClassroom, fixtures portada/archivadas, 24 tests pasando y controles negativos verificados).
 
 ## Lo último que se mergeó (2026-09-25)
 

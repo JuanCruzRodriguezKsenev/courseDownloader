@@ -1,6 +1,15 @@
 /**
- * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.3.1)
+ * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.4.0)
  * ==========================================================================
+ * CHANGELOG v1.4.0:
+ * - [CLASSROOM — RECORRIDO DE TODOS LOS CURSOS] Soporta `modo: "todos"` para
+ *   recorrer todos los cursos (activos y archivados) desde la portada. Emite
+ *   eventos `recorrido_evento` al SW con `chrome.runtime.sendMessage`.
+ * - Tope de escaneo por curso (`topeCursoMs`) con cancelación por señal interna.
+ * - `motivoAviso` en avisos para distinguir visibilidad, cambio de curso y sin-material.
+ * - Credenciales: el recorrido no manda credenciales (Classroom sólo expone `authuser`,
+ *   y lo cosecha cualquier escaneo de un curso).
+ *
  * CHANGELOG v1.3.1:
  * - [CLASSROOM CORTE 1 — IDENTIDAD EN ARCHIVADOS] En cursos archivados el title lo confirma el
  *   ancla del `<h1>` (el encabezado del curso), no "cualquier ancla al curso menos los links de
@@ -35,8 +44,8 @@ const ScraperClassroom = {
    * Función inyectada por executeScript en la pestaña: debe ser estrictamente
    * autocontenida (sin closures sobre el módulo ni variables externas).
    *
-   * @param {{ tiempos?: Record<string, number> }} [opciones]
-   * @returns {Promise<{ materia: string, enlaces: any[], aviso?: string, credenciales?: Record<string, string> }>}
+   * @param {{ tiempos?: Record<string, number>, modo?: string, idRecorrido?: number, tabId?: number, sitioId?: string, topeCursoMs?: number }} [opciones]
+   * @returns {Promise<{ materia: string, enlaces: any[], aviso?: string, credenciales?: Record<string, string>, recorrido?: boolean, motivoAviso?: string }>}
    */
   escanearListado: async function (opciones) {
     const tiempos = Object.assign(
@@ -54,7 +63,17 @@ const ScraperClassroom = {
       opciones && opciones.tiempos
     );
 
-    const dormir = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    let cancelado = false;
+    const dormir = (ms) =>
+      new Promise((resolve, reject) => {
+        setTimeout(() => {
+          if (cancelado) {
+            reject(new Error("cancelado"));
+          } else {
+            resolve();
+          }
+        }, ms);
+      });
 
     async function esperarCondicion(predicado, timeoutMs, pasoMs = 50) {
       const inicio = Date.now();
@@ -70,6 +89,7 @@ const ScraperClassroom = {
       materia: "",
       enlaces: [],
       aviso: "Cambiaste de pestaña durante el escaneo y Classroom dejó de cargar la página. Dejá Classroom al frente y re-escaneá.",
+      motivoAviso: "visibilidad",
     };
     const avisoCursoCambiado = {
       materia: "",
@@ -77,10 +97,12 @@ const ScraperClassroom = {
       aviso:
         "Cambiaste de curso mientras escaneábamos, así que descartamos lo leído para no " +
         "mezclar los archivos. Re-escaneá en el curso que quieras bajar.",
+      motivoAviso: "curso-cambiado",
     };
 
-    // 1. Visibilidad inicial
-    if (!visible()) return avisoVisibilidad;
+    async function escanearCursoActual() {
+      // 1. Visibilidad inicial
+      if (!visible()) return avisoVisibilidad;
 
     // 2. Curso y cuenta
     const path = location.pathname || "";
@@ -687,6 +709,7 @@ const ScraperClassroom = {
           idsSinResolver.size > 0
             ? `Classroom no terminó de cargar los ${idsSinResolver.size} adjuntos de este curso. Dejá la pestaña al frente y re-escaneá.`
             : "Este curso no tiene archivos en Trabajo en clase ni en Novedades.",
+        ...(idsSinResolver.size === 0 ? { motivoAviso: "sin-material" } : {}),
       };
     }
 
@@ -703,7 +726,180 @@ const ScraperClassroom = {
       credenciales: { authuser: cuenta },
       ...(idsSinResolver.size > 0 ? { adjuntosSinResolver: idsSinResolver.size } : {}),
     };
-  },
+  }
+
+  if (!opciones || opciones.modo !== "todos") {
+    return escanearCursoActual();
+  }
+
+  const { idRecorrido, tabId, sitioId, topeCursoMs = 180000 } = opciones;
+
+  const avisar = async (evento) => {
+    try {
+      if (typeof chrome !== "undefined" && chrome.runtime && typeof chrome.runtime.sendMessage === "function") {
+        await chrome.runtime.sendMessage({ action: "recorrido_evento", idRecorrido, tabId, sitioId, ...evento });
+      }
+    } catch {}
+  };
+
+  if (!visible()) {
+    await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "visibilidad" });
+    return { materia: "", enlaces: [], recorrido: true };
+  }
+
+  // 3. Enumerar
+  const esRutaPortada = (p) => /\/h(?:\/st)?(?:\/|\?|#|$)/.test(p);
+  if (!esRutaPortada(location.pathname || "")) {
+    const linkH = document.querySelector('nav a[href$="/h"]');
+    if (linkH) {
+      linkH.click();
+      await esperarCondicion(() => esRutaPortada(location.pathname || ""), tiempos.navegacion);
+    }
+  }
+
+  function leerCursosDePagina(idsVistos) {
+    const res = [];
+    const anclas = document.querySelectorAll('a[href*="/c/"]');
+    for (const a of anclas) {
+      if (a.closest("nav")) continue;
+      const href = (a.getAttribute("href") || "").split(/[?#]/)[0];
+      const match = /\/c\/([^/]+)$/.exec(href);
+      if (!match) continue;
+      const id = match[1];
+      if (idsVistos.has(id)) continue;
+      idsVistos.add(id);
+
+      let nombre = (a.textContent || "")
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean)[0];
+      if (!nombre) {
+        nombre = (a.getAttribute("aria-label") || "").trim();
+      }
+      res.push({ id, nombre: nombre || id });
+    }
+    return res;
+  }
+
+  const idsVistos = new Set();
+  const activos = leerCursosDePagina(idsVistos);
+
+  const linkArchived = document.querySelector('nav a[href$="/h/archived"]');
+  if (linkArchived) {
+    linkArchived.click();
+    await esperarCondicion(
+      () => (location.pathname || "").includes("/h/archived"),
+      tiempos.navegacion
+    );
+  }
+  const archivados = leerCursosDePagina(idsVistos);
+  const listaFinal = [...activos, ...archivados];
+
+  if (listaFinal.length === 0) {
+    await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "sin-cursos" });
+    return { materia: "", enlaces: [], recorrido: true };
+  }
+
+  // 4. Inicio
+  await avisar({
+    tipo: "inicio",
+    cursos: listaFinal.map((c) => ({ id: c.id, nombre: c.nombre })),
+  });
+
+  // 5. Por cada curso
+  for (let i = 0; i < listaFinal.length; i++) {
+    const curso = listaFinal[i];
+    if (!visible()) {
+      await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "visibilidad" });
+      return { materia: "", enlaces: [], recorrido: true };
+    }
+
+    await avisar({ tipo: "latido", indice: i });
+
+    const navArchived = document.querySelector('nav a[href$="/h/archived"]');
+    if (navArchived) {
+      navArchived.click();
+    }
+    const selectorCurso = `a[href$="/c/${curso.id}"]`;
+    const aparecio = await esperarCondicion(
+      () => Boolean(document.querySelector(selectorCurso)),
+      tiempos.navegacion
+    );
+    if (!aparecio) {
+      await avisar({ tipo: "curso", indice: i, resultado: "fallido", motivo: "no abrió" });
+      continue;
+    }
+    const linkCurso = document.querySelector(selectorCurso);
+    linkCurso.click();
+    const llego = await esperarCondicion(
+      () => (location.pathname || "").includes(`/c/${curso.id}`),
+      tiempos.navegacion
+    );
+    if (!llego) {
+      await avisar({ tipo: "curso", indice: i, resultado: "fallido", motivo: "no abrió" });
+      continue;
+    }
+
+    let resCurso;
+    let timer = null;
+    const promesa = escanearCursoActual();
+    try {
+      const carrera = await Promise.race([
+        promesa.then((res) => ({ res })),
+        new Promise((resolve) => {
+          timer = setTimeout(() => resolve({ vencido: true }), topeCursoMs);
+        }),
+      ]);
+      if (timer) clearTimeout(timer);
+      if (carrera.vencido) {
+        cancelado = true;
+        try {
+          await promesa;
+        } catch {}
+        cancelado = false;
+        const segs = Math.round(topeCursoMs / 1000);
+        await avisar({ tipo: "curso", indice: i, resultado: "fallido", motivo: `superó ${segs} s` });
+        continue;
+      }
+      resCurso = carrera.res;
+    } catch (err) {
+      if (timer) clearTimeout(timer);
+      await avisar({ tipo: "curso", indice: i, resultado: "fallido", motivo: "error inesperado" });
+      continue;
+    }
+
+    if (resCurso.motivoAviso === "visibilidad") {
+      await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "visibilidad" });
+      return { materia: "", enlaces: [], recorrido: true };
+    }
+    if (resCurso.motivoAviso === "curso-cambiado") {
+      await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "navegacion" });
+      return { materia: "", enlaces: [], recorrido: true };
+    }
+    if (resCurso.motivoAviso === "sin-material") {
+      await avisar({ tipo: "curso", indice: i, resultado: "vacio" });
+      continue;
+    }
+    if (resCurso.aviso) {
+      await avisar({ tipo: "curso", indice: i, resultado: "fallido", motivo: resCurso.aviso });
+      continue;
+    }
+
+    await avisar({
+      tipo: "curso",
+      indice: i,
+      resultado: "ok",
+      enlaces: resCurso.enlaces,
+      ...(resCurso.adjuntosSinResolver ? { adjuntosSinResolver: resCurso.adjuntosSinResolver } : {}),
+    });
+  }
+
+  // 6. Fin
+  await avisar({ tipo: "fin", estado: "terminado" });
+
+  // 7. Retorno
+  return { materia: "", enlaces: [], recorrido: true };
+},
 };
 
 globalThis.ScraperClassroom = ScraperClassroom;
