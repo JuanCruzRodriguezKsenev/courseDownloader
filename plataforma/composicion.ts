@@ -33,6 +33,7 @@ import { notificarFallo, sitioIdDeNotificacion } from "./chrome/notificaciones";
 import { crearVolcadoLegacy } from "./chrome/volcadoLegacy";
 import BunClient from "../core/backend/bunClient";
 import { crearHistorialFallos } from "../core/historial/historialFallos";
+import { crearLectorRecorrido } from "../core/estado/recorridoTodos";
 import { crearAppState, SITIO_LEGADO } from "../core/estado/appState";
 import { crearConexion } from "../core/conexion/conexion";
 // Capa 2, vía el REGISTRO (multi-sitio, corte 2) y ya no importando el portal directo: quién
@@ -63,6 +64,8 @@ export const mensajeria = MensajeriaChrome;
 export const programador = ProgramadorChrome;
 
 export const HistorialFallos = crearHistorialFallos(almacenamiento);
+
+export const RecorridoTodos = crearLectorRecorrido(almacenamiento);
 
 /**
  * OJO: `AppState` es estado del POPUP. Este archivo lo importan los dos entrypoints, así que el

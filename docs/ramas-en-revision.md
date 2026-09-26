@@ -20,7 +20,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   que sobrevive a cerrar el popup.
   - Spec: `docs/specs/classroom-escanear-todas/spec.md` (`draft`; supuestos aprobados sin leer).
   - Plan: `docs/plan-classroom-escanear-todas.md`.
-- **Estado**: En ejecución. Pasos 1 y 2 completados (modo "todos" en ScraperClassroom, PuertoSitio v1.7.0 con esPortada?, config Classroom v1.3.0, tests de registro pasando).
+- **Estado**: En ejecución. Pasos 1 a 3 completados (ScraperClassroom todos, config Classroom portada, núcleo puro recorridoTodos con lector y tests pasando).
 
 ## Lo último que se mergeó (2026-09-25)
 
