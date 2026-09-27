@@ -33,7 +33,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   - **Correcciones**: plan `plan-classroom-escanear-todas-correcciones.md` (2026-09-27): asentado de Trabajo en clase (Paso 1), espera de nav (Paso 2), espera de archivados y nombres limpios de anclas globales (Paso 3), cancelación por token idCancelacion y test 23 sensible a zombis (Paso 4), estado terminal en reductor (Paso 5), botón recorriendo oculto, desacople de oferta y guarda fila 1 (Paso 6). 44 archivos / 764 tests en verde.
   - **Loader con progreso**: plan `docs/plan-loader-con-progreso.md` (2026-09-27): Estado primero en el popover de filtros (Paso 1), núcleo puro de recorridoTodos y progresoEscaneo (Paso 2), scraper con eventos de progreso, duracionMs y vuelta a la portada con controles negativos verificados (Paso 3), isla del detalle del loader ui-loader-detalle con reloj, lista y pie (Paso 4), orquestador popup.js con sincronizarLoaderRecorrido, oyente escaneo_progreso y 20 s/curso (Paso 5), documentación y baseline actualizada (Paso 6). 46 archivos / 796 tests en verde.
 - **Verificación B — en Brave, la hace el dueño**:
-  - [ ] 1. **M-1**: con el escaneo de un curso (como en `main`), cronometrar cada curso por separado. Si el promedio se aleja de 45 s, corregir texto en Paso 6f y NFR-1.
+  - [x] 1. **M-1** — cerrado por tanda (2026-09-27) sin medir aparte: B-3 midió ~18 s/curso en el recorrido y el loader ya usa 20 s/curso; el 45 s quedó superado. Texto original: con el escaneo de un curso (como en `main`), cronometrar cada curso por separado. Si el promedio se aleja de 45 s, corregir texto en Paso 6f y NFR-1.
   - [x] 2. **AC-1** (dueño, 2026-09-27, tras las correcciones: "funciona perfecto"): Portada `/u/2/h`, abrir el popup: tarjeta "Todas mis clases", botón "Escanear todos los cursos", y la pestaña **no** se mueve.
   - [x] 3. **AC-2 / AC-8** (2026-09-27, leído del storage: `terminado`, 7 cursos, 5 ok + MC6/Q5 vacíos, 0 fallidos, G22 ok, nombres limpios; **~124 s en total ≈ 18 s/curso** — NFR-1 cumplido; la cantidad de ítems por curso no queda en storage, la confirmó el dueño a ojo): Apretar el botón con la pestaña al frente, esperar sin tocar. Al final: resumen con los cursos de hoy (5 activos + 2 archivados = 7), G25 con 71 de Trabajo en clase y MB5 con 24, un encabezado por curso con material, y MC6 y Q5 sin grupo, contados como vacíos. Cronometrar el total (NFR-1: menos de 6 min).
   - [ ] 4. **AC-4**: Relanzar con 🔄. En el curso 2, cerrar el popup. A los 60 s, reabrirlo: progreso en un curso posterior. Al terminar, la lista está completa.
@@ -68,6 +68,24 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   - [ ] L-9. **Hallazgo 🟡 de abajo**: relanzar; en el curso 2 **recargar** la pestaña (F5) y abrir el
     popup. Anotar si el loader queda tapando todo y cuánto tarda en soltarse.
   - [ ] L-10. con la lista de todos los cursos en pantalla, elegir 2-3 archivos y bajarlos **con el popup abierto** hasta que termine la cola. Tiene que quedar la lista de los 7 cursos, con el resumen, lo bajado marcado como descargado y el 🔄 de la cabecera visible. **No** tiene que aparecer el loader "Escaneando la pestaña..." ni un "no hay nada".
+- **Sesión única de cierre de la rama (tanda, 2026-09-27)** — los 12 ítems abiertos de arriba y L-1..L-10
+  se solapan; esta es la lista deduplicada, en el orden que minimiza recorridos. Antes: recargar la
+  extensión (build ya hecho, sin cambios en `backend/`), pestaña de Classroom **al frente**, consola del SW
+  abierta (cubre el 13). Cada paso dice qué ítems marca.
+  - [ ] S-1. Portada → "Escanear todos los cursos", sin tocar, **cronometrar** → L-1, L-2, 13.
+  - [ ] S-2. Con la lista: abrir Filtros → L-8. Elegir los 3 PDF que faltan en disco (Física I G, G22,
+    G25) y bajarlos con el popup abierto → L-10 y 9 (dónde cayeron lo miro yo en el disco). Cerrar y
+    reabrir en la portada: misma lista, sin escanear.
+  - [ ] S-3. Entrar a MC2, abrir el popup: escanea MC2. Volver a la portada y abrir → 10.
+  - [ ] S-4. En la portada, 🔄 → recorrido desde el curso 1 (11). En el curso 3 cerrar el popup, ~20 s,
+    reabrir: loader con el curso actual y el reloj desde el lanzamiento → L-3, 4, 5. Dejar terminar.
+  - [ ] S-5. Relanzar; en el curso 3 cambiar de pestaña y volver → L-5, 7 (primera mitad).
+  - [ ] S-6. Relanzar; en el curso 2 click en otro curso del sidebar → 7 (segunda mitad: "navegaste fuera").
+  - [ ] S-7. Relanzar; en el curso 2 **F5** y abrir el popup; anotar cuánto tarda en soltarse → L-9.
+  - [ ] S-8. Física I con la pestaña recién recargada → L-4. A mitad del escaneo cambiar de pestaña y
+    volver → L-7. G22 sin recorrido: igual que en `main` → 12.
+  - [ ] S-9. Ramón Net: escanear → L-6.
+  - El 8 (mismo archivo de Drive en dos cursos) no se prueba a mano: lo busco yo en el storage tras S-1.
 - **Revisión de tanda del loader con progreso (2026-09-27)** — compuerta re-corrida por el
   verificador: 46 archivos / 796 tests, lint, `tsc` y build en verde. Controles negativos corridos
   por mí en un worktree de scratch (Paso 1 y test 33 fallan sin su arreglo). Hallazgos:
