@@ -7,3 +7,4 @@
 - [Classroom: Escaneo multi-curso](project_classroom_escanear_todas.md) — ADR-0016 script inyectado avisando al SW vía IPC, estado puro, tabla de decisión al abrir y lista agrupada en Preact
 - [Loader con progreso](project_loader_con_progreso.md) — isla Preact de detalle, throttle con emisión inmediata de fase inicial, sincronización en popup y vuelta a portada
 - [Classroom: Vista del curso](project_classroom_vista_del_curso.md) — descarte de vistas transitorias y del curso anterior vía `nombraOtroCurso`, captura de vistas asentadas y red de aviso
+- [Classroom: Fin de descarga de todos](project_classroom_fin_descarga_todos.md) — conservación de lista, origen y recorrido al vaciar la cola multi-curso vía `limpiarColaConservandoLista`
