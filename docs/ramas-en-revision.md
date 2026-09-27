@@ -24,8 +24,10 @@ Nada. `main` tiene todo lo construido.
 portada en un solo recorrido que sobrevive a cerrar el popup, con el loader mostrando el progreso
 por curso, la vuelta a la portada al terminar y la lista conservada al terminar la descarga.
 
-- **Verificado en Brave por el dueño (2026-09-27)**: la sesión única de cierre S-1..S-9 entera
-  ("todo ok"), que cubre L-1..L-10 y los ítems 2..13 de la primera Verificación B. Comprobado por
+- **Verificado en Brave por el dueño (2026-09-27)**: L-10 (bajar con el popup abierto; el storage lo
+  registra a las 17:03). Del resto el dueño dice "funciona todo", pero **el storage no tiene escrituras
+  después de las 17:03**, así que la sesión S-1..S-9 no se corrió como sesión después del checklist:
+  queda como visto en su uso, no como verificación paso a paso. Comprobado por
   tanda en el disco y el storage: los 3 PDF de S-2 cayeron en la carpeta de su curso con md5
   idéntico al respaldo; la lista guardada tiene 337 ítems en 5 carpetas.
 - **NO verificado**: AC-9 (el mismo archivo de Drive en dos cursos), porque hoy ningún archivo está

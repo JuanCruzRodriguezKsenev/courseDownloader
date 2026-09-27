@@ -30,7 +30,7 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 > 10. ⚪ **`texto.test.ts` importa `node:fs` bajo un `@ts-expect-error`**: hay alternativa sin supresión, `?raw` (hallado 2026-09-12).
 > 11. ⚪ **Cerrar el popup a mitad del escaneo descarta el resultado** (hallado 2026-09-13).
 > 12. ⚪ **`popup.js:789` escanea en `status === 'complete'`, que en una SPA no significa "la vista está lista"** (hallado 2026-09-21): en Classroom corte 1 se tapó en el scraper esperando que el DOM confirme la identidad del curso; el disparador sigue siendo prematuro para otros portales.
-> 13. 🟠 **Classroom: adjuntos de Novedades faltan en disco — NO REPRODUCIDO** (hallado 2026-09-16): decide M-6c.
+> 13. 🟠 **Classroom: el escaneo de Novedades de G25 trae a veces 4 adjuntos y a veces ~26 — INTERMITENTE, ya con evidencia** (hallado 2026-09-16, evidencia 2026-09-27). Bloquea el corte 2 (dependencia de su spec).
 > 14. ⚪ **Classroom corte 1: siete pasos de la Verificación B sin mirar en navegador** (mergeado 2026-09-25).
 > 15. ⚪ **Spec corte 2: un curso ya asociado deja de aparecer** (`MC4 1S 2026`, hallado 2026-09-16).
 > 16. ⚪ **Spec corte 2: D12 deja copias md5-idénticas dentro de un mismo curso** (hallado 2026-09-21).
@@ -598,7 +598,15 @@ Llegaron acá al mergear la tanda del toolbar (2026-08-13): vivían en
 - **Qué pasa**: en la Verificación B del 2026-09-16 faltaron en disco 23 archivos de G25 que sólo viven en Novedades. Dos diagnósticos previos resultaron falsos (M-6 y M-6b los niegan: el DOM los tiene y los filtros no los descartan).
 - **Qué decide**: M-6c — re-escanear G25 con la pestaña al frente y mirar el storage enseguida. Si aparecen los 26, el defecto no es del escaneo.
 - **Evidencia completa**: `docs/portal-google-classroom-diseno.md` §9, hallazgo 🟡 de Novedades.
-- **Estado**: 🟠 abierto, pendiente del dueño (hallado el 2026-09-16).
+- **Evidencia nueva (tanda, 2026-09-27, en disco y storage, sin el dueño)**: los 25 archivos de G25 que faltaban
+  (`Guia*_P*.jpeg`, `1parcial_*.jpg`, `Resumen_guia*.pdf`, etc.) **se bajaron el 2026-09-27 entre 16:35 y 16:39**, así
+  que un escaneo de ese día los trajo. La `listaPersistente` que quedó a las 17:03 (del recorrido de todos los cursos)
+  tiene **sólo 4** adjuntos de Novedades de G25 y ninguno de esos 25. Mismo curso, mismo día, dos escaneos, dos
+  resultados: el escaneo de Novedades es intermitente, no es la cola ni la descarga. No se sabe si el que los trajo fue el
+  de un curso o el recorrido. Los 5 sobrantes de MC2 son del 2026-09-16 con nombres viejos (`… (1).pdf`,
+  `Publicación de …md`): no son este defecto.
+- **Estado**: 🟠 abierto (hallado el 2026-09-16). Próximo paso: medir en Brave con la pestaña al frente, N escaneos de G25
+  (un curso y recorrido) contando los adjuntos de Novedades en el storage después de cada uno.
 
 ### ⚪ Classroom corte 1: siete pasos de la Verificación B sin mirar en navegador
 
