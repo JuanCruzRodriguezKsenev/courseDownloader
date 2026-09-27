@@ -29,6 +29,7 @@
  *   - Suscripción a `recorridoTodos` para progreso vivo y materialización al reabrir/terminar.
  *   - `decidirAlAbrir` extendido con 'mostrar-recorrido', 'materializar-recorrido', 'ofrecer-todos'.
  *   - Tarjetas de progreso, oferta y fin sin material en Disponibles.
+ *   - limpiarColaConservandoLista(): el fin de cola de un recorrido no tira la lista.
  *
  * CHANGELOG v5.27.0:
  * - [CLASSROOM CORTE 1 — ADJUNTOS SIN RESOLVER] `adjuntosSinResolverUltimoEscaneo` guarda el
@@ -2640,8 +2641,16 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       appState.fallaConexionActiva = null;
       appState.videoFalladoParaReintento = null;
 
+      // [CLASSROOM ESCANEAR TODAS] La lista de un recorrido no se tira al terminar la cola: volver
+      // a escanear todos los cursos cuesta minutos. Se muestra la guardada y se sincroniza el disco.
+      const conservarLista = limpiarCola && appState.origenListado?.clave === "todos";
+
       if (limpiarCola) {
-        appState.limpiarSesionLocal();
+        if (conservarLista) {
+          appState.limpiarColaConservandoLista();
+        } else {
+          appState.limpiarSesionLocal();
+        }
       } else {
         appState.ráfagaEnCurso = false;
         appState.videoActualEnTransmisiónSW = "";
@@ -2678,7 +2687,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       } else {
         conmutarPestañaA("disponibles", 'block', 'none', 'flex');
         nodos.txtEstado.textContent = txt;
-        ejecutarPaso1EscaneoRamonAutomatico();
+        if (conservarLista) {
+          mostrarListaGuardada();
+        } else {
+          ejecutarPaso1EscaneoRamonAutomatico();
+        }
       }
 
       // Actualizar botones de acción y restablecer filtros visuales

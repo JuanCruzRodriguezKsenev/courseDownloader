@@ -1,6 +1,9 @@
 /**
- * MAQUINARIA DE ESTADO CENTRAL DEL POPUP (V6.4.0)
+ * MAQUINARIA DE ESTADO CENTRAL DEL POPUP (V6.5.0)
  * ==============================================================================================
+ * CHANGELOG v6.5.0:
+ * - [CLASSROOM ESCANEAR TODAS] limpiarColaConservandoLista(): el fin de cola de un recorrido no tira la lista.
+ *
  * CHANGELOG v6.4.0:
  * - [CLASSROOM CORTE 1 — LISTA GUARDADA] Se incorpora `origenListado` a `CLAVES_PERSISTIDAS`
  *   y `CLAVES_DE_SESION`. Se guarda en `respaldar()`, se valida con `esOrigenListado` al cargar
@@ -462,6 +465,24 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: 
     // el valor está forzado (ver docs/tech-stack.md §Por qué Bun).
     establecerModoTurbo(_activado?: boolean): void {
       app.modoTurboBun = true;
+    },
+
+    /**
+     * Fin de una cola que salió de un recorrido: se va la cola, la lista y su origen quedan.
+     * Re-escanear todos los cursos cuesta minutos, así que la lista no se tira al terminar de
+     * bajar (reporte del dueño, 2026-09-27). `recorridoTodos` también queda: el resumen del
+     * recorrido lo pinta el popup desde ahí (`popup.js:2375`).
+     */
+    limpiarColaConservandoLista(): void {
+      app.colaDescargas = [];
+      app.ráfagaEnCurso = false;
+      app.banderaFrenadoSolicitado = false;
+      app.sincronizacionDiscoCompletada = false;
+      app.videoActualEnTransmisiónSW = "";
+      app.modoTurboBun = true;
+      void almacenamiento.borrarLocal(["colaDescargas", "faseDiscoOk"]).catch((e: unknown) => {
+        console.warn("[AppState] Error al limpiar la cola:", e);
+      });
     },
 
     limpiarSesionLocal(): void {

@@ -67,6 +67,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   - [ ] L-8. **AC-10**: con la lista del recorrido, abrir Filtros: la primera sección es "Estado".
   - [ ] L-9. **Hallazgo 🟡 de abajo**: relanzar; en el curso 2 **recargar** la pestaña (F5) y abrir el
     popup. Anotar si el loader queda tapando todo y cuánto tarda en soltarse.
+  - [ ] L-10. con la lista de todos los cursos en pantalla, elegir 2-3 archivos y bajarlos **con el popup abierto** hasta que termine la cola. Tiene que quedar la lista de los 7 cursos, con el resumen, lo bajado marcado como descargado y el 🔄 de la cabecera visible. **No** tiene que aparecer el loader "Escaneando la pestaña..." ni un "no hay nada".
 - **Revisión de tanda del loader con progreso (2026-09-27)** — compuerta re-corrida por el
   verificador: 46 archivos / 796 tests, lint, `tsc` y build en verde. Controles negativos corridos
   por mí en un worktree de scratch (Paso 1 y test 33 fallan sin su arreglo). Hallazgos:
@@ -75,10 +76,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
     negativo corrido por mí en worktree de scratch: sin el Paso 1, el 37 y el 38 fallan con
     `curso-cambiado`; sin el fallback de `pintadoOk` que agregó obra (no estaba en el plan), falla el 17
     → el fallback hace falta. Falta L-2 del dueño en Brave (dos corridas, cronometradas).
-  - 🔴 **Al terminar la cola se tira la lista de todos los cursos (dueño, 2026-09-27)**: con el popup
-    abierto, `cola_completamente_vacia` → `restaurarPanelPorInterrupcion(…, true)` → `limpiarSesionLocal()`
-    borra lista, origen y `recorridoTodos`, y `popup.js:2681` escanea UN curso sobre la portada → "no hay
-    nada". Plan: `docs/plan-classroom-fin-descarga-todos.md`.
+  - ✅ **Al terminar la cola se tira la lista de todos los cursos (dueño, 2026-09-27)**: `limpiarColaConservandoLista()` vacía la cola y conserva lista, origen y `recorridoTodos` cuando `origenListado.clave === "todos"`; `restaurarPanelPorInterrupcion` en `popup.js` muestra la lista guardada y sincroniza disco en vez de re-escanear. 46 archivos / 799 tests en verde.
   - 🟡 **NO REPRODUCIDO — el fallback de `pintadoOk` puede cortar el recorrido por un curso lento**: si
     `pintado` vence justo con ningún `c-wiz` visible, `obtenerVistaActiva()` da `body`, que tiene las
     vistas ocultas del curso anterior con `/c/<otro>/m/` → `curso-cambiado` → corta todo el recorrido
