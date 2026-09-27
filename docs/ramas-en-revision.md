@@ -29,6 +29,10 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   - Dueño: `pnpm run build` → recargar la extensión en Brave → portada de Classroom al frente → "Escanear todos los cursos" (≈3 min), sin escanear nada después.
   - Tanda: regenera los TSV con `generar.js` y re-aplica los docentes que el dueño ya había guardado en `cursos.tsv` (Física I = `Lucila`, MB5 = `benevetano`).
   - Números esperados detallados en la Verificación B de `docs/plan-classroom-destino-2a-publicacion.md` (366 ítems, regla=no en 1 correspondiente a `Cuestiones administrativas`, MC2 en `Practicas si`, Links en `Teorias si`).
+- **A-1c** — Dueño y tanda (nombramiento de choques en Novedades por la primera frase del anuncio, RN-16a):
+  - Dueño: `pnpm run build` → recargar la extensión en Brave → portada de Classroom al frente → "Escanear todos los cursos" (≈3 min), sin escanear nada después.
+  - Tanda: regenera los TSV con `generar.js` y re-aplica los docentes que el dueño ya había guardado en `cursos.tsv` (Física I = `Lucila`, MB5 = `benevetano`).
+  - Números esperados detallados en la Verificación B de `docs/plan-classroom-destino-2a-anuncio.md` (366 ítems, 7 renombrados por la frase del anuncio, 0 choques).
 - **A-2** — Editor web de los TSV:
   - El editor muestra un curso a la vez con los archivos bajo su tema (plan `docs/plan-classroom-destino-2a-editor-por-curso.md`). E-1..E-7 ✅ (tanda, 2026-09-27, Claude in Chrome sobre 3002 + copia). E-1 cazó que las insignias en 0 se veían: `.badge { display }` pisaba el atributo `hidden`, que jsdom no evalúa. Lo corrigió tanda con `[hidden] { display: none !important; }` en editor.html, y el humo sigue igual a la tabla del plan.
   - Con el servidor Bun del 3001 levantado, el dueño abre el editor con 🗂️ en el encabezado del popup (`http://127.0.0.1:3001/adopcion/`).

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { proponerNombre } from "./nombres";
+import { proponerNombre, primeraFrase } from "./nombres";
 
 describe("core/destino/nombres.ts", () => {
   describe("ejemplos de AC-11", () => {
@@ -89,6 +89,63 @@ describe("core/destino/nombres.ts", () => {
           tema: "Prácticas - Módulos I y II",
         })
       ).toBe("01_ley_de_ohm.pdf");
+    });
+  });
+
+  describe("primeraFrase (RN-16a)", () => {
+    it.each([
+      [
+        1,
+        "Hola, les comparto las notas del Primer Parcial MOD I.\nLos que estan con verde y tienen nota es porque el mod1 ya lo aprobaron.",
+        "notas del Primer Parcial MOD I",
+      ],
+      [
+        2,
+        "Hola, les compartimos las notas del recuperatorio del Primer módulo.\nComo les comente hoy en clase, varies tienen dudoso.",
+        "notas del recuperatorio del Primer módulo",
+      ],
+      [
+        3,
+        "Hola, les compartimos las notas del parcial y lo que les queda del módulo 1 aún",
+        "notas del parcial y lo que les queda",
+      ],
+      [
+        4,
+        "Hola, les compartimos las notas del recuperatorio y para les que ya aprobaron la materia las notas finales.\nIMPORTANTE:",
+        "notas del recuperatorio y para les que ya",
+      ],
+      [
+        5,
+        "Buenos días,\nles dejamos las notas finales de la materia. Cualquier cosa me escriben.",
+        "notas finales de la materia",
+      ],
+      [
+        6,
+        "Múltiple choice para practicar",
+        "Múltiple choice para practicar",
+      ],
+      [
+        7,
+        "Buenas tardes a todos/as,\nLes compartimos los ejercicios resueltos P11 y P13 de la guía 4.",
+        "ejercicios resueltos P11 y P13 de la guía",
+      ],
+      [
+        8,
+        "Buenos días,\nAdjunto a este mensaje los resultados del Flotante. Mostraremos los parciales mañana.",
+        "resultados del Flotante",
+      ],
+      [
+        9,
+        "Buenos días,",
+        "",
+      ],
+      [
+        10,
+        "",
+        "",
+      ],
+    ])("caso #%i", (_num, entrada, esperado) => {
+      expect(primeraFrase(entrada)).toBe(esperado);
     });
   });
 });

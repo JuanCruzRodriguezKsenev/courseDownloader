@@ -32,6 +32,43 @@ export interface OpcionesProponerNombre {
   docente?: string | null;
 }
 
+/**
+ * Extrae la primera frase representativa de un anuncio de Novedades (RN-16a).
+ * Quita saludos, muletillas y artículos iniciales, corta en el primer salto
+ * de línea o fin de oración y toma hasta 8 palabras.
+ */
+export function primeraFrase(texto?: string | null): string {
+  let t = (texto || "").trim();
+
+  // 1. Saludos al principio (pueden repetirse)
+  const regSaludos =
+    /^(?:(?:hola+|buen(?:os|as)?\s+(?:d[ií]as?|tardes|noches)|buenas|buen\s+d[ií]a|estimad[oa]s?(?:\/[oa]s)?|querid[oa]s?(?:\/[oa]s)?)(?:\s+a\s+todos(?:\/as)?)?[\s,;:!¡.]*)+/iu;
+  t = t.replace(regSaludos, "");
+
+  // 2. Una muletilla al principio
+  const regMuletilla =
+    /^(?:les\s+(?:dejamos|dejo|compartimos|comparto|adjunto|adjuntamos)\s+|adjunto\s+(?:a\s+este\s+mensaje\s+)?|en\s+el\s+archivo\s+adjunto,?\s+(?:encontrar[aá]n\s+)?)/iu;
+  t = t.replace(regMuletilla, "");
+
+  // 3. Un artículo al principio
+  const regArticulo = /^(?:las|los|la|el|un|una|unos|unas)\s+/iu;
+  t = t.replace(regArticulo, "");
+
+  // 4. Cortar en el primer \n o en el primer ., ! o ? seguido de espacio o fin de cadena
+  const corte = t.search(/\n|[.!?](?=\s|$)/);
+  if (corte !== -1) {
+    t = t.slice(0, corte);
+  }
+
+  // 5. Primeras 8 palabras
+  return t
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 8)
+    .join(" ");
+}
+
 export function proponerNombre({ original, tema, docente }: OpcionesProponerNombre): string {
   const orig = original || "";
 

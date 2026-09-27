@@ -426,6 +426,43 @@ const ScraperClassroom = {
       return sinResolver;
     }
 
+    // El heading del post en Novedades es solo accesibilidad ("Publicación de <autor>").
+    // El texto real vive en el hermano anterior de data-include-stream-item-materials (medido en recorrido-3).
+    function textoDelAnuncio(post) {
+      const materiales = post.querySelector('[data-include-stream-item-materials="true"]');
+      const cuerpo = materiales ? materiales.previousElementSibling : null;
+      if (!cuerpo) return "";
+
+      function extraerTexto(nodo) {
+        if (!nodo) return "";
+        if (nodo.nodeType === 3 /* Node.TEXT_NODE */) {
+          return nodo.nodeValue || "";
+        }
+        if (nodo.nodeType !== 1 /* Node.ELEMENT_NODE */) {
+          return "";
+        }
+        const tag = nodo.tagName ? nodo.tagName.toUpperCase() : "";
+        const esBloque =
+          tag === "DIV" || tag === "P" || tag === "LI" || tag === "UL" || tag === "OL" || tag === "BR";
+        let textoHijos = "";
+        for (const hijo of nodo.childNodes) {
+          textoHijos += extraerTexto(hijo);
+        }
+        if (esBloque) {
+          return "\n" + textoHijos + "\n";
+        }
+        return textoHijos;
+      }
+
+      const crudo = extraerTexto(cuerpo);
+      return crudo
+        .split("\n")
+        .map((linea) => linea.replace(/\s+/g, " ").trim())
+        .filter(Boolean)
+        .join("\n")
+        .slice(0, 500);
+    }
+
     function clasificarAdjunto(a, material, attId) {
       const href = a.getAttribute("href") || "";
       const label = (a.getAttribute("aria-label") || "").trim();
@@ -789,6 +826,7 @@ const ScraperClassroom = {
         const heading = post.querySelector('h2, [role="heading"]');
         const material = heading ? (heading.textContent || "").trim() : "Novedad";
         const tema = "Novedades";
+        const anuncio = textoDelAnuncio(post);
 
         const vistosAtt = new Set();
         const links = post.querySelectorAll("div[data-attachment-id] a[aria-label][href]");
@@ -810,6 +848,7 @@ const ScraperClassroom = {
               ...clasif,
               tema,
               material,
+              anuncio,
               vista: "novedades",
             });
           }
@@ -928,6 +967,7 @@ const ScraperClassroom = {
       href: item.url,
       modulo: `${nombreCurso} › ${item.tema}`,
       publicacion: item.material,
+      anuncio: item.anuncio,
       tipo: "adjunto",
       idArchivo:
         item.tipo === "archivo"

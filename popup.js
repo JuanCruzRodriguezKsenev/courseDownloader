@@ -1299,6 +1299,8 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           bytes: item.bytes,
           // [CORTE 2a] Título de la publicación (Classroom): lo usa la sugerencia de destino, RN-7a.
           publicacion: item.publicacion,
+          // [CORTE 2a] Texto del anuncio (Novedades de Classroom): nombra el archivo si choca, RN-16a.
+          anuncio: item.anuncio,
           // ADR-0010: de qué portal salió. Se estampa ACÁ, que es el único momento en
           // que se sabe con certeza — el escaneo corre sobre una pestaña concreta.
           // Después la cola es independiente de la pestaña y ya no habría cómo deducirlo.

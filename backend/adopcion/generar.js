@@ -7,7 +7,7 @@ import { sanearNombreCarpeta } from "../../core/util/texto.ts";
 import { claveCurso, claveArchivo } from "../../core/destino/indice.ts";
 import { sugerirDestino, resolverCarpeta } from "../../core/destino/carpetas.ts";
 import { proponerNombre } from "../../core/destino/nombres.ts";
-import { buscarChoques } from "../../core/destino/choques.ts";
+import { buscarChoques, renombrarChoquesNovedades } from "../../core/destino/choques.ts";
 import { leerUltimoValor } from "./leerStorage.js";
 
 export const SEMILLA = {
@@ -245,7 +245,7 @@ export function ejecutarGenerar(opts = parseArgs()) {
     "clave\tclave_curso\ttema\taccion\tcarpeta\tnombre\toriginal\torigen\tmd5",
   ];
 
-  const filasParaChoques = [];
+  const filas = [];
   const vistosMd5 = new Map();
   const conteoPorAccion = { "ya-esta": 0, duplicado: 0, omitir: 0, copiar: 0 };
 
@@ -262,6 +262,7 @@ export function ejecutarGenerar(opts = parseArgs()) {
     let accion = "";
     let carpeta = "";
     let nombre = "";
+    let primera = null;
 
     // 1. ya-esta
     const enMateria = sem.materia
@@ -277,7 +278,7 @@ export function ejecutarGenerar(opts = parseArgs()) {
       accion = "ya-esta";
     } else if (vistosMd5.has(md5.toLowerCase())) {
       // 2. duplicado
-      const primera = vistosMd5.get(md5.toLowerCase());
+      primera = vistosMd5.get(md5.toLowerCase());
       carpeta = primera.carpeta;
       nombre = primera.nombre;
       accion = "duplicado";
@@ -293,23 +294,71 @@ export function ejecutarGenerar(opts = parseArgs()) {
       nombre = proponerNombre({ original: item.titulo, tema, docente: sem.docente });
     }
 
+    const rutaChoque = sem.materia ? path.join(sem.materia, carpeta) : carpeta;
+
+    const fila = {
+      clave,
+      cKey,
+      tema,
+      accion,
+      carpeta,
+      nombre,
+      titulo: item.titulo,
+      origen,
+      md5,
+      anuncio: item.anuncio,
+      docente: sem.docente,
+      rutaChoque,
+      primera,
+    };
+
     if (!vistosMd5.has(md5.toLowerCase())) {
-      vistosMd5.set(md5.toLowerCase(), { carpeta, nombre });
+      vistosMd5.set(md5.toLowerCase(), fila);
     }
 
     conteoPorAccion[accion]++;
+    filas.push(fila);
+  }
 
+  // Renombrar choques de Novedades (RN-16a)
+  const filasParaRenombrar = filas
+    .filter((f) => f.accion === "copiar" || f.accion === "ya-esta")
+    .map((f) => ({
+      clave: f.clave,
+      ruta: f.rutaChoque,
+      nombre: f.nombre,
+      md5: f.md5,
+      renombrable: f.accion === "copiar" && f.tema === "Novedades",
+      original: f.titulo,
+      anuncio: f.anuncio,
+      tema: f.tema,
+      docente: f.docente,
+    }));
+  const renombres = renombrarChoquesNovedades(filasParaRenombrar);
+
+  for (const fila of filas) {
+    if (renombres.has(fila.clave)) {
+      fila.nombre = renombres.get(fila.clave);
+    }
+  }
+
+  for (const fila of filas) {
+    if (fila.accion === "duplicado" && fila.primera) {
+      fila.nombre = fila.primera.nombre;
+    }
+  }
+
+  const filasParaChoques = [];
+  for (const f of filas) {
     lineasArchivos.push(
-      `${clave}\t${cKey}\t${tema}\t${accion}\t${carpeta}\t${nombre}\t${item.titulo}\t${origen}\t${md5}`
+      `${f.clave}\t${f.cKey}\t${f.tema}\t${f.accion}\t${f.carpeta}\t${f.nombre}\t${f.titulo}\t${f.origen}\t${f.md5}`
     );
-
-    if (accion === "copiar" || accion === "ya-esta") {
-      const rutaCompletaRel = sem.materia ? path.join(sem.materia, carpeta) : carpeta;
+    if (f.accion === "copiar" || f.accion === "ya-esta") {
       filasParaChoques.push({
-        clave,
-        ruta: rutaCompletaRel,
-        nombre,
-        md5,
+        clave: f.clave,
+        ruta: f.rutaChoque,
+        nombre: f.nombre,
+        md5: f.md5,
       });
     }
   }
@@ -336,6 +385,9 @@ export function ejecutarGenerar(opts = parseArgs()) {
   if (nSinPub === itemsConMd5.length) {
     console.log("  ! La lista es anterior al campo 'publicacion': re-escaneá todos los cursos.");
   }
+  console.log("Renombrados por la frase del anuncio (RN-16a):", renombres.size);
+  const nSinAnuncio = filas.filter((f) => f.tema === "Novedades" && (!f.anuncio || !f.anuncio.trim())).length;
+  console.log("Ítems de Novedades sin anuncio:", nSinAnuncio);
   console.log("Choques detectados:", choques.length);
   if (choques.length > 0) {
     for (const ch of choques) {

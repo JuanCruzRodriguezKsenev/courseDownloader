@@ -99,6 +99,11 @@ transformación de texto.
 - **RN-16** — Si dos archivos distintos quedan con el mismo nombre en la misma carpeta, **todos los
   del grupo** llevan `_<título del material>` antes de la extensión (D12), y se aplica después de
   simplificar el nombre.
+- **RN-16a** — En Novedades el encabezado del post es "Publicación de <autor>", así que el título del
+  material es la **primera frase del anuncio** (sin saludo, muletilla ni artículo, hasta 8 palabras).
+  En la adopción, un archivo de Novedades que choca **se nombra** con esa frase en vez de agregarla
+  (excepción a RN-16, que agrega `_<título del material>`). Si dos del mismo anuncio siguen chocando, el
+  que tiene "(N)" lleva `_N`. Lo que choque después queda para el dueño. *(Dueño, 2026-09-27)*.
 - **RN-17** — Los videos, los de YouTube y los vínculos se guardan como acceso `.md` (D10) con el
   nombre sencillo del recurso.
 
@@ -193,7 +198,7 @@ en la fila 6 y se pisaría (RN-30).
 | A3 | El archivo ya está en disco con otro nombre | Se descarta sin escribir y se anota como descargado (RN-20) |
 | A4 | El dueño movió o renombró un archivo a mano, aun a otra materia | La ruta del índice se corrige sola (RN-19) |
 | A5 | El dueño borró un archivo | Se vuelve a bajar con el nombre del índice (RN-22) |
-| A6 | Dos archivos distintos chocan de nombre | Todos los del grupo llevan `_<material>` (RN-16) |
+| A6 | Dos archivos distintos chocan de nombre | Todos los del grupo llevan `_<material>` (RN-16; en Novedades, RN-16a) |
 | A7 | Dos adjuntos del mismo curso son el mismo archivo | El segundo se descarta por md5 (RN-20). Ver **PA-2** |
 | A8 | El curso desapareció de Classroom | Lo bajado se conserva, nada se marca huérfano (RN-27) |
 | A9 | La materia no tiene la carpeta destino | Se crea al usarla (RN-3) |
