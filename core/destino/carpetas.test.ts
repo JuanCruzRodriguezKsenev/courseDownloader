@@ -85,8 +85,57 @@ describe("core/destino/carpetas.ts", () => {
       });
     });
 
-    it("Links-Módulo I -> . con regla:false", () => {
+    it("Links-Módulo I -> Teorias (regla: true)", () => {
       expect(sugerirDestino("Links-Módulo I")).toEqual({
+        destino: "Teorias",
+        regla: true,
+      });
+    });
+  });
+
+  describe("sugerirDestino con títulos de publicación (RN-7a)", () => {
+    it("T1. Complejos con publicación de práctica -> Practicas (regla: true)", () => {
+      expect(sugerirDestino("Complejos", ["Ejercicios para practicar: Complejos"])).toEqual({
+        destino: "Practicas",
+        regla: true,
+      });
+    });
+
+    it("T2. Mayoría de prácticas -> Practicas (regla: true)", () => {
+      expect(
+        sugerirDestino("Transformaciones lineales y proyecciones", [
+          "Ejercicios para practicar: Proyecciones",
+          "Ejercicios resueltos",
+          "Ejercicios para practicar: Transformaciones lineales",
+        ])
+      ).toEqual({
+        destino: "Practicas",
+        regla: true,
+      });
+    });
+
+    it("T3. Minoría -> . (regla: false)", () => {
+      expect(
+        sugerirDestino("Cuestiones administrativas", [
+          "Formulario de inscripción interna",
+          "Clase I",
+          "Guía 1",
+        ])
+      ).toEqual({
+        destino: ".",
+        regla: false,
+      });
+    });
+
+    it("T4. El tema manda siempre -> . (regla: true)", () => {
+      expect(sugerirDestino("Novedades", ["Parcial 1", "Parcial 2"])).toEqual({
+        destino: ".",
+        regla: true,
+      });
+    });
+
+    it("T5. La mitad justa no alcanza -> . (regla: false)", () => {
+      expect(sugerirDestino("Unidad 3", ["Guía 1", "Clase I"])).toEqual({
         destino: ".",
         regla: false,
       });

@@ -167,6 +167,18 @@ describe("ScraperClassroom.escanearListado", () => {
     expect(vinculo?.idArchivo).toContain("forms.gle");
   });
 
+  it("5b. los enlaces conservan el título de la publicación de donde salen (RN-7a)", async () => {
+    const res = await ScraperClassroom.escanearListado({ tiempos: TIEMPOS_TEST });
+
+    const tp1 = res.enlaces.find((e) => e.texto === "TP1.pdf");
+    expect(tp1).toBeDefined();
+    expect(tp1?.publicacion).toBe("TP 1");
+
+    const videoDrive = res.enlaces.find((e) => e.texto === "Grabacion Teoria.mp4.md");
+    expect(videoDrive).toBeDefined();
+    expect(videoDrive?.publicacion).toBe("Clase 1");
+  });
+
   it("6. el choque de nombres le agrega el material a los dos", async () => {
     const res = await ScraperClassroom.escanearListado({ tiempos: TIEMPOS_TEST });
     const notasClase1 = res.enlaces.find((e) => e.idArchivo === "drive-dup-a");

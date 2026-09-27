@@ -30,10 +30,14 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **50 archivos, 837 tests**, todo en verde |
+| `pnpm test` | **50 archivos, 843 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 843** (2026-09-27, plan `classroom-destino-2a-publicacion`). Son los 837 de abajo más **+6** tests:
+**+5** en `core/destino/carpetas.test.ts` (tests T1–T5 de sugerencia por títulos de publicación RN-7a; 15 → 20 tests),
+y **+1** en `sitio/google-classroom/scraper.test.js` (test 5b: los enlaces conservan el título de publicación RN-7a; 39 → 40 tests).
 
 **De dónde sale el 837** (2026-09-27, plan `classroom-destino-2a-adopcion`). Son los 801 de abajo más **+36** tests (y 4 archivos nuevos en `core/destino/`):
 **+7** en `core/destino/indice.test.ts` (ida y vuelta, serialización ordenada, errores de parseo y claves compuestas),

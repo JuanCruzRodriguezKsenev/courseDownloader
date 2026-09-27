@@ -927,6 +927,7 @@ const ScraperClassroom = {
       texto: item.nombreFinal,
       href: item.url,
       modulo: `${nombreCurso} › ${item.tema}`,
+      publicacion: item.material,
       tipo: "adjunto",
       idArchivo:
         item.tipo === "archivo"

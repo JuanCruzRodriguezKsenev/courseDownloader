@@ -25,6 +25,10 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ### Checklist de verificación B (dueño + tanda)
 - **A-1** — Dueño: `pnpm run build`, recargar, portada de Classroom al frente → "Escanear todos los cursos", sin escanear nada después. Tanda corre `generar.js` y compara los números: 366 ítems en 5 carpetas; `ya-esta` 55; `duplicado` 4; `omitir` 8; `copiar` 299; 7 cursos; 2 choques (MC2, Novedades: 7 filas con copias "(N)" de distinto md5).
+- **A-1b** — Dueño y tanda (sugerencia por títulos de publicación, RN-7a/7b):
+  - Dueño: `pnpm run build` → recargar la extensión en Brave → portada de Classroom al frente → "Escanear todos los cursos" (≈3 min), sin escanear nada después.
+  - Tanda: regenera los TSV con `generar.js` y re-aplica los docentes que el dueño ya había guardado en `cursos.tsv` (Física I = `Lucila`, MB5 = `benevetano`).
+  - Números esperados detallados en la Verificación B de `docs/plan-classroom-destino-2a-publicacion.md` (366 ítems, regla=no en 1 correspondiente a `Cuestiones administrativas`, MC2 en `Practicas si`, Links en `Teorias si`).
 - **A-2** — Editor web de los TSV:
   - Con el servidor Bun del 3001 levantado, el dueño abre el editor con 🗂️ en el encabezado del popup (`http://127.0.0.1:3001/adopcion/`).
   - En la página decide lo mismo que dice hoy la lista (docente de Física I, destinos `regla=no`, nombres, cronogramas, los 7 choques), hasta que Probar dé `codigo` 0.

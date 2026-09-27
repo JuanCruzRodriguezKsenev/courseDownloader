@@ -215,15 +215,23 @@ export function ejecutarGenerar(opts = parseArgs()) {
     const partes = (item.modulo || "").split(" › ");
     const tema = partes.length > 1 ? partes.slice(1).join(" › ") : (item.modulo || "Sin tema");
     const parKey = `${cKey}\t${tema}`;
-    paresTemaCurso.set(parKey, (paresTemaCurso.get(parKey) || 0) + 1);
+    let entrada = paresTemaCurso.get(parKey);
+    if (!entrada) {
+      entrada = { cant: 0, publicaciones: [] };
+      paresTemaCurso.set(parKey, entrada);
+    }
+    entrada.cant++;
+    entrada.publicaciones.push(item.publicacion ?? "");
   }
 
+  const sugerenciasPorPar = new Map();
   let temasSinRegla = 0;
-  for (const [parKey, cant] of paresTemaCurso.entries()) {
+  for (const [parKey, { cant, publicaciones }] of paresTemaCurso.entries()) {
     const [cKey, tema] = parKey.split("\t");
-    const { destino, regla } = sugerirDestino(tema);
-    if (!regla) temasSinRegla++;
-    lineasTemas.push(`${cKey}\t${tema}\t${destino}\t${regla ? "si" : "no"}\t${cant}`);
+    const sugerencia = sugerirDestino(tema, publicaciones);
+    sugerenciasPorPar.set(parKey, sugerencia);
+    if (!sugerencia.regla) temasSinRegla++;
+    lineasTemas.push(`${cKey}\t${tema}\t${sugerencia.destino}\t${sugerencia.regla ? "si" : "no"}\t${cant}`);
   }
 
   fs.writeFileSync(path.join(opts.salida, "temas.tsv"), lineasTemas.join("\n") + "\n", "utf8");
@@ -246,9 +254,10 @@ export function ejecutarGenerar(opts = parseArgs()) {
     const cKey = claveCurso("google-classroom", c ? c.id : "");
     const partes = (item.modulo || "").split(" › ");
     const tema = partes.length > 1 ? partes.slice(1).join(" › ") : (item.modulo || "Sin tema");
+    const parKey = `${cKey}\t${tema}`;
     const clave = claveArchivo(item.sitioId || "google-classroom", item.idArchivo);
     const sem = SEMILLA[item.carpeta] || { materia: "", docente: "" };
-    const { destino } = sugerirDestino(tema);
+    const { destino } = sugerenciasPorPar.get(parKey) || { destino: ".", regla: false };
 
     let accion = "";
     let carpeta = "";
@@ -322,6 +331,11 @@ export function ejecutarGenerar(opts = parseArgs()) {
     console.log(`  - ${acc}: ${cant}`);
   }
   console.log("Temas con regla=no:", temasSinRegla);
+  const nSinPub = itemsConMd5.filter(({ item }) => !item.publicacion || !item.publicacion.trim()).length;
+  console.log("Ítems sin título de publicación:", nSinPub);
+  if (nSinPub === itemsConMd5.length) {
+    console.log("  ! La lista es anterior al campo 'publicacion': re-escaneá todos los cursos.");
+  }
   console.log("Choques detectados:", choques.length);
   if (choques.length > 0) {
     for (const ch of choques) {
