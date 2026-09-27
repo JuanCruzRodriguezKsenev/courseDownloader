@@ -208,3 +208,6 @@ Línea de base: generar.js actual reproduce los TSV reales byte a byte (12 regla
 (regla=no 10, 366 sin publicación + "!", Links 18 → Teorias, `archivos.tsv` sin cambios fuera de Links); los 3
 controles negativos MUERDEN (5b, T5, T4). Falta A-1b: dueño re-escanea todos → yo B-2/B-3 (respaldar TSV reales y
 re-aplicar docentes Lucila/benevetano) → B-4 dueño → A-2.
+**A-1b ✅** (re-escaneo 19:33): 0 sin publicación, regla=no 1, MC2 → Practicas, Links → Teorias; TSV reales regenerados
+con docentes re-aplicados (respaldo `~/Descargas/adopcion-classroom-respaldo-20260927-rn7a`). Ensayo de aplicar: sólo
+los 2 choques. Sigue B-4 + A-2 del dueño en el editor.

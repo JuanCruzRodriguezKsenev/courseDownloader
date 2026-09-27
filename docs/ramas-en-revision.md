@@ -25,7 +25,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ### Checklist de verificación B (dueño + tanda)
 - **A-1** — Dueño: `pnpm run build`, recargar, portada de Classroom al frente → "Escanear todos los cursos", sin escanear nada después. Tanda corre `generar.js` y compara los números: 366 ítems en 5 carpetas; `ya-esta` 55; `duplicado` 4; `omitir` 8; `copiar` 299; 7 cursos; 2 choques (MC2, Novedades: 7 filas con copias "(N)" de distinto md5).
-- **A-1b** — Dueño y tanda (sugerencia por títulos de publicación, RN-7a/7b):
+- **A-1b** ✅ 2026-09-27 (re-escaneo 19:33; `generar.js`: 366 ítems, 0 sin publicación, regla=no 1 = `Cuestiones administrativas`, MC2 9 temas/14 ítems → `Practicas`, Links 18 → `Teorias`, 2 choques; docentes re-aplicados, `cursos.tsv` idéntico al respaldo `~/Descargas/adopcion-classroom-respaldo-20260927-rn7a`) — Dueño y tanda (sugerencia por títulos de publicación, RN-7a/7b):
   - Dueño: `pnpm run build` → recargar la extensión en Brave → portada de Classroom al frente → "Escanear todos los cursos" (≈3 min), sin escanear nada después.
   - Tanda: regenera los TSV con `generar.js` y re-aplica los docentes que el dueño ya había guardado en `cursos.tsv` (Física I = `Lucila`, MB5 = `benevetano`).
   - Números esperados detallados en la Verificación B de `docs/plan-classroom-destino-2a-publicacion.md` (366 ítems, regla=no en 1 correspondiente a `Cuestiones administrativas`, MC2 en `Practicas si`, Links en `Teorias si`).
