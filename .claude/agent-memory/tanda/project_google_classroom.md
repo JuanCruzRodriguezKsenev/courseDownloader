@@ -106,7 +106,14 @@ obra agregó por su cuenta un fallback en `!pintadoOk` (busca `/c/<otro>/m/` →
 nombraba: hace falta (sin él cae el test 17) — el plan debió prever que el filtro deja al 17 sin aviso. 🟡 anotado:
 el fallback lee `body` si vence sin c-wiz visible. Falta L-2 del dueño en Brave (2 corridas).
 
+Fin de cola con popup abierto tiraba la lista de todos (`limpiarSesionLocal` + escaneo de 1 curso en `/h`) →
+plan `docs/plan-classroom-fin-descarga-todos.md` (sólo si `origenListado.clave === "todos"`; un curso sigue igual).
+
 ## Spec del corte 2 (destino en ~/U.N.L.P)
+**2026-09-27, retomando el corte 2**: el dueño decidió raíz por portal — Ramón Net y Anatomy quedan como están;
+Classroom **y los Moodle de la UNLP que vienen "en un futuro inmediato"** van a `~/U.N.L.P` (pensar la raíz como
+"UNLP", no "classroom"). PA-3 (adopción) SIN cerrar: el dueño dice que en `~/Descargas/verificacion-b` (raíz actual
+del backend) ya bajó todo → posible semilla: evitar la re-bajada leyendo de ahí. Preguntarle de nuevo con eso.
 
 `docs/specs/classroom-destino/spec.md` (draft, **30 RN / 13 AC**, tabla de decisión, wireframes) + `assumptions.md`.
 Decisiones del dueño: "ya descargado" **por md5, no por nombre**; el nombre lo propone la extensión y el dueño lo
