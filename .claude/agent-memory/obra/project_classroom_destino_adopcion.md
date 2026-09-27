@@ -30,4 +30,8 @@ metadata:
   - TSV `archivos.tsv` en `generar.js`: comentario actualizado explicitando que duplicados acompañan a la primera fila con su md5.
   - Checklist A-1/A-2 actualizada en `docs/ramas-en-revision.md`.
   - Verificación A: ensayo tsv-ok (copiar 299, ya-esta 55, dup 4, omit 8), tsv-dup (idéntico), tsv-omit (copiar 298, dup 0, omit 13), escritura real simulación corte y reintento exitosos (1 copiado, ya-esta 353, dup 4, omit 8).
-
+- **Editor web de adopción (`docs/plan-classroom-destino-2a-editor.md`)**:
+  - `backend/adopcion/editor.js`: servidor Bun (`127.0.0.1:3002`) con lectura/escritura cruda preservando comentarios `#`, orden y `\n` final byte a byte (invariante validado con control negativo eliminando `\n` que falló con diferencia EOF).
+  - Endpoints: `GET /` (sirve `editor.html`), `GET /api/datos` (filas TSV, `DESTINOS`, materias bajo raíz y docentes de Teorias), `POST /api/guardar` (valida claves, inmutabilidad de ya-esta/duplicado, nombres sanitizados con formato exacto `Archivo '...': nombre '...' no coincide con su sanitizado. Quedaría '...'` y escribe atómico vía `.tmp`), `POST /api/ensayo` (subproceso Bun corriendo `aplicar.js` sin `--escribir`).
+  - `backend/adopcion/editor.html`: UI pura sin dependencias, temas claro/oscuro vía CSS vars, barra sticky con contadores en vivo (`copiar`, `ya-esta`, `duplicado`, `omitir`, `choques`), detección de choques en vivo agrupando por `(ruta/nombre).toLowerCase()` con md5s distintos, duplicados siguiendo dinámicamente el nombre y destino de su primera fila, y advertencia `beforeunload`.
+  - Verificación A: 14 pruebas completas ((a) a (n)), control negativo exitoso y delegación a `verificador` con 50 archivos / 837 tests, 0 warnings/errores lint, typecheck limpio y build OK.
