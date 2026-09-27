@@ -121,7 +121,9 @@ corrió como sesión; dijo "funciona todo". Contrastar SIEMPRE con el mtime del 
 **Novedades (🟠 #13) RESUELTO en diagnóstico 2026-09-27**: `buscarContenedorScroll` elige la `<nav>` lateral
 (overflow auto, no scrollea); el que scrollea es el documento; Novedades pagina de a 10 por scroll (G25: 66 posts /
 28 adjuntos). Plan `docs/plan-classroom-novedades-scroll.md`, rama `classroom-novedades-scroll`. Corte 2 espera esto.
-**Ejecutado por obra (`7ec372b`) y re-verificado por mí**: diff idéntico al plan, 46/801 verde, el control negativo del 39 MUERDE (primera vez que obra lo declara y es cierto). Storage de Brave antes de N-1: `000043.log` mtime 17:03:36. Falta N-1/N-2 del dueño; la deuda ya dice ✅ antes de Brave.
+**Ejecutado por obra (`7ec372b`) y re-verificado por mí**: diff idéntico al plan, 46/801 verde, el control negativo del 39 MUERDE (primera vez que obra lo declara y es cierto). Storage de Brave antes de N-1: `000043.log` mtime 17:03:36. N-1/N-2 ✅ (storage: G25 Novedades 28 adjuntos en ambos, recorrido ~175 s vs 124 s). **MERGEADA** `7b60e05` (sin push).
+Siguiente: corte 2 (spec `classroom-destino`, PA-3 ya decidido) → plan.
+Tiempos del recorrido: `recorridoTodos.cursos[].duracionMs` en el storage; lista con `listaPersistente` (parser en scratchpad de sesión vieja: copiarlo).
 Para medir en Brave con Claude in Chrome: un `left_click` en la página la pone `visible` (la captura sola no).
 El filtro bloquea salidas con nombres de clase CSS: devolver sólo números.
 
