@@ -30,10 +30,16 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **44 archivos, 764 tests**, todo en verde |
+| `pnpm test` | **46 archivos, 796 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 796** (2026-09-27, plan `loader-con-progreso`). Son los 764 de abajo más **+32** tests (y 2 archivos nuevos):
+**+7** en `core/estado/recorridoTodos.test.ts` (duracionMs, actual, limpieza de actual en latido/curso, progreso en reductor; 16 → 23 tests),
+**+13** en el archivo nuevo `core/estado/progresoEscaneo.test.ts` (funciones puras de reloj, textos de fase, estimación restante y vistas del loader),
+**+7** en `sitio/google-classroom/scraper.test.js` (tests 29–34 y 36: serialización de avisos, reporte de progreso, un curso con idEscaneo, frecuencia ≥ 500 ms, vuelta a portada /h, duracionMs en cursos e inicio con lanzadoEn; 28 → 35 tests),
+y **+5** en el archivo nuevo `popup/features/loaderDetalle.preact.test.js` (isla del detalle del loader: líneas/pie, lista de cursos con marcas y resalte de actual, reloj fake timers, y limpiar).
 
 **De dónde sale el 764** (2026-09-27, correcciones de `classroom-escanear-todas`). Son los 758 de abajo más **+6** tests:
 **+4** en `sitio/google-classroom/scraper.test.js` (tests 25–28: asentado de vacío con 11 li, marcador con progressbar, demora en montar nav, y demora en vista de archivadas; 24 → 28 tests),

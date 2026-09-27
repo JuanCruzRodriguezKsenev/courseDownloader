@@ -64,3 +64,37 @@ la frontera de inyección.
 - **Exigir mantener el popup abierto durante todo el escaneo.**
   Inviable: en Chrome/Brave un popup se cierra automáticamente con cualquier interacción con el
   navegador o el sistema operativo. Un escaneo de varios minutos fracasaría el 100% de las veces.
+
+## Ampliación 2026-09-27: Progreso en vivo, cola serializada e IPC directo de un curso
+
+### Evento `progreso` y serialización en cola (`colaAvisos`)
+
+Para que el loader muestre en tiempo real en qué fase se encuentra el escaneo del curso actual
+(`trabajo`, `ver-mas`, `novedades`), el script inyectado emite eventos de tipo `"progreso"`.
+
+Dado que `manejadoresIPC.recorrido_evento` en el Service Worker realiza un ciclo asíncrono de
+**leer-modificar-escribir** sobre `chrome.storage.local.recorridoTodos` (`storage.local.get` →
+`aplicarEvento` → `storage.local.set`), múltiples mensajes concurrentes o en vuelo desordenado
+producirían carreras donde una escritura pisa a la anterior.
+
+Para garantizar la consistencia sin agregar locks en el SW:
+1. El script inyectado encadena **todos** los envíos (`avisar` y `enviarProgreso`) en una sola
+   promesa serializada (`colaAvisos = colaAvisos.then(...)`). De este modo, en vuelo nunca hay más
+   de 1 mensaje a la vez.
+2. Los eventos de progreso se limitan con un throttle de ≥ 500 ms (`reportar`): si llega un evento
+   antes de los 500 ms, se retiene en un buffer (`progresoPendiente`) y el último valor acumulado se
+   despacha al vencer el timer.
+3. Al emitir un evento de ciclo de vida (`latido`, `curso`, `fin`), cualquier progreso pendiente
+   viejo se **descarta** antes de encadenar el evento, asegurando que ningún progreso rezagado
+   se procese después de que el curso ya haya finalizado.
+
+### Mensaje `escaneo_progreso` directo al popup (escaneo de un solo curso)
+
+Para el escaneo estándar de un solo curso (con el popup abierto):
+- No es necesario persistir el estado del progreso en `chrome.storage` ni despertar al Service Worker.
+- El script inyectado emite `chrome.runtime.sendMessage({ action: "escaneo_progreso", idEscaneo, ... })`
+  directamente hacia el popup sin esperar respuesta (`.catch(() => {})`).
+- El popup escucha `escaneo_progreso` con su oyente registrado en `iniciarPopup`, validando que
+  `idEscaneo === generacionEscaneo` para descartar mensajes de escaneos abandonados o previos, y
+  actualiza directamente el componente de UI `loaderDetalle` en memoria.
+

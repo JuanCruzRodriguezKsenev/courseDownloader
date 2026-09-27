@@ -48,7 +48,7 @@ popover de filtros la sección **Estado** vaya siempre primera.
 - Botón para cancelar el escaneo o el recorrido.
 - Que el escaneo de **un** curso sobreviva a cerrar el popup (sigue la deuda ⚪).
 - Cambios al resumen final del recorrido (nota sobre la lista, tarjeta "El recorrido no trajo material").
-- El texto "unos 45 s por curso" de la tarjeta de oferta (espera M-1 del recorrido).
+- ~~El texto "unos 45 s por curso" de la tarjeta de oferta (espera M-1 del recorrido).~~ *(entró en el plan: B-3 ya midió ~18 s/curso, se actualizó a 20 s/curso)*
 - La pestaña Cola (no tiene sección Estado).
 
 ## Actores

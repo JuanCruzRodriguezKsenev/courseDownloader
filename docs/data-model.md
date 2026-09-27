@@ -12,7 +12,7 @@ Escrito principalmente por `AppState.respaldar()` (`core/estado/appState.ts`) de
 | `colaDescargas` | `ColaItem[]` (ver abajo) | popup, SW | Cola de descarga desacoplada — separada de `listaPersistente` para poder sobrevivir a cambios de materia/pestaña sin perder el progreso. **El array ES el orden de descarga** desde el corte 6d (ADR-0011): lo escribe el popup y el SW lo obedece. |
 | `faseDiscoOk` | `boolean` | popup | Si ya se corrió una sincronización con el disco (vía `escanear_carpeta_local`) en esta sesión. |
 | `origenListado` | `{ sitioId: string, clave: string } \| null` | popup | De qué listado salió `listaPersistente` (en Classroom, el id del curso, o `"todos"` si provino del recorrido multi-curso). Si coincide con la pestaña, el popup muestra la lista guardada en vez de escanear. Se borra con `listaPersistente` (`limpiarSesionLocal`). Sin migración: si falta, se escanea. |
-| `recorridoTodos` | `RecorridoTodos \| null` (ver `core/estado/recorridoTodos.ts`) | SW (`manejadoresIPC.recorrido_evento`), popup (eventos terminales) | Estado agregado del recorrido multi-curso (Google Classroom). Lo escribe el SW a partir de los eventos del script inyectado en la pestaña, lo lee el popup vía `RecorridoTodos` (`crearLectorRecorrido`) para mostrar progreso o materializar el listado. Se borra con `limpiarSesionLocal`. |
+| `recorridoTodos` | `RecorridoTodos \| null` (ver abajo y `core/estado/recorridoTodos.ts`) | SW (`manejadoresIPC.recorrido_evento`), popup (eventos terminales) | Estado agregado del recorrido multi-curso (Google Classroom). Lo escribe el SW a partir de los eventos del script inyectado en la pestaña, lo lee el popup vía `RecorridoTodos` (`crearLectorRecorrido`) para mostrar progreso o materializar el listado. Se borra con `limpiarSesionLocal`. |
 | `facetasElegidas` | `Record<sitioId, string \| null>` | popup | El valor de faceta que el usuario eligió **en cada portal** (en Ramón Net: la cátedra A–D). No se lee directo: `AppState.facetaElegidaDe(sitioId)` / `.fijarFacetaElegida(...)`. **Era un valor único (`facetaElegida`) hasta el 2026-08-06** y eso vaciaba el listado al cambiar de portal — ver ADR-0012 y la nota de migración abajo. Antes todavía se llamó `catedraElegida` (hasta el 2026-08-03). |
 | `ocultarAdvExplorar` | `boolean` | popup | Preferencia: no volver a mostrar el aviso al explorar carpeta. |
 | `ocultarAdvAula` | `boolean` | popup | Preferencia: no volver a mostrar el aviso al cambiar de aula. |
@@ -152,6 +152,40 @@ antepone y recorta la lista a 50 (los más viejos se descartan). Concurrencia ac
 SW (que registra) y el popup (que marca leídas / limpia) hacen read-modify-write sobre la
 misma clave desde contextos distintos; una colisión exacta podría perder una escritura —
 mismo trade-off sin transacciones que el resto de las claves, y el dato es informativo.
+
+### `RecorridoTodos` (almacenado en `recorridoTodos`)
+
+```ts
+{
+  idRecorrido: number,           // Date.now() al lanzar el recorrido
+  tabId: number,                 // pestaña donde corre el scraper
+  sitioId: string,               // "google-classroom"
+  estado: "escaneando" | "terminado" | "cortado",
+  cursos: CursoRecorrido[],      // [{ id, nombre, resultado?, enlaces?, motivo?, duracionMs? }]
+  indice: number,                // índice del curso actual en proceso
+  ultimaSenal: number,           // Date.now() del último latido o evento
+  motivoCorte?: MotivoCorte,     // "visibilidad" | "navegacion" | "sin-cursos" | "desconocido"
+  materializado: boolean,        // true cuando el popup volcó los enlaces a listaPersistente
+  lanzadoEn?: number,            // Date.now() de cuando el usuario apretó el botón
+  actual?: {                     // progreso intra-curso vigente (reseteado en latido/curso)
+    fase: "trabajo" | "ver-mas" | "novedades",
+    verMas?: number,
+    publicaciones?: number,
+    archivos?: number
+  }
+}
+```
+
+Eventos de ciclo de vida (`EventoRecorrido` vía mensaje IPC `recorrido_evento` al SW):
+- `"inicio"`: `{ cursos, lanzadoEn? }`
+- `"latido"`: `{ indice }`
+- `"progreso"`: `{ indice, fase, verMas?, publicaciones?, archivos? }`
+- `"curso"`: `{ indice, resultado, enlaces?, motivo?, duracionMs? }`
+- `"fin"`: `{ estado, motivoCorte? }`
+- `"materializado"`: `{}`
+
+Mensajes IPC directos al popup:
+- `escaneo_progreso`: enviado por el scraper en modo un curso directamente al popup vía `chrome.runtime.sendMessage({ action: "escaneo_progreso", idEscaneo, fase, verMas, publicaciones, archivos, nombre? })` para actualizar el loader en vivo sin pasar por `storage`.
 
 ## `chrome.storage.session` — volátil, sobrevive a la suspensión del Service Worker pero no a un reinicio del navegador
 
