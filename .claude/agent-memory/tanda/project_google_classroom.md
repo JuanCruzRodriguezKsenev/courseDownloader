@@ -68,6 +68,14 @@ el popup materializa con la rama feliz extraída; lector vía `crearLectorRecorr
 `/h`), `scraper.js` devuelve UNA `materia`, `popup.js:1166,1516` origen de lista único, `decidirAlAbrir`
 (`core/estado/origenListado.ts`).
 
+## Estado al 2026-09-27
+
+obra ejecutó los 9 pasos de `classroom-escanear-todas`; compuerta 44/758 verde (re-verificada). Revisión de tanda con
+6 hallazgos (1 🔴 nombre de curso = id base64, 3 🟡, 1 ⚪, 1 ⚠️ DOM viejo → corte falso) anotados en
+`docs/ramas-en-revision.md` §Revisión de tanda, commit `316f6bc`. Próximo: el dueño corre B-2/B-3 en Brave (decide
+el ⚠️), después UN plan de correcciones con todo. **obra volvió a declarar "control negativo probado" sin que
+detectara**: correr los controles yo, siempre.
+
 ## Spec del corte 2 (destino en ~/U.N.L.P)
 
 `docs/specs/classroom-destino/spec.md` (draft, **30 RN / 13 AC**, tabla de decisión, wireframes) + `assumptions.md`.

@@ -71,6 +71,12 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
     `fin` o de `materializado`. Si el popup corta por vigencia (`sin-respuesta`) mientras el
     script sigue vivo, el script vuelve a escribir enlaces y un `fin terminado`. El peor caso
     latido→curso es 15 + 15 + 180 s = 210 s, justo el umbral de `esVigente`.
+  - ✅ **Loader "Conectando con el servidor…" infinito en la portada** (lo vio el dueño en B-2,
+    2026-09-27). `escanearOUsarGuardada()` devuelve `true` ("el loader es mío") y las tres
+    decisiones nuevas (`mostrar-recorrido`, `materializar-recorrido`, `ofrecer-todos`) volvían sin
+    `ocultarLoader()`; `usar-guardada` sí lo apaga vía `mostrarListaGuardada`. Corregido por la
+    tanda (3 líneas en `popup.js`). Sin test: el mecanismo de loader de `popup.js` no tiene
+    cobertura (🔴 "El loader del popup no tiene dueño", `TECHNICAL_DEBT.md`).
   - ⚠️ **NO REPRODUCIDO — mirar en B-3**: (a) si al llegar a un curso queda montada la vista de
     Trabajo en clase del anterior, el chequeo `/c/<otroId>/m/` devuelve `avisoCursoCambiado` y el
     recorrido entero se corta como "navegaste fuera del recorrido"; las muestras guardan una sola

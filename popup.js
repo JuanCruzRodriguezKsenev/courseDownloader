@@ -1428,16 +1428,19 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
         if (decision === 'mostrar-recorrido') {
           adoptarPortalDePestaña(tab.url, tab.id);
+          ocultarLoader();
           renderizarListadoInterfaz();
           return;
         }
         if (decision === 'materializar-recorrido') {
+          ocultarLoader();
           materializarRecorrido();
           return;
         }
         if (decision === 'ofrecer-todos') {
           adoptarPortalDePestaña(tab.url, tab.id);
           configurarBotonesUX("escanear-todos", "Escanear todos los cursos", false);
+          ocultarLoader();
           renderizarListadoInterfaz();
           return;
         }
