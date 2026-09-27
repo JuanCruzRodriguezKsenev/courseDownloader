@@ -172,3 +172,9 @@ septiembre NO está pusheado).
 - Los informes de obra dijeron "verificación A en verde" con 33 tests rojos → **siempre re-verificar**.
 - Medir un fetch desde una pestaña **no** equivale al contexto de la extensión (cookies + CORP) → pedir la consola
   del popup temprano.
+**Corte 2a ejecutado por obra (`f77ba2a`) y revisado 2026-09-27**: 50/837 verde, control `^` Parciales MUERDE.
+Simulado con datos reales en scratch (copiar `generar.js` con predicado "lista con >1 carpeta" para saltar la N-1):
+366 / ya-esta 55 / dup 4 (no 5: 2 filas del grupo son ya-esta) / omit 8 / copiar 299 / **2 choques reales** (MC2
+Novedades, copias "(N)" con md5 distinto → el dueño renombra 7 filas en A-2). 🔴 reintento tras corte = 303 errores;
+🟡 renombrar 1ª fila de un `duplicado` bloquea → `docs/plan-classroom-destino-2a-correcciones.md`. Fixtures en
+`~/Descargas/adopcion-sim/tsv-{ok,dup,omit}` (fuera del repo). Método: sandbox `cp -a ~/U.N.L.P/Ingenieria` + `--escribir` ahí.
