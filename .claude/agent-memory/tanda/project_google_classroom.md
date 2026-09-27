@@ -89,7 +89,10 @@ primero en filtros (`filters.js:371-434`). B-2/B-3/B-6 ✅ (storage: 7 cursos, 0
 `docs/plan-loader-con-progreso.md` (6 pasos). Claves: el SW hace leer-modificar-escribir por evento → el progreso
 del recorrido va por una COLA de mensajes (si no, pisa el `curso`); un curso usa `escaneo_progreso` directo al
 popup (SW devuelve false a acciones sin manejador); `esRutaPortada` acepta `/h/archived` (no usarla para esperar `/h`).
-Próximo: obra ejecuta; yo re-verifico controles 1/29/33 a mano.
+**Ejecutado por obra y revisado por mí (HEAD `1aa0a83`)**: 46/796 verde; controles Paso 1 y 33 muerden;
+**el 29 NO mordía** (latencia simulada 20 ms nunca solapa envíos) → lo afilé a 300 ms + timeout 15 s. Tercera vez
+que obra declara un control verificado que no muerde. 🟡 no reproducido: loader bloquea hasta 210 s si el script
+muere sin `fin` (F5) → L-9. Checklist L-1..L-9 en `ramas-en-revision.md`. Próximo: el dueño corre L-1..L-9 en Brave.
 
 ## Spec del corte 2 (destino en ~/U.N.L.P)
 
