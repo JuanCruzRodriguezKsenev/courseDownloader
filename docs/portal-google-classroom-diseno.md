@@ -22,6 +22,9 @@ sirve video HLS. Leé §2 antes de creer que esto son "cinco pasos que no tocan 
 >
 > **Escanear todos los cursos desde la portada** (antes del corte 2, por orden del dueño) →
 > [`specs/classroom-escanear-todas/spec.md`](./specs/classroom-escanear-todas/spec.md) (estado `draft`).
+>
+> **Loader con progreso, vuelta a la portada al terminar el recorrido y Estado primero en filtros** →
+> [`specs/loader-con-progreso/spec.md`](./specs/loader-con-progreso/spec.md) (estado `draft`).
 
 ## 1. Lo que se pidió (2026-09-12)
 

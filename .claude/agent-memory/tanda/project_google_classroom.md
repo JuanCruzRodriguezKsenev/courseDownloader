@@ -78,6 +78,18 @@ quedó visible esta vez**): archivadas pinta a ~520 ms tras la URL; el link a Tr
 durante el recorrido: OCULTO (decidí yo, el dueño delegó); al dueño le gusta el resumen. Loader infinito en portada
 corregido por mí (`ee98446`). obra volvió a declarar "control negativo probado" sin que detectara → correrlos yo.
 El filtro de Claude in Chrome bloquea salidas con ids base64 de Classroom en URLs: no imprimir paths.
+**Correcciones ejecutadas por obra (HEAD `842f506`) y re-verificadas por mí**: compuerta 44/764; los 4 controles
+negativos (25/26, 27, 28, 23) muerden de verdad (sabotaje en worktree de scratch; pnpm se niega en worktree →
+`./node_modules/.bin/vitest` directo); `trabajoAsentado` simulado sobre las 34 muestras de Trabajo: 0 progressbar
+en vistas cargadas, vacíos = MC6/Q5; nombres limpios en 00-partida (aria) y 00-archivadas (texto). Falta B-2/B-3/B-6 del dueño.
+Pedido nuevo (2026-09-27): spec `docs/specs/loader-con-progreso/spec.md` (draft, 23 RN / 11 AC; aprobada SIN LEER):
+progreso en el loader para un curso y recorrido (sale la tarjeta `popup.js:2053`), vuelta a `/h` al terminar el
+recorrido (RN-20..22, derivados no vistos por el dueño; arregla que reabrir en el último curso re-escanee), Estado
+primero en filtros (`filters.js:371-434`). B-2/B-3/B-6 ✅ (storage: 7 cursos, 0 fallidos, ~124 s ≈ 18 s/curso). Plan escrito:
+`docs/plan-loader-con-progreso.md` (6 pasos). Claves: el SW hace leer-modificar-escribir por evento → el progreso
+del recorrido va por una COLA de mensajes (si no, pisa el `curso`); un curso usa `escaneo_progreso` directo al
+popup (SW devuelve false a acciones sin manejador); `esRutaPortada` acepta `/h/archived` (no usarla para esperar `/h`).
+Próximo: obra ejecuta; yo re-verifico controles 1/29/33 a mano.
 
 ## Spec del corte 2 (destino en ~/U.N.L.P)
 

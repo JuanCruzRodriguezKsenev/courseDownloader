@@ -33,11 +33,11 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   - **Correcciones**: plan `plan-classroom-escanear-todas-correcciones.md` (2026-09-27): asentado de Trabajo en clase (Paso 1), espera de nav (Paso 2), espera de archivados y nombres limpios de anclas globales (Paso 3), cancelación por token idCancelacion y test 23 sensible a zombis (Paso 4), estado terminal en reductor (Paso 5), botón recorriendo oculto, desacople de oferta y guarda fila 1 (Paso 6). 44 archivos / 764 tests en verde.
 - **Verificación B — en Brave, la hace el dueño**:
   - [ ] 1. **M-1**: con el escaneo de un curso (como en `main`), cronometrar cada curso por separado. Si el promedio se aleja de 45 s, corregir texto en Paso 6f y NFR-1.
-  - [ ] 2. **AC-1**: Portada `/u/2/h`, abrir el popup: tarjeta "Todas mis clases", botón "Escanear todos los cursos", y la pestaña **no** se mueve.
-  - [ ] 3. **AC-2 / AC-8**: Apretar el botón con la pestaña al frente, esperar sin tocar. Al final: resumen con los cursos de hoy (5 activos + 2 archivados = 7), G25 con 71 de Trabajo en clase y MB5 con 24, un encabezado por curso con material, y MC6 y Q5 sin grupo, contados como vacíos. Cronometrar el total (NFR-1: menos de 6 min).
+  - [x] 2. **AC-1** (dueño, 2026-09-27, tras las correcciones: "funciona perfecto"): Portada `/u/2/h`, abrir el popup: tarjeta "Todas mis clases", botón "Escanear todos los cursos", y la pestaña **no** se mueve.
+  - [x] 3. **AC-2 / AC-8** (2026-09-27, leído del storage: `terminado`, 7 cursos, 5 ok + MC6/Q5 vacíos, 0 fallidos, G22 ok, nombres limpios; **~124 s en total ≈ 18 s/curso** — NFR-1 cumplido; la cantidad de ítems por curso no queda en storage, la confirmó el dueño a ojo): Apretar el botón con la pestaña al frente, esperar sin tocar. Al final: resumen con los cursos de hoy (5 activos + 2 archivados = 7), G25 con 71 de Trabajo en clase y MB5 con 24, un encabezado por curso con material, y MC6 y Q5 sin grupo, contados como vacíos. Cronometrar el total (NFR-1: menos de 6 min).
   - [ ] 4. **AC-4**: Relanzar con 🔄. En el curso 2, cerrar el popup. A los 60 s, reabrirlo: progreso en un curso posterior. Al terminar, la lista está completa.
   - [ ] 5. **AC-5**: A mitad del recorrido, abrir el popup (la pestaña está dentro de un curso): se ve el progreso y **no** aparece "Escaneando la pestaña…".
-  - [ ] 6. **AC-3**: Terminado el recorrido, entrar a MC2 y escanearla sola: mismos ítems y nombres que en su grupo.
+  - [x] 6. **AC-3** (dueño, 2026-09-27): Terminado el recorrido, entrar a MC2 y escanearla sola: mismos ítems y nombres que en su grupo.
   - [ ] 7. **AC-6**: Relanzar y, en el curso 4, cambiar de pestaña. Volver y abrir el popup: resumen "Se cortó en el curso 4 de 7: Classroom quedó en segundo plano", con los 3 completos en la lista. Repetir haciendo click en otro curso del sidebar: "navegaste fuera del recorrido".
   - [ ] 8. **AC-9**: Si algún archivo de Drive está en dos cursos, aparece en los dos grupos, y bajarlo desde uno no lo marca en el otro.
   - [ ] 9. **AC-10**: Bajar un PDF de G22 y uno de MC2: cada uno en `raíz/google-classroom/<curso>/`.
@@ -76,7 +76,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
       Extrae `aria-label` del sidebar o anclas sin inicial pegada.
     - ✅ Botón durante el recorrido oculto: (Cerrado en Paso 6).
       Modo `"recorriendo"` con label vacía y botón oculto.
-  - ⚠️ **NO REPRODUCIDO — mirar en B-3**: (a) si al llegar a un curso queda montada la vista de
+  - ⚪ **NO APARECIÓ en B-3 del 2026-09-27** (el recorrido terminó `terminado`, sin corte por navegación) — queda como riesgo, no como hallazgo: (a) si al llegar a un curso queda montada la vista de
     Trabajo en clase del anterior, el chequeo `/c/<otroId>/m/` devuelve `avisoCursoCambiado` y el
     recorrido entero se corta como "navegaste fuera del recorrido"; las muestras guardan una sola
     `c-wiz`, así que no lo pueden confirmar ni descartar. (b) Para los activos, el script hace
