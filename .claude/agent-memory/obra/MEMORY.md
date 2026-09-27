@@ -5,3 +5,4 @@
 - [Classroom corte 1: identidad en archivados](project_classroom_identidad_en_archivados.md) — confirmación por h1 a[href] en archivados sin sidebar, fixture con orden real de nav
 - [Formateo U.N.L.P Ingeniería](project_unlp_formateo_ingenieria.md) — formateo previo al corte 2 de Classroom, core.ignorecase en git y renombres sin colisión
 - [Classroom: Escaneo multi-curso](project_classroom_escanear_todas.md) — ADR-0016 script inyectado avisando al SW vía IPC, estado puro, tabla de decisión al abrir y lista agrupada en Preact
+- [Loader con progreso](project_loader_con_progreso.md) — isla Preact de detalle, throttle con emisión inmediata de fase inicial, sincronización en popup y vuelta a portada
