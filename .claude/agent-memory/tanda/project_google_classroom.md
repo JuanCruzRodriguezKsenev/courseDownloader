@@ -108,6 +108,9 @@ el fallback lee `body` si vence sin c-wiz visible. Falta L-2 del dueño en Brave
 
 Fin de cola con popup abierto tiraba la lista de todos (`limpiarSesionLocal` + escaneo de 1 curso en `/h`) →
 plan `docs/plan-classroom-fin-descarga-todos.md` (sólo si `origenListado.clave === "todos"`; un curso sigue igual).
+**Ejecutado por obra (`c38b5ae`) y re-verificado por mí**: 46/799 verde; el control negativo MUERDE (worktree de
+scratch necesita symlink a `node_modules` **y a `.wxt`**, si no vitest no carga el tsconfig). Para L-10 moví 3 PDF
+de `~/Descargas/verificacion-b` (uno por curso: Física I G, G22, G25) a `scratchpad/respaldo-verificacion-b`.
 
 ## Spec del corte 2 (destino en ~/U.N.L.P)
 **2026-09-27, retomando el corte 2**: el dueño decidió raíz por portal — Ramón Net y Anatomy quedan como están;

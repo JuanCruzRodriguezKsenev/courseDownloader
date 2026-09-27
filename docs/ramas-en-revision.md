@@ -76,7 +76,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
     negativo corrido por mí en worktree de scratch: sin el Paso 1, el 37 y el 38 fallan con
     `curso-cambiado`; sin el fallback de `pintadoOk` que agregó obra (no estaba en el plan), falla el 17
     → el fallback hace falta. Falta L-2 del dueño en Brave (dos corridas, cronometradas).
-  - ✅ **Al terminar la cola se tira la lista de todos los cursos (dueño, 2026-09-27)**: `limpiarColaConservandoLista()` vacía la cola y conserva lista, origen y `recorridoTodos` cuando `origenListado.clave === "todos"`; `restaurarPanelPorInterrupcion` en `popup.js` muestra la lista guardada y sincroniza disco en vez de re-escanear. 46 archivos / 799 tests en verde.
+  - ✅ **Al terminar la cola se tira la lista de todos los cursos (dueño, 2026-09-27)**: `limpiarColaConservandoLista()` vacía la cola y conserva lista, origen y `recorridoTodos` cuando `origenListado.clave === "todos"`; `restaurarPanelPorInterrupcion` en `popup.js` muestra la lista guardada y sincroniza disco en vez de re-escanear. 46 archivos / 799 tests en verde. Revisión de tanda: compuerta re-corrida por el verificador (46/799, lint, `tsc`, build en verde); control negativo corrido por mí en worktree de scratch (con el cuerpo cambiado por `limpiarSesionLocal()` falla 1/38). La rama del popup (`mostrarListaGuardada` al fin de cola) no tiene test: la cubre L-10.
   - 🟡 **NO REPRODUCIDO — el fallback de `pintadoOk` puede cortar el recorrido por un curso lento**: si
     `pintado` vence justo con ningún `c-wiz` visible, `obtenerVistaActiva()` da `body`, que tiene las
     vistas ocultas del curso anterior con `/c/<otro>/m/` → `curso-cambiado` → corta todo el recorrido
