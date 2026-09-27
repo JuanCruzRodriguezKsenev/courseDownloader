@@ -950,7 +950,7 @@ describe("ScraperClassroom.escanearListado", () => {
     }
   });
 
-  it("29. serialización: sendMessage simulado que tarda 20 ms y cuenta envíos en vuelo; recorrido con progreso -> en vuelo nunca > 1 y orden respeta latido -> progreso -> curso", async () => {
+  it("29. serialización: sendMessage simulado que tarda 300 ms y cuenta envíos en vuelo; recorrido con progreso -> en vuelo nunca > 1 y orden respeta latido -> progreso -> curso", async () => {
     let enVuelo = 0;
     let maxEnVuelo = 0;
     const mensajesEnviados = [];
@@ -960,7 +960,7 @@ describe("ScraperClassroom.escanearListado", () => {
     globalThis.chrome.runtime.sendMessage = vi.fn(async (msg) => {
       enVuelo++;
       if (enVuelo > maxEnVuelo) maxEnVuelo = enVuelo;
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      await new Promise((resolve) => setTimeout(resolve, 300)); // con 20 ms el control negativo (progreso fuera de la cola) no fallaba
       mensajesEnviados.push({ ...msg, orden: ++reloj, timestamp: Date.now() });
       enVuelo--;
     });
@@ -998,7 +998,7 @@ describe("ScraperClassroom.escanearListado", () => {
     } finally {
       limpiar();
     }
-  });
+  }, 15000);
 
   it("30. en modo todos llegan eventos progreso con fase trabajo y novedades para un curso con material, y ninguno llega después de curso", async () => {
     const { mensajesEnviados, limpiar } = simularNavegacionClassroom();

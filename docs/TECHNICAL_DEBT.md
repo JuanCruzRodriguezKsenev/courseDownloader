@@ -503,6 +503,10 @@ Llegaron acá al mergear la tanda del toolbar (2026-08-13): vivían en
   del par (el piso evita el destello de lo que ya salió; la demora evita que salga lo que no hace
   falta); (3) el módulo **no es dueño de ningún nodo** — nada impide escribir `nodos.loader` por
   atrás y saltearlo, que es exactamente lo que este ítem se llama.
+- **2026-09-27 (loader con progreso)**: el detalle bajo el título vive en la isla
+  `popup/features/loaderDetalle.preact.js` (`#ui-loader-detalle`), que se escribe sin piso; el
+  título sigue en `#ui-loader-txt`. Entró una bandera más, `loaderEsDelRecorrido` en `popup.js`:
+  tokens y demora de aparición **siguen abiertos**.
 - **Estado**: 🔴 abierto (la mitad del tiempo, construida y **sin verificar en Chrome**). Detalle
   completo → `docs/ramas-en-revision.md` §Lo que falta.
 

@@ -46,6 +46,43 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   - [ ] 11. **AC-12**: En la portada con lista de todos, 🔄 arranca un recorrido nuevo desde el curso 1.
   - [ ] 12. **AC-13**: Dentro de G22, sin recorrido: el popup se comporta igual que en `main`.
   - [ ] 13. **Consola del SW**: llegan los `recorrido_evento`, sin errores.
+- **Verificación B del loader con progreso** (plan `plan-loader-con-progreso.md`; antes: `pnpm run build`
+  y recargar la extensión, no hay cambios en `backend/`):
+  - [ ] L-1. **AC-1**: portada → "Escanear todos los cursos": el loader tapa todo con "Escaneando todos
+    los cursos", el reloj corre y **no** hay tarjeta de progreso en la lista.
+  - [ ] L-2. **AC-2 / AC-6 / AC-11**: dejar correr sin tocar. Durante: "Curso i de 7: <nombre>", la fase
+    con números que suben, contadores, lista con marcas y, desde el 2º curso, "≈ N min restantes". Al
+    terminar: la pestaña queda en la portada de cursos y se ve la lista agrupada. **Cronometrar el
+    total: ≤ 130 s** (124 s de B-3 + 5 %).
+  - [ ] L-3. **AC-5**: relanzar con 🔄; en el curso 3 cerrar el popup; esperar ~20 s y reabrirlo: loader
+    con el curso actual, las marcas y el reloj contando desde el lanzamiento.
+  - [ ] L-4. **AC-4**: entrar a Física I (pestaña recién recargada) y abrir el popup: título con el nombre
+    del curso, "Cargando más publicaciones (n)" con números que suben, "Dejá Google Classroom al
+    frente." y **sin** "Podés cerrar este popup".
+  - [ ] L-5. **AC-7**: relanzar; en el curso 3 cambiar de pestaña. Volver: la pestaña de Classroom sigue
+    en ese curso y el popup muestra el resumen parcial, sin loader.
+  - [ ] L-6. **AC-8**: en Ramón Net, escanear: "Escaneando la pestaña..." con reloj, sin fase.
+  - [ ] L-7. **AC-9**: en un curso de Classroom, a mitad del escaneo cambiar de pestaña y volver: loader
+    apagado y la tarjeta del aviso, sin restos del detalle.
+  - [ ] L-8. **AC-10**: con la lista del recorrido, abrir Filtros: la primera sección es "Estado".
+  - [ ] L-9. **Hallazgo 🟡 de abajo**: relanzar; en el curso 2 **recargar** la pestaña (F5) y abrir el
+    popup. Anotar si el loader queda tapando todo y cuánto tarda en soltarse.
+- **Revisión de tanda del loader con progreso (2026-09-27)** — compuerta re-corrida por el
+  verificador: 46 archivos / 796 tests, lint, `tsc` y build en verde. Controles negativos corridos
+  por mí en un worktree de scratch (Paso 1 y test 33 fallan sin su arreglo). Hallazgos:
+  - ✅ **El test 29 no tenía poder de detección** (obra lo declaró verificado): con el progreso
+    enviado **fuera** de la cola seguía verde, porque 20 ms de latencia simulada nunca solapaban dos
+    envíos. Con 300 ms el sabotaje da `maxEnVuelo = 2` y el arreglo pasa (3 corridas, ~3,7 s el
+    test). Corregido por tanda: latencia 300 ms y timeout explícito de 15 s.
+  - 🟡 **NO REPRODUCIDO — el loader puede quedar tapando todo hasta 210 s** si el script del
+    recorrido muere sin mandar `fin` (pestaña recargada o cerrada): no hay manejador en el SW que lo
+    corte, `esVigente` sólo vence a `topeEscaneoMs + 30 s` = 210 s en Classroom, y
+    `sincronizarLoaderRecorrido` sólo se re-evalúa cuando cambia el storage. Antes la tarjeta decía
+    lo mismo pero dejaba usar la Cola; ahora la cortina bloquea todo el popup. Lo mide L-9.
+  - ⚪ `sincronizarLoaderRecorrido` suma una segunda bandera (`loaderEsDelRecorrido`) junto a
+    `elEscaneoTomoElLoader`: más dueños del loader coordinados a mano (ver la deuda 🔴 del loader).
+  - ⚪ La memoria de obra dice que la vuelta a `/h` ocurre "al terminar o al detenerse"; el código
+    hace lo correcto (sólo al terminar, RN-21, test 35): la nota está mal, no el código.
 - **Revisión de tanda (2026-09-27)** — compuerta re-corrida por el verificador: 44 archivos / 764
   tests, lint, `tsc` y build en verde, árbol limpio. Hallazgos:
   - ✅ **El nombre del curso sale como id base64 en 7 de 8 cursos.** (Cerrado en Paso 3).
