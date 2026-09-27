@@ -122,7 +122,12 @@ corrió como sesión; dijo "funciona todo". Contrastar SIEMPRE con el mtime del 
 (overflow auto, no scrollea); el que scrollea es el documento; Novedades pagina de a 10 por scroll (G25: 66 posts /
 28 adjuntos). Plan `docs/plan-classroom-novedades-scroll.md`, rama `classroom-novedades-scroll`. Corte 2 espera esto.
 **Ejecutado por obra (`7ec372b`) y re-verificado por mí**: diff idéntico al plan, 46/801 verde, el control negativo del 39 MUERDE (primera vez que obra lo declara y es cierto). Storage de Brave antes de N-1: `000043.log` mtime 17:03:36. N-1/N-2 ✅ (storage: G25 Novedades 28 adjuntos en ambos, recorrido ~175 s vs 124 s). **MERGEADA** `7b60e05` (sin push).
-Siguiente: corte 2 (spec `classroom-destino`, PA-3 ya decidido) → plan.
+**Corte 2 partido en 2a/2b/2c** (dueño, 2026-09-27; tabla en spec §Cortes). 2a = adopción con TSV editable,
+índice GENÉRICO `~/U.N.L.P/.course-downloader.json` con claves `<portal>:<id>` (Moodle UNLP va al mismo). Plan
+`docs/plan-classroom-destino-2a-adopcion.md`, rama `classroom-destino-adopcion`. Medido: 366/366 ítems de la lista
+del recorrido están en verificacion-b por `sanitizarNombreArchivo(titulo)`; 55 ya en el árbol (todos en su materia);
+2 grupos dup md5 (7 ítems). **Un escaneo de un curso pisa `listaPersistente`** → antes de generar, "escanear todos".
+Items no traen id de curso: sale de `recorridoTodos.cursos[].nombre` vía `sanearNombreCarpeta`. Bun importa `core/*.ts`.
 Tiempos del recorrido: `recorridoTodos.cursos[].duracionMs` en el storage; lista con `listaPersistente` (parser en scratchpad de sesión vieja: copiarlo).
 Para medir en Brave con Claude in Chrome: un `left_click` en la página la pone `visible` (la captura sola no).
 El filtro bloquea salidas con nombres de clase CSS: devolver sólo números.
@@ -145,8 +150,7 @@ coincidencias de nombre son todas md5-idénticas. `Fisica 2/Laboratorios` está 
 Perf medida: cola estrictamente secuencial, 62 ítems/186 s, PDF mediana 1.36 s de los cuales ~1.25 s son Drive.
 Paralelizar es la única palanca (3x) pero toca estado global y ADR-0011 → plan propio **después** del merge.
 
-Trampas de `~/U.N.L.P`: `.gitignore` en **UTF-16 LE + CRLF** (`echo >>` lo corrompe); `core.ignorecase=true` →
-renombre sólo de mayúsculas necesita `git add` por ruta; `core.quotepath` cita tildes → filtros con
+Trampas de `~/U.N.L.P`: `.gitignore` pasó a **UTF-8/LF** (`f3ea8bc`, antes UTF-16); `core.ignorecase` hoy `false`; `core.quotepath` cita tildes → filtros con
 `-c core.quotepath=false`; NFD en algunos nombres; remoto SSH y último push del 2026-05-08 (el formateo de
 septiembre NO está pusheado).
 

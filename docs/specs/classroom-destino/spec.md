@@ -1,6 +1,7 @@
 # Destino de Google Classroom en el árbol del dueño
 
 **Estado**: `draft` — depende de **M-2** (§Mediciones pendientes), que no bloquea ninguna descarga.
+**Cortes**: se construye en tres (§Cortes de construcción, decididos por el dueño el 2026-09-27).
 **Fecha**: 2026-09-16
 **Traza de decisiones**: [`assumptions.md`](./assumptions.md)
 **Diseño del portal**: [`../../portal-google-classroom-diseno.md`](../../portal-google-classroom-diseno.md) (D1–D13)
@@ -36,7 +37,7 @@ transformación de texto.
 - Elegir carpeta destino por curso y por tema.
 - Proponer el nombre final, dejarlo editar y recordarlo.
 - Saber si un archivo ya está, aunque tenga otro nombre o esté en otra carpeta.
-- El índice `~/U.N.L.P/.classroom.json` y su ciclo de vida.
+- El índice `~/U.N.L.P/.course-downloader.json` y su ciclo de vida.
 
 **No incluye**
 - Anatomy y RamonNet: su layout no cambia.
@@ -113,7 +114,7 @@ transformación de texto.
 
 ### El índice
 
-- **RN-23** — El índice es un único archivo, `~/U.N.L.P/.classroom.json`, y es la **fuente de
+- **RN-23** — El índice es un único archivo, `~/U.N.L.P/.course-downloader.json`, y es la **fuente de
   verdad** de los nombres y las asociaciones. El storage de la extensión no guarda nada de esto.
 - **RN-24** — El índice **no se versiona**: se agrega a `~/U.N.L.P/.gitignore`.
 - **RN-25** — Si el índice no parsea, la extensión **avisa y no baja nada**. No lo pisa ni lo
@@ -192,13 +193,13 @@ en la fila 6 y se pisaría (RN-30).
 
 ## Datos
 
-### `~/U.N.L.P/.classroom.json`
+### `~/U.N.L.P/.course-downloader.json`
 
 ```json
 {
   "version": 1,
   "cursos": {
-    "ODc0ODk1NDcwNTMw": {
+    "google-classroom:ODc0ODk1NDcwNTMw": {
       "nombre": "Física II G22 2026 2do cuatrimestre",
       "materia": "Ingenieria/Fisica 2",
       "docente": "Palacio",
@@ -212,15 +213,15 @@ en la fila 6 y se pisaría (RN-30).
     }
   },
   "archivos": {
-    "1a2b3c4d5e6f": {
-      "curso": "ODc0ODk1NDcwNTMw",
+    "google-classroom:1a2b3c4d5e6f": {
+      "curso": "google-classroom:ODc0ODk1NDcwNTMw",
       "nombre": "05_capacitores.pdf",
       "ruta": "Ingenieria/Fisica 2/Teorias/Palacio",
       "md5": "3f2a9c1b8e4d7a6f",
       "original": "Palacio - Clase 5 - Capacitores.pdf"
     },
-    "acceso:https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DAbC:Campo%20el%C3%A9ctrico": {
-      "curso": "ODc0ODk1NDcwNTMw",
+    "google-classroom:acceso:https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DAbC:Campo%20el%C3%A9ctrico": {
+      "curso": "google-classroom:ODc0ODk1NDcwNTMw",
       "nombre": "campo_electrico.md",
       "ruta": "Ingenieria/Fisica 2/Teorias/Palacio",
       "md5": "9b1c3d5e7f0a2b4c",
@@ -233,14 +234,14 @@ en la fila 6 y se pisaría (RN-30).
 | Campo | Regla |
 |---|---|
 | `version` | Entero. Permite migrar el formato sin adivinar. |
-| `cursos.<id>` | El id de curso de la URL de Classroom. |
-| `cursos.<id>.materia` | Ruta relativa a `~/U.N.L.P`. Tiene que existir (RN-1). |
-| `cursos.<id>.temas.<tema>` | Ruta relativa a la materia. `"."` es la raíz de la materia. |
-| `archivos.<id>` | El id de archivo: id de Drive para los adjuntos, `acceso:<url>:<título>` para los accesos (RN-29). Es la identidad estable, y la misma que viaja por el pipeline — no se inventa un eje nuevo (ADR-0014). |
-| `archivos.<id>.nombre` | El nombre final, editado o propuesto. |
-| `archivos.<id>.ruta` | Ruta relativa a `~/U.N.L.P`. La corrige RN-19. |
-| `archivos.<id>.md5` | Se calcula una vez al bajar y no se recalcula. En un `.md` es informativo: no decide nada, porque manda RN-30. |
-| `archivos.<id>.original` | El nombre de Classroom. Sólo para que el dueño se ubique. |
+| `cursos.<portal>:<id>` | El id del portal (`google-classroom`) y el id de curso de su URL. El prefijo existe porque la raíz es de la UNLP, no de Classroom: los Moodle de la UNLP van a escribir en el mismo índice (dueño, 2026-09-27). |
+| `cursos.<clave>.materia` | Ruta relativa a `~/U.N.L.P`. Tiene que existir (RN-1). |
+| `cursos.<clave>.temas.<tema>` | Ruta relativa a la materia. `"."` es la raíz de la materia. |
+| `archivos.<portal>:<id>` | El portal, `:`, y el id de archivo: id de Drive para los adjuntos, `acceso:<url>:<título>` para los accesos (RN-29). Es la identidad estable, y la misma que viaja por el pipeline — no se inventa un eje nuevo (ADR-0014). |
+| `archivos.<clave>.nombre` | El nombre final, editado o propuesto. |
+| `archivos.<clave>.ruta` | Ruta relativa a `~/U.N.L.P`. La corrige RN-19. |
+| `archivos.<clave>.md5` | Se calcula una vez al bajar y no se recalcula. En un `.md` es informativo: no decide nada, porque manda RN-30. |
+| `archivos.<clave>.original` | El nombre de Classroom. Sólo para que el dueño se ubique. |
 
 **Retención**: nada se borra automáticamente. Un curso que desaparece de Classroom conserva su
 entrada (RN-27).
@@ -311,7 +312,7 @@ entrada (RN-27).
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│  ⛔  No se pudo leer .classroom.json                    │
+│  ⛔  No se pudo leer .course-downloader.json                    │
 │                                                        │
 │  Línea 47: falta una coma.                             │
 │  No se va a bajar nada hasta que se arregle. El        │
@@ -390,7 +391,7 @@ AC-6 — Un archivo borrado se vuelve a bajar con su nombre
 
 ```gherkin
 AC-7 — Un índice ilegible frena todo
-  Dado un ".classroom.json" con JSON inválido
+  Dado un ".course-downloader.json" con JSON inválido
   Cuando el dueño abre el popup en cualquier curso
   Entonces se muestra el aviso con el problema
     y el botón de bajar queda deshabilitado
@@ -479,9 +480,9 @@ Esquema del escenario: AC-11 — Nombres que la regla no acierta
 
 | Qué | Por qué |
 |---|---|
-| Corte 1 mergeado a `main` | Esta spec define el destino de lo que el corte 1 baja |
-| Los dos defectos de escaneo arreglados | El destino correcto no salva lo que el escaneo no trajo: hoy G25 pierde 23 adjuntos de Novedades y un adjunto cualquiera puede leerse a medio hidratar. Ver `docs/ramas-en-revision.md` §Hallazgos de la Verificación B |
-| `~/U.N.L.P/.gitignore` editable | Está en **UTF-16 LE con CRLF**: agregarle una línea con `echo >>` lo corrompe |
+| Corte 1 mergeado a `main` | ✅ Esta spec define el destino de lo que el corte 1 baja |
+| Los dos defectos de escaneo arreglados | ✅ Novedades pagina desde `7b60e05` (G25: 28 adjuntos en vez de 4); el adjunto a medio hidratar lo cerró el corte 1 (`docs/plan-classroom-corte-1-adjuntos-sin-resolver.md`) |
+| `~/U.N.L.P/.gitignore` editable | Desde `f3ea8bc` (en `~/U.N.L.P`) está en **UTF-8 con LF**: ya no hace falta convertirlo. Lo que sí: si vuelve a aparecer un BOM `FF FE`, no se toca a ciegas |
 
 ---
 
@@ -493,18 +494,18 @@ Esquema del escenario: AC-11 — Nombres que la regla no acierta
 | 12-13 | La extensión propone, el dueño edita, se recuerda por id de Drive | La regla sola acierta 15 de 26; acortar un tema es criterio, no texto |
 | 18 | "Ya descargado" por contenido, no por nombre | 4 archivos medidos con md5 idéntico y nombre distinto por el saneo `#`→`_`; y 9 teorías de Física 1 renombradas por el dueño |
 | 20 | Sin objeto | Lo cubre el 18: las copias idénticas colapsan solas |
-| 22 | Índice único en `~/U.N.L.P/.classroom.json`, gitignoreado | El storage muere al reinstalar; los xattr no sobreviven a `git clone` ni a `cp`; el repo es público |
+| 22 | Índice único en `~/U.N.L.P/.course-downloader.json`, gitignoreado | El storage muere al reinstalar; los xattr no sobreviven a `git clone` ni a `cp`; el repo es público |
 
 ## Preguntas abiertas
 
 - **PA-1** *(era D-2)* — Si el contenido ya está en disco con otro nombre, hoy gana el nombre viejo y
   no se toca nada (RN-20 + NFR-4). **Recomendación**: dejarlo así. Si el dueño quiere unificar, que
   sea una acción explícita suya, nunca un efecto de bajar.
-- **PA-2** *(era D-3)* — Cuando varios adjuntos del mismo curso son el mismo archivo (medido: el
-  template de Física I ×5, `interferencia2025` ×2), RN-20 deja **uno solo**, el primero que se baja,
-  con el nombre que le tocó a ese. Ese criterio es arbitrario. **Recomendación**: que el nombre lo
-  fije el primer adjunto en orden de tema, y que los demás queden anotados en el índice apuntando al
-  mismo md5, para que la lista los muestre como descargados.
+- **PA-2 — ✅ DECIDIDO (tanda, 2026-09-27, siguiendo la recomendación)** — Cuando varios adjuntos del
+  mismo curso son el mismo archivo (template de Física I ×5, `interferencia2025` ×2: 2 grupos, 7
+  adjuntos, recontado el 2026-09-27), el primero en el orden del escaneo fija ruta y nombre, y los demás
+  quedan en el índice apuntando a la misma ruta, nombre y md5, para que la lista los muestre como
+  descargados. No cambia nada visible para el dueño salvo que no ve copias.
 
 - **PA-3 — ✅ DECIDIDO por el dueño (2026-09-27): adopción desde `~/Descargas/verificacion-b`.** Un
   script de una sola corrida (no una función de la extensión) cruza el `listaPersistente` del storage de
@@ -525,6 +526,21 @@ Esquema del escenario: AC-11 — Nombres que la regla no acierta
   - **Requisito que esto impone**: la extensión tiene que poder **exportar el mapa id de Drive →
     adjunto** de un escaneo. Hoy eso vive sólo en `chrome.storage` (LevelDB comprimido), legible a la
     fuerza pero no por una vía sostenida.
+
+- **PA-3, forma de la adopción — ✅ DECIDIDO por el dueño (2026-09-27)**: el script no copia de una. Genera
+  tres tablas TSV (cursos, temas, archivos) con materia, docente, carpeta y nombre propuestos; el dueño
+  las edita, y recién una segunda corrida copia y escribe el índice. Es el mismo método que el formateo
+  del 2026-09-13 (`docs/plan-unlp-formateo-ingenieria.tsv`).
+
+## Cortes de construcción
+
+Decididos por el dueño el 2026-09-27. Cada uno es una rama y un plan.
+
+| Corte | Qué entrega | Reglas |
+|---|---|---|
+| **2a — Adopción** | Script de una sola corrida: lleva `verificacion-b` a `~/U.N.L.P` con los nombres que el dueño eligió y hace nacer el índice. No toca la extensión. Plan: `docs/plan-classroom-destino-2a-adopcion.md` | RN-1, 3–8, 11, 12, 15–17, 20, 21, 23–26, 28, 30 (en su forma de adopción); PA-2, PA-3 |
+| **2b — La extensión usa el índice** | Raíz por portal; "ya descargado" y descarga a la carpeta del tema según la tabla de decisión; tema nuevo sin asignar; índice ilegible | RN-2, 9, 10, 18–22, 25, 27, 29, 30 |
+| **2c — Pantallas** | Asociar un curso nuevo; editar el nombre en la lista y recordarlo | RN-1, 4, 7, 13, 14 |
 
 ## Medición de respaldo — cruce del árbol contra lo descargado (2026-09-16)
 
