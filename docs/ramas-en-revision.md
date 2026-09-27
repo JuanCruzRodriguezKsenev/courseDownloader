@@ -24,12 +24,10 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ### Checklist de verificación B (dueño + tanda)
 - **A-1** — Dueño: `pnpm run build`, recargar, portada de Classroom al frente → "Escanear todos los cursos", sin escanear nada después. Tanda corre `generar.js` y compara los números: 366 ítems en 5 carpetas; `ya-esta` 55; `duplicado` 4; `omitir` 8; `copiar` 299; 7 cursos; 2 choques (MC2, Novedades: 7 filas con copias "(N)" de distinto md5).
-- **A-2** — Dueño: editar los tres TSV en `~/Descargas/adopcion-classroom/`:
-  - Docente de Física I.
-  - Destino de los temas con `regla=no`: los de MC2 y los `Links-Módulo`.
-  - Los nombres que no le gusten.
-  - Qué cronograma pasa a `copiar`.
-  - Renombrar las 7 filas de los 2 choques (si no, aplicar se niega).
+- **A-2** — Editor web de los TSV:
+  - Tanda levanta `bun backend/adopcion/editor.js` y el dueño abre `http://127.0.0.1:3002`.
+  - En la página decide lo mismo que dice hoy la lista (docente de Física I, destinos `regla=no`, nombres, cronogramas, los 7 choques), hasta que Probar dé `codigo` 0.
+  - No correr `generar.js` después de editar: pisa los TSV.
 - **A-3** — Tanda: `aplicar.js` sin `--escribir` y revisa la salida con el dueño. Después, `--escribir`.
 - **A-4** — Tanda verifica en disco:
   - `git -C ~/U.N.L.P status --porcelain`: sólo ` M .gitignore` y `?? Ingenieria/…`. **Ninguna** ` M` ni ` D` dentro de `Ingenieria/` (NFR-4). El índice **no** aparece (RN-24, NFR-2).

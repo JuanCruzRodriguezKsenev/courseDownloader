@@ -1,0 +1,1199 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Editor de Adopción — Classroom</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-alt: #f1f5f9;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --danger: #dc2626;
+      --danger-bg: #fef2f2;
+      --danger-border: #fecaca;
+      --warning: #d97706;
+      --warning-bg: #fffbeb;
+      --warning-border: #fde68a;
+      --success: #16a34a;
+      --success-bg: #f0fdf4;
+      --success-border: #bbf7d0;
+      --badge-ya-esta: #64748b;
+      --badge-dup: #8b5cf6;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f172a;
+        --surface: #1e293b;
+        --surface-alt: #334155;
+        --text: #f8fafc;
+        --text-muted: #94a3b8;
+        --border: #334155;
+        --primary: #3b82f6;
+        --primary-hover: #60a5fa;
+        --danger: #ef4444;
+        --danger-bg: #450a0a;
+        --danger-border: #7f1d1d;
+        --warning: #f59e0b;
+        --warning-bg: #451a03;
+        --warning-border: #78350f;
+        --success: #22c55e;
+        --success-bg: #052e16;
+        --success-border: #14532d;
+        --badge-ya-esta: #94a3b8;
+        --badge-dup: #a78bfa;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      overflow-x: hidden;
+      padding-bottom: 60px;
+    }
+
+    /* Barra fija superior */
+    header.barra-fija {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background-color: var(--surface);
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+      padding: 10px 16px;
+    }
+
+    .barra-contenido {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .contadores {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .contador-chip {
+      background-color: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 13px;
+      display: flex;
+      gap: 6px;
+    }
+
+    .contador-chip.choques-alerta {
+      background-color: var(--danger-bg);
+      border-color: var(--danger-border);
+      color: var(--danger);
+      font-weight: 600;
+    }
+
+    .estado-guardado {
+      font-size: 12px;
+      color: var(--warning);
+      font-weight: 500;
+      display: none;
+    }
+    .estado-guardado.visible {
+      display: inline-block;
+    }
+
+    .acciones-barra {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 13px;
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background-color: var(--surface);
+      color: var(--text);
+      transition: background-color 0.15s;
+    }
+    button:hover:not(:disabled) {
+      background-color: var(--surface-alt);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    button.btn-primary {
+      background-color: var(--primary);
+      border-color: var(--primary);
+      color: #ffffff;
+    }
+    button.btn-primary:hover:not(:disabled) {
+      background-color: var(--primary-hover);
+    }
+
+    /* Panel desplegable de resultados */
+    #panel-resultados {
+      max-width: 1200px;
+      margin: 8px auto 0;
+      display: none;
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    #panel-resultados.visible {
+      display: block;
+    }
+    #panel-resultados .cabecera-panel {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    #panel-resultados pre {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 240px;
+      overflow-y: auto;
+      background-color: var(--surface-alt);
+      padding: 8px;
+      border-radius: 4px;
+    }
+    .resaltar-copiar {
+      color: var(--success);
+      font-weight: bold;
+    }
+
+    /* Contenedor principal */
+    main.contenedor {
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 0 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    section.seccion {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+
+    .seccion-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .seccion-header h2 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .filtros {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+    }
+
+    .filtros input[type="text"] {
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background-color: var(--surface);
+      color: var(--text);
+    }
+
+    .tabla-scroll {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th, td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    th {
+      font-weight: 600;
+      color: var(--text-muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Filas atenuadas */
+    tr.curso-vacio {
+      opacity: 0.5;
+    }
+
+    /* Subtexto gris en cursos */
+    .ruta-teorias-info {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Acordeones */
+    details {
+      margin-bottom: 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background-color: var(--surface);
+      overflow: hidden;
+    }
+    details[open] {
+      border-color: var(--primary);
+    }
+    summary {
+      cursor: pointer;
+      padding: 10px 12px;
+      background-color: var(--surface-alt);
+      font-weight: 500;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+    }
+    summary:hover {
+      background-color: var(--border);
+    }
+    .resumen-grupo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Badges / Insignias */
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .badge-sin-regla {
+      background-color: var(--warning-bg);
+      border: 1px solid var(--warning-border);
+      color: var(--warning);
+    }
+    .badge-ya-esta {
+      background-color: var(--surface-alt);
+      color: var(--badge-ya-esta);
+      border: 1px solid var(--border);
+    }
+    .badge-dup {
+      background-color: var(--surface-alt);
+      color: var(--badge-dup);
+      border: 1px solid var(--border);
+    }
+    .badge-choque {
+      background-color: var(--danger-bg);
+      border: 1px solid var(--danger-border);
+      color: var(--danger);
+      font-weight: 600;
+    }
+
+    /* Filas con choque */
+    tr.fila-choque {
+      background-color: var(--danger-bg) !important;
+    }
+    tr.fila-choque td {
+      border-bottom-color: var(--danger-border);
+    }
+    .leyenda-choque {
+      color: var(--danger);
+      font-size: 11px;
+      font-weight: 600;
+      display: block;
+      margin-top: 4px;
+    }
+
+    /* Destino en vivo */
+    .destino-vivo {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+      word-break: break-all;
+    }
+
+    /* Inputs y selects */
+    select, input[type="text"] {
+      width: 100%;
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background-color: var(--surface);
+      color: var(--text);
+      font-size: 13px;
+    }
+    select:focus, input[type="text"]:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    select:disabled, input[type="text"]:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      background-color: var(--surface-alt);
+    }
+
+    .col-accion {
+      white-space: nowrap;
+      width: 110px;
+    }
+    .col-nombre {
+      min-width: 200px;
+    }
+    .col-destino-vivo {
+      min-width: 220px;
+    }
+  </style>
+</head>
+<body>
+  <header class="barra-fija">
+    <div class="barra-contenido">
+      <div class="contadores">
+        <div class="contador-chip"><span>A copiar:</span> <strong id="cnt-copiar">0</strong></div>
+        <div class="contador-chip"><span>Ya están:</span> <strong id="cnt-ya-esta">0</strong></div>
+        <div class="contador-chip"><span>Duplicados:</span> <strong id="cnt-duplicado">0</strong></div>
+        <div class="contador-chip"><span>Omitidos:</span> <strong id="cnt-omitir">0</strong></div>
+        <div class="contador-chip" id="chip-choques"><span>Choques:</span> <strong id="cnt-choques">0</strong></div>
+      </div>
+      <div class="acciones-barra">
+        <span class="estado-guardado" id="aviso-cambios">● Cambios sin guardar</span>
+        <button id="btn-guardar" class="btn-primary">Guardar</button>
+        <button id="btn-probar">Probar</button>
+      </div>
+    </div>
+    <div id="panel-resultados">
+      <div class="cabecera-panel">
+        <strong id="titulo-panel">Resultado</strong>
+        <button id="btn-cerrar-panel" style="padding: 2px 8px; font-size: 11px;">Cerrar</button>
+      </div>
+      <pre id="contenido-panel"></pre>
+    </div>
+  </header>
+
+  <main class="contenedor">
+    <!-- Sección 1: Cursos -->
+    <section class="seccion" id="sec-cursos">
+      <div class="seccion-header">
+        <h2>1. Cursos</h2>
+      </div>
+      <div class="tabla-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Curso</th>
+              <th style="width: 80px;">Ítems</th>
+              <th style="width: 250px;">Materia</th>
+              <th style="width: 250px;">Docente</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-cursos"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Sección 2: Temas -->
+    <section class="seccion" id="sec-temas">
+      <div class="seccion-header">
+        <h2>2. Temas</h2>
+        <div class="filtros">
+          <label><input type="checkbox" id="filtro-sin-regla"> Sólo sin regla</label>
+        </div>
+      </div>
+      <div id="lista-temas"></div>
+    </section>
+
+    <!-- Sección 3: Archivos -->
+    <section class="seccion" id="sec-archivos">
+      <div class="seccion-header">
+        <h2>3. Archivos</h2>
+        <div class="filtros">
+          <input type="text" id="filtro-texto-archivos" placeholder="Buscar por original o nombre...">
+          <label><input type="checkbox" id="filtro-solo-choques"> Sólo choques</label>
+          <label><input type="checkbox" id="filtro-solo-copiar"> Sólo a copiar</label>
+        </div>
+      </div>
+      <div id="lista-archivos"></div>
+    </section>
+  </main>
+
+  <datalist id="datalist-docentes"></datalist>
+
+  <script>
+    // Estado en memoria
+    let DATOS = null;
+    let ESTADO_INICIAL_JSON = "";
+    let HAY_CAMBIOS = false;
+    let GRUPOS_CHOQUE = new Map(); // claveGrupo -> Grupo
+    let FILAS_CON_CHOQUE = new Set(); // clave -> mensaje choque
+
+    // Replica de resolverCarpeta de core/destino/carpetas.ts
+    function resolverCarpeta(destino, docente) {
+      const d = (docente || "").trim();
+      if (destino === "Teorias" && d.length > 0) {
+        return `Teorias/${d}`;
+      }
+      return destino;
+    }
+
+    function marcarCambio() {
+      const actualJson = JSON.stringify({
+        cursos: DATOS.cursos,
+        temas: DATOS.temas,
+        archivos: DATOS.archivos,
+      });
+      HAY_CAMBIOS = actualJson !== ESTADO_INICIAL_JSON;
+      const aviso = document.getElementById("aviso-cambios");
+      if (HAY_CAMBIOS) {
+        aviso.classList.add("visible");
+      } else {
+        aviso.classList.remove("visible");
+      }
+    }
+
+    window.addEventListener("beforeunload", (e) => {
+      if (HAY_CAMBIOS) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    });
+
+    async function cargarDatos() {
+      try {
+        const res = await fetch("/api/datos");
+        if (!res.ok) throw new Error("Error HTTP " + res.status);
+        DATOS = await res.json();
+        ESTADO_INICIAL_JSON = JSON.stringify({
+          cursos: DATOS.cursos,
+          temas: DATOS.temas,
+          archivos: DATOS.archivos,
+        });
+        HAY_CAMBIOS = false;
+        document.getElementById("aviso-cambios").classList.remove("visible");
+        renderizarTodo();
+      } catch (err) {
+        alert("Error al cargar datos: " + err.message);
+      }
+    }
+
+    function recalcularChoques() {
+      // Mismo criterio que buscarChoques de core/destino/choques.ts
+      // Entran filas copiar cuyo tema no sea '-' y las ya-esta con materia/carpeta/nombre
+      const grupos = new Map();
+      const cursoPorClave = new Map(DATOS.cursos.map((c) => [c.clave_curso, c]));
+      const temaPorClave = new Map(DATOS.temas.map((t) => [`${t.clave_curso}\t${t.tema}`, t]));
+
+      for (const arch of DATOS.archivos) {
+        const curso = cursoPorClave.get(arch.clave_curso);
+        const materia = curso ? curso.materia : "";
+        const tema = temaPorClave.get(`${arch.clave_curso}\t${arch.tema}`);
+        const destinoTema = tema ? tema.destino : ".";
+
+        let rutaBase = "";
+        let nombre = arch.nombre;
+
+        if (arch.accion === "ya-esta") {
+          const carp = (arch.carpeta && arch.carpeta !== ".") ? arch.carpeta : "";
+          rutaBase = carp ? (materia ? `${materia}/${carp}` : carp) : (materia || ".");
+        } else if (arch.accion === "copiar") {
+          if (destinoTema === "-") {
+            continue; // Se omite el tema completo
+          }
+          const carp = resolverCarpeta(destinoTema, curso ? curso.docente : "");
+          const carpNorm = (carp && carp !== ".") ? carp : "";
+          rutaBase = carpNorm ? (materia ? `${materia}/${carpNorm}` : carpNorm) : (materia || ".");
+        } else {
+          continue;
+        }
+
+        const rutaNorm = rutaBase.replace(/\/+$/, "");
+        const claveGrupo = `${rutaNorm}/${nombre}`.toLowerCase();
+        const arr = grupos.get(claveGrupo) || [];
+        arr.push({
+          clave: arch.clave,
+          md5: (arch.md5 || "").toLowerCase(),
+          original: arch.original,
+          nombre: arch.nombre,
+          ruta: rutaNorm,
+        });
+        grupos.set(claveGrupo, arr);
+      }
+
+      GRUPOS_CHOQUE = new Map();
+      FILAS_CON_CHOQUE = new Set();
+      let cantGruposChoque = 0;
+
+      for (const [claveGrupo, arr] of grupos.entries()) {
+        const md5s = new Set(arr.map((f) => f.md5));
+        if (md5s.size > 1 && arr.length > 0) {
+          cantGruposChoque++;
+          GRUPOS_CHOQUE.set(claveGrupo, arr);
+          for (const f of arr) {
+            FILAS_CON_CHOQUE.add(f.clave);
+          }
+        }
+      }
+
+      // Actualizar contadores
+      let cntCopiar = 0;
+      let cntYaEsta = 0;
+      let cntDup = 0;
+      let cntOmitir = 0;
+
+      for (const a of DATOS.archivos) {
+        if (a.accion === "copiar") cntCopiar++;
+        else if (a.accion === "ya-esta") cntYaEsta++;
+        else if (a.accion === "duplicado") cntDup++;
+        else if (a.accion === "omitir") cntOmitir++;
+      }
+
+      document.getElementById("cnt-copiar").textContent = cntCopiar;
+      document.getElementById("cnt-ya-esta").textContent = cntYaEsta;
+      document.getElementById("cnt-duplicado").textContent = cntDup;
+      document.getElementById("cnt-omitir").textContent = cntOmitir;
+      document.getElementById("cnt-choques").textContent = cantGruposChoque;
+
+      const chipChoques = document.getElementById("chip-choques");
+      if (cantGruposChoque > 0) {
+        chipChoques.classList.add("choques-alerta");
+      } else {
+        chipChoques.classList.remove("choques-alerta");
+      }
+    }
+
+    function renderizarTodo() {
+      recalcularChoques();
+      renderizarCursos();
+      renderizarTemas();
+      renderizarArchivos();
+    }
+
+    function renderizarCursos() {
+      const tbody = document.getElementById("tbody-cursos");
+      tbody.innerHTML = "";
+
+      for (const curso of DATOS.cursos) {
+        const tr = document.createElement("tr");
+        const itemsCount = parseInt(curso.items || "0", 10);
+        if (itemsCount === 0) {
+          tr.classList.add("curso-vacio");
+        }
+
+        // 1. Nombre
+        const tdNombre = document.createElement("td");
+        tdNombre.innerHTML = `<strong>${curso.nombre}</strong>`;
+        tr.appendChild(tdNombre);
+
+        // 2. Ítems
+        const tdItems = document.createElement("td");
+        tdItems.textContent = curso.items;
+        tr.appendChild(tdItems);
+
+        // 3. Materia
+        const tdMateria = document.createElement("td");
+        const selectMateria = document.createElement("select");
+        const optVacia = document.createElement("option");
+        optVacia.value = "";
+        optVacia.textContent = "(sin materia)";
+        selectMateria.appendChild(optVacia);
+
+        for (const m of DATOS.materias) {
+          const opt = document.createElement("option");
+          opt.value = m;
+          opt.textContent = m;
+          selectMateria.appendChild(opt);
+        }
+        selectMateria.value = curso.materia || "";
+        tdMateria.appendChild(selectMateria);
+        tr.appendChild(tdMateria);
+
+        // 4. Docente
+        const tdDocente = document.createElement("td");
+        const inputDocente = document.createElement("input");
+        inputDocente.type = "text";
+        inputDocente.value = curso.docente || "";
+        const listId = `dl-${curso.clave_curso.replace(/[^a-zA-Z0-9]/g, "_")}`;
+        inputDocente.setAttribute("list", listId);
+
+        const datalist = document.createElement("datalist");
+        datalist.id = listId;
+        tdDocente.appendChild(inputDocente);
+        tdDocente.appendChild(datalist);
+
+        const infoTeorias = document.createElement("div");
+        infoTeorias.className = "ruta-teorias-info";
+        tdDocente.appendChild(infoTeorias);
+
+        function actualizarDatalistYInfo() {
+          datalist.innerHTML = "";
+          const materiaElegida = selectMateria.value;
+          const docentesMat = (DATOS.docentes && DATOS.docentes[materiaElegida]) || [];
+          for (const d of docentesMat) {
+            const opt = document.createElement("option");
+            opt.value = d;
+            datalist.appendChild(opt);
+          }
+
+          const docVal = inputDocente.value.trim();
+          if (!materiaElegida) {
+            infoTeorias.textContent = "(sin materia)";
+          } else if (docVal) {
+            infoTeorias.textContent = `Teorías va a ${materiaElegida}/Teorias/${docVal}`;
+          } else {
+            infoTeorias.textContent = `Teorías va a ${materiaElegida}/Teorias`;
+          }
+        }
+
+        actualizarDatalistYInfo();
+
+        selectMateria.addEventListener("change", () => {
+          curso.materia = selectMateria.value;
+          actualizarDatalistYInfo();
+          marcarCambio();
+          recalcularChoques();
+          actualizarDestinosEnVivo();
+        });
+
+        inputDocente.addEventListener("input", () => {
+          curso.docente = inputDocente.value;
+          actualizarDatalistYInfo();
+          marcarCambio();
+          recalcularChoques();
+          actualizarDestinosEnVivo();
+        });
+
+        tr.appendChild(tdDocente);
+        tbody.appendChild(tr);
+      }
+    }
+
+    function renderizarTemas() {
+      const contenedor = document.getElementById("lista-temas");
+      contenedor.innerHTML = "";
+
+      const cursoPorClave = new Map(DATOS.cursos.map((c) => [c.clave_curso, c]));
+      // Agrupar temas por clave_curso
+      const temasPorCurso = new Map();
+      for (const tema of DATOS.temas) {
+        const arr = temasPorCurso.get(tema.clave_curso) || [];
+        arr.push(tema);
+        temasPorCurso.set(tema.clave_curso, arr);
+      }
+
+      const soloSinRegla = document.getElementById("filtro-sin-regla").checked;
+
+      for (const [claveCurso, listaTemas] of temasPorCurso.entries()) {
+        const curso = cursoPorClave.get(claveCurso);
+        const nombreCurso = curso ? curso.nombre : claveCurso;
+
+        const details = document.createElement("details");
+        details.open = true;
+
+        const summary = document.createElement("summary");
+        summary.innerHTML = `<span class="resumen-grupo"><strong>${nombreCurso}</strong> <span style="font-size: 12px; color: var(--text-muted);">(${listaTemas.length} temas)</span></span>`;
+        details.appendChild(summary);
+
+        const tablaScroll = document.createElement("div");
+        tablaScroll.className = "tabla-scroll";
+        const table = document.createElement("table");
+        table.innerHTML = `
+          <thead>
+            <tr>
+              <th>Tema</th>
+              <th style="width: 80px;">Ítems</th>
+              <th style="width: 250px;">Destino</th>
+              <th style="width: 140px;">Regla</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        `;
+        const tbody = table.querySelector("tbody");
+
+        let filasVisibles = 0;
+        for (const tema of listaTemas) {
+          const sinRegla = tema.regla === "no";
+          if (soloSinRegla && !sinRegla) continue;
+          filasVisibles++;
+
+          const tr = document.createElement("tr");
+
+          // Tema
+          const tdTema = document.createElement("td");
+          tdTema.textContent = tema.tema;
+          tr.appendChild(tdTema);
+
+          // Ítems
+          const tdItems = document.createElement("td");
+          tdItems.textContent = tema.items;
+          tr.appendChild(tdItems);
+
+          // Destino
+          const tdDestino = document.createElement("td");
+          const selectDestino = document.createElement("select");
+          for (const d of DATOS.destinos) {
+            const opt = document.createElement("option");
+            opt.value = d;
+            opt.textContent = d;
+            selectDestino.appendChild(opt);
+          }
+          const optOmitir = document.createElement("option");
+          optOmitir.value = "-";
+          optOmitir.textContent = "- (no bajar este tema)";
+          selectDestino.appendChild(optOmitir);
+
+          selectDestino.value = tema.destino;
+          selectDestino.addEventListener("change", () => {
+            tema.destino = selectDestino.value;
+            marcarCambio();
+            recalcularChoques();
+            actualizarDestinosEnVivo();
+          });
+          tdDestino.appendChild(selectDestino);
+          tr.appendChild(tdDestino);
+
+          // Regla
+          const tdRegla = document.createElement("td");
+          if (sinRegla) {
+            tdRegla.innerHTML = `<span class="badge badge-sin-regla">sin regla — revisá</span>`;
+          } else {
+            tdRegla.innerHTML = `<span style="color: var(--text-muted); font-size: 12px;">automática</span>`;
+          }
+          tr.appendChild(tdRegla);
+
+          tbody.appendChild(tr);
+        }
+
+        if (filasVisibles > 0 || !soloSinRegla) {
+          tablaScroll.appendChild(table);
+          details.appendChild(tablaScroll);
+          contenedor.appendChild(details);
+        }
+      }
+    }
+
+    document.getElementById("filtro-sin-regla").addEventListener("change", renderizarTemas);
+
+    function renderizarArchivos() {
+      const contenedor = document.getElementById("lista-archivos");
+      contenedor.innerHTML = "";
+
+      const cursoPorClave = new Map(DATOS.cursos.map((c) => [c.clave_curso, c]));
+      const temaPorClave = new Map(DATOS.temas.map((t) => [`${t.clave_curso}\t${t.tema}`, t]));
+
+      // Buscar primera fila de cada md5 para los duplicados
+      const primeraFilaPorMd5 = new Map();
+      for (const a of DATOS.archivos) {
+        const hash = (a.md5 || "").toLowerCase();
+        if (hash && !primeraFilaPorMd5.has(hash)) {
+          primeraFilaPorMd5.set(hash, a);
+        }
+      }
+
+      // Agrupar por curso -> tema
+      const grupos = new Map();
+      for (const a of DATOS.archivos) {
+        const keyGrupo = `${a.clave_curso}\t${a.tema}`;
+        const arr = grupos.get(keyGrupo) || [];
+        arr.push(a);
+        grupos.set(keyGrupo, arr);
+      }
+
+      const textoFiltro = (document.getElementById("filtro-texto-archivos").value || "").toLowerCase().trim();
+      const soloChoques = document.getElementById("filtro-solo-choques").checked;
+      const soloCopiar = document.getElementById("filtro-solo-copiar").checked;
+
+      for (const [keyGrupo, listaArchivos] of grupos.entries()) {
+        const [claveCurso, nombreTema] = keyGrupo.split("\t");
+        const curso = cursoPorClave.get(claveCurso);
+        const tema = temaPorClave.get(keyGrupo);
+        const nombreCurso = curso ? curso.nombre : claveCurso;
+
+        // Filtrar archivos del grupo
+        const filtrados = [];
+        let choquesEnGrupo = 0;
+
+        for (const a of listaArchivos) {
+          const esChoque = FILAS_CON_CHOQUE.has(a.clave);
+          if (esChoque) choquesEnGrupo++;
+
+          if (soloChoques && !esChoque) continue;
+          if (soloCopiar && a.accion !== "copiar") continue;
+          if (textoFiltro) {
+            const orig = (a.original || "").toLowerCase();
+            const nom = (a.nombre || "").toLowerCase();
+            if (!orig.includes(textoFiltro) && !nom.includes(textoFiltro)) {
+              continue;
+            }
+          }
+          filtrados.push(a);
+        }
+
+        if (filtrados.length === 0) continue;
+
+        const details = document.createElement("details");
+        details.open = false; // cerrados por defecto según el plan
+
+        const summary = document.createElement("summary");
+        const spanTitulo = document.createElement("span");
+        spanTitulo.className = "resumen-grupo";
+        spanTitulo.innerHTML = `<strong>${nombreCurso} › ${nombreTema}</strong> <span style="font-size: 12px; color: var(--text-muted);">(${listaArchivos.length} archivos)</span>`;
+        if (choquesEnGrupo > 0) {
+          spanTitulo.innerHTML += ` <span class="badge badge-choque">${choquesEnGrupo} ${choquesEnGrupo === 1 ? "choque" : "choques"}</span>`;
+        }
+        summary.appendChild(spanTitulo);
+        details.appendChild(summary);
+
+        const tablaScroll = document.createElement("div");
+        tablaScroll.className = "tabla-scroll";
+        const table = document.createElement("table");
+        table.innerHTML = `
+          <thead>
+            <tr>
+              <th style="min-width: 180px;">Original</th>
+              <th class="col-accion">Acción</th>
+              <th class="col-nombre">Nombre</th>
+              <th class="col-destino-vivo">Destino en vivo</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        `;
+        const tbody = table.querySelector("tbody");
+
+        for (const arch of filtrados) {
+          const tr = document.createElement("tr");
+          tr.id = `fila-arch-${arch.clave}`;
+          const esChoque = FILAS_CON_CHOQUE.has(arch.clave);
+          if (esChoque) {
+            tr.classList.add("fila-choque");
+          }
+
+          // 1. Original
+          const tdOrig = document.createElement("td");
+          tdOrig.textContent = arch.original;
+          tr.appendChild(tdOrig);
+
+          // 2. Acción
+          const tdAccion = document.createElement("td");
+          tdAccion.className = "col-accion";
+
+          // 3. Nombre
+          const tdNombre = document.createElement("td");
+          tdNombre.className = "col-nombre";
+
+          // 4. Destino en vivo
+          const tdDestinoVivo = document.createElement("td");
+          tdDestinoVivo.className = "col-destino-vivo";
+
+          const spanDestino = document.createElement("div");
+          spanDestino.className = "destino-vivo";
+          tdDestinoVivo.appendChild(spanDestino);
+
+          const spanLeyendaChoque = document.createElement("span");
+          spanLeyendaChoque.className = "leyenda-choque";
+          spanLeyendaChoque.textContent = "mismo destino que otro archivo distinto: cambiá el nombre";
+          spanLeyendaChoque.style.display = esChoque ? "block" : "none";
+          tdDestinoVivo.appendChild(spanLeyendaChoque);
+
+          // Casos según el tipo de fila
+          if (arch.accion === "ya-esta") {
+            tdAccion.innerHTML = `<span class="badge badge-ya-esta">ya está</span>`;
+            tdNombre.textContent = arch.nombre;
+          } else if (arch.accion === "duplicado") {
+            const hash = (arch.md5 || "").toLowerCase();
+            const primera = primeraFilaPorMd5.get(hash);
+            const nombrePrimera = primera ? primera.nombre : arch.nombre;
+            tdAccion.innerHTML = `<span class="badge badge-dup">duplicado</span>`;
+            tdNombre.innerHTML = `<span class="badge badge-dup" id="dup-badge-${arch.clave}">igual a ${nombrePrimera}</span>`;
+          } else {
+            // copiar u omitir
+            const selectAccion = document.createElement("select");
+            selectAccion.id = `sel-acc-${arch.clave}`;
+            const optCopiar = document.createElement("option");
+            optCopiar.value = "copiar";
+            optCopiar.textContent = "copiar";
+            const optOmitir = document.createElement("option");
+            optOmitir.value = "omitir";
+            optOmitir.textContent = "omitir";
+            selectAccion.appendChild(optCopiar);
+            selectAccion.appendChild(optOmitir);
+            selectAccion.value = arch.accion;
+            tdAccion.appendChild(selectAccion);
+
+            const inputNombre = document.createElement("input");
+            inputNombre.type = "text";
+            inputNombre.value = arch.nombre;
+            inputNombre.id = `inp-nom-${arch.clave}`;
+            tdNombre.appendChild(inputNombre);
+
+            selectAccion.addEventListener("change", () => {
+              arch.accion = selectAccion.value;
+              marcarCambio();
+              recalcularChoques();
+              actualizarDestinosEnVivo();
+            });
+
+            inputNombre.addEventListener("input", () => {
+              arch.nombre = inputNombre.value;
+              marcarCambio();
+              recalcularChoques();
+              actualizarDestinosEnVivo();
+            });
+          }
+
+          tr.appendChild(tdAccion);
+          tr.appendChild(tdNombre);
+          tr.appendChild(tdDestinoVivo);
+          tbody.appendChild(tr);
+        }
+
+        tablaScroll.appendChild(table);
+        details.appendChild(tablaScroll);
+        contenedor.appendChild(details);
+      }
+
+      actualizarDestinosEnVivo();
+    }
+
+    function actualizarDestinosEnVivo() {
+      if (!DATOS) return;
+      const cursoPorClave = new Map(DATOS.cursos.map((c) => [c.clave_curso, c]));
+      const temaPorClave = new Map(DATOS.temas.map((t) => [`${t.clave_curso}\t${t.tema}`, t]));
+
+      // Primera fila por md5
+      const primeraFilaPorMd5 = new Map();
+      for (const a of DATOS.archivos) {
+        const hash = (a.md5 || "").toLowerCase();
+        if (hash && !primeraFilaPorMd5.has(hash)) {
+          primeraFilaPorMd5.set(hash, a);
+        }
+      }
+
+      for (const arch of DATOS.archivos) {
+        const tr = document.getElementById(`fila-arch-${arch.clave}`);
+        if (!tr) continue;
+
+        const curso = cursoPorClave.get(arch.clave_curso);
+        const materia = curso ? curso.materia : "";
+        const tema = temaPorClave.get(`${arch.clave_curso}\t${arch.tema}`);
+        const destinoTema = tema ? tema.destino : ".";
+
+        const tdDestinoVivo = tr.querySelector(".destino-vivo");
+        const leyendaChoque = tr.querySelector(".leyenda-choque");
+        const selectAccion = tr.querySelector(`#sel-acc-${arch.clave}`);
+        const inputNombre = tr.querySelector(`#inp-nom-${arch.clave}`);
+        const badgeDup = tr.querySelector(`#dup-badge-${arch.clave}`);
+
+        // Choque en fila
+        const esChoque = FILAS_CON_CHOQUE.has(arch.clave);
+        if (esChoque) {
+          tr.classList.add("fila-choque");
+          if (leyendaChoque) leyendaChoque.style.display = "block";
+        } else {
+          tr.classList.remove("fila-choque");
+          if (leyendaChoque) leyendaChoque.style.display = "none";
+        }
+
+        // Duplicados siguen a la primera fila
+        if (arch.accion === "duplicado") {
+          const hash = (arch.md5 || "").toLowerCase();
+          const primera = primeraFilaPorMd5.get(hash);
+          if (primera && badgeDup) {
+            badgeDup.textContent = `igual a ${primera.nombre}`;
+          }
+          if (primera) {
+            const cPrim = cursoPorClave.get(primera.clave_curso);
+            const tPrim = temaPorClave.get(`${primera.clave_curso}\t${primera.tema}`);
+            const matPrim = cPrim ? cPrim.materia : "";
+            const destPrim = tPrim ? tPrim.destino : ".";
+            if (destPrim === "-") {
+              tdDestinoVivo.textContent = "no se baja (tema)";
+            } else if (primera.accion === "ya-esta") {
+              const cNorm = (primera.carpeta && primera.carpeta !== ".") ? primera.carpeta : "";
+              const rBase = cNorm ? (matPrim ? `${matPrim}/${cNorm}` : cNorm) : (matPrim || ".");
+              tdDestinoVivo.textContent = `${rBase}/${primera.nombre}`;
+            } else {
+              const cRes = resolverCarpeta(destPrim, cPrim ? cPrim.docente : "");
+              const cNorm = (cRes && cRes !== ".") ? cRes : "";
+              const rBase = cNorm ? (matPrim ? `${matPrim}/${cNorm}` : cNorm) : (matPrim || "(sin materia)");
+              tdDestinoVivo.textContent = `${rBase}/${primera.nombre}`;
+            }
+          }
+          continue;
+        }
+
+        // Si el tema tiene destino '-'
+        if (destinoTema === "-") {
+          tdDestinoVivo.textContent = "no se baja (tema)";
+          if (selectAccion) selectAccion.disabled = true;
+          if (inputNombre) inputNombre.disabled = true;
+          continue;
+        } else {
+          if (selectAccion) selectAccion.disabled = false;
+          if (inputNombre) inputNombre.disabled = false;
+        }
+
+        if (arch.accion === "ya-esta") {
+          const cNorm = (arch.carpeta && arch.carpeta !== ".") ? arch.carpeta : "";
+          const rBase = cNorm ? (materia ? `${materia}/${cNorm}` : cNorm) : (materia || ".");
+          tdDestinoVivo.textContent = `${rBase}/${arch.nombre}`;
+        } else {
+          // copiar u omitir
+          const cRes = resolverCarpeta(destinoTema, curso ? curso.docente : "");
+          const cNorm = (cRes && cRes !== ".") ? cRes : "";
+          const rBase = cNorm ? (materia ? `${materia}/${cNorm}` : cNorm) : (materia || "(sin materia)");
+          tdDestinoVivo.textContent = `${rBase}/${arch.nombre}`;
+        }
+      }
+    }
+
+    document.getElementById("filtro-texto-archivos").addEventListener("input", renderizarArchivos);
+    document.getElementById("filtro-solo-choques").addEventListener("change", renderizarArchivos);
+    document.getElementById("filtro-solo-copiar").addEventListener("change", renderizarArchivos);
+
+    // Guardar
+    async function ejecutarGuardar() {
+      const btnGuardar = document.getElementById("btn-guardar");
+      btnGuardar.disabled = true;
+      try {
+        const res = await fetch("/api/guardar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            cursos: DATOS.cursos,
+            temas: DATOS.temas,
+            archivos: DATOS.archivos,
+          }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          ESTADO_INICIAL_JSON = JSON.stringify({
+            cursos: DATOS.cursos,
+            temas: DATOS.temas,
+            archivos: DATOS.archivos,
+          });
+          HAY_CAMBIOS = false;
+          document.getElementById("aviso-cambios").classList.remove("visible");
+          mostrarResultado("Guardado", "Los cambios se guardaron correctamente en los archivos TSV.");
+          return true;
+        } else {
+          const erroresTexto = (data.errores || []).join("\n");
+          mostrarResultado("Errores al guardar", erroresTexto || "Ocurrió un error al guardar.");
+          return false;
+        }
+      } catch (err) {
+        mostrarResultado("Error", "Error de comunicación con el servidor: " + err.message);
+        return false;
+      } finally {
+        btnGuardar.disabled = false;
+      }
+    }
+
+    document.getElementById("btn-guardar").addEventListener("click", () => {
+      ejecutarGuardar();
+    });
+
+    // Probar
+    document.getElementById("btn-probar").addEventListener("click", async () => {
+      const btnProbar = document.getElementById("btn-probar");
+      btnProbar.disabled = true;
+      try {
+        const guardoOk = await ejecutarGuardar();
+        if (!guardoOk) return;
+
+        mostrarResultado("Ejecutando ensayo...", "Corriendo aplicar.js...");
+        const res = await fetch("/api/ensayo", { method: "POST" });
+        const data = await res.json();
+
+        let salidaHtml = data.salida
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+
+        if (data.codigo === 0) {
+          // Resaltar línea A copiar: N
+          salidaHtml = salidaHtml.replace(
+            /(A copiar:\s*\d+)/g,
+            '<span class="resaltar-copiar">$1</span>'
+          );
+        }
+
+        const panel = document.getElementById("panel-resultados");
+        const titulo = document.getElementById("titulo-panel");
+        const pre = document.getElementById("contenido-panel");
+        titulo.textContent = `Resultado del ensayo (código ${data.codigo})`;
+        pre.innerHTML = salidaHtml;
+        panel.classList.add("visible");
+      } catch (err) {
+        mostrarResultado("Error en ensayo", "Error: " + err.message);
+      } finally {
+        btnProbar.disabled = false;
+      }
+    });
+
+    function mostrarResultado(tituloTexto, contenidoTexto) {
+      const panel = document.getElementById("panel-resultados");
+      const titulo = document.getElementById("titulo-panel");
+      const pre = document.getElementById("contenido-panel");
+      titulo.textContent = tituloTexto;
+      pre.textContent = contenidoTexto;
+      panel.classList.add("visible");
+    }
+
+    document.getElementById("btn-cerrar-panel").addEventListener("click", () => {
+      document.getElementById("panel-resultados").classList.remove("visible");
+    });
+
+    // Inicio
+    cargarDatos();
+  </script>
+</body>
+</html>
