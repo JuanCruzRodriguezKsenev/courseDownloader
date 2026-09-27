@@ -204,3 +204,7 @@ manda; si no, mayoría estricta por adjunto), "Links" → Teorias, `publicacion`
 (lista FIJA de campos: un campo nuevo del scraper no llega a listaPersistente si no se agrega ahí). Requiere re-escanear.
 El dueño YA guardó docentes en cursos.tsv (Física I=Lucila, MB5=benevetano) → al regenerar, re-aplicarlos.
 Línea de base: generar.js actual reproduce los TSV reales byte a byte (12 regla=no).
+**RN-7a/7b ejecutado por obra (`65dbaf0`) y re-verificado por mí**: diff = plan; Verificación A (a)–(f) idéntica
+(regla=no 10, 366 sin publicación + "!", Links 18 → Teorias, `archivos.tsv` sin cambios fuera de Links); los 3
+controles negativos MUERDEN (5b, T5, T4). Falta A-1b: dueño re-escanea todos → yo B-2/B-3 (respaldar TSV reales y
+re-aplicar docentes Lucila/benevetano) → B-4 dueño → A-2.
