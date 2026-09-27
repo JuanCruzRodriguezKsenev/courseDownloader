@@ -1,6 +1,12 @@
 /**
- * NÚCLEO — ESTADO DEL RECORRIDO DE TODOS LOS CURSOS (V1.0.1)
+ * NÚCLEO — ESTADO DEL RECORRIDO DE TODOS LOS CURSOS (V1.1.0)
  * ==========================================================================
+ * CHANGELOG v1.1.0:
+ * - [LOADER CON PROGRESO] Evento "progreso", FaseEscaneo, duracionMs por curso,
+ *   lanzadoEn e indicador "actual" en RecorridoTodos.
+ * - [ESTADO TERMINAL] "progreso" se ignora en estado terminal.
+ * - [LATIDO Y CURSO] "latido" y "curso" limpian "actual".
+ *
  * CHANGELOG v1.0.1:
  * - [ESTADO TERMINAL] Si el recorrido no está en estado "escaneando", ignora
  *   eventos "latido", "curso" y "fin" para no revivir un recorrido ya cerrado
@@ -17,6 +23,8 @@ import type { PuertoAlmacenamiento } from "../puertos/almacenamiento";
 
 export type EstadoRecorrido = "escaneando" | "terminado" | "cortado";
 
+export type FaseEscaneo = "trabajo" | "ver-mas" | "novedades";
+
 export interface CursoRecorrido {
   id: string;
   nombre: string;
@@ -24,6 +32,7 @@ export interface CursoRecorrido {
   motivo?: string;
   enlaces?: unknown[];
   adjuntosSinResolver?: number;
+  duracionMs?: number;
 }
 
 export interface RecorridoTodos {
@@ -36,6 +45,14 @@ export interface RecorridoTodos {
   ultimaSenal: number; // ms epoch del último evento
   motivoCorte?: "visibilidad" | "navegacion" | "sin-cursos" | "sin-respuesta";
   materializado: boolean;
+  lanzadoEn?: number;
+  actual?: {
+    indice: number;
+    fase: FaseEscaneo;
+    verMas: number;
+    publicaciones: number;
+    archivos: number;
+  };
 }
 
 export type EventoRecorrido =
@@ -45,11 +62,21 @@ export type EventoRecorrido =
       tabId: number;
       sitioId: string;
       cursos: { id: string; nombre: string }[];
+      lanzadoEn?: number;
     }
   | {
       tipo: "latido";
       idRecorrido: number;
       indice: number;
+    }
+  | {
+      tipo: "progreso";
+      idRecorrido: number;
+      indice: number;
+      fase: FaseEscaneo;
+      verMas: number;
+      publicaciones: number;
+      archivos: number;
     }
   | {
       tipo: "curso";
@@ -59,6 +86,7 @@ export type EventoRecorrido =
       motivo?: string;
       enlaces?: unknown[];
       adjuntosSinResolver?: number;
+      duracionMs?: number;
     }
   | {
       tipo: "fin";
@@ -88,6 +116,7 @@ export function aplicarEvento(
       indice: 0,
       ultimaSenal: ahora,
       materializado: false,
+      ...(ev.lanzadoEn !== undefined ? { lanzadoEn: ev.lanzadoEn } : {}),
     };
   }
 
@@ -96,17 +125,34 @@ export function aplicarEvento(
 
   if (
     prev.estado !== "escaneando" &&
-    (ev.tipo === "latido" || ev.tipo === "curso" || ev.tipo === "fin")
+    (ev.tipo === "latido" || ev.tipo === "curso" || ev.tipo === "fin" || ev.tipo === "progreso")
   ) {
     return prev;
   }
 
-  if (ev.tipo === "latido") {
+  if (ev.tipo === "progreso") {
+    if (ev.indice !== prev.indice) return prev;
     return {
+      ...prev,
+      actual: {
+        indice: ev.indice,
+        fase: ev.fase,
+        verMas: ev.verMas,
+        publicaciones: ev.publicaciones,
+        archivos: ev.archivos,
+      },
+      ultimaSenal: ahora,
+    };
+  }
+
+  if (ev.tipo === "latido") {
+    const copia = {
       ...prev,
       indice: ev.indice,
       ultimaSenal: ahora,
     };
+    delete copia.actual;
+    return copia;
   }
 
   if (ev.tipo === "curso") {
@@ -121,13 +167,16 @@ export function aplicarEvento(
         ...(ev.adjuntosSinResolver !== undefined
           ? { adjuntosSinResolver: ev.adjuntosSinResolver }
           : {}),
+        ...(ev.duracionMs !== undefined ? { duracionMs: ev.duracionMs } : {}),
       };
     }
-    return {
+    const copia = {
       ...prev,
       cursos,
       ultimaSenal: ahora,
     };
+    delete copia.actual;
+    return copia;
   }
 
   if (ev.tipo === "fin") {

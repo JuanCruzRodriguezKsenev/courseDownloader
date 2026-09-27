@@ -502,4 +502,169 @@ describe("crearLectorRecorrido con AlmacenamientoEnMemoria", () => {
     await storage.guardarLocal({ [CLAVE_STORAGE]: { ...r, indice: 1 } });
     expect(cb).toHaveBeenCalledTimes(1);
   });
+
+  describe("Loader con progreso y metadata (v1.1.0)", () => {
+    const estadoBase: RecorridoTodos = {
+      idRecorrido: 100,
+      tabId: 1,
+      sitioId: "google-classroom",
+      estado: "escaneando",
+      cursos: [
+        { id: "c1", nombre: "Física" },
+        { id: "c2", nombre: "Química" },
+      ],
+      indice: 0,
+      ultimaSenal: 1000,
+      materializado: false,
+    };
+
+    it("progreso con índice correcto se guarda y actualiza ultimaSenal", () => {
+      const res = aplicarEvento(
+        estadoBase,
+        {
+          tipo: "progreso",
+          idRecorrido: 100,
+          indice: 0,
+          fase: "trabajo",
+          verMas: 0,
+          publicaciones: 5,
+          archivos: 2,
+        },
+        2000
+      );
+      expect(res?.actual).toEqual({
+        indice: 0,
+        fase: "trabajo",
+        verMas: 0,
+        publicaciones: 5,
+        archivos: 2,
+      });
+      expect(res?.ultimaSenal).toBe(2000);
+    });
+
+    it("progreso con índice viejo se ignora", () => {
+      const estadoIndice1: RecorridoTodos = { ...estadoBase, indice: 1 };
+      const res = aplicarEvento(
+        estadoIndice1,
+        {
+          tipo: "progreso",
+          idRecorrido: 100,
+          indice: 0,
+          fase: "trabajo",
+          verMas: 0,
+          publicaciones: 5,
+          archivos: 2,
+        },
+        2000
+      );
+      expect(res).toBe(estadoIndice1);
+      expect(res?.actual).toBeUndefined();
+    });
+
+    it("progreso después de fin se ignora", () => {
+      const estadoFin: RecorridoTodos = { ...estadoBase, estado: "terminado" };
+      const res = aplicarEvento(
+        estadoFin,
+        {
+          tipo: "progreso",
+          idRecorrido: 100,
+          indice: 0,
+          fase: "trabajo",
+          verMas: 0,
+          publicaciones: 5,
+          archivos: 2,
+        },
+        2000
+      );
+      expect(res).toBe(estadoFin);
+    });
+
+    it("latido y curso limpian actual", () => {
+      const conActual: RecorridoTodos = {
+        ...estadoBase,
+        actual: {
+          indice: 0,
+          fase: "trabajo",
+          verMas: 0,
+          publicaciones: 5,
+          archivos: 2,
+        },
+      };
+
+      // Latido limpia actual
+      const trasLatido = aplicarEvento(
+        conActual,
+        { tipo: "latido", idRecorrido: 100, indice: 1 },
+        3000
+      );
+      expect(trasLatido?.actual).toBeUndefined();
+      expect(trasLatido?.indice).toBe(1);
+
+      // Curso limpia actual
+      const conActualDeNuevo: RecorridoTodos = {
+        ...estadoBase,
+        actual: {
+          indice: 0,
+          fase: "novedades",
+          verMas: 0,
+          publicaciones: 5,
+          archivos: 8,
+        },
+      };
+      const trasCurso = aplicarEvento(
+        conActualDeNuevo,
+        { tipo: "curso", idRecorrido: 100, indice: 0, resultado: "ok" },
+        4000
+      );
+      expect(trasCurso?.actual).toBeUndefined();
+    });
+
+    it("inicio con lanzadoEn lo guarda en el estado", () => {
+      const res = aplicarEvento(
+        null,
+        {
+          tipo: "inicio",
+          idRecorrido: 200,
+          tabId: 1,
+          sitioId: "google-classroom",
+          cursos: [{ id: "c1", nombre: "Física" }],
+          lanzadoEn: 12345678,
+        },
+        1000
+      );
+      expect(res?.lanzadoEn).toBe(12345678);
+    });
+
+    it("curso con duracionMs lo guarda en el curso", () => {
+      const res = aplicarEvento(
+        estadoBase,
+        {
+          tipo: "curso",
+          idRecorrido: 100,
+          indice: 0,
+          resultado: "ok",
+          duracionMs: 15400,
+        },
+        5000
+      );
+      expect(res?.cursos[0]?.duracionMs).toBe(15400);
+    });
+
+    it("un estado sin campos nuevos sigue pasando esRecorridoTodos", () => {
+      expect(esRecorridoTodos(estadoBase)).toBe(true);
+      const conCamposNuevos: RecorridoTodos = {
+        ...estadoBase,
+        lanzadoEn: 1000,
+        actual: {
+          indice: 0,
+          fase: "ver-mas",
+          verMas: 1,
+          publicaciones: 10,
+          archivos: 4,
+        },
+        cursos: [{ id: "c1", nombre: "Física", duracionMs: 25000 }],
+      };
+      expect(esRecorridoTodos(conCamposNuevos)).toBe(true);
+    });
+  });
 });
