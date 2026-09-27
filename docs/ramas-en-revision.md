@@ -77,6 +77,22 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
     `ocultarLoader()`; `usar-guardada` sí lo apaga vía `mostrarListaGuardada`. Corregido por la
     tanda (3 líneas en `popup.js`). Sin test: el mecanismo de loader de `popup.js` no tiene
     cobertura (🔴 "El loader del popup no tiene dueño", `TECHNICAL_DEBT.md`).
+  - **B-2/B-3 en Brave (dueño, 2026-09-27 12:24–12:26)**, tres recorridos leídos del storage de la
+    extensión (`Local Extension Settings/<id>/000026.log`), no de capturas:
+    - 🔴 **Los archivados no entran**: los tres enumeran 5 cursos (los activos); G25 y MB5 faltan.
+      El script lee `/h/archived` apenas cambia la URL, antes de que pinten las tarjetas.
+    - 🔴 **El primer curso (G22) falla siempre** con "Classroom no terminó de abrir Trabajo en
+      clase" en menos de 1 s: es la rama `!linkTrabajo`, el escaneo arranca con la URL ya en
+      `/c/<id>` pero sin el `nav` del curso pintado. En el primer recorrido fallaron los 5 igual.
+    - 🔴 **Lo escaneado está incompleto**: Física I-Grupo G trajo 1 enlace en un recorrido y 7 en
+      el otro (la muestra `recorrido-3/05-…-trabajo.html` tiene 80 ítems). Cada curso tardó 7–8 s.
+      Causa sin medir.
+    - Nombres: además del id base64, cuando salen del texto traen la inicial del avatar pegada
+      ("FFísica II G22", "MMC2 2025", "QQ5Primer…"). El `aria-label` es el limpio.
+    - El dueño pide que el botón no quede usable durante el recorrido. Decidido por la tanda:
+      **se oculta** (no hay acción que ofrecer; la tarjeta de progreso ya dice qué pasa) y **no**
+      se usa el loader del escaneo de un curso, que taparía la tarjeta de progreso y el resumen.
+      El resumen (cursos, con material, vacíos, fallidos) al dueño le sirve: se queda.
   - ⚠️ **NO REPRODUCIDO — mirar en B-3**: (a) si al llegar a un curso queda montada la vista de
     Trabajo en clase del anterior, el chequeo `/c/<otroId>/m/` devuelve `avisoCursoCambiado` y el
     recorrido entero se corta como "navegaste fuera del recorrido"; las muestras guardan una sola
