@@ -14,4 +14,11 @@ metadata:
 - **Tabla de decisión de apertura (`decidirAlAbrir`)**: Evalúa primero si hay recorrido vigente (`mostrar-recorrido`), luego si terminó sin materializar (`materializar-recorrido`), luego si aplica lista guardada por clave (`"todos"` en portada), luego si es portada (`ofrecer-todos`) y finalmente escaneo de curso individual.
 - **Agrupamiento en Preact (`ctx.grupos`)**: La lógica de orden y agrupamiento vive en `popup.js` (orden global de cursos + orden del comparador dentro del curso). La isla `listaClases.preact.js` es vista pura e intercala `<div class="grupo-curso">` antes del índice `desde`.
 - **Selectores en tests de filas**: Cada fila de clase renderiza su título en `.video-label`, no en `.title` (`.title` es el atributo del contenedor).
-- **Compuerta final**: 44 archivos, 758 tests unitarios pasando, 0 errores/warnings en lint, typecheck limpio y build verificado.
+- **Correcciones del recorrido multi-curso (2026-09-27)**:
+  - *Asentado de Trabajo en clase (`asentadoVacio`)*: `[data-no-topic-items]` aparece antes de los ítems en primera visita (M-C). Se espera que se sostenga `asentadoVacio` (2000 ms) sin ítems, progressbar ni "Ver más" para no dar por vacío un curso con material.
+  - *Espera de nav de curso (`navTrabajoOk`)*: Esperar enlace `/w/<id>/t/all` tras navegar para evitar falla en cursos con carga diferida de nav.
+  - *Archivados y nombres*: Esperar 5000 ms a que pinten tarjetas en `/h/archived`; resolver nombres desde `aria-label` en sidebar o anclas globales para evitar iniciales pegadas del avatar e ids base64.
+  - *Cancelación con `idCancelacion` y tests zombi*: En carrera de tope por curso, incrementar token de cancelación para abortar promesas en vuelo; el test 23 requiere que el zombi valide identidad en el DOM del curso siguiente para intentar navegar y hacer daño medible si no se cancela.
+  - *Estado terminal en reductor*: `aplicarEvento` descarta `latido`, `curso` y `fin` si `prev.estado !== "escaneando"`.
+  - *Popup en recorrido*: Modo `"recorriendo"` con label `""` oculta el botón; `ofreciendoTodos` como booleana desacoplada previene tapar la card de fin sin material.
+- **Compuerta final**: 44 archivos, 764 tests unitarios pasando, 0 errores/warnings en lint, typecheck limpio y build verificado.
