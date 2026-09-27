@@ -6,3 +6,4 @@
 - [Formateo U.N.L.P Ingeniería](project_unlp_formateo_ingenieria.md) — formateo previo al corte 2 de Classroom, core.ignorecase en git y renombres sin colisión
 - [Classroom: Escaneo multi-curso](project_classroom_escanear_todas.md) — ADR-0016 script inyectado avisando al SW vía IPC, estado puro, tabla de decisión al abrir y lista agrupada en Preact
 - [Loader con progreso](project_loader_con_progreso.md) — isla Preact de detalle, throttle con emisión inmediata de fase inicial, sincronización en popup y vuelta a portada
+- [Classroom: Vista del curso](project_classroom_vista_del_curso.md) — descarte de vistas transitorias y del curso anterior vía `nombraOtroCurso`, captura de vistas asentadas y red de aviso
