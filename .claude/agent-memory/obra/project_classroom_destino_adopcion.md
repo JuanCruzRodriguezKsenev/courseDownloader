@@ -24,3 +24,10 @@ metadata:
   - ADR-0017 creado y documentado en `docs/adr/`.
   - Baseline en `docs/testing.md` actualizado a 50 archivos y 837 tests.
 - **Batería de verificación**: delegada a `verificador`, 50 archivos / 837 tests en verde, 0 errores/warnings en lint, typecheck limpio y build exitoso.
+- **Correcciones tras revisión (`docs/plan-classroom-destino-2a-correcciones.md`)**:
+  - Reintento tras corte en `aplicar.js`: pre-construcción de `destinosPropios` a partir de las filas `copiar` y filtrado en `enMateria` para no confundir con `ya-esta` los archivos recién copiados antes de la validación. El control negativo (sin este filtro) dio 302 errores de `No se puede modificar`.
+  - Duplicados en `aplicar.js`: `vistosMd5` guarda el `itemProcesado` de la primera fila. Los duplicados heredan `accion` (pasa a `omitir` si la primera fue omitida, `duplicado` si fue copiada o ya-esta), `carpeta`, `nombre` y `rutaDestinoRel`, salteando validación de nombres propios en TSV y evitando chequear choques.
+  - TSV `archivos.tsv` en `generar.js`: comentario actualizado explicitando que duplicados acompañan a la primera fila con su md5.
+  - Checklist A-1/A-2 actualizada en `docs/ramas-en-revision.md`.
+  - Verificación A: ensayo tsv-ok (copiar 299, ya-esta 55, dup 4, omit 8), tsv-dup (idéntico), tsv-omit (copiar 298, dup 0, omit 13), escritura real simulación corte y reintento exitosos (1 copiado, ya-esta 353, dup 4, omit 8).
+
