@@ -20,24 +20,19 @@ Nada. `main` tiene todo lo construido.
 
 ## Lo último que se mergeó (2026-09-27)
 
-`classroom-escanear-todas` (desde el 2026-09-25): escanear todos los cursos de Classroom desde la
-portada en un solo recorrido que sobrevive a cerrar el popup, con el loader mostrando el progreso
-por curso, la vuelta a la portada al terminar y la lista conservada al terminar la descarga.
+`classroom-novedades-scroll`: `buscarContenedorScroll` (`sitio/google-classroom/scraper.js`) exige
+que el contenedor scrollee de verdad (`scrollHeight > clientHeight + 1`). La `<nav>` lateral de
+Classroom tiene `overflow-y: auto` pero no scrollea; al elegirla, Novedades leía sólo la primera
+página. Cierra la deuda 🟠 de Novedades, de la que dependía el corte 2.
 
-- **Verificado en Brave por el dueño (2026-09-27)**: L-10 (bajar con el popup abierto; el storage lo
-  registra a las 17:03). Del resto el dueño dice "funciona todo", pero **el storage no tiene escrituras
-  después de las 17:03**, así que la sesión S-1..S-9 no se corrió como sesión después del checklist:
-  queda como visto en su uso, no como verificación paso a paso. Comprobado por
-  tanda en el disco y el storage: los 3 PDF de S-2 cayeron en la carpeta de su curso con md5
-  idéntico al respaldo; la lista guardada tiene 337 ítems en 5 carpetas.
-- **NO verificado**: AC-9 (el mismo archivo de Drive en dos cursos), porque hoy ningún archivo está
-  en dos cursos → entrada ⚪ en `docs/TECHNICAL_DEBT.md` §🔴 Abierto.
-- **Dónde quedó**:
-  - El registro completo de la rama (planes, checklists, hallazgos con su evidencia) →
-    `docs/portal-google-classroom-diseno.md` §10.
-  - Lo abierto (dos 🟡 NO REPRODUCIDOS, el riesgo de navegación, la segunda bandera del loader y
-    AC-9) → `docs/TECHNICAL_DEBT.md` §🔴 Abierto.
-  - La baseline → `docs/testing.md` §Baseline (46 archivos / 799 tests).
+- **Plan**: `docs/plan-classroom-novedades-scroll.md`. Compuerta 46 archivos / 801 tests; el control
+  negativo del test 39 falla sin el arreglo (lo corrió tanda en un worktree aparte).
+- **Verificado en Brave (2026-09-27, contado por tanda en el storage, escrituras de las 17:34-17:38)**:
+  - **N-2** (recorrido de todos): 7 cursos, 0 fallidos. Novedades de G25 trae **28** adjuntos (antes
+    4), el mismo número que dio el scroll a mano en el diagnóstico. Tiempo total **~175 s** contra los
+    ~124 s de B-3; el curso más lento tarda 45,6 s, lejos del tope de 180 s.
+  - **N-1** (G25 solo): los mismos **28** adjuntos de Novedades, los 28 marcados como descargados. No se
+    bajó ningún archivo nuevo a `~/Descargas/verificacion-b`.
 
 ---
 
