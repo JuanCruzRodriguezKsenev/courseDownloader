@@ -7,11 +7,15 @@
 import { PORT, HOST, VERSION, CARPETA_RAIZ_VIDEOS, EXTENSION_ID_ORIGEN } from "./config.js";
 import { acumuladorChunks, abortarDescargaYLimpiar } from "./accumulator.js";
 import { handleHealth, handleEscanearDisco, handleActualizarConsola, handleBypassStream, handleSeleccionarCarpeta, handleCancelarDescarga } from "./handlers.js";
+import { crearManejadorEditor, opcionesPorDefecto } from "./adopcion/editor.js";
+
+const manejarAdopcion = crearManejadorEditor(opcionesPorDefecto(), "/adopcion");
 
 // Limpiar terminal en el inicio
 console.log(`\x1Bc`);
 console.log(`🚀 [BUN-CORE] Servidor V${VERSION} levantado en http://${HOST}:${PORT}`);
 console.log(`📁 [BUN-CORE] Ruta base: ${CARPETA_RAIZ_VIDEOS}`);
+console.log(`📝 [BUN-CORE] Editor de adopción: http://${HOST}:${PORT}/adopcion/`);
 console.log(`🔒 [BUN-CORE] Escuchando solo en loopback (127.0.0.1)`);
 console.log(`🛑 [ATENCIÓN] Para apagar el servidor presiona Ctrl+C o cierra esta ventana.`);
 console.log(`--------------------------------------------------------------------------------\n`);
@@ -78,6 +82,11 @@ Bun.serve({
     }
     if (url.pathname === "/api/cancelar-descarga" && request.method === "GET") {
       return handleCancelarDescarga(url, corsHeaders);
+    }
+
+    if (url.pathname === "/adopcion" || url.pathname.startsWith("/adopcion/")) {
+      const respuesta = await manejarAdopcion(request, url);
+      if (respuesta) return respuesta;
     }
 
     return new Response("Not Found", { status: 404, headers: corsHeaders });

@@ -39,6 +39,8 @@ Lo que la extensión **espera** del backend, derivado de `core/backend/bunClient
 | `GET /api/cancelar-descarga?titulo=&sessionId=&sitio=` | query | Sólo el status; los fallos se tragan (best-effort). **`sitio` importa**: sin él el backend podría borrar el `.part` de la clase homónima de otro portal. |
 | `POST /api/actualizar-consola` | JSON `{ titulo, porcentaje, terminados, totales, velocidad }` | Sólo el status; los fallos se tragan (telemetría a la consola gráfica del server). |
 
+Fuera de la tabla anterior —porque no lo consume la extensión vía `BunClient` sino el usuario en el navegador—, el servidor monta en `/adopcion/` el editor web de los TSV de adopción de Classroom (`backend/adopcion/editor.js`). Es un endpoint temporal del corte 2a; lee `~/Descargas/adopcion-classroom` y `~/U.N.L.P` fijos (no usa `config_usuario.json`), y sus rutas `POST` rechazan cualquier pedido cuyo `Origin` difiera del propio servidor.
+
 ### El layout en disco lleva el portal
 
 **Desde el 2026-08-06 (corte multiportal E).** La ruta pasó de `raíz/<materia>/` a
