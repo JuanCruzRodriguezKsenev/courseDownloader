@@ -97,6 +97,10 @@ muere sin `fin` (F5) → L-9. Checklist L-1..L-9 en `ramas-en-revision.md`. L-1 
 `python3 -m http.server` (Claude in Chrome no abre `file://`). Cazó y validó el arreglo en 5 min.
 **CSS del loader ejecutado por obra (`5a88754`) y re-verificado por mí**: diff idéntico al plan, 46/796 verde,
 reproducción en iframe 400×560 OK en oscuro y claro (para el claro: borrar las reglas `@media dark` vía JS). Falta L-1/L-2 del dueño en Brave.
+L-2 del dueño: recorrido cortado en el 2º curso → **Classroom muestra ~100-200 ms la vista del curso ANTERIOR o
+ninguna** (`obtenerVistaActiva` cae a `body`) al cambiar de vista; intermitente (4/4 y 0/3). Criterio medido:
+los ids de curso en los `a[href]` de la vista (`/c/`, `/w/`, `/a/<x>/<id>$`) = {propio} en 39/39 muestras.
+**Los fixtures NO tienen hrefs con id dentro de las vistas** → filtro negativo. Plan `docs/plan-classroom-vista-del-curso.md`.
 
 ## Spec del corte 2 (destino en ~/U.N.L.P)
 

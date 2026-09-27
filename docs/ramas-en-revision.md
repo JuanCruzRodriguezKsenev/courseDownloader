@@ -70,6 +70,11 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 - **Revisión de tanda del loader con progreso (2026-09-27)** — compuerta re-corrida por el
   verificador: 46 archivos / 796 tests, lint, `tsc` y build en verde. Controles negativos corridos
   por mí en un worktree de scratch (Paso 1 y test 33 fallan sin su arreglo). Hallazgos:
+  - 🔴 **El recorrido se corta en el 2º curso (L-2 del dueño, 2026-09-27)**: storage `cortado` /
+    `navegacion` en MC6 con las 65 publicaciones de G22. Reproducido en Brave (4/4 una tanda, 0/3
+    otra): al cambiar de vista, Classroom muestra ~100-200 ms la vista del curso anterior o ninguna
+    (`obtenerVistaActiva` cae a `body`), y las esperas de Trabajo y Novedades la aceptan. Del corte 1;
+    pega también al escaneo de un curso. Plan: `docs/plan-classroom-vista-del-curso.md`.
   - ✅ **CSS del detalle roto (L-1 del dueño)**: fondo opaco con `&:has(.loader-detalle)` (`--bg-main`), host estirado con margen lateral (`.loader-detalle-host`), detalle centrado y lista alineada a la izquierda.
   - ✅ **El test 29 no tenía poder de detección** (obra lo declaró verificado): con el progreso
     enviado **fuera** de la cola seguía verde, porque 20 ms de latencia simulada nunca solapaban dos
