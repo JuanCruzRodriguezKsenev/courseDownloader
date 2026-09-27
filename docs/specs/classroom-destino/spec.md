@@ -506,7 +506,14 @@ Esquema del escenario: AC-11 — Nombres que la regla no acierta
   fije el primer adjunto en orden de tema, y que los demás queden anotados en el índice apuntando al
   mismo md5, para que la lista los muestre como descargados.
 
-- **PA-3 — Cómo nace el índice sobre un árbol que ya está poblado.** `~/U.N.L.P/Ingenieria/` tiene
+- **PA-3 — ✅ DECIDIDO por el dueño (2026-09-27): adopción desde `~/Descargas/verificacion-b`.** Un
+  script de una sola corrida (no una función de la extensión) cruza el `listaPersistente` del storage de
+  la extensión (hoy 337 ítems con `idArchivo`, `carpeta` y `titulo`) con los archivos de
+  `verificacion-b` (365) por nombre en disco, y con `~/U.N.L.P` por md5. Los que ya están en el árbol
+  conservan ruta y nombre; el resto se **copia** desde `verificacion-b`, con el nombre propuesto y
+  editable. No se re-descarga nada. El requisito de exportar el mapa id→adjunto queda cubierto por esa
+  lectura única del storage; una vía sostenida no hace falta. Texto original de la pregunta:
+  **Cómo nace el índice sobre un árbol que ya está poblado.** `~/U.N.L.P/Ingenieria/` tiene
   **132 archivos**, de los cuales **55 son idénticos por md5** a adjuntos de Classroom (medido el
   2026-09-16, ver abajo). Con el índice vacío, RN-20 llega al resultado correcto por el camino caro:
   baja los 263 documentos (~370 MB) sólo para descubrir que 55 ya los tenía. **Recomendación**: un paso de **adopción**, que se corre una vez por materia y
