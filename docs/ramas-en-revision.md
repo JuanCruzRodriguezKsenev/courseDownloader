@@ -71,6 +71,15 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   verificador: 46 archivos / 796 tests, lint, `tsc` y build en verde. Controles negativos corridos
   por mí en un worktree de scratch (Paso 1 y test 33 fallan sin su arreglo). Hallazgos:
   - ✅ **El recorrido se corta en el 2º curso (L-2 del dueño, 2026-09-27)**: `nombraOtroCurso` descarta vistas intermedias o del curso anterior en espera de Trabajo, `trabajoAsentado` y espera de Novedades, capturando la vista asentada (y devolviendo `avisoCursoCambiado` si vence con `/c/<otro>/m/`). 46 archivos / 798 tests en verde.
+    Re-verificado por tanda: compuerta 46/798 + lint + `tsc` + build en verde (verificador); control
+    negativo corrido por mí en worktree de scratch: sin el Paso 1, el 37 y el 38 fallan con
+    `curso-cambiado`; sin el fallback de `pintadoOk` que agregó obra (no estaba en el plan), falla el 17
+    → el fallback hace falta. Falta L-2 del dueño en Brave (dos corridas, cronometradas).
+  - 🟡 **NO REPRODUCIDO — el fallback de `pintadoOk` puede cortar el recorrido por un curso lento**: si
+    `pintado` vence justo con ningún `c-wiz` visible, `obtenerVistaActiva()` da `body`, que tiene las
+    vistas ocultas del curso anterior con `/c/<otro>/m/` → `curso-cambiado` → corta todo el recorrido
+    en vez de marcar el curso como fallido y seguir. Arreglo de una línea (`va !== document.body`) si
+    alguna vez aparece; hoy el estado intermedio dura ~100-200 ms contra un tope de segundos.
   - ✅ **CSS del detalle roto (L-1 del dueño)**: fondo opaco con `&:has(.loader-detalle)` (`--bg-main`), host estirado con margen lateral (`.loader-detalle-host`), detalle centrado y lista alineada a la izquierda.
   - ✅ **El test 29 no tenía poder de detección** (obra lo declaró verificado): con el progreso
     enviado **fuera** de la cola seguía verde, porque 20 ms de latencia simulada nunca solapaban dos

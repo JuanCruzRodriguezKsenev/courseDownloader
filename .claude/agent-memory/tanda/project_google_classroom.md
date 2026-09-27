@@ -101,6 +101,10 @@ L-2 del dueño: recorrido cortado en el 2º curso → **Classroom muestra ~100-2
 ninguna** (`obtenerVistaActiva` cae a `body`) al cambiar de vista; intermitente (4/4 y 0/3). Criterio medido:
 los ids de curso en los `a[href]` de la vista (`/c/`, `/w/`, `/a/<x>/<id>$`) = {propio} en 39/39 muestras.
 **Los fixtures NO tienen hrefs con id dentro de las vistas** → filtro negativo. Plan `docs/plan-classroom-vista-del-curso.md`.
+**Ejecutado por obra (`711a6b1`) y re-verificado por mí**: 46/798 verde; controles 37/38 MUERDEN (esta vez sí).
+obra agregó por su cuenta un fallback en `!pintadoOk` (busca `/c/<otro>/m/` → `curso-cambiado`) que el plan no
+nombraba: hace falta (sin él cae el test 17) — el plan debió prever que el filtro deja al 17 sin aviso. 🟡 anotado:
+el fallback lee `body` si vence sin c-wiz visible. Falta L-2 del dueño en Brave (2 corridas).
 
 ## Spec del corte 2 (destino en ~/U.N.L.P)
 
