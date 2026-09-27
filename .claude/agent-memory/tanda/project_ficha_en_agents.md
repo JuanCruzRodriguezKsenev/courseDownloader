@@ -16,7 +16,7 @@ No escribir la ficha (`## Comandos`, etc.) en `CLAUDE.md`: es un puntero y proh�
 - `docs/rearquitectura-diseno.md` §Estado de avance
 Compuerta: `pnpm test`, `pnpm run lint`, `pnpm exec tsc --noEmit`, `pnpm run build`; números en `docs/testing.md`. Nada se mergea sin probar en Chrome.
 
-Estado al 2026-09-25: `main` = `080f7aa` (Classroom corte 1 mergeado, sin push); `ramas-en-revision.md` dice
-"nada en revisión". Rama de trabajo `classroom-escanear-todas` (sólo spec). Baseline 43 archivos / 724 tests.
-Deuda: 16 abiertas (3 🔴, 4 🟠, 9 ⚪). Abiertos de fondo: popovers sin tests, loader sin dueño, footer
+Estado al 2026-09-27: `main` = `d125c52` (escanear-todas mergeada; antes `080f7aa`) (Classroom corte 1 mergeado, sin push); `ramas-en-revision.md` dice
+"nada en revisión". Rama de trabajo `classroom-escanear-todas` (sólo spec). Baseline 46 archivos / 799 tests.
+Deuda: 21 abiertas (3 🔴, 4 🟠, 14 ⚪). Abiertos de fondo: popovers sin tests, loader sin dueño, footer
 `#ui-msg-status` oculto, banco no alcanza al SW.

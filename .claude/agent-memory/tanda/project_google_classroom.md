@@ -112,8 +112,10 @@ plan `docs/plan-classroom-fin-descarga-todos.md` (sólo si `origenListado.clave 
 scratch necesita symlink a `node_modules` **y a `.wxt`**, si no vitest no carga el tsconfig). Para L-10 moví 3 PDF
 de `~/Descargas/verificacion-b` (uno por curso: Física I G, G22, G25) a `scratchpad/respaldo-verificacion-b`.
 
-**Decidido 2026-09-27**: cerrar esta rama primero (sesión S-1..S-9 en `ramas-en-revision.md`, M-1 cerrado por
-B-3), mergear, y recién después corte 2 (ordenar en ~/U.N.L.P) ANTES que Moodle. Corte 2 arranca por PA-3.
+**MERGEADA 2026-09-27** (`d125c52` en main, sin push; árbol idéntico a la rama verificada 46/799). Dueño: S-1..S-9
+"todo ok". Registro → diseño §10; 5 ⚪ nuevos en deuda (21 abiertas). Siguiente: corte 2 (ordenar en ~/U.N.L.P)
+ANTES que Moodle, arranca por PA-3. **El storage de Brave ya da el mapa idArchivo→carpeta+titulo** (337 ítems,
+parser LevelDB con reensamblado de bloques de 32 KB en `scratchpad`, sin librerías) → semilla de adopción viable.
 
 ## Spec del corte 2 (destino en ~/U.N.L.P)
 **2026-09-27, retomando el corte 2**: el dueño decidió raíz por portal — Ramón Net y Anatomy quedan como están;
