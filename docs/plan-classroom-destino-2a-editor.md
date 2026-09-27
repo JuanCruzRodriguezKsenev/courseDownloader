@@ -172,7 +172,7 @@ bun backend/adopcion/editor.js --salida $T/tsv --puerto 3002 & PID=$!; sleep 1
 ss -ltn | grep ':3002'                                                    # (a) sólo 127.0.0.1:3002
 curl -s localhost:3002/ | head -c 60; echo                                # (b) empieza con <!doctype html>
 curl -s localhost:3002/api/datos > $T/d.json
-jq '[.cursos|length, .temas|length, .archivos|length, (.materias|index("Ingenieria/Fisica 1")!=null)]' -c $T/d.json   # (c) [7,<temas>,366,true]
+jq '[(.cursos|length), (.temas|length), (.archivos|length), (.materias|index("Ingenieria/Fisica 1")!=null)]' -c $T/d.json   # (c) [7,<temas>,366,true]
 jq '{cursos,temas,archivos}' $T/d.json | curl -s -XPOST -d @- localhost:3002/api/guardar; echo   # (d) {"ok":true}
 for f in cursos temas archivos; do cmp $T/tsv/$f.tsv $T/orig/$f.tsv && echo "$f idéntico"; done   # (e) los tres idénticos
 jq '{cursos,temas,archivos} | .temas |= map(if .tema=="Complejos" then .destino="Practicas" else . end)' $T/d.json | curl -s -XPOST -d @- localhost:3002/api/guardar; echo   # (f) {"ok":true}
