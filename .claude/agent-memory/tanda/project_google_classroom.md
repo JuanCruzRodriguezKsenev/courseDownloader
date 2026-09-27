@@ -95,6 +95,8 @@ que obra declara un control verificado que no muerde. 🟡 no reproducido: loade
 muere sin `fin` (F5) → L-9. Checklist L-1..L-9 en `ramas-en-revision.md`. L-1 del dueño: CSS roto (overlay translúcido, detalle pegado a la izquierda) → plan `docs/plan-loader-detalle-css.md`.
 **Para ver CSS del popup sin el dueño**: CSS compilado de `.output/chrome-mv3/assets/` + markup en scratch, servido con
 `python3 -m http.server` (Claude in Chrome no abre `file://`). Cazó y validó el arreglo en 5 min.
+**CSS del loader ejecutado por obra (`5a88754`) y re-verificado por mí**: diff idéntico al plan, 46/796 verde,
+reproducción en iframe 400×560 OK en oscuro y claro (para el claro: borrar las reglas `@media dark` vía JS). Falta L-1/L-2 del dueño en Brave.
 
 ## Spec del corte 2 (destino en ~/U.N.L.P)
 
