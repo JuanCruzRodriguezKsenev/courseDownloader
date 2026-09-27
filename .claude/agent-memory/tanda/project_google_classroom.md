@@ -112,6 +112,9 @@ plan `docs/plan-classroom-fin-descarga-todos.md` (sólo si `origenListado.clave 
 scratch necesita symlink a `node_modules` **y a `.wxt`**, si no vitest no carga el tsconfig). Para L-10 moví 3 PDF
 de `~/Descargas/verificacion-b` (uno por curso: Física I G, G22, G25) a `scratchpad/respaldo-verificacion-b`.
 
+**Decidido 2026-09-27**: cerrar esta rama primero (sesión S-1..S-9 en `ramas-en-revision.md`, M-1 cerrado por
+B-3), mergear, y recién después corte 2 (ordenar en ~/U.N.L.P) ANTES que Moodle. Corte 2 arranca por PA-3.
+
 ## Spec del corte 2 (destino en ~/U.N.L.P)
 **2026-09-27, retomando el corte 2**: el dueño decidió raíz por portal — Ramón Net y Anatomy quedan como están;
 Classroom **y los Moodle de la UNLP que vienen "en un futuro inmediato"** van a `~/U.N.L.P` (pensar la raíz como
