@@ -1,7 +1,15 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.28.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.28.1)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.28.1:
+ * - [CLASSROOM — POPUP EN RECORRIDO] Botón de acción oculto durante el recorrido
+ *   con modo "recorriendo" y label "". Desacople de tarjeta de oferta con variable
+ *   de cierre `ofreciendoTodos` para no tapar la card de fin sin material (AC-14).
+ *   Configuración de botón "Re-escanear 🔄" al terminar recorrido sin enlaces.
+ *   Guarda de reentrada de fila 1 en `lanzarRecorridoTodos` cuando la pestaña pasa
+ *   por `/h/archived`.
+ *
  * CHANGELOG v5.28.0:
  * - [CLASSROOM ESCANEAR TODAS] Recorrido multi-curso (portada Classroom /h):
  *   - Lanza recorrido en modo "todos" vía `lanzarRecorridoTodos()`.
@@ -514,6 +522,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     // [CLASSROOM ESCANEAR TODAS] Recorrido multi-curso
     let recorrido = null;
     let recorridoSinEnlaces = false;
+    let ofreciendoTodos = false;
     let pestañaActivaUrl = "";
     let pestañaActivaId = null;
 
@@ -1091,7 +1100,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     let timerSincronizacionDebounce = null;
     nodos.folder.addEventListener('input', () => {
       const modoActual = nodos.btnAction.getAttribute('data-modo');
-      if (modoActual === 're-escanear' || modoActual === 'escanear-todos') return; 
+      if (modoActual === 're-escanear' || modoActual === 'escanear-todos' || modoActual === 'recorriendo') return; 
 
       const nuevaRuta = nodos.folder.value.trim();
 
@@ -1186,6 +1195,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     }
 
     function aplicarEnlacesEscaneados(portal, url, enlaces) {
+      ofreciendoTodos = false;
       const itemsEnCola = appState.listadoClasesGlobal.filter(c => c.estado === 'process');
       const nuevasClases = enlaces.map((item, idx) => {
         // [ESCANEO-API CORTE 1] La base de la carpeta sale del MÓDULO de la clase si el
@@ -1293,6 +1303,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         aplicarEnlacesEscaneados(portal, urlPortada, enlaces);
       } else {
         recorridoSinEnlaces = true;
+        configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
         renderizarListadoInterfaz();
       }
       mensajeria.enviar({
@@ -1305,6 +1316,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     function lanzarRecorridoTodos() {
       if (escaneoEnCurso) return false;
       escaneoEnCurso = true;
+      ofreciendoTodos = false;
       chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
         if (!tab) {
           escaneoEnCurso = false;
@@ -1315,6 +1327,19 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           escaneoEnCurso = false;
           return;
         }
+
+        if (
+          recorrido &&
+          recorrido.estado === "escaneando" &&
+          esVigente(recorrido, Date.now(), portal.topeEscaneoMs || 60000) &&
+          recorrido.tabId === tab.id
+        ) {
+          escaneoEnCurso = false;
+          configurarBotonesUX("recorriendo", "", true);
+          renderizarListadoInterfaz();
+          return;
+        }
+
         adoptarPortalDePestaña(tab.url, tab.id);
         const idRecorrido = Date.now();
         recorridoSinEnlaces = false;
@@ -1328,6 +1353,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           ultimaSenal: Date.now(),
           materializado: false,
         };
+        configurarBotonesUX("recorriendo", "", true);
         renderizarListadoInterfaz();
 
         chrome.scripting.executeScript(
@@ -1428,6 +1454,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
         if (decision === 'mostrar-recorrido') {
           adoptarPortalDePestaña(tab.url, tab.id);
+          configurarBotonesUX("recorriendo", "", true);
           ocultarLoader();
           renderizarListadoInterfaz();
           return;
@@ -1439,6 +1466,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         }
         if (decision === 'ofrecer-todos') {
           adoptarPortalDePestaña(tab.url, tab.id);
+          ofreciendoTodos = true;
           configurarBotonesUX("escanear-todos", "Escanear todos los cursos", false);
           ocultarLoader();
           renderizarListadoInterfaz();
@@ -2047,7 +2075,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           return;
         }
 
-        if (nodos.btnAction.getAttribute('data-modo') === 'escanear-todos') {
+        if (ofreciendoTodos) {
           ListaClases.render({
             modo: 'card',
             card: {
@@ -2750,7 +2778,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       nodos.btnStartQueue.style.display = 'none';
     
       const modoActual = nodos.btnAction.getAttribute('data-modo');
-      if (modoActual === 're-escanear' || modoActual === 'escanear-todos') return; 
+      if (modoActual === 're-escanear' || modoActual === 'escanear-todos' || modoActual === 'recorriendo') return; 
 
       if (!appState.sincronizacionDiscoCompletada) {
         // `isOffline` equivale a "el banner de conexión está en pantalla": el input de carpeta
