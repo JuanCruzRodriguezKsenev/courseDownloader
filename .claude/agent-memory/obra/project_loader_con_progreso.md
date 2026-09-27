@@ -17,4 +17,8 @@ metadata:
   - `ocultarLoader()` invoca `limpiarLoaderDetalle()` para no dejar estado residual si más tarde se muestra un loader genérico ("Conectando con el servidor…").
 - **Vuelta automática a portada (`/h`)**:
   - `ejecutarEscaneoTodosClassroom` navega de regreso a la portada una vez completados todos los cursos (o al detenerse), garantizando que el usuario quede en contexto natural de Classroom al finalizar.
-- **Compuerta final**: 46 archivos, 796 tests unitarios pasando, 0 errores/warnings en lint, typecheck limpio (`tsc --noEmit`) y build verificado (270.53 kB).
+- **Ajuste de CSS del detalle (`loader.css` y `index.html`)**:
+  - Fondo opaco condicional: `&:has(.loader-detalle)` con `--bg-main` y `backdrop-filter: none` evita ver la lista de fondo durante los minutos que dura el recorrido, preservando el comportamiento translúcido cuando el loader es breve ("Conectando con el servidor…").
+  - Estiramiento del host flex: `#ui-loader-detalle` como hijo de flex con `align-items: center` requiere clase (`.loader-detalle-host`) con `align-self: stretch` y padding lateral (`--space-lg`) para centrar el bloque y no quedar pegado al margen izquierdo.
+  - Alineación híbrida: `.loader-detalle` centrado para acompañar spinner y título, con sub-caja `.loader-detalle-cursos` con `text-align: left`.
+- **Compuerta final**: 46 archivos, 796 tests unitarios pasando, 0 errores/warnings en lint, typecheck limpio (`tsc --noEmit`) y build verificado (270.79 kB).
