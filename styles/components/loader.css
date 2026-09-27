@@ -25,6 +25,76 @@
     font-weight: var(--font-bold);
     color: var(--text-main);
   }
+
+  .loader-detalle {
+    max-width: 90%;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    font-size: var(--text-sm);
+    color: var(--text-main);
+  }
+
+  .loader-detalle-linea {
+    font-size: var(--text-sm);
+    color: var(--text-main);
+    word-break: break-word;
+  }
+
+  .loader-detalle-reloj {
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+  }
+
+  .loader-detalle-cursos {
+    list-style: none;
+    margin: 0.2rem 0;
+    padding: 0.4rem;
+    max-height: 40vh;
+    overflow-y: auto;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .loader-detalle-curso {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+  }
+
+  .loader-detalle-curso.actual {
+    font-weight: var(--font-bold);
+    color: var(--text-main);
+  }
+
+  .loader-detalle-curso-marca {
+    flex-shrink: 0;
+    width: 1.2ch;
+    text-align: center;
+  }
+
+  .loader-detalle-curso-nombre {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  .loader-detalle-pie {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    font-style: italic;
+  }
 }
 
 @keyframes spin-nitro {
