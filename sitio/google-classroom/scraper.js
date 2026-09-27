@@ -1,6 +1,13 @@
 /**
- * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.4.1)
+ * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.5.0)
  * ==========================================================================
+ * CHANGELOG v1.5.0:
+ * - [LOADER CON PROGRESO] Emisión de evento "progreso" en modo todos y
+ *   "escaneo_progreso" en modo un curso con tope de frecuencia (500 ms).
+ * - [SERIALIZACIÓN IPC] Cola serializada de avisos para evitar carreras en SW.
+ * - [DURACIÓN Y LANZAMIENTO] duracionMs en eventos curso y lanzadoEn en inicio.
+ * - [VUELTA A LA PORTADA] Vuelve a /h al terminar el recorrido antes de fin.
+ *
  * CHANGELOG v1.4.1:
  * - [CLASSROOM — ASENTADO DE TRABAJO EN CLASE] Trabajo en clase se da por pintado
  *   sólo cuando se asentó: espera que el marcador de vacío se sostenga `asentadoVacio`
@@ -121,7 +128,124 @@ const ScraperClassroom = {
       return document.body;
     }
 
+    const modoTodos = Boolean(opciones && opciones.modo === "todos");
+    const { idRecorrido, tabId, sitioId, topeCursoMs = 180000 } = opciones || {};
+
+    let colaAvisos = Promise.resolve();
+    let ultimoReporteMs = 0;
+    let timerProgreso = null;
+    let progresoPendiente = null;
+    let indiceCursoActual = 0;
+
+    function descartarProgresoPendiente() {
+      if (timerProgreso) {
+        clearTimeout(timerProgreso);
+        timerProgreso = null;
+      }
+      progresoPendiente = null;
+    }
+
+    const avisar = (evento) => {
+      descartarProgresoPendiente();
+      const p = colaAvisos.then(async () => {
+        try {
+          if (
+            typeof chrome !== "undefined" &&
+            chrome.runtime &&
+            typeof chrome.runtime.sendMessage === "function"
+          ) {
+            await chrome.runtime.sendMessage({
+              action: "recorrido_evento",
+              idRecorrido,
+              tabId,
+              sitioId,
+              ...evento,
+            });
+          }
+        } catch {}
+      });
+      colaAvisos = p.catch(() => {});
+      return p;
+    };
+
+    function enviarProgreso(datos) {
+      ultimoReporteMs = Date.now();
+      if (modoTodos) {
+        colaAvisos = colaAvisos
+          .then(async () => {
+            try {
+              if (
+                typeof chrome !== "undefined" &&
+                chrome.runtime &&
+                typeof chrome.runtime.sendMessage === "function"
+              ) {
+                await chrome.runtime.sendMessage({
+                  action: "recorrido_evento",
+                  idRecorrido,
+                  tabId,
+                  sitioId,
+                  tipo: "progreso",
+                  indice: indiceCursoActual,
+                  fase: datos.fase,
+                  verMas: datos.verMas ?? 0,
+                  publicaciones: datos.publicaciones ?? 0,
+                  archivos: datos.archivos ?? 0,
+                });
+              }
+            } catch {}
+          })
+          .catch(() => {});
+      } else if (opciones && typeof opciones.idEscaneo !== "undefined") {
+        try {
+          if (
+            typeof chrome !== "undefined" &&
+            chrome.runtime &&
+            typeof chrome.runtime.sendMessage === "function"
+          ) {
+            const payload = {
+              action: "escaneo_progreso",
+              idEscaneo: opciones.idEscaneo,
+              fase: datos.fase,
+              verMas: datos.verMas ?? 0,
+              publicaciones: datos.publicaciones ?? 0,
+              archivos: datos.archivos ?? 0,
+            };
+            if (datos.nombre) payload.nombre = datos.nombre;
+            chrome.runtime.sendMessage(payload).catch(() => {});
+          }
+        } catch {}
+      }
+    }
+
+    function reportar(datos, token) {
+      if (token !== idCancelacion) return;
+      const ahora = Date.now();
+      const transcurrido = ahora - ultimoReporteMs;
+      if (transcurrido >= 500) {
+        descartarProgresoPendiente();
+        enviarProgreso(datos);
+      } else {
+        progresoPendiente = datos;
+        if (!timerProgreso) {
+          const espera = 500 - transcurrido;
+          timerProgreso = setTimeout(() => {
+            timerProgreso = null;
+            if (token !== idCancelacion) return;
+            if (progresoPendiente) {
+              const d = progresoPendiente;
+              progresoPendiente = null;
+              enviarProgreso(d);
+            }
+          }, espera);
+        }
+      }
+    }
+
     async function escanearCursoActual() {
+      const miToken = idCancelacion;
+      let verMasCount = 0;
+      let estadoProgreso = { fase: "trabajo", verMas: 0, publicaciones: 0, archivos: 0 };
+
       // 1. Visibilidad inicial
       if (!visible()) return avisoVisibilidad;
 
@@ -399,6 +523,10 @@ const ScraperClassroom = {
     const itemsLeidosTrabajo = [];
 
     if (!trabajoVacio) {
+      const pubsIniciales = vistaTrabajo.querySelectorAll("li[data-stream-item-id]").length;
+      estadoProgreso = { fase: "trabajo", verMas: 0, publicaciones: pubsIniciales, archivos: 0 };
+      reportar(estadoProgreso, miToken);
+
       // 5. Quietud
       await esperarQuietud(vistaTrabajo);
       if (!visible()) return avisoVisibilidad;
@@ -432,6 +560,15 @@ const ScraperClassroom = {
 
           if (crecio) {
             algunTemaCrecio = true;
+            verMasCount++;
+            const pubsTotales = vistaTrabajo.querySelectorAll("li[data-stream-item-id]").length;
+            estadoProgreso = {
+              fase: "ver-mas",
+              verMas: verMasCount,
+              publicaciones: pubsTotales,
+              archivos: 0,
+            };
+            reportar(estadoProgreso, miToken);
             await dormir(tiempos.vuelta);
           } else {
             break;
@@ -495,6 +632,7 @@ const ScraperClassroom = {
         };
       }
       nombreCurso = identidad.nombre;
+      reportar({ ...estadoProgreso, nombre: nombreCurso }, miToken);
 
       // 8. Leer "Trabajo en clase"
       const regionesActualizadas = vistaTrabajo.querySelectorAll('div[role="region"][aria-label]');
@@ -549,6 +687,14 @@ const ScraperClassroom = {
     }
 
     // 9. Ir a "Novedades"
+    estadoProgreso = {
+      fase: "novedades",
+      verMas: verMasCount,
+      publicaciones: estadoProgreso.publicaciones,
+      archivos: itemsLeidosTrabajo.length,
+    };
+    reportar({ ...estadoProgreso, ...(nombreCurso ? { nombre: nombreCurso } : {}) }, miToken);
+
     const regexNovedades = new RegExp(`^(?:/u/\\d+)?/c/${idCurso}(?:$|\\?)`);
     const linkNovedades = buscarLinkNav(regexNovedades);
     const itemsLeidosNovedades = [];
@@ -626,6 +772,14 @@ const ScraperClassroom = {
         }
       }
     }
+
+    estadoProgreso = {
+      fase: "novedades",
+      verMas: verMasCount,
+      publicaciones: estadoProgreso.publicaciones,
+      archivos: itemsLeidosTrabajo.length + itemsLeidosNovedades.length,
+    };
+    reportar({ ...estadoProgreso, ...(nombreCurso ? { nombre: nombreCurso } : {}) }, miToken);
 
     // 10. Volver a "Trabajo en clase"
     try {
@@ -767,16 +921,6 @@ const ScraperClassroom = {
     return escanearCursoActual();
   }
 
-  const { idRecorrido, tabId, sitioId, topeCursoMs = 180000 } = opciones;
-
-  const avisar = async (evento) => {
-    try {
-      if (typeof chrome !== "undefined" && chrome.runtime && typeof chrome.runtime.sendMessage === "function") {
-        await chrome.runtime.sendMessage({ action: "recorrido_evento", idRecorrido, tabId, sitioId, ...evento });
-      }
-    } catch {}
-  };
-
   if (!visible()) {
     await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "visibilidad" });
     return { materia: "", enlaces: [], recorrido: true };
@@ -877,16 +1021,19 @@ const ScraperClassroom = {
   await avisar({
     tipo: "inicio",
     cursos: listaFinal.map((c) => ({ id: c.id, nombre: c.nombre })),
+    ...(opciones && opciones.lanzadoEn !== undefined ? { lanzadoEn: opciones.lanzadoEn } : {}),
   });
 
   // 5. Por cada curso
   for (let i = 0; i < listaFinal.length; i++) {
+    indiceCursoActual = i;
     const curso = listaFinal[i];
     if (!visible()) {
       await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "visibilidad" });
       return { materia: "", enlaces: [], recorrido: true };
     }
 
+    const inicioCurso = Date.now();
     await avisar({ tipo: "latido", indice: i });
 
     const navArchived = document.querySelector('nav a[href$="/h/archived"]');
@@ -899,7 +1046,13 @@ const ScraperClassroom = {
       tiempos.navegacion
     );
     if (!aparecio) {
-      await avisar({ tipo: "curso", indice: i, resultado: "fallido", motivo: "no abrió" });
+      await avisar({
+        tipo: "curso",
+        indice: i,
+        resultado: "fallido",
+        motivo: "no abrió",
+        duracionMs: Date.now() - inicioCurso,
+      });
       continue;
     }
     const linkCurso = document.querySelector(selectorCurso);
@@ -909,7 +1062,13 @@ const ScraperClassroom = {
       tiempos.navegacion
     );
     if (!llego) {
-      await avisar({ tipo: "curso", indice: i, resultado: "fallido", motivo: "no abrió" });
+      await avisar({
+        tipo: "curso",
+        indice: i,
+        resultado: "fallido",
+        motivo: "no abrió",
+        duracionMs: Date.now() - inicioCurso,
+      });
       continue;
     }
 
@@ -926,7 +1085,13 @@ const ScraperClassroom = {
       return false;
     }, tiempos.navegacion);
     if (!navTrabajoOk) {
-      await avisar({ tipo: "curso", indice: i, resultado: "fallido", motivo: "no abrió" });
+      await avisar({
+        tipo: "curso",
+        indice: i,
+        resultado: "fallido",
+        motivo: "no abrió",
+        duracionMs: Date.now() - inicioCurso,
+      });
       continue;
     }
 
@@ -945,13 +1110,25 @@ const ScraperClassroom = {
         idCancelacion++;
         promesa.catch(() => {});
         const segs = Math.round(topeCursoMs / 1000);
-        await avisar({ tipo: "curso", indice: i, resultado: "fallido", motivo: `superó ${segs} s` });
+        await avisar({
+          tipo: "curso",
+          indice: i,
+          resultado: "fallido",
+          motivo: `superó ${segs} s`,
+          duracionMs: Date.now() - inicioCurso,
+        });
         continue;
       }
       resCurso = carrera.res;
     } catch {
       if (timer) clearTimeout(timer);
-      await avisar({ tipo: "curso", indice: i, resultado: "fallido", motivo: "error inesperado" });
+      await avisar({
+        tipo: "curso",
+        indice: i,
+        resultado: "fallido",
+        motivo: "error inesperado",
+        duracionMs: Date.now() - inicioCurso,
+      });
       continue;
     }
 
@@ -964,11 +1141,22 @@ const ScraperClassroom = {
       return { materia: "", enlaces: [], recorrido: true };
     }
     if (resCurso.motivoAviso === "sin-material") {
-      await avisar({ tipo: "curso", indice: i, resultado: "vacio" });
+      await avisar({
+        tipo: "curso",
+        indice: i,
+        resultado: "vacio",
+        duracionMs: Date.now() - inicioCurso,
+      });
       continue;
     }
     if (resCurso.aviso) {
-      await avisar({ tipo: "curso", indice: i, resultado: "fallido", motivo: resCurso.aviso });
+      await avisar({
+        tipo: "curso",
+        indice: i,
+        resultado: "fallido",
+        motivo: resCurso.aviso,
+        duracionMs: Date.now() - inicioCurso,
+      });
       continue;
     }
 
@@ -977,11 +1165,23 @@ const ScraperClassroom = {
       indice: i,
       resultado: "ok",
       enlaces: resCurso.enlaces,
+      duracionMs: Date.now() - inicioCurso,
       ...(resCurso.adjuntosSinResolver ? { adjuntosSinResolver: resCurso.adjuntosSinResolver } : {}),
     });
   }
 
-  // 6. Fin
+  // 6. Vuelta a la portada (RN-20..22)
+  try {
+    if (!/\/h\/?$/.test(location.pathname || "")) {
+      const linkH = document.querySelector('nav a[href$="/h"]');
+      if (linkH) {
+        linkH.click();
+        await esperarCondicion(() => /\/h\/?$/.test(location.pathname || ""), tiempos.navegacion);
+      }
+    }
+  } catch {}
+
+  // 7. Fin
   await avisar({ tipo: "fin", estado: "terminado" });
 
   // 7. Retorno

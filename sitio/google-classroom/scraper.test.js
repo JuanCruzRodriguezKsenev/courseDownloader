@@ -580,7 +580,7 @@ describe("ScraperClassroom.escanearListado", () => {
       });
 
       expect(res.recorrido).toBe(true);
-      const tipos = mensajesEnviados.map((m) => m.tipo);
+      const tipos = mensajesEnviados.map((m) => m.tipo).filter((t) => t !== "progreso");
       expect(tipos).toEqual([
         "inicio",
         "latido",
@@ -618,7 +618,7 @@ describe("ScraperClassroom.escanearListado", () => {
   });
 
   it("20. visibilityState pasa a hidden durante el curso 2: hay 1 curso ok y fin cortado visibilidad", async () => {
-    const { mensajesEnviados, limpiar } = simularNavegacionClassroom({
+    const { mensajesEnviados, navegaciones, limpiar } = simularNavegacionClassroom({
       hooksPorCurso: {
         CURSO456: (html) => {
           Object.defineProperty(document, "visibilityState", {
@@ -641,7 +641,7 @@ describe("ScraperClassroom.escanearListado", () => {
       });
 
       expect(res.recorrido).toBe(true);
-      const tipos = mensajesEnviados.map((m) => m.tipo);
+      const tipos = mensajesEnviados.map((m) => m.tipo).filter((t) => t !== "progreso");
       expect(tipos).toEqual(["inicio", "latido", "curso", "latido", "fin"]);
 
       const evCursos = mensajesEnviados.filter((m) => m.tipo === "curso");
@@ -652,6 +652,11 @@ describe("ScraperClassroom.escanearListado", () => {
       const evFin = mensajesEnviados.at(-1);
       expect(evFin.estado).toBe("cortado");
       expect(evFin.motivoCorte).toBe("visibilidad");
+
+      // 35. Corte por visibilidad no navega a /h
+      const navH = navegaciones.filter((n) => n.href.endsWith("/h"));
+      expect(navH).toHaveLength(0);
+      expect(window.location.pathname).not.toMatch(/\/h\/?$/);
     } finally {
       Object.defineProperty(document, "visibilityState", {
         value: "visible",
@@ -940,6 +945,261 @@ describe("ScraperClassroom.escanearListado", () => {
       expect(res.recorrido).toBe(true);
       const evInicio = mensajesEnviados[0];
       expect(evInicio.cursos).toHaveLength(3);
+    } finally {
+      limpiar();
+    }
+  });
+
+  it("29. serialización: sendMessage simulado que tarda 20 ms y cuenta envíos en vuelo; recorrido con progreso -> en vuelo nunca > 1 y orden respeta latido -> progreso -> curso", async () => {
+    let enVuelo = 0;
+    let maxEnVuelo = 0;
+    const mensajesEnviados = [];
+    let reloj = 0;
+
+    const { limpiar } = simularNavegacionClassroom();
+    globalThis.chrome.runtime.sendMessage = vi.fn(async (msg) => {
+      enVuelo++;
+      if (enVuelo > maxEnVuelo) maxEnVuelo = enVuelo;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      mensajesEnviados.push({ ...msg, orden: ++reloj, timestamp: Date.now() });
+      enVuelo--;
+    });
+
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        modo: "todos",
+        idRecorrido: 100,
+        tabId: 1,
+        sitioId: "google-classroom",
+        tiempos: { ...TIEMPOS_TEST, asentadoVacio: 550, pintado: 2000 },
+        topeCursoMs: 5000,
+      });
+
+      expect(res.recorrido).toBe(true);
+      expect(maxEnVuelo).toBe(1);
+
+      const progresos = mensajesEnviados.filter((m) => m.tipo === "progreso");
+      expect(progresos.length).toBeGreaterThan(0);
+
+      const relevantes = mensajesEnviados
+        .filter((m) => m.tipo === "latido" || m.tipo === "progreso" || m.tipo === "curso" || m.tipo === "fin");
+
+      for (let i = 0; i < relevantes.length - 1; i++) {
+        const actual = relevantes[i].tipo;
+        const siguiente = relevantes[i + 1].tipo;
+        if (actual === "latido") {
+          expect(["progreso", "curso"]).toContain(siguiente);
+        } else if (actual === "progreso") {
+          expect(["progreso", "curso"]).toContain(siguiente);
+        } else if (actual === "curso") {
+          expect(["latido", "fin"]).toContain(siguiente);
+        }
+      }
+    } finally {
+      limpiar();
+    }
+  });
+
+  it("30. en modo todos llegan eventos progreso con fase trabajo y novedades para un curso con material, y ninguno llega después de curso", async () => {
+    const { mensajesEnviados, limpiar } = simularNavegacionClassroom();
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        modo: "todos",
+        idRecorrido: 102,
+        tabId: 1,
+        sitioId: "google-classroom",
+        tiempos: { ...TIEMPOS_TEST, vuelta: 200 },
+        topeCursoMs: 5000,
+      });
+
+      expect(res.recorrido).toBe(true);
+      const progresos = mensajesEnviados.filter((m) => m.tipo === "progreso");
+      expect(progresos.length).toBeGreaterThan(0);
+
+      const fases = progresos.map((p) => p.fase);
+      expect(fases).toContain("trabajo");
+      expect(fases).toContain("novedades");
+
+      for (const p of progresos) {
+        const idxCurso = mensajesEnviados.findIndex(
+          (m) => m.tipo === "curso" && m.indice === p.indice
+        );
+        const idxProgreso = mensajesEnviados.indexOf(p);
+        expect(idxProgreso).toBeLessThan(idxCurso);
+      }
+    } finally {
+      limpiar();
+    }
+  }, 15000);
+
+  it("31. modo un curso con idEscaneo emite escaneo_progreso con idEscaneo, fases en orden y nombre; sin idEscaneo cero escaneo_progreso", async () => {
+    globalThis.chrome = globalThis.chrome || {};
+    globalThis.chrome.runtime = globalThis.chrome.runtime || {};
+    const recibidosConId = [];
+    globalThis.chrome.runtime.sendMessage = vi.fn(async (msg) => {
+      recibidosConId.push(msg);
+    });
+
+    await ScraperClassroom.escanearListado({
+      idEscaneo: 7,
+      tiempos: { ...TIEMPOS_TEST, asentadoVacio: 50, pintado: 100, vuelta: 550 },
+    });
+
+    const progresos7 = recibidosConId.filter((m) => m.action === "escaneo_progreso");
+    expect(progresos7.length).toBeGreaterThan(0);
+    expect(progresos7.every((p) => p.idEscaneo === 7)).toBe(true);
+    expect(progresos7.some((p) => p.nombre === "Física II")).toBe(true);
+
+    const recibidosSinId = [];
+    globalThis.chrome.runtime.sendMessage = vi.fn(async (msg) => {
+      recibidosSinId.push(msg);
+    });
+
+    await ScraperClassroom.escanearListado({
+      tiempos: TIEMPOS_TEST,
+    });
+
+    const progresosSin = recibidosSinId.filter((m) => m.action === "escaneo_progreso");
+    expect(progresosSin).toHaveLength(0);
+  }, 15000);
+
+  it("32. frecuencia: progresos enviados están separados >= 500 ms entre sí", async () => {
+    globalThis.chrome = globalThis.chrome || {};
+    globalThis.chrome.runtime = globalThis.chrome.runtime || {};
+    const envios = [];
+    globalThis.chrome.runtime.sendMessage = vi.fn(async (msg) => {
+      if (msg.action === "escaneo_progreso") {
+        envios.push({ msg, t: Date.now() });
+      }
+    });
+
+    const region = document.querySelector('div[role="region"]');
+    const btnVerMas = document.querySelector('button[aria-label="Ver más publicaciones"]');
+    let clicks = 0;
+    if (btnVerMas && region) {
+      btnVerMas.getClientRects = () => [{ width: 100, height: 30 }];
+      btnVerMas.addEventListener("click", () => {
+        clicks++;
+        if (clicks <= 10) {
+          const li = document.createElement("li");
+          li.setAttribute("data-stream-item-id", `tp-extra-${clicks}`);
+          li.innerHTML = `<div>Item extra ${clicks}</div>`;
+          region.appendChild(li);
+        }
+      });
+    }
+
+    await ScraperClassroom.escanearListado({
+      idEscaneo: 99,
+      tiempos: { ...TIEMPOS_TEST, asentadoVacio: 550, verMas: 50, vuelta: 5 },
+    });
+
+    await new Promise((r) => setTimeout(r, 600));
+
+    expect(envios.length).toBeGreaterThan(1);
+    for (let i = 0; i < envios.length - 1; i++) {
+      const delta = envios[i + 1].t - envios[i].t;
+      expect(delta).toBeGreaterThanOrEqual(490);
+    }
+  });
+
+  it("33. al terminar el recorrido de test 19, location.pathname termina en /h y el último mensaje es fin terminado", async () => {
+    const { mensajesEnviados, limpiar } = simularNavegacionClassroom();
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        modo: "todos",
+        idRecorrido: 100,
+        tabId: 1,
+        sitioId: "google-classroom",
+        tiempos: TIEMPOS_TEST,
+        topeCursoMs: 5000,
+      });
+
+      expect(res.recorrido).toBe(true);
+      expect(window.location.pathname).toMatch(/\/h\/?$/);
+      const evFin = mensajesEnviados.at(-1);
+      expect(evFin.tipo).toBe("fin");
+      expect(evFin.estado).toBe("terminado");
+    } finally {
+      limpiar();
+    }
+  });
+
+  it("34. sin link /h en el nav: el recorrido igual manda fin terminado", async () => {
+    const { mensajesEnviados, limpiar } = simularNavegacionClassroom({
+      hooksPorCurso: {
+        CURSO789: (html) => {
+          return html.replace(/<a href="\/u\/2\/h">Clases<\/a>/g, "");
+        },
+      },
+    });
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        modo: "todos",
+        idRecorrido: 104,
+        tabId: 1,
+        sitioId: "google-classroom",
+        tiempos: TIEMPOS_TEST,
+        topeCursoMs: 5000,
+      });
+
+      expect(res.recorrido).toBe(true);
+      const evFin = mensajesEnviados.at(-1);
+      expect(evFin.tipo).toBe("fin");
+      expect(evFin.estado).toBe("terminado");
+    } finally {
+      limpiar();
+    }
+  });
+
+  it("36. curso lleva duracionMs numérico >= 0 en ok, vacío y fallido; inicio lleva lanzadoEn", async () => {
+    const { mensajesEnviados, limpiar } = simularNavegacionClassroom({
+      hooksPorCurso: {
+        CURSO456: (html) => {
+          return html
+            .replace(
+              /<c-wiz id="vista-trabajo"[^>]*>[\s\S]*?<\/c-wiz>/,
+              '<c-wiz id="vista-trabajo" aria-hidden="true"><div data-no-topic-items="true">No hay publicaciones</div></c-wiz>'
+            )
+            .replace(
+              /<c-wiz id="vista-novedades"[^>]*>[\s\S]*?<\/c-wiz>/,
+              '<c-wiz id="vista-novedades"><div data-stream-item-id="post-vacio"><h2>Bienvenida</h2></div></c-wiz>'
+            );
+        },
+        CURSO789: (html) => {
+          return html.replace(/<nav>[\s\S]*?<\/nav>/, "<nav></nav>");
+        },
+      },
+    });
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        modo: "todos",
+        idRecorrido: 105,
+        tabId: 1,
+        sitioId: "google-classroom",
+        lanzadoEn: 987654321,
+        tiempos: TIEMPOS_TEST,
+        topeCursoMs: 5000,
+      });
+
+      expect(res.recorrido).toBe(true);
+      const evInicio = mensajesEnviados.find((m) => m.tipo === "inicio");
+      expect(evInicio.lanzadoEn).toBe(987654321);
+
+      const cursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+      expect(cursos.length).toBeGreaterThanOrEqual(3);
+
+      expect(cursos[0].resultado).toBe("ok");
+      expect(typeof cursos[0].duracionMs).toBe("number");
+      expect(cursos[0].duracionMs).toBeGreaterThanOrEqual(0);
+
+      expect(cursos[1].resultado).toBe("vacio");
+      expect(typeof cursos[1].duracionMs).toBe("number");
+      expect(cursos[1].duracionMs).toBeGreaterThanOrEqual(0);
+
+      expect(cursos[2].resultado).toBe("fallido");
+      expect(typeof cursos[2].duracionMs).toBe("number");
+      expect(cursos[2].duracionMs).toBeGreaterThanOrEqual(0);
     } finally {
       limpiar();
     }
