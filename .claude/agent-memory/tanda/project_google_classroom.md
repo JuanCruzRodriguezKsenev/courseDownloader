@@ -181,3 +181,6 @@ Novedades, copias "(N)" con md5 distinto → el dueño renombra 7 filas en A-2).
 **Correcciones 2a ejecutadas por obra (`528efe3`) y re-verificadas por mí**: diff = plan; 50/837 verde; Verificación A
 (a)–(h) idéntica a lo esperado (reintento: copiar 1 / ya-esta 353, 298 `Información`); control negativo MUERDE (303
 vs 0). **`aplicar.js` escribe los errores por STDERR** → contar con `2>&1`, si no el 0 es falso. Falta A-1..A-4 (dueño + yo).
+A-1 ✅ (generar dio 366/55/4/8/299, 2 choques = 5 filas MC2 + 2 MC3, todos en `Matematica C/` raíz). A-2 trabado: el
+dueño no puede editar los TSV → plan `docs/plan-classroom-destino-2a-editor.md` (página Bun 127.0.0.1:3002, guarda
+TSV byte-idénticos, Probar = aplicar ensayo en subproceso). Tras obra: verifico yo E-1..E-6 con Claude in Chrome.
