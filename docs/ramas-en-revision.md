@@ -19,6 +19,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 `classroom-destino-adopcion`: Corte 2a del destino de Google Classroom en `~/U.N.L.P`. Adopción de lo ya descargado mediante TSV editable, cálculo de md5, detección de choques y generación del índice `.course-downloader.json`.
 
 - **Plan**: `docs/plan-classroom-destino-2a-adopcion.md`. Compuerta 50 archivos / 837 tests.
+- **Pendiente de obra**: `docs/plan-classroom-destino-2a-editor-popup.md` — el editor pasa al servidor del 3001 (`/adopcion/`) y se abre con 🗂️ desde el popup.
 - **Spec**: `docs/specs/classroom-destino/spec.md`.
 - **ADR**: `docs/adr/0017-indice-de-destino-en-la-raiz.md`.
 

@@ -184,3 +184,8 @@ vs 0). **`aplicar.js` escribe los errores por STDERR** → contar con `2>&1`, si
 A-1 ✅ (generar dio 366/55/4/8/299, 2 choques = 5 filas MC2 + 2 MC3, todos en `Matematica C/` raíz). A-2 trabado: el
 dueño no puede editar los TSV → plan `docs/plan-classroom-destino-2a-editor.md` (página Bun 127.0.0.1:3002, guarda
 TSV byte-idénticos, Probar = aplicar ensayo en subproceso). Tras obra: verifico yo E-1..E-6 con Claude in Chrome.
+
+**2026-09-27 — editor de adopción:** el dueño quiere abrirlo DESDE LA EXTENSIÓN. Se decidió montarlo en el
+servidor del 3001 bajo `/adopcion/` + enlace 🗂️ en el popup (plan `docs/plan-classroom-destino-2a-editor-popup.md`).
+El 3001 apunta a los TSV REALES: toda prueba que escribe va en modo suelto (3002) sobre la copia. El editor usa
+`~/U.N.L.P` fijo, nunca `CARPETA_RAIZ_VIDEOS` (config_usuario.json apunta a una raíz de prueba).
