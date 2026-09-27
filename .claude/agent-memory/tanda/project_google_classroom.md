@@ -214,3 +214,7 @@ los 2 choques. Sigue B-4 + A-2 del dueño en el editor.
 **2b, decidido por el dueño 2026-09-27**: RN-19/22 buscan el md5 en TODA `~/U.N.L.P` (salvo `.git/`, `.obsidian/`,
 `ObsidianUNLP_Vault/`) → mover a otra materia corrige el índice; AC-5b nuevo. PA-4 abierta: `.md` de acceso editado
 + movido (recomendé "id en índice → no recrear nunca"). Preguntarla al arrancar el plan 2b.
+**Editor por curso (dueño 2026-09-27)**: un curso a la vez (barra) + archivos bajo su tema. Plan
+`docs/plan-classroom-destino-2a-editor-por-curso.md`. **Humo con jsdom** (devDependency): ejecuta el JS de
+editor.html con `api/datos` guardado; DETECTA el 🔴 de `cb01ab9`. Tiene que correr desde dentro del repo (desde
+scratch no resuelve `jsdom`); los módulos de comprobación sí pueden vivir en scratch (import absoluto).
