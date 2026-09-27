@@ -203,12 +203,77 @@
       gap: 24px;
     }
 
+    /* Barra de cursos */
+    #barra-cursos {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button.pestana-curso {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: border-color 0.15s, background-color 0.15s;
+    }
+
+    button.pestana-curso:hover:not(:disabled) {
+      background-color: var(--surface-alt);
+    }
+
+    button.pestana-curso[aria-selected="true"],
+    button.pestana-curso.activa {
+      border-color: var(--primary);
+      background-color: var(--surface-alt);
+      font-weight: 600;
+    }
+
+    .pestana-nombre {
+      display: inline-block;
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+
+    .pestana-items {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Sección curso activo */
     section.seccion {
       background-color: var(--surface);
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 16px;
       box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+
+    #cabecera-curso {
+      margin-bottom: 16px;
+    }
+
+    .curso-titulo-cabecera {
+      margin-bottom: 8px;
+    }
+
+    .curso-titulo-cabecera h2 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .tabla-curso-cabecera {
+      margin-bottom: 8px;
     }
 
     .seccion-header {
@@ -220,11 +285,6 @@
       margin-bottom: 16px;
       padding-bottom: 8px;
       border-bottom: 1px solid var(--border);
-    }
-
-    .seccion-header h2 {
-      font-size: 16px;
-      font-weight: 600;
     }
 
     .filtros {
@@ -268,8 +328,8 @@
       letter-spacing: 0.05em;
     }
 
-    /* Filas atenuadas */
-    tr.curso-vacio {
+    /* Cursos atenuados */
+    .curso-vacio {
       opacity: 0.5;
     }
 
@@ -280,34 +340,64 @@
       margin-top: 4px;
     }
 
-    /* Acordeones */
-    details {
-      margin-bottom: 10px;
+    /* Temas */
+    #temas-curso {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .tema {
       border: 1px solid var(--border);
       border-radius: 6px;
       background-color: var(--surface);
       overflow: hidden;
     }
-    details[open] {
-      border-color: var(--primary);
-    }
-    summary {
-      cursor: pointer;
-      padding: 10px 12px;
-      background-color: var(--surface-alt);
-      font-weight: 500;
+
+    .tema-cabecera {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      user-select: none;
-    }
-    summary:hover {
-      background-color: var(--border);
-    }
-    .resumen-grupo {
-      display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: 10px;
+      padding: 8px 12px;
+      background-color: var(--surface-alt);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tema-cabecera button.tema-toggle {
+      background: none;
+      border: none;
+      font-size: 14px;
+      padding: 2px 6px;
+      cursor: pointer;
+      color: var(--text);
+    }
+
+    .tema-cabecera .tema-nombre {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .tema-cabecera .tema-items {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .tema-cabecera select.tema-destino {
+      width: auto;
+      min-width: 180px;
+      max-width: 250px;
+    }
+
+    .tema-archivos {
+      padding: 0;
+    }
+
+    #curso-sin-archivos {
+      padding: 24px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 14px;
     }
 
     /* Badges / Insignias */
@@ -318,7 +408,8 @@
       font-size: 11px;
       font-weight: 500;
     }
-    .badge-sin-regla {
+    .badge-sin-regla,
+    .insignia-sin-regla {
       background-color: var(--warning-bg);
       border: 1px solid var(--warning-border);
       color: var(--warning);
@@ -333,7 +424,8 @@
       color: var(--badge-dup);
       border: 1px solid var(--border);
     }
-    .badge-choque {
+    .badge-choque,
+    .insignia-choques {
       background-color: var(--danger-bg);
       border: 1px solid var(--danger-border);
       color: var(--danger);
@@ -421,52 +513,20 @@
   </header>
 
   <main class="contenedor">
-    <!-- Sección 1: Cursos -->
-    <section class="seccion" id="sec-cursos">
+    <nav id="barra-cursos" role="tablist"></nav>
+    <section class="seccion" id="sec-curso">
+      <div id="cabecera-curso"></div>
       <div class="seccion-header">
-        <h2>1. Cursos</h2>
-      </div>
-      <div class="tabla-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>Curso</th>
-              <th style="width: 80px;">Ítems</th>
-              <th style="width: 250px;">Materia</th>
-              <th style="width: 250px;">Docente</th>
-            </tr>
-          </thead>
-          <tbody id="tbody-cursos"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- Sección 2: Temas -->
-    <section class="seccion" id="sec-temas">
-      <div class="seccion-header">
-        <h2>2. Temas</h2>
-        <div class="filtros">
-          <label><input type="checkbox" id="filtro-sin-regla"> Sólo sin regla</label>
-        </div>
-      </div>
-      <div id="lista-temas"></div>
-    </section>
-
-    <!-- Sección 3: Archivos -->
-    <section class="seccion" id="sec-archivos">
-      <div class="seccion-header">
-        <h2>3. Archivos</h2>
         <div class="filtros">
           <input type="text" id="filtro-texto-archivos" placeholder="Buscar por original o nombre...">
+          <label><input type="checkbox" id="filtro-sin-regla"> Sólo sin regla</label>
           <label><input type="checkbox" id="filtro-solo-choques"> Sólo choques</label>
           <label><input type="checkbox" id="filtro-solo-copiar"> Sólo a copiar</label>
         </div>
       </div>
-      <div id="lista-archivos"></div>
+      <div id="temas-curso"></div>
     </section>
   </main>
-
-  <datalist id="datalist-docentes"></datalist>
 
   <script>
     // Estado en memoria
@@ -475,6 +535,8 @@
     let HAY_CAMBIOS = false;
     let GRUPOS_CHOQUE = new Map(); // claveGrupo -> Grupo
     let FILAS_CON_CHOQUE = new Set(); // clave -> mensaje choque
+    let CURSO_ACTIVO = null; // clave_curso
+    const TEMAS_ABIERTOS = new Map(); // clave_curso\ttema -> true/false
 
     // Replica de resolverCarpeta de core/destino/carpetas.ts
     function resolverCarpeta(destino, docente) {
@@ -608,177 +670,462 @@
       } else {
         chipChoques.classList.remove("choques-alerta");
       }
+
+      actualizarInsignias();
+    }
+
+    function elegirCursoInicial() {
+      if (CURSO_ACTIVO && DATOS.cursos.some((c) => c.clave_curso === CURSO_ACTIVO)) {
+        return;
+      }
+
+      // Primero con choques o sin regla (orden de cursos.tsv)
+      for (const c of DATOS.cursos) {
+        const tieneChoques = DATOS.archivos.some(
+          (a) => a.clave_curso === c.clave_curso && FILAS_CON_CHOQUE.has(a.clave)
+        );
+        const tieneSinRegla = DATOS.temas.some(
+          (t) => t.clave_curso === c.clave_curso && t.regla === "no"
+        );
+        if (tieneChoques || tieneSinRegla) {
+          CURSO_ACTIVO = c.clave_curso;
+          return;
+        }
+      }
+
+      // Si no hay ninguno, el primero con archivos
+      for (const c of DATOS.cursos) {
+        const cantArchivos = parseInt(c.items || "0", 10);
+        if (cantArchivos > 0) {
+          CURSO_ACTIVO = c.clave_curso;
+          return;
+        }
+      }
+
+      // Fallback
+      if (DATOS.cursos.length > 0) {
+        CURSO_ACTIVO = DATOS.cursos[0].clave_curso;
+      }
     }
 
     function renderizarTodo() {
       recalcularChoques();
-      renderizarCursos();
-      renderizarTemas();
-      renderizarArchivos();
+      elegirCursoInicial();
+      renderizarBarra();
+      renderizarCurso();
     }
 
-    function renderizarCursos() {
-      const tbody = document.getElementById("tbody-cursos");
-      tbody.innerHTML = "";
+    function renderizarBarra() {
+      const barra = document.getElementById("barra-cursos");
+      barra.innerHTML = "";
 
       for (const curso of DATOS.cursos) {
-        const tr = document.createElement("tr");
+        const btn = document.createElement("button");
+        btn.className = "pestana-curso";
+        btn.dataset.curso = curso.clave_curso;
+        btn.setAttribute("role", "tab");
+
+        const esActivo = curso.clave_curso === CURSO_ACTIVO;
+        if (esActivo) {
+          btn.setAttribute("aria-selected", "true");
+          btn.classList.add("activa");
+        } else {
+          btn.setAttribute("aria-selected", "false");
+        }
+
         const itemsCount = parseInt(curso.items || "0", 10);
         if (itemsCount === 0) {
-          tr.classList.add("curso-vacio");
+          btn.classList.add("curso-vacio");
         }
 
-        // 1. Nombre
-        const tdNombre = document.createElement("td");
-        tdNombre.innerHTML = `<strong>${curso.nombre}</strong>`;
-        tr.appendChild(tdNombre);
+        const spanNombre = document.createElement("span");
+        spanNombre.className = "pestana-nombre";
+        spanNombre.textContent = curso.nombre;
+        spanNombre.title = curso.nombre;
+        btn.appendChild(spanNombre);
 
-        // 2. Ítems
-        const tdItems = document.createElement("td");
-        tdItems.textContent = curso.items;
-        tr.appendChild(tdItems);
+        const spanItems = document.createElement("span");
+        spanItems.className = "pestana-items";
+        spanItems.textContent = curso.items || "0";
+        btn.appendChild(spanItems);
 
-        // 3. Materia
-        const tdMateria = document.createElement("td");
-        const selectMateria = document.createElement("select");
-        const optVacia = document.createElement("option");
-        optVacia.value = "";
-        optVacia.textContent = "(sin materia)";
-        selectMateria.appendChild(optVacia);
-
-        for (const m of DATOS.materias) {
-          const opt = document.createElement("option");
-          opt.value = m;
-          opt.textContent = m;
-          selectMateria.appendChild(opt);
-        }
-        selectMateria.value = curso.materia || "";
-        tdMateria.appendChild(selectMateria);
-        tr.appendChild(tdMateria);
-
-        // 4. Docente
-        const tdDocente = document.createElement("td");
-        const inputDocente = document.createElement("input");
-        inputDocente.type = "text";
-        inputDocente.value = curso.docente || "";
-        const listId = `dl-${curso.clave_curso.replace(/[^a-zA-Z0-9]/g, "_")}`;
-        inputDocente.setAttribute("list", listId);
-
-        const datalist = document.createElement("datalist");
-        datalist.id = listId;
-        tdDocente.appendChild(inputDocente);
-        tdDocente.appendChild(datalist);
-
-        const infoTeorias = document.createElement("div");
-        infoTeorias.className = "ruta-teorias-info";
-        tdDocente.appendChild(infoTeorias);
-
-        function actualizarDatalistYInfo() {
-          datalist.innerHTML = "";
-          const materiaElegida = selectMateria.value;
-          const docentesMat = (DATOS.docentes && DATOS.docentes[materiaElegida]) || [];
-          for (const d of docentesMat) {
-            const opt = document.createElement("option");
-            opt.value = d;
-            datalist.appendChild(opt);
+        let cantSinRegla = 0;
+        for (const t of DATOS.temas) {
+          if (t.clave_curso === curso.clave_curso && t.regla === "no") {
+            cantSinRegla++;
           }
-
-          const docVal = inputDocente.value.trim();
-          if (!materiaElegida) {
-            infoTeorias.textContent = "(sin materia)";
-          } else if (docVal) {
-            infoTeorias.textContent = `Teorías va a ${materiaElegida}/Teorias/${docVal}`;
-          } else {
-            infoTeorias.textContent = `Teorías va a ${materiaElegida}/Teorias`;
+        }
+        let cantChoques = 0;
+        for (const a of DATOS.archivos) {
+          if (a.clave_curso === curso.clave_curso && FILAS_CON_CHOQUE.has(a.clave)) {
+            cantChoques++;
           }
         }
 
-        actualizarDatalistYInfo();
+        const spanSinRegla = document.createElement("span");
+        spanSinRegla.className = "insignia-sin-regla badge badge-sin-regla";
+        spanSinRegla.textContent = cantSinRegla;
+        spanSinRegla.hidden = cantSinRegla === 0;
+        btn.appendChild(spanSinRegla);
 
-        selectMateria.addEventListener("change", () => {
-          curso.materia = selectMateria.value;
-          actualizarDatalistYInfo();
-          marcarCambio();
-          recalcularChoques();
-          actualizarDestinosEnVivo();
+        const spanChoques = document.createElement("span");
+        spanChoques.className = "insignia-choques badge badge-choque";
+        spanChoques.textContent = cantChoques;
+        spanChoques.hidden = cantChoques === 0;
+        btn.appendChild(spanChoques);
+
+        btn.addEventListener("click", () => {
+          CURSO_ACTIVO = curso.clave_curso;
+          renderizarBarra();
+          renderizarCurso();
         });
 
-        inputDocente.addEventListener("input", () => {
-          curso.docente = inputDocente.value;
-          actualizarDatalistYInfo();
-          marcarCambio();
-          recalcularChoques();
-          actualizarDestinosEnVivo();
-        });
-
-        tr.appendChild(tdDocente);
-        tbody.appendChild(tr);
+        barra.appendChild(btn);
       }
+
+      actualizarInsignias();
     }
 
-    function renderizarTemas() {
-      const contenedor = document.getElementById("lista-temas");
-      contenedor.innerHTML = "";
+    function renderizarCabeceraCurso(curso) {
+      const contCabecera = document.getElementById("cabecera-curso");
+      contCabecera.innerHTML = "";
 
-      const cursoPorClave = new Map(DATOS.cursos.map((c) => [c.clave_curso, c]));
-      // Agrupar temas por clave_curso
-      const temasPorCurso = new Map();
-      for (const tema of DATOS.temas) {
-        const arr = temasPorCurso.get(tema.clave_curso) || [];
-        arr.push(tema);
-        temasPorCurso.set(tema.clave_curso, arr);
+      const divTitulo = document.createElement("div");
+      divTitulo.className = "curso-titulo-cabecera";
+      const h2 = document.createElement("h2");
+      h2.textContent = curso.nombre;
+      divTitulo.appendChild(h2);
+      contCabecera.appendChild(divTitulo);
+
+      const tablaScroll = document.createElement("div");
+      tablaScroll.className = "tabla-scroll";
+      const table = document.createElement("table");
+      table.className = "tabla-curso-cabecera";
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th style="width: 80px;">Ítems</th>
+            <th style="width: 250px;">Materia</th>
+            <th style="width: 250px;">Docente</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      `;
+      const tbody = table.querySelector("tbody");
+      const tr = document.createElement("tr");
+
+      // 1. Ítems
+      const tdItems = document.createElement("td");
+      tdItems.textContent = curso.items || "0";
+      tr.appendChild(tdItems);
+
+      // 2. Materia
+      const tdMateria = document.createElement("td");
+      const selectMateria = document.createElement("select");
+      const optVacia = document.createElement("option");
+      optVacia.value = "";
+      optVacia.textContent = "(sin materia)";
+      selectMateria.appendChild(optVacia);
+
+      for (const m of DATOS.materias) {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m;
+        selectMateria.appendChild(opt);
+      }
+      selectMateria.value = curso.materia || "";
+      tdMateria.appendChild(selectMateria);
+      tr.appendChild(tdMateria);
+
+      // 3. Docente
+      const tdDocente = document.createElement("td");
+      const inputDocente = document.createElement("input");
+      inputDocente.type = "text";
+      inputDocente.value = curso.docente || "";
+      const listId = `dl-${curso.clave_curso.replace(/[^a-zA-Z0-9]/g, "_")}`;
+      inputDocente.setAttribute("list", listId);
+
+      const datalist = document.createElement("datalist");
+      datalist.id = listId;
+      tdDocente.appendChild(inputDocente);
+      tdDocente.appendChild(datalist);
+
+      const infoTeorias = document.createElement("div");
+      infoTeorias.className = "ruta-teorias-info";
+      tdDocente.appendChild(infoTeorias);
+
+      function actualizarDatalistYInfo() {
+        datalist.innerHTML = "";
+        const materiaElegida = selectMateria.value;
+        const docentesMat = (DATOS.docentes && DATOS.docentes[materiaElegida]) || [];
+        for (const d of docentesMat) {
+          const opt = document.createElement("option");
+          opt.value = d;
+          datalist.appendChild(opt);
+        }
+
+        const docVal = inputDocente.value.trim();
+        if (!materiaElegida) {
+          infoTeorias.textContent = "(sin materia)";
+        } else if (docVal) {
+          infoTeorias.textContent = `Teorías va a ${materiaElegida}/Teorias/${docVal}`;
+        } else {
+          infoTeorias.textContent = `Teorías va a ${materiaElegida}/Teorias`;
+        }
       }
 
+      actualizarDatalistYInfo();
+
+      selectMateria.addEventListener("change", () => {
+        curso.materia = selectMateria.value;
+        actualizarDatalistYInfo();
+        marcarCambio();
+        recalcularChoques();
+        actualizarDestinosEnVivo();
+      });
+
+      inputDocente.addEventListener("input", () => {
+        curso.docente = inputDocente.value;
+        actualizarDatalistYInfo();
+        marcarCambio();
+        recalcularChoques();
+        actualizarDestinosEnVivo();
+      });
+
+      tr.appendChild(tdDocente);
+      tbody.appendChild(tr);
+      tablaScroll.appendChild(table);
+      contCabecera.appendChild(tablaScroll);
+    }
+
+    function crearFilaArchivo(arch, primeraFilaPorMd5) {
+      const tr = document.createElement("tr");
+      tr.id = `fila-arch-${arch.clave}`;
+      const esChoque = FILAS_CON_CHOQUE.has(arch.clave);
+      if (esChoque) {
+        tr.classList.add("fila-choque");
+      }
+
+      // 1. Original
+      const tdOrig = document.createElement("td");
+      tdOrig.textContent = arch.original;
+      tr.appendChild(tdOrig);
+
+      // 2. Acción
+      const tdAccion = document.createElement("td");
+      tdAccion.className = "col-accion";
+
+      // 3. Nombre
+      const tdNombre = document.createElement("td");
+      tdNombre.className = "col-nombre";
+
+      // 4. Destino en vivo
+      const tdDestinoVivo = document.createElement("td");
+      tdDestinoVivo.className = "col-destino-vivo";
+
+      const spanDestino = document.createElement("div");
+      spanDestino.className = "destino-vivo";
+      tdDestinoVivo.appendChild(spanDestino);
+
+      const spanLeyendaChoque = document.createElement("span");
+      spanLeyendaChoque.className = "leyenda-choque";
+      spanLeyendaChoque.textContent = "mismo destino que otro archivo distinto: cambiá el nombre";
+      spanLeyendaChoque.style.display = esChoque ? "block" : "none";
+      tdDestinoVivo.appendChild(spanLeyendaChoque);
+
+      // Casos según el tipo de fila
+      if (arch.accion === "ya-esta") {
+        const badgeYaEsta = document.createElement("span");
+        badgeYaEsta.className = "badge badge-ya-esta";
+        badgeYaEsta.textContent = "ya está";
+        tdAccion.appendChild(badgeYaEsta);
+        tdNombre.textContent = arch.nombre;
+      } else if (arch.accion === "duplicado") {
+        const hash = (arch.md5 || "").toLowerCase();
+        const primera = primeraFilaPorMd5.get(hash);
+        const nombrePrimera = primera ? primera.nombre : arch.nombre;
+
+        const badgeDup = document.createElement("span");
+        badgeDup.className = "badge badge-dup";
+        badgeDup.textContent = "duplicado";
+        tdAccion.appendChild(badgeDup);
+
+        const badgeIgual = document.createElement("span");
+        badgeIgual.className = "badge badge-dup";
+        badgeIgual.id = `dup-badge-${arch.clave}`;
+        badgeIgual.textContent = `igual a ${nombrePrimera}`;
+        tdNombre.appendChild(badgeIgual);
+      } else {
+        // copiar u omitir
+        const selectAccion = document.createElement("select");
+        selectAccion.id = `sel-acc-${arch.clave}`;
+        const optCopiar = document.createElement("option");
+        optCopiar.value = "copiar";
+        optCopiar.textContent = "copiar";
+        const optOmitir = document.createElement("option");
+        optOmitir.value = "omitir";
+        optOmitir.textContent = "omitir";
+        selectAccion.appendChild(optCopiar);
+        selectAccion.appendChild(optOmitir);
+        selectAccion.value = arch.accion;
+        tdAccion.appendChild(selectAccion);
+
+        const inputNombre = document.createElement("input");
+        inputNombre.type = "text";
+        inputNombre.value = arch.nombre;
+        inputNombre.id = `inp-nom-${arch.clave}`;
+        tdNombre.appendChild(inputNombre);
+
+        selectAccion.addEventListener("change", () => {
+          arch.accion = selectAccion.value;
+          marcarCambio();
+          recalcularChoques();
+          actualizarDestinosEnVivo();
+        });
+
+        inputNombre.addEventListener("input", () => {
+          arch.nombre = inputNombre.value;
+          marcarCambio();
+          recalcularChoques();
+          actualizarDestinosEnVivo();
+        });
+      }
+
+      tr.appendChild(tdAccion);
+      tr.appendChild(tdNombre);
+      tr.appendChild(tdDestinoVivo);
+      return tr;
+    }
+
+    function renderizarCurso() {
+      const contCabecera = document.getElementById("cabecera-curso");
+      const contTemas = document.getElementById("temas-curso");
+      contCabecera.innerHTML = "";
+      contTemas.innerHTML = "";
+
+      if (!CURSO_ACTIVO) return;
+
+      const curso = DATOS.cursos.find((c) => c.clave_curso === CURSO_ACTIVO);
+      if (!curso) return;
+
+      renderizarCabeceraCurso(curso);
+
+      const cantArchivosCurso = DATOS.archivos.filter((a) => a.clave_curso === CURSO_ACTIVO).length;
+      if (cantArchivosCurso === 0) {
+        const divSin = document.createElement("div");
+        divSin.id = "curso-sin-archivos";
+        divSin.textContent = "Este curso no tiene archivos.";
+        contTemas.appendChild(divSin);
+        return;
+      }
+
+      // Primera fila por md5 para duplicados
+      const primeraFilaPorMd5 = new Map();
+      for (const a of DATOS.archivos) {
+        const hash = (a.md5 || "").toLowerCase();
+        if (hash && !primeraFilaPorMd5.has(hash)) {
+          primeraFilaPorMd5.set(hash, a);
+        }
+      }
+
+      const textoFiltro = (document.getElementById("filtro-texto-archivos").value || "").toLowerCase().trim();
       const soloSinRegla = document.getElementById("filtro-sin-regla").checked;
+      const soloChoques = document.getElementById("filtro-solo-choques").checked;
+      const soloCopiar = document.getElementById("filtro-solo-copiar").checked;
+      const hayFiltrosArchivos = Boolean(textoFiltro || soloChoques || soloCopiar);
 
-      for (const [claveCurso, listaTemas] of temasPorCurso.entries()) {
-        const curso = cursoPorClave.get(claveCurso);
-        const nombreCurso = curso ? curso.nombre : claveCurso;
+      // Temas del curso en el orden de temas.tsv
+      const temasDelCurso = DATOS.temas.filter((t) => t.clave_curso === CURSO_ACTIVO);
+      const nombresTemasSet = new Set(temasDelCurso.map((t) => t.tema));
 
-        const details = document.createElement("details");
-        details.open = true;
+      // Verificar si hay archivos cuyo tema no figura en temas.tsv
+      const temasConArchivos = [...temasDelCurso];
+      const archivosSinTema = DATOS.archivos.filter(
+        (a) => a.clave_curso === CURSO_ACTIVO && !nombresTemasSet.has(a.tema)
+      );
+      if (archivosSinTema.length > 0) {
+        temasConArchivos.push({
+          clave_curso: CURSO_ACTIVO,
+          tema: "(tema que no figura en temas.tsv)",
+          items: String(archivosSinTema.length),
+          destino: ".",
+          regla: "no",
+          esTemaHuerfano: true,
+        });
+      }
 
-        const summary = document.createElement("summary");
-        summary.innerHTML = `<span class="resumen-grupo"><strong>${nombreCurso}</strong> <span style="font-size: 12px; color: var(--text-muted);">(${listaTemas.length} temas)</span></span>`;
-        details.appendChild(summary);
+      for (const tema of temasConArchivos) {
+        const sinRegla = tema.regla === "no";
+        if (soloSinRegla && !sinRegla) continue;
 
-        const tablaScroll = document.createElement("div");
-        tablaScroll.className = "tabla-scroll";
-        const table = document.createElement("table");
-        table.innerHTML = `
-          <thead>
-            <tr>
-              <th>Tema</th>
-              <th style="width: 80px;">Ítems</th>
-              <th style="width: 250px;">Destino</th>
-              <th style="width: 140px;">Regla</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        `;
-        const tbody = table.querySelector("tbody");
+        // Buscar archivos del tema
+        const archivosTema = tema.esTemaHuerfano
+          ? archivosSinTema
+          : DATOS.archivos.filter(
+              (a) => a.clave_curso === CURSO_ACTIVO && a.tema === tema.tema
+            );
 
-        let filasVisibles = 0;
-        for (const tema of listaTemas) {
-          const sinRegla = tema.regla === "no";
-          if (soloSinRegla && !sinRegla) continue;
-          filasVisibles++;
+        const filtrados = [];
+        let choquesEnTema = 0;
 
-          const tr = document.createElement("tr");
+        for (const a of archivosTema) {
+          const esChoque = FILAS_CON_CHOQUE.has(a.clave);
+          if (esChoque) choquesEnTema++;
 
-          // Tema
-          const tdTema = document.createElement("td");
-          tdTema.textContent = tema.tema;
-          tr.appendChild(tdTema);
+          if (soloChoques && !esChoque) continue;
+          if (soloCopiar && a.accion !== "copiar") continue;
+          if (textoFiltro) {
+            const orig = (a.original || "").toLowerCase();
+            const nom = (a.nombre || "").toLowerCase();
+            if (!orig.includes(textoFiltro) && !nom.includes(textoFiltro)) {
+              continue;
+            }
+          }
+          filtrados.push(a);
+        }
 
-          // Ítems
-          const tdItems = document.createElement("td");
-          tdItems.textContent = tema.items;
-          tr.appendChild(tdItems);
+        if (hayFiltrosArchivos && filtrados.length === 0) {
+          continue;
+        }
 
-          // Destino
-          const tdDestino = document.createElement("td");
+        const keyTema = `${CURSO_ACTIVO}\t${tema.tema}`;
+        let abierto = false;
+        if (TEMAS_ABIERTOS.has(keyTema)) {
+          abierto = TEMAS_ABIERTOS.get(keyTema);
+        } else if (hayFiltrosArchivos) {
+          abierto = filtrados.length > 0;
+        } else {
+          abierto = sinRegla || choquesEnTema > 0;
+        }
+
+        const divTema = document.createElement("div");
+        divTema.className = "tema";
+        divTema.dataset.tema = tema.tema;
+
+        // Cabecera tema
+        const divCabecera = document.createElement("div");
+        divCabecera.className = "tema-cabecera";
+
+        const btnToggle = document.createElement("button");
+        btnToggle.className = "tema-toggle";
+        btnToggle.type = "button";
+        btnToggle.textContent = abierto ? "▾" : "▸";
+        btnToggle.setAttribute("aria-expanded", abierto ? "true" : "false");
+        divCabecera.appendChild(btnToggle);
+
+        const spanNombre = document.createElement("span");
+        spanNombre.className = "tema-nombre";
+        spanNombre.textContent = tema.tema;
+        divCabecera.appendChild(spanNombre);
+
+        const spanItems = document.createElement("span");
+        spanItems.className = "tema-items";
+        spanItems.textContent = `(${tema.items} ítems)`;
+        divCabecera.appendChild(spanItems);
+
+        if (!tema.esTemaHuerfano) {
           const selectDestino = document.createElement("select");
+          selectDestino.className = "tema-destino";
           for (const d of DATOS.destinos) {
             const opt = document.createElement("option");
             opt.value = d;
@@ -796,101 +1143,47 @@
             marcarCambio();
             recalcularChoques();
             actualizarDestinosEnVivo();
+            actualizarInsignias();
           });
-          tdDestino.appendChild(selectDestino);
-          tr.appendChild(tdDestino);
+          divCabecera.appendChild(selectDestino);
 
-          // Regla
-          const tdRegla = document.createElement("td");
+          const spanRegla = document.createElement("span");
+          spanRegla.className = "tema-regla";
           if (sinRegla) {
-            tdRegla.innerHTML = `<span class="badge badge-sin-regla">sin regla — revisá</span>`;
+            const badgeSinRegla = document.createElement("span");
+            badgeSinRegla.className = "badge badge-sin-regla";
+            badgeSinRegla.textContent = "sin regla — revisá";
+            spanRegla.appendChild(badgeSinRegla);
           } else {
-            tdRegla.innerHTML = `<span style="color: var(--text-muted); font-size: 12px;">automática</span>`;
+            const spanAuto = document.createElement("span");
+            spanAuto.style.color = "var(--text-muted)";
+            spanAuto.style.fontSize = "12px";
+            spanAuto.textContent = "automática";
+            spanRegla.appendChild(spanAuto);
           }
-          tr.appendChild(tdRegla);
-
-          tbody.appendChild(tr);
+          divCabecera.appendChild(spanRegla);
         }
 
-        if (filasVisibles > 0 || !soloSinRegla) {
-          tablaScroll.appendChild(table);
-          details.appendChild(tablaScroll);
-          contenedor.appendChild(details);
-        }
-      }
-    }
+        const badgeChoque = document.createElement("span");
+        badgeChoque.className = "insignia-choques badge badge-choque";
+        badgeChoque.textContent = choquesEnTema;
+        badgeChoque.hidden = choquesEnTema === 0;
+        divCabecera.appendChild(badgeChoque);
 
-    document.getElementById("filtro-sin-regla").addEventListener("change", renderizarTemas);
+        divTema.appendChild(divCabecera);
 
-    function renderizarArchivos() {
-      const contenedor = document.getElementById("lista-archivos");
-      contenedor.innerHTML = "";
+        // Contenedor archivos
+        const divArchivos = document.createElement("div");
+        divArchivos.className = "tema-archivos";
+        divArchivos.hidden = !abierto;
 
-      const cursoPorClave = new Map(DATOS.cursos.map((c) => [c.clave_curso, c]));
-      const temaPorClave = new Map(DATOS.temas.map((t) => [`${t.clave_curso}\t${t.tema}`, t]));
-
-      // Buscar primera fila de cada md5 para los duplicados
-      const primeraFilaPorMd5 = new Map();
-      for (const a of DATOS.archivos) {
-        const hash = (a.md5 || "").toLowerCase();
-        if (hash && !primeraFilaPorMd5.has(hash)) {
-          primeraFilaPorMd5.set(hash, a);
-        }
-      }
-
-      // Agrupar por curso -> tema
-      const grupos = new Map();
-      for (const a of DATOS.archivos) {
-        const keyGrupo = `${a.clave_curso}\t${a.tema}`;
-        const arr = grupos.get(keyGrupo) || [];
-        arr.push(a);
-        grupos.set(keyGrupo, arr);
-      }
-
-      const textoFiltro = (document.getElementById("filtro-texto-archivos").value || "").toLowerCase().trim();
-      const soloChoques = document.getElementById("filtro-solo-choques").checked;
-      const soloCopiar = document.getElementById("filtro-solo-copiar").checked;
-
-      for (const [keyGrupo, listaArchivos] of grupos.entries()) {
-        const [claveCurso, nombreTema] = keyGrupo.split("\t");
-        const curso = cursoPorClave.get(claveCurso);
-        const tema = temaPorClave.get(keyGrupo);
-        const nombreCurso = curso ? curso.nombre : claveCurso;
-
-        // Filtrar archivos del grupo
-        const filtrados = [];
-        let choquesEnGrupo = 0;
-
-        for (const a of listaArchivos) {
-          const esChoque = FILAS_CON_CHOQUE.has(a.clave);
-          if (esChoque) choquesEnGrupo++;
-
-          if (soloChoques && !esChoque) continue;
-          if (soloCopiar && a.accion !== "copiar") continue;
-          if (textoFiltro) {
-            const orig = (a.original || "").toLowerCase();
-            const nom = (a.nombre || "").toLowerCase();
-            if (!orig.includes(textoFiltro) && !nom.includes(textoFiltro)) {
-              continue;
-            }
-          }
-          filtrados.push(a);
-        }
-
-        if (filtrados.length === 0) continue;
-
-        const details = document.createElement("details");
-        details.open = false; // cerrados por defecto según el plan
-
-        const summary = document.createElement("summary");
-        const spanTitulo = document.createElement("span");
-        spanTitulo.className = "resumen-grupo";
-        spanTitulo.innerHTML = `<strong>${nombreCurso} › ${nombreTema}</strong> <span style="font-size: 12px; color: var(--text-muted);">(${listaArchivos.length} archivos)</span>`;
-        if (choquesEnGrupo > 0) {
-          spanTitulo.innerHTML += ` <span class="badge badge-choque">${choquesEnGrupo} ${choquesEnGrupo === 1 ? "choque" : "choques"}</span>`;
-        }
-        summary.appendChild(spanTitulo);
-        details.appendChild(summary);
+        btnToggle.addEventListener("click", () => {
+          const nuevoAbierto = divArchivos.hidden;
+          divArchivos.hidden = !nuevoAbierto;
+          btnToggle.textContent = nuevoAbierto ? "▾" : "▸";
+          btnToggle.setAttribute("aria-expanded", nuevoAbierto ? "true" : "false");
+          TEMAS_ABIERTOS.set(keyTema, nuevoAbierto);
+        });
 
         const tablaScroll = document.createElement("div");
         tablaScroll.className = "tabla-scroll";
@@ -909,98 +1202,72 @@
         const tbody = table.querySelector("tbody");
 
         for (const arch of filtrados) {
-          const tr = document.createElement("tr");
-          tr.id = `fila-arch-${arch.clave}`;
-          const esChoque = FILAS_CON_CHOQUE.has(arch.clave);
-          if (esChoque) {
-            tr.classList.add("fila-choque");
-          }
-
-          // 1. Original
-          const tdOrig = document.createElement("td");
-          tdOrig.textContent = arch.original;
-          tr.appendChild(tdOrig);
-
-          // 2. Acción
-          const tdAccion = document.createElement("td");
-          tdAccion.className = "col-accion";
-
-          // 3. Nombre
-          const tdNombre = document.createElement("td");
-          tdNombre.className = "col-nombre";
-
-          // 4. Destino en vivo
-          const tdDestinoVivo = document.createElement("td");
-          tdDestinoVivo.className = "col-destino-vivo";
-
-          const spanDestino = document.createElement("div");
-          spanDestino.className = "destino-vivo";
-          tdDestinoVivo.appendChild(spanDestino);
-
-          const spanLeyendaChoque = document.createElement("span");
-          spanLeyendaChoque.className = "leyenda-choque";
-          spanLeyendaChoque.textContent = "mismo destino que otro archivo distinto: cambiá el nombre";
-          spanLeyendaChoque.style.display = esChoque ? "block" : "none";
-          tdDestinoVivo.appendChild(spanLeyendaChoque);
-
-          // Casos según el tipo de fila
-          if (arch.accion === "ya-esta") {
-            tdAccion.innerHTML = `<span class="badge badge-ya-esta">ya está</span>`;
-            tdNombre.textContent = arch.nombre;
-          } else if (arch.accion === "duplicado") {
-            const hash = (arch.md5 || "").toLowerCase();
-            const primera = primeraFilaPorMd5.get(hash);
-            const nombrePrimera = primera ? primera.nombre : arch.nombre;
-            tdAccion.innerHTML = `<span class="badge badge-dup">duplicado</span>`;
-            tdNombre.innerHTML = `<span class="badge badge-dup" id="dup-badge-${arch.clave}">igual a ${nombrePrimera}</span>`;
-          } else {
-            // copiar u omitir
-            const selectAccion = document.createElement("select");
-            selectAccion.id = `sel-acc-${arch.clave}`;
-            const optCopiar = document.createElement("option");
-            optCopiar.value = "copiar";
-            optCopiar.textContent = "copiar";
-            const optOmitir = document.createElement("option");
-            optOmitir.value = "omitir";
-            optOmitir.textContent = "omitir";
-            selectAccion.appendChild(optCopiar);
-            selectAccion.appendChild(optOmitir);
-            selectAccion.value = arch.accion;
-            tdAccion.appendChild(selectAccion);
-
-            const inputNombre = document.createElement("input");
-            inputNombre.type = "text";
-            inputNombre.value = arch.nombre;
-            inputNombre.id = `inp-nom-${arch.clave}`;
-            tdNombre.appendChild(inputNombre);
-
-            selectAccion.addEventListener("change", () => {
-              arch.accion = selectAccion.value;
-              marcarCambio();
-              recalcularChoques();
-              actualizarDestinosEnVivo();
-            });
-
-            inputNombre.addEventListener("input", () => {
-              arch.nombre = inputNombre.value;
-              marcarCambio();
-              recalcularChoques();
-              actualizarDestinosEnVivo();
-            });
-          }
-
-          tr.appendChild(tdAccion);
-          tr.appendChild(tdNombre);
-          tr.appendChild(tdDestinoVivo);
+          const tr = crearFilaArchivo(arch, primeraFilaPorMd5);
           tbody.appendChild(tr);
         }
 
         tablaScroll.appendChild(table);
-        details.appendChild(tablaScroll);
-        contenedor.appendChild(details);
+        divArchivos.appendChild(tablaScroll);
+        divTema.appendChild(divArchivos);
+
+        contTemas.appendChild(divTema);
       }
 
       actualizarDestinosEnVivo();
+    }
+
+    function actualizarInsignias() {
+      const barra = document.getElementById("barra-cursos");
+      if (!barra || !barra.children.length) return;
+
+      // 1. Barra de cursos
+      for (const btn of barra.children) {
+        const claveCurso = btn.dataset.curso;
+        let cantSinRegla = 0;
+        for (const t of DATOS.temas) {
+          if (t.clave_curso === claveCurso && t.regla === "no") {
+            cantSinRegla++;
+          }
+        }
+        let cantChoques = 0;
+        for (const a of DATOS.archivos) {
+          if (a.clave_curso === claveCurso && FILAS_CON_CHOQUE.has(a.clave)) {
+            cantChoques++;
+          }
+        }
+
+        const spanSinRegla = btn.querySelector(".insignia-sin-regla");
+        if (spanSinRegla) {
+          spanSinRegla.textContent = cantSinRegla;
+          spanSinRegla.hidden = cantSinRegla === 0;
+        }
+
+        const spanChoques = btn.querySelector(".insignia-choques");
+        if (spanChoques) {
+          spanChoques.textContent = cantChoques;
+          spanChoques.hidden = cantChoques === 0;
+        }
+      }
+
+      // 2. Temas del curso activo que estén en el DOM
+      const contTemas = document.getElementById("temas-curso");
+      if (contTemas) {
+        const divsTema = contTemas.querySelectorAll("div.tema");
+        for (const divTema of divsTema) {
+          const nombreTema = divTema.dataset.tema;
+          let choquesEnTema = 0;
+          for (const a of DATOS.archivos) {
+            if (a.clave_curso === CURSO_ACTIVO && a.tema === nombreTema && FILAS_CON_CHOQUE.has(a.clave)) {
+              choquesEnTema++;
+            }
+          }
+          const badgeChoque = divTema.querySelector(".insignia-choques");
+          if (badgeChoque) {
+            badgeChoque.textContent = choquesEnTema;
+            badgeChoque.hidden = choquesEnTema === 0;
+          }
+        }
+      }
     }
 
     function actualizarDestinosEnVivo() {
@@ -1095,9 +1362,10 @@
       }
     }
 
-    document.getElementById("filtro-texto-archivos").addEventListener("input", renderizarArchivos);
-    document.getElementById("filtro-solo-choques").addEventListener("change", renderizarArchivos);
-    document.getElementById("filtro-solo-copiar").addEventListener("change", renderizarArchivos);
+    document.getElementById("filtro-texto-archivos").addEventListener("input", renderizarCurso);
+    document.getElementById("filtro-sin-regla").addEventListener("change", renderizarCurso);
+    document.getElementById("filtro-solo-choques").addEventListener("change", renderizarCurso);
+    document.getElementById("filtro-solo-copiar").addEventListener("change", renderizarCurso);
 
     // Guardar
     async function ejecutarGuardar() {

@@ -35,3 +35,14 @@ metadata:
   - Endpoints: `GET /` (sirve `editor.html`), `GET /api/datos` (filas TSV, `DESTINOS`, materias bajo raíz y docentes de Teorias), `POST /api/guardar` (valida claves, inmutabilidad de ya-esta/duplicado, nombres sanitizados con formato exacto `Archivo '...': nombre '...' no coincide con su sanitizado. Quedaría '...'` y escribe atómico vía `.tmp`), `POST /api/ensayo` (subproceso Bun corriendo `aplicar.js` sin `--escribir`).
   - `backend/adopcion/editor.html`: UI pura sin dependencias, temas claro/oscuro vía CSS vars, barra sticky con contadores en vivo (`copiar`, `ya-esta`, `duplicado`, `omitir`, `choques`), detección de choques en vivo agrupando por `(ruta/nombre).toLowerCase()` con md5s distintos, duplicados siguiendo dinámicamente el nombre y destino de su primera fila, y advertencia `beforeunload`.
   - Verificación A: 14 pruebas completas ((a) a (n)), control negativo exitoso y delegación a `verificador` con 50 archivos / 837 tests, 0 warnings/errores lint, typecheck limpio y build OK.
+- **Editor de adopción por curso (`docs/plan-classroom-destino-2a-editor-por-curso.md`)**:
+  - `backend/adopcion/editor.html`: UI rediseñada a un curso a la vez (`#barra-cursos` con botones `button.pestana-curso[role="tab"]` y `aria-selected`, `#sec-curso`, `#cabecera-curso`, `#temas-curso`), archivos embebidos bajo su tema en acordeones `div.tema` con `div.tema-archivos` (oculto con `hidden`, filas permanecen en DOM para `actualizarDestinosEnVivo`). Sin `<summary>` para que el click en `select.tema-destino` no pliegue el acordeón.
+  - Selección de curso inicial: el primero con choques o sin regla (`MC2 2025` con datos reales).
+  - Plegado por defecto: abiertos los que tienen choques o sin regla. Al filtrar por texto, choques o copiar, se despliegan los que tienen filas coincidentes y se ocultan los temas sin filas. Estado manual persistido en memoria con `TEMAS_ABIERTOS`.
+  - Insignias en vivo: `actualizarInsignias()` al final de `recalcularChoques()` actualiza en vivo las insignias de choques y sin regla en los botones de cursos y en las cabeceras de temas.
+  - Escape: `innerHTML` con interpolación `${...}` eliminado por completo (verificación grep `rc=1`).
+  - Script `backend/adopcion/humo-editor.js`: runner en `jsdom` para verificar el JS de la página y comprobaciones E-b..E-g.
+  - Verificación A: comprobaciones (a)-(e) y humo (f)-(q) coincidentes línea por línea.
+  - Controles negativos: (1) `return;` en `actualizarInsignias` dio `1 / 7`; (2) sin `CSS.escape` en `sel-acc-` dio 5 errores con `unknown pseudo-class selector` y `rc=1`; (3) curso inicial fijo al primero dio `g activo: false` (y fallo por tema ausente).
+  - Batería de verificación: delegada a `verificador`, 50 archivos / 843 tests pasados, 0 lint warnings/errores, typecheck y build exitosos.
+

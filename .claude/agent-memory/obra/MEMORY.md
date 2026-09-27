@@ -12,5 +12,7 @@
 - [Classroom: Destino y adopción (corte 2a)](project_classroom_destino_adopcion.md) — adopción de descargas en `~/U.N.L.P` vía TSV editable, cálculo md5, control de choques e índice `.course-downloader.json`
 - [Classroom: Editor de adopción desde el popup (corte 2a)](project_classroom_destino_editor_popup.md) — montaje del editor en `/adopcion/` del servidor 3001 con guardias de host/origen y enlace 🗂️ en el encabezado del popup
 - [Classroom: Destino por publicación (corte 2a)](project_classroom_destino_publicacion.md) — sugerencia de destino por mayoría de títulos de publicación (RN-7a) y regex links? (RN-7b)
+- [Classroom: Editor de adopción por curso (corte 2a)](project_classroom_destino_adopcion.md) — navegación de un curso a la vez con pestañas, archivos bajo su tema, insignias reactivas y script de humo jsdom
+
 
 

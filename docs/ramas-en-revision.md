@@ -30,6 +30,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   - Tanda: regenera los TSV con `generar.js` y re-aplica los docentes que el dueño ya había guardado en `cursos.tsv` (Física I = `Lucila`, MB5 = `benevetano`).
   - Números esperados detallados en la Verificación B de `docs/plan-classroom-destino-2a-publicacion.md` (366 ítems, regla=no en 1 correspondiente a `Cuestiones administrativas`, MC2 en `Practicas si`, Links en `Teorias si`).
 - **A-2** — Editor web de los TSV:
+  - El editor muestra un curso a la vez con los archivos bajo su tema (plan `docs/plan-classroom-destino-2a-editor-por-curso.md`), y antes de A-2 tanda verifica E-1..E-7 de ese plan con Claude in Chrome.
   - Con el servidor Bun del 3001 levantado, el dueño abre el editor con 🗂️ en el encabezado del popup (`http://127.0.0.1:3001/adopcion/`).
   - En la página decide lo mismo que dice hoy la lista (docente de Física I, destinos `regla=no`, nombres, cronogramas, los 7 choques), hasta que Probar dé `codigo` 0.
   - No correr `generar.js` después de editar: pisa los TSV.
