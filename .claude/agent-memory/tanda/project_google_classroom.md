@@ -218,3 +218,7 @@ los 2 choques. Sigue B-4 + A-2 del dueño en el editor.
 `docs/plan-classroom-destino-2a-editor-por-curso.md`. **Humo con jsdom** (devDependency): ejecuta el JS de
 editor.html con `api/datos` guardado; DETECTA el 🔴 de `cb01ab9`. Tiene que correr desde dentro del repo (desde
 scratch no resuelve `jsdom`); los módulos de comprobación sí pueden vivir en scratch (import absoluto).
+**Editor por curso: obra `22bf3d7`, E-1..E-7 ✅ por mí (`4244f50`)**. E-1 cazó que las insignias en 0 se veían: `.badge{display}`
+pisaba `[hidden]` → agregué `[hidden]{display:none!important}`. **jsdom no evalúa CSS: el humo mira el atributo `hidden`, no la
+visibilidad** → lo visual sólo sale en el navegador. En Chrome, `ArrowDown` sobre un `select` con foco abre el popup nativo y congela
+las capturas → `Escape`. `pkill -f` con el patrón de la línea de comandos mata al propio shell de Bash. Sigue: A-2 del dueño en 3001.
