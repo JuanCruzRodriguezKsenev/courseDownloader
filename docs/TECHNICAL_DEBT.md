@@ -600,7 +600,7 @@ Llegaron acá al mergear la tanda del toolbar (2026-08-13): vivían en
 - **Dónde**: escaneo de Novedades en `sitio/google-classroom/scraper.js:352` (`buscarContenedorScroll`).
 - **Causa**: `buscarContenedorScroll` elegía la `<nav>` lateral porque tiene `overflow-y: auto`, pero su `scrollHeight === clientHeight` (no scrollea); el scroll no avanzaba y Novedades sólo traía la primera página (10-20 publicaciones).
 - **Arreglo**: `buscarContenedorScroll` exige `el.scrollHeight > el.clientHeight + 1` para considerar un elemento candidato; si ninguno scrollea, cae en `document.scrollingElement` que en Classroom es el que pagina Novedades (Paso 1, tests 39/40 en `sitio/google-classroom/scraper.test.js`).
-- **Estado**: ✅ **RESUELTO el 2026-09-27** (hallado el 2026-09-16, plan `docs/plan-classroom-novedades-scroll.md`).
+- **Estado**: ✅ **RESUELTO el 2026-09-27** (hallado el 2026-09-16, plan `docs/plan-classroom-novedades-scroll.md`); verificado en Brave: G25 trae 28 adjuntos de Novedades, en un curso y en el recorrido).
 - **Qué pasaba**: en la Verificación B del 2026-09-16 faltaron en disco 23 archivos de G25 que sólo viven en Novedades. Dos diagnósticos previos resultaron falsos (M-6 y M-6b los niegan: el DOM los tiene y los filtros no los descartan).
 - **Evidencia completa**: `docs/portal-google-classroom-diseno.md` §9, hallazgo 🟡 de Novedades y `docs/plan-classroom-novedades-scroll.md`.
 - **Evidencia previa de intermitencia**: los 25 archivos de G25 que faltaban
