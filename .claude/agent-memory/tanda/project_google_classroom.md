@@ -178,3 +178,6 @@ Simulado con datos reales en scratch (copiar `generar.js` con predicado "lista c
 Novedades, copias "(N)" con md5 distinto → el dueño renombra 7 filas en A-2). 🔴 reintento tras corte = 303 errores;
 🟡 renombrar 1ª fila de un `duplicado` bloquea → `docs/plan-classroom-destino-2a-correcciones.md`. Fixtures en
 `~/Descargas/adopcion-sim/tsv-{ok,dup,omit}` (fuera del repo). Método: sandbox `cp -a ~/U.N.L.P/Ingenieria` + `--escribir` ahí.
+**Correcciones 2a ejecutadas por obra (`528efe3`) y re-verificadas por mí**: diff = plan; 50/837 verde; Verificación A
+(a)–(h) idéntica a lo esperado (reintento: copiar 1 / ya-esta 353, 298 `Información`); control negativo MUERDE (303
+vs 0). **`aplicar.js` escribe los errores por STDERR** → contar con `2>&1`, si no el 0 es falso. Falta A-1..A-4 (dueño + yo).
