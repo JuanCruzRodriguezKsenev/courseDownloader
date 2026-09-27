@@ -75,6 +75,10 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
     negativo corrido por mí en worktree de scratch: sin el Paso 1, el 37 y el 38 fallan con
     `curso-cambiado`; sin el fallback de `pintadoOk` que agregó obra (no estaba en el plan), falla el 17
     → el fallback hace falta. Falta L-2 del dueño en Brave (dos corridas, cronometradas).
+  - 🔴 **Al terminar la cola se tira la lista de todos los cursos (dueño, 2026-09-27)**: con el popup
+    abierto, `cola_completamente_vacia` → `restaurarPanelPorInterrupcion(…, true)` → `limpiarSesionLocal()`
+    borra lista, origen y `recorridoTodos`, y `popup.js:2681` escanea UN curso sobre la portada → "no hay
+    nada". Plan: `docs/plan-classroom-fin-descarga-todos.md`.
   - 🟡 **NO REPRODUCIDO — el fallback de `pintadoOk` puede cortar el recorrido por un curso lento**: si
     `pintado` vence justo con ningún `c-wiz` visible, `obtenerVistaActiva()` da `body`, que tiene las
     vistas ocultas del curso anterior con `/c/<otro>/m/` → `curso-cambiado` → corta todo el recorrido
