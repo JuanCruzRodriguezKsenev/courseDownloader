@@ -172,6 +172,80 @@ describe("recorridoTodos — Reductor puro", () => {
     expect(res?.cursos[0]?.resultado).toBe("ok");
     expect(res?.cursos[1]?.enlaces).toBeUndefined();
   });
+
+  it("estado terminal: un curso y un fin terminado después de un fin cortado sin-respuesta no cambian nada", () => {
+    const rCortado: RecorridoTodos = {
+      idRecorrido: 10,
+      tabId: 1,
+      sitioId: "google-classroom",
+      estado: "cortado",
+      motivoCorte: "sin-respuesta",
+      cursos: [
+        { id: "c1", nombre: "Física", resultado: "ok" },
+        { id: "c2", nombre: "Química" },
+      ],
+      indice: 1,
+      ultimaSenal: 5000,
+      materializado: false,
+    };
+
+    // Evento curso después de corte
+    const rTrasCurso = aplicarEvento(
+      rCortado,
+      {
+        tipo: "curso",
+        idRecorrido: 10,
+        indice: 1,
+        resultado: "ok",
+        enlaces: [{ id: "x" }],
+      },
+      6000
+    );
+    expect(rTrasCurso).toBe(rCortado);
+    expect(rTrasCurso?.estado).toBe("cortado");
+    expect(rTrasCurso?.cursos[1]?.resultado).toBeUndefined();
+
+    // Evento latido después de corte
+    const rTrasLatido = aplicarEvento(
+      rCortado,
+      { tipo: "latido", idRecorrido: 10, indice: 1 },
+      7000
+    );
+    expect(rTrasLatido).toBe(rCortado);
+
+    // Evento fin terminado después de corte
+    const rTrasFin = aplicarEvento(
+      rCortado,
+      { tipo: "fin", idRecorrido: 10, estado: "terminado" },
+      8000
+    );
+    expect(rTrasFin).toBe(rCortado);
+    expect(rTrasFin?.estado).toBe("cortado");
+  });
+
+  it("materializado después de fin sí se aplica", () => {
+    const rTerminado: RecorridoTodos = {
+      idRecorrido: 10,
+      tabId: 1,
+      sitioId: "google-classroom",
+      estado: "terminado",
+      cursos: [
+        { id: "c1", nombre: "Física", resultado: "ok", enlaces: [{ id: 1 }] },
+      ],
+      indice: 0,
+      ultimaSenal: 5000,
+      materializado: false,
+    };
+
+    const res = aplicarEvento(
+      rTerminado,
+      { tipo: "materializado", idRecorrido: 10 },
+      6000
+    );
+    expect(res?.materializado).toBe(true);
+    expect(res?.cursos[0]?.enlaces).toBeUndefined();
+    expect(res?.ultimaSenal).toBe(6000);
+  });
 });
 
 describe("recorridoTodos — esVigente", () => {

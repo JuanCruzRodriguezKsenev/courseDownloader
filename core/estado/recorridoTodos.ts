@@ -1,10 +1,16 @@
 /**
- * NÚCLEO — ESTADO DEL RECORRIDO DE TODOS LOS CURSOS (V1.0.0)
+ * NÚCLEO — ESTADO DEL RECORRIDO DE TODOS LOS CURSOS (V1.0.1)
  * ==========================================================================
- * Estado puro del escaneo multi-curso (Google Classroom portada).
- * No contiene dependencias de `chrome.*` ni realiza mutaciones directas.
- * Permite reducir eventos en un estado inmutable y persistible,
- * inspeccionar vigencia, calcular resúmenes y materializar enlaces.
+ * CHANGELOG v1.0.1:
+ * - [ESTADO TERMINAL] Si el recorrido no está en estado "escaneando", ignora
+ *   eventos "latido", "curso" y "fin" para no revivir un recorrido ya cerrado
+ *   (terminado o cortado). "materializado" sigue aplicándose tras "fin".
+ *
+ * CHANGELOG v1.0.0:
+ * - Estado puro del escaneo multi-curso (Google Classroom portada).
+ * - No contiene dependencias de `chrome.*` ni realiza mutaciones directas.
+ * - Permite reducir eventos en un estado inmutable y persistible,
+ *   inspeccionar vigencia, calcular resúmenes y materializar enlaces.
  * ==========================================================================
  */
 import type { PuertoAlmacenamiento } from "../puertos/almacenamiento";
@@ -87,6 +93,13 @@ export function aplicarEvento(
 
   if (!prev) return null;
   if (ev.idRecorrido !== prev.idRecorrido) return prev;
+
+  if (
+    prev.estado !== "escaneando" &&
+    (ev.tipo === "latido" || ev.tipo === "curso" || ev.tipo === "fin")
+  ) {
+    return prev;
+  }
 
   if (ev.tipo === "latido") {
     return {
