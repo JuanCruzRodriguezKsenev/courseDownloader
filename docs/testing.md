@@ -30,10 +30,16 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **46 archivos, 801 tests**, todo en verde |
+| `pnpm test` | **50 archivos, 837 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 837** (2026-09-27, plan `classroom-destino-2a-adopcion`). Son los 801 de abajo más **+36** tests (y 4 archivos nuevos en `core/destino/`):
+**+7** en `core/destino/indice.test.ts` (ida y vuelta, serialización ordenada, errores de parseo y claves compuestas),
+**+15** en `core/destino/carpetas.test.ts` (7 destinos, sugerencias por regex con anclaje y resolución con docente),
+**+10** en `core/destino/nombres.test.ts` (4 ejemplos AC-11, docente, videos/accesos md, copias y prefijo de módulo),
+y **+4** en `core/destino/choques.test.ts` (detección de colisiones de ruta y nombre con md5 disjunto, y descarte de duplicados PA-2).
 
 **De dónde sale el 801** (2026-09-27, plan `classroom-novedades-scroll`). Son los 799 de abajo más **+2** tests en `sitio/google-classroom/scraper.test.js` (tests 39 y 40: scrolleo del documento ignorando <nav> lateral sin scroll real para paginar Novedades, y preferencia de contenedor con scroll real sobre el documento; 37 → 39 tests).
 

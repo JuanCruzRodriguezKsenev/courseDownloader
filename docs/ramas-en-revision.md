@@ -16,7 +16,25 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## 🚧 En revisión
 
-Nada. `main` tiene todo lo construido.
+`classroom-destino-adopcion`: Corte 2a del destino de Google Classroom en `~/U.N.L.P`. Adopción de lo ya descargado mediante TSV editable, cálculo de md5, detección de choques y generación del índice `.course-downloader.json`.
+
+- **Plan**: `docs/plan-classroom-destino-2a-adopcion.md`. Compuerta 50 archivos / 837 tests.
+- **Spec**: `docs/specs/classroom-destino/spec.md`.
+- **ADR**: `docs/adr/0017-indice-de-destino-en-la-raiz.md`.
+
+### Checklist de verificación B (dueño + tanda)
+- **A-1** — Dueño: `pnpm run build`, recargar, portada de Classroom al frente → "Escanear todos los cursos", sin escanear nada después. Tanda corre `generar.js` y compara los números: 366 ítems en 5 carpetas; `ya-esta` 55; `duplicado` 5; 7 cursos; 0 choques o la lista de choques.
+- **A-2** — Dueño: editar los tres TSV en `~/Descargas/adopcion-classroom/`:
+  - Docente de Física I.
+  - Destino de los temas con `regla=no`: los de MC2 y los `Links-Módulo`.
+  - Los nombres que no le gusten.
+  - Qué cronograma pasa a `copiar`.
+- **A-3** — Tanda: `aplicar.js` sin `--escribir` y revisa la salida con el dueño. Después, `--escribir`.
+- **A-4** — Tanda verifica en disco:
+  - `git -C ~/U.N.L.P status --porcelain`: sólo ` M .gitignore` y `?? Ingenieria/…`. **Ninguna** ` M` ni ` D` dentro de `Ingenieria/` (NFR-4). El índice **no** aparece (RN-24, NFR-2).
+  - Cada fila `copiar`: md5 en destino igual al de origen.
+  - `getfattr -d -R` sobre lo copiado: vacío (RN-28, NFR-1).
+  - `.course-downloader.json` parsea con `parsearIndice`. Las entradas de `archivos` son las filas menos las `omitir`.
 
 ## Lo último que se mergeó (2026-09-27)
 
