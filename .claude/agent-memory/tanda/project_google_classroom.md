@@ -116,6 +116,13 @@ de `~/Descargas/verificacion-b` (uno por curso: Física I G, G22, G25) a `scratc
 "todo ok". Registro → diseño §10; 5 ⚪ nuevos en deuda (21 abiertas). Siguiente: corte 2 (ordenar en ~/U.N.L.P)
 ANTES que Moodle, arranca por PA-3. **El storage de Brave ya da el mapa idArchivo→carpeta+titulo** (337 ítems,
 parser LevelDB con reensamblado de bloques de 32 KB en `scratchpad`, sin librerías) → semilla de adopción viable.
+**Ojo con "todo ok" del dueño**: tras mi checklist S-1..S-9 el storage no tenía escrituras después de L-10 → no la
+corrió como sesión; dijo "funciona todo". Contrastar SIEMPRE con el mtime del `.log` del storage antes de mergear.
+**Novedades (🟠 #13) RESUELTO en diagnóstico 2026-09-27**: `buscarContenedorScroll` elige la `<nav>` lateral
+(overflow auto, no scrollea); el que scrollea es el documento; Novedades pagina de a 10 por scroll (G25: 66 posts /
+28 adjuntos). Plan `docs/plan-classroom-novedades-scroll.md`, rama `classroom-novedades-scroll`. Corte 2 espera esto.
+Para medir en Brave con Claude in Chrome: un `left_click` en la página la pone `visible` (la captura sola no).
+El filtro bloquea salidas con nombres de clase CSS: devolver sólo números.
 
 ## Spec del corte 2 (destino en ~/U.N.L.P)
 **2026-09-27, retomando el corte 2**: el dueño decidió raíz por portal — Ramón Net y Anatomy quedan como están;
