@@ -108,15 +108,18 @@ transformación de texto.
   para los adjuntos, `acceso:<url>:<título>` para los accesos — RN-29). Si el id figura y
   el archivo está en la ruta anotada, está descargado y no se baja.
 - **RN-19** — Si el id figura pero el archivo no está en la ruta anotada, y **su md5 aparece en otro
-  lugar de la misma materia**, la ruta del índice se corrige sola y no se baja. Mover un archivo a
-  mano es una orden, no un error.
+  lugar de la raíz** (`~/U.N.L.P` entera, salvo `.git/`, `.obsidian/` y `ObsidianUNLP_Vault/`), la
+  ruta del índice se corrige sola y no se baja. Mover o renombrar un archivo a mano, **también a otra
+  materia**, es una orden, no un error. *(Dueño, 2026-09-27: antes decía "de la misma materia", y un
+  archivo movido a otra materia se volvía a bajar duplicado. Las tres carpetas excluidas no guardan
+  adjuntos: el repo, la config del vault y el espejo `.md` de los PDF.)*
 - **RN-20** — Si el id no figura en el índice, se baja, se calcula su md5 y **si ya existe un archivo
   de contenido idéntico en la carpeta destino, se descarta sin escribir** y se anota en el índice
   como descargado. Esto es lo que reconoce lo que el dueño puso a mano.
 - **RN-21** — Nunca se compara por nombre. El saneo del backend (`#`→`_`, `º`→`_`) y los renombres
   del dueño hacen que el nombre no sea identidad.
-- **RN-22** — Si el id figura y el archivo no está en ningún lado de la materia, se vuelve a bajar
-  con el nombre que dice el índice.
+- **RN-22** — Si el id figura y su md5 no está en ningún lado de la raíz (con las exclusiones de
+  RN-19), se vuelve a bajar con el nombre que dice el índice.
 
 ### El índice
 
@@ -149,7 +152,7 @@ transformación de texto.
 
 Se evalúa en este orden; la primera fila que coincide, decide.
 
-| # | ¿id en el índice? | ¿está en la ruta anotada? | ¿md5 en la materia? | Acción |
+| # | ¿id en el índice? | ¿está en la ruta anotada? | ¿md5 en la raíz? (filas 2–3, RN-19) / ¿en la carpeta destino? (fila 5) | Acción |
 |---|---|---|---|---|
 | 0 | — | sí, y el destino es un `.md` | — | **No escribir.** Anotar en el índice si falta (RN-30). |
 | 1 | sí | sí | — | No bajar. Marcar descargado. |
@@ -188,7 +191,7 @@ en la fila 6 y se pisaría (RN-30).
 | A1 | El índice no parsea | Se avisa y no se baja nada de ninguna materia (RN-25) |
 | A2 | Aparece un tema nuevo después de asociar | Sus adjuntos van a la raíz de la materia, marcados como sin asignar (RN-9) |
 | A3 | El archivo ya está en disco con otro nombre | Se descarta sin escribir y se anota como descargado (RN-20) |
-| A4 | El dueño movió un archivo a mano | La ruta del índice se corrige sola (RN-19) |
+| A4 | El dueño movió o renombró un archivo a mano, aun a otra materia | La ruta del índice se corrige sola (RN-19) |
 | A5 | El dueño borró un archivo | Se vuelve a bajar con el nombre del índice (RN-22) |
 | A6 | Dos archivos distintos chocan de nombre | Todos los del grupo llevan `_<material>` (RN-16) |
 | A7 | Dos adjuntos del mismo curso son el mismo archivo | El segundo se descarta por md5 (RN-20). Ver **PA-2** |
@@ -387,6 +390,16 @@ AC-5 — Mover un archivo a mano corrige el índice
 ```
 
 ```gherkin
+AC-5b — Mover un archivo a otra materia también corrige el índice (RN-19, dueño 2026-09-27)
+  Dado que el índice anota un archivo en "Ingenieria/Fisica 2/Practicas"
+    y el dueño lo movió y renombró a "Ingenieria/Fisica 1/Practicas/otro_nombre.pdf"
+  Cuando se escanea el curso de Física 2
+  Entonces el índice pasa a anotar la ruta y el nombre nuevos
+    y el archivo no se vuelve a bajar
+    y una copia idéntica que sólo esté en "ObsidianUNLP_Vault/" no cuenta como encontrada
+```
+
+```gherkin
 AC-6 — Un archivo borrado se vuelve a bajar con su nombre
   Dado que el índice anota "05_capacitores.pdf" en "Teorias/Palacio"
     y ese archivo no está en ninguna carpeta de la materia
@@ -571,6 +584,12 @@ simula el destino final, porque los nombres que el dueño elegiría y el mapeo t
 justamente lo que esta spec define. Las colisiones entre dos archivos **nuevos** que al renombrarse
 caigan en el mismo nombre y la misma carpeta las cubre RN-16, y sólo se pueden medir con el índice
 ya poblado.
+
+- **PA-4** *(abierta 2026-09-27, para el corte 2b)* — **Un acceso `.md` editado y además movido.**
+  Su md5 cambió al editarlo, así que RN-19 no lo encuentra y RN-22 lo vuelve a crear en la ruta vieja:
+  quedan dos notas. RN-30 sólo lo protege si sigue en su lugar. **Recomendación** (tanda): para los
+  `.md` de acceso, si el id está en el índice no se vuelve a crear nunca, esté donde esté. Costo: un
+  acceso movido y después borrado no vuelve. El dueño todavía no la decidió.
 
 ## Mediciones pendientes
 
