@@ -189,3 +189,11 @@ TSV byte-idénticos, Probar = aplicar ensayo en subproceso). Tras obra: verifico
 servidor del 3001 bajo `/adopcion/` + enlace 🗂️ en el popup (plan `docs/plan-classroom-destino-2a-editor-popup.md`).
 El 3001 apunta a los TSV REALES: toda prueba que escribe va en modo suelto (3002) sobre la copia. El editor usa
 `~/U.N.L.P` fijo, nunca `CARPETA_RAIZ_VIDEOS` (config_usuario.json apunta a una raíz de prueba).
+**Editor desde el popup ejecutado por obra (`cb01ab9`) y re-verificado por mí**: diff `-w` = plan exacto; (p)(q) ok;
+3001 (s)–(ac) idénticos a lo esperado + sha256 de los TSV reales intacto; modo suelto (a)–(n) idéntico en copia de
+scratchpad. Falta P-1..P-4 (popup = dueño: build + recargar extensión + levantar 3001) y después A-2.
+P-2 del dueño cazó un 🔴 que venía de `9b6e550`: el editor no cargaba en NINGÚN navegador (`querySelector("#sel-acc-google-classroom:<id>")`,
+el `:` es pseudo-clase) → corregido por mí con `CSS.escape` (editor.html:1031-1033), probado en Claude in Chrome sobre 3002+copia:
+carga 299/55/4/8/2, 366 filas, 0 errores de consola. **Lección: toda la Verificación A del editor fue por curl y nunca ejecutó el JS
+de la página; E-1..E-6 (míos) no se habían corrido.** Página web nueva → abrirla en el navegador ANTES de mandar al dueño.
+⚪ pendiente: `editor.html:955` mete `nombrePrimera` en `innerHTML` sin escapar.

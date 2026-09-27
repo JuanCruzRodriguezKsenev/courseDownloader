@@ -1028,9 +1028,9 @@
 
         const tdDestinoVivo = tr.querySelector(".destino-vivo");
         const leyendaChoque = tr.querySelector(".leyenda-choque");
-        const selectAccion = tr.querySelector(`#sel-acc-${arch.clave}`);
-        const inputNombre = tr.querySelector(`#inp-nom-${arch.clave}`);
-        const badgeDup = tr.querySelector(`#dup-badge-${arch.clave}`);
+        const selectAccion = tr.querySelector(`#${CSS.escape(`sel-acc-${arch.clave}`)}`);
+        const inputNombre = tr.querySelector(`#${CSS.escape(`inp-nom-${arch.clave}`)}`);
+        const badgeDup = tr.querySelector(`#${CSS.escape(`dup-badge-${arch.clave}`)}`);
 
         // Choque en fila
         const esChoque = FILAS_CON_CHOQUE.has(arch.clave);

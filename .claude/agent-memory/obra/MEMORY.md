@@ -10,4 +10,6 @@
 - [Classroom: Fin de descarga de todos](project_classroom_fin_descarga_todos.md) — conservación de lista, origen y recorrido al vaciar la cola multi-curso vía `limpiarColaConservandoLista`
 - [Classroom: Scroll de Novedades](project_classroom_novedades_scroll.md) — `buscarContenedorScroll` exige scroll real (`scrollHeight > clientHeight + 1`) destrabando la paginación del documento
 - [Classroom: Destino y adopción (corte 2a)](project_classroom_destino_adopcion.md) — adopción de descargas en `~/U.N.L.P` vía TSV editable, cálculo md5, control de choques e índice `.course-downloader.json`
+- [Classroom: Editor de adopción desde el popup (corte 2a)](project_classroom_destino_editor_popup.md) — montaje del editor en `/adopcion/` del servidor 3001 con guardias de host/origen y enlace 🗂️ en el encabezado del popup
+
 
