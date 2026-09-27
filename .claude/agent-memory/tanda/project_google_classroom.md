@@ -121,6 +121,7 @@ corrió como sesión; dijo "funciona todo". Contrastar SIEMPRE con el mtime del 
 **Novedades (🟠 #13) RESUELTO en diagnóstico 2026-09-27**: `buscarContenedorScroll` elige la `<nav>` lateral
 (overflow auto, no scrollea); el que scrollea es el documento; Novedades pagina de a 10 por scroll (G25: 66 posts /
 28 adjuntos). Plan `docs/plan-classroom-novedades-scroll.md`, rama `classroom-novedades-scroll`. Corte 2 espera esto.
+**Ejecutado por obra (`7ec372b`) y re-verificado por mí**: diff idéntico al plan, 46/801 verde, el control negativo del 39 MUERDE (primera vez que obra lo declara y es cierto). Storage de Brave antes de N-1: `000043.log` mtime 17:03:36. Falta N-1/N-2 del dueño; la deuda ya dice ✅ antes de Brave.
 Para medir en Brave con Claude in Chrome: un `left_click` en la página la pone `visible` (la captura sola no).
 El filtro bloquea salidas con nombres de clase CSS: devolver sólo números.
 
