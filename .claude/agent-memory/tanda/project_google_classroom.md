@@ -222,3 +222,8 @@ scratch no resuelve `jsdom`); los módulos de comprobación sí pueden vivir en 
 pisaba `[hidden]` → agregué `[hidden]{display:none!important}`. **jsdom no evalúa CSS: el humo mira el atributo `hidden`, no la
 visibilidad** → lo visual sólo sale en el navegador. En Chrome, `ArrowDown` sobre un `select` con foco abre el popup nativo y congela
 las capturas → `Escape`. `pkill -f` con el patrón de la línea de comandos mata al propio shell de Bash. Sigue: A-2 del dueño en 3001.
+**Choques de MC2 = Novedades sin texto (2026-09-27)**: en Novedades el `h2` del post es "Publicación de <autor>" (45/45 ítems);
+el texto del anuncio está en `previousElementSibling` de `[data-include-stream-item-materials="true"]` (36/36 posts, sin clases).
+Dueño: sólo los que CHOCAN se nombran con la primera frase del anuncio (reemplaza). Plan `docs/plan-classroom-destino-2a-anuncio.md`
+(campo nuevo `anuncio`, NO tocar `material`: arma títulos y `generar.js:132` busca en disco por título). Requiere re-escaneo (A-1c).
+Parser de storage de Brave reutilizable: `lista.py` en el scratchpad de la sesión 7b06d381 (copiarlo si se borra /tmp).
