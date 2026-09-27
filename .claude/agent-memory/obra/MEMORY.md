@@ -9,4 +9,5 @@
 - [Classroom: Vista del curso](project_classroom_vista_del_curso.md) — descarte de vistas transitorias y del curso anterior vía `nombraOtroCurso`, captura de vistas asentadas y red de aviso
 - [Classroom: Fin de descarga de todos](project_classroom_fin_descarga_todos.md) — conservación de lista, origen y recorrido al vaciar la cola multi-curso vía `limpiarColaConservandoLista`
 - [Classroom: Scroll de Novedades](project_classroom_novedades_scroll.md) — `buscarContenedorScroll` exige scroll real (`scrollHeight > clientHeight + 1`) destrabando la paginación del documento
+- [Classroom: Destino y adopción (corte 2a)](project_classroom_destino_adopcion.md) — adopción de descargas en `~/U.N.L.P` vía TSV editable, cálculo md5, control de choques e índice `.course-downloader.json`
 
