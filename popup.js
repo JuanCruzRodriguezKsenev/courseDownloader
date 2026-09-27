@@ -1,7 +1,20 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.28.1)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.29.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.29.0:
+ * - [LOADER CON PROGRESO] Integración con la isla `loaderDetalle` (#ui-loader-detalle):
+ *   - Montaje de `loaderDetalle` al iniciar el popup.
+ *   - `ocultarLoader` limpia el detalle y resetea `loaderEsDelRecorrido`.
+ *   - `sincronizarLoaderRecorrido` gestiona la cortina y el detalle para el recorrido multi-curso,
+ *     eliminando la card anterior de progreso en Disponibles.
+ *   - Suscripción de `recorridoTodos` llama a `sincronizarLoaderRecorrido` durante el escaneo.
+ *   - Eliminado `ocultarLoader` prematuro en `mostrar-recorrido` y en la guarda de recorrido.
+ *   - `lanzarRecorridoTodos` propaga `lanzadoEn`.
+ *   - `ejecutarPaso1EscaneoRamonAutomatico` inicializa `loaderDetalle` con `desde` e inyecta `idEscaneo`.
+ *   - Oyente IPC para `escaneo_progreso` que actualiza título del loader y detalle por curso.
+ *   - Copy de tarjeta de oferta actualizada a "Tarda unos 20 s por curso".
+ *
  * CHANGELOG v5.28.1:
  * - [CLASSROOM — POPUP EN RECORRIDO] Botón de acción oculto durante el recorrido
  *   con modo "recorriendo" y label "". Desacople de tarjeta de oferta con variable
@@ -360,7 +373,9 @@ import ListaClases from './popup/features/listaClases.preact.js';
 import RutaDisco from './popup/features/rutaDisco.preact.js';
 import BannerConexion from './popup/features/bannerConexion.preact.js';
 import { decidirAlAbrir } from './core/estado/origenListado.ts';
-import { esVigente, resumen, textoResumen, enlacesDe } from './core/estado/recorridoTodos.ts';
+import { esVigente, textoResumen, enlacesDe } from './core/estado/recorridoTodos.ts';
+import LoaderDetalle, { montar as montarLoaderDetalle } from './popup/features/loaderDetalle.preact.js';
+import { vistaLoaderRecorrido, vistaLoaderCurso } from './core/estado/progresoEscaneo.ts';
 
 /**
  * Arranca el popup con sus dependencias ya resueltas (Fase 7b).
@@ -413,6 +428,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       progressBar:     document.getElementById('ui-progress-bar'),
       loader:          document.getElementById('ui-loader'),
       loaderTxt:       document.getElementById('ui-loader-txt'),
+      loaderDetalle:   document.getElementById('ui-loader-detalle'),
       filtersBar:      document.getElementById('ui-filter-bar'),
       queueBadge:      document.getElementById('ui-queue-badge'),
       tabDisp:         document.getElementById('tab-available'),
@@ -435,6 +451,8 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // El overlay del onboarding y su DOM interno los posee la isla Preact
       // features/onboarding.preact.js (ver ADR-0006). Ya no hay refs nodos.* a él.
     };
+
+    montarLoaderDetalle(nodos.loaderDetalle);
 
     // [PISO VISIBLE] Los dos carteles que anuncian trabajo en curso —la cortina del loader y el
     // label del botón principal— pasan por acá para que ninguno pueda durar menos de lo que
@@ -471,7 +489,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
     /** Apaga la cortina — esperando, si hace falta, a que el texto que está arriba se cumpla. */
     function ocultarLoader() {
-      pisoLoader.libre(() => { nodos.loader.style.display = 'none'; });
+      pisoLoader.libre(() => {
+        nodos.loader.style.display = 'none';
+        LoaderDetalle.limpiar();
+        loaderEsDelRecorrido = false;
+      });
     }
 
     // Fase 5c: antes esto guardaba la REFERENCIA al listener, sólo para poder pasársela después
@@ -525,11 +547,37 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     let ofreciendoTodos = false;
     let pestañaActivaUrl = "";
     let pestañaActivaId = null;
+    let loaderEsDelRecorrido = false;
+    let desdeEscaneoActual = null;
+    let ultimoNombreCursoEscaneado = null;
+
+    function sincronizarLoaderRecorrido() {
+      const debe = Boolean(
+        recorrido &&
+        recorrido.estado === "escaneando" &&
+        recorrido.tabId === pestañaActivaId &&
+        esVigente(recorrido, Date.now(), sitioActivo?.topeEscaneoMs || 60000)
+      );
+
+      if (debe && !loaderEsDelRecorrido) {
+        mostrarLoader("Escaneando todos los cursos");
+        loaderEsDelRecorrido = true;
+      }
+
+      if (debe) {
+        const portalNombre = (sitios.obtener(recorrido.sitioId || "google-classroom") || sitioActivo).nombre;
+        LoaderDetalle.mostrar(vistaLoaderRecorrido(recorrido, portalNombre));
+      } else if (loaderEsDelRecorrido) {
+        ocultarLoader();
+      }
+
+      return debe;
+    }
 
     recorridoTodos?.suscribir((r) => {
       recorrido = r;
       if (recorrido?.estado === "escaneando") {
-        renderizarListadoInterfaz();
+        sincronizarLoaderRecorrido();
       } else if (
         recorrido &&
         recorrido.estado !== "escaneando" &&
@@ -541,6 +589,26 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           }
         });
       }
+    });
+
+    mensajeria.onMensaje((req) => {
+      if (
+        req &&
+        req.action === "escaneo_progreso" &&
+        escaneoEnCurso &&
+        req.idEscaneo === generacionEscaneo
+      ) {
+        if (req.nombre && req.nombre !== ultimoNombreCursoEscaneado) {
+          ultimoNombreCursoEscaneado = req.nombre;
+          mostrarLoader(req.nombre);
+        }
+        LoaderDetalle.mostrar({
+          ...vistaLoaderCurso(req, sitioActivo.nombre),
+          desde: desdeEscaneoActual,
+        });
+        return false;
+      }
+      return false;
     });
 
     /**
@@ -1352,6 +1420,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           indice: 0,
           ultimaSenal: Date.now(),
           materializado: false,
+          lanzadoEn: idRecorrido,
         };
         configurarBotonesUX("recorriendo", "", true);
         renderizarListadoInterfaz();
@@ -1367,6 +1436,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
                 tabId: tab.id,
                 sitioId: portal.id,
                 topeCursoMs: portal.topeEscaneoMs,
+                lanzadoEn: idRecorrido,
               },
             ],
           },
@@ -1455,7 +1525,6 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         if (decision === 'mostrar-recorrido') {
           adoptarPortalDePestaña(tab.url, tab.id);
           configurarBotonesUX("recorriendo", "", true);
-          ocultarLoader();
           renderizarListadoInterfaz();
           return;
         }
@@ -1513,6 +1582,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // interpolarlo acá anunciaría el portal equivocado justo al cambiar de portal.
       // Caso C de copy-generico-diseno.md §3; la trampa entera, en su §4.
       mostrarLoader("Escaneando la pestaña...");
+      desdeEscaneoActual = Date.now();
+      ultimoNombreCursoEscaneado = null;
+      LoaderDetalle.mostrar({ lineas: [], cursos: [], pie: [], desde: desdeEscaneoActual });
       // Ocultar badge de cátedra al iniciar un nuevo escaneo para evitar estados inconsistentes
       nodos.facetaBadge.style.display = "none";
 
@@ -1571,7 +1643,6 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         ) {
           clearTimeout(safetyTimeout);
           terminarEscaneo();
-          ocultarLoader();
           renderizarListadoInterfaz();
           return;
         }
@@ -1619,7 +1690,8 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
         chrome.scripting.executeScript({
           target: { tabId: tab.id },
-          func: portal.escanearListado
+          func: portal.escanearListado,
+          args: [{ idEscaneo: miGeneracion }],
         }, async (resultados) => {
           clearTimeout(safetyTimeout);
 
@@ -1996,6 +2068,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     });
 
     function renderizarListadoInterfaz() {
+      sincronizarLoaderRecorrido();
       // La isla Preact #4 (features/listaClases.preact.js) es dueña de #ui-list (hijos
       // Y atributos de host, Etapa 2). Este render ya no construye DOM: mantiene la
       // lógica de negocio (sincronizar con la cola, filtrar, ordenar) y EMPUJA un
@@ -2049,29 +2122,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       }
 
       if (appState.pestañaActiva === "disponibles") {
-        if (
-          recorrido &&
-          recorrido.estado === "escaneando" &&
-          recorrido.tabId === pestañaActivaId &&
-          esVigente(recorrido, Date.now(), sitioActivo?.topeEscaneoMs || 60000)
-        ) {
-          let descripcion;
-          if (!recorrido.cursos || recorrido.cursos.length === 0) {
-            descripcion = "Buscando tus cursos…";
-          } else {
-            const r = resumen(recorrido);
-            const cursoActual = recorrido.cursos[recorrido.indice] || { nombre: "" };
-            descripcion = `Curso ${recorrido.indice + 1} de ${recorrido.cursos.length}: ${utils.escaparHtml(cursoActual.nombre || "")}<br>Listos: ${r.ok} · Vacíos: ${r.vacios} · Fallidos: ${r.fallidos.length}<br>Dejá Classroom al frente. Podés cerrar este popup.`;
-          }
-          ListaClases.render({
-            modo: 'card',
-            card: {
-              tipo: 'info',
-              icono: '🗂️',
-              titulo: 'Escaneando todos los cursos',
-              descripcion,
-            },
-          });
+        if (sincronizarLoaderRecorrido()) {
           return;
         }
 
@@ -2083,7 +2134,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
               icono: '📚',
               titulo: 'Todas mis clases',
               descripcion:
-                'Escaneamos todos tus cursos, activos y archivados, uno por uno. Tarda unos 45 s por curso.<br>Dejá esta pestaña al frente hasta que termine. Podés cerrar este popup.',
+                'Escaneamos todos tus cursos, activos y archivados, uno por uno. Tarda unos 20 s por curso.<br>Dejá esta pestaña al frente hasta que termine. Podés cerrar este popup.',
             },
           });
           return;
