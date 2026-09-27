@@ -232,7 +232,7 @@ export function ejecutarGenerar(opts = parseArgs()) {
   const lineasArchivos = [
     "# Semántica de edición:",
     "# - En archivos.tsv podés editar 'nombre' y 'accion' ('copiar' <-> 'omitir').",
-    "# - 'ya-esta' y 'duplicado' NO se deben modificar (aplicar validará y rechazará cambios).",
+    "# - 'ya-esta' no se modifica. 'duplicado' sigue a la primera fila con su md5: si a esa le cambiás nombre o acción, el duplicado la acompaña.",
     "# - 'carpeta' es informativa: 'aplicar' la recalcula desde cursos.tsv y temas.tsv.",
     "clave\tclave_curso\ttema\taccion\tcarpeta\tnombre\toriginal\torigen\tmd5",
   ];

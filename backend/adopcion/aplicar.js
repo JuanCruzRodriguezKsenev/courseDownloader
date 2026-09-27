@@ -173,6 +173,21 @@ export function ejecutarAplicar(opts = parseArgs()) {
     }
   }
 
+  // Identificar destinos que esta misma adopción propone para 'copiar', a fin de no tomarlos como 'ya-esta' en reintentos
+  const destinosPropios = new Set();
+  for (const fila of datosArchivos.filas) {
+    if (fila.accion === "copiar") {
+      const curso = mapCursos.get(fila.clave_curso);
+      if (curso && curso.materia) {
+        const destinoTema = mapTemas.get(`${fila.clave_curso}\t${fila.tema}`);
+        if (destinoTema && destinoTema !== "-") {
+          const carpeta = resolverCarpeta(destinoTema, curso.docente);
+          destinosPropios.add(path.join(curso.materia, carpeta, fila.nombre));
+        }
+      }
+    }
+  }
+
   const filasParaChoques = [];
   const filasProcesadas = [];
   const vistosMd5 = new Map();
@@ -204,7 +219,9 @@ export function ejecutarAplicar(opts = parseArgs()) {
 
     // Recalcular estado esperado
     const enMateria = curso.materia
-      ? (mapMd5Arbol.get(md5Real) || []).filter((r) => r.startsWith(curso.materia + path.sep))
+      ? (mapMd5Arbol.get(md5Real) || [])
+          .filter((r) => r.startsWith(curso.materia + path.sep))
+          .filter((r) => !destinosPropios.has(r))
       : [];
 
     let accionEsperada = "";
@@ -218,14 +235,11 @@ export function ejecutarAplicar(opts = parseArgs()) {
       carpetaEsperada = path.relative(curso.materia, path.dirname(yaRuta)) || ".";
       accionEsperada = "ya-esta";
     } else if (vistosMd5.has(md5Real)) {
-      const primera = vistosMd5.get(md5Real);
-      carpetaEsperada = primera.carpeta;
-      nombreEsperado = primera.nombre;
       accionEsperada = "duplicado";
     }
 
     // Validar que filas ya-esta y duplicado no hayan cambiado
-    if (accionEsperada === "ya-esta" || accionEsperada === "duplicado") {
+    if (accionEsperada === "ya-esta") {
       if (fila.accion !== accionEsperada) {
         errores.push(
           `La fila ${fila.clave} es '${accionEsperada}' pero en archivos.tsv tiene accion='${fila.accion}'. No se puede modificar.`
@@ -241,6 +255,12 @@ export function ejecutarAplicar(opts = parseArgs()) {
           `La fila ${fila.clave} es '${accionEsperada}' pero su nombre '${fila.nombre}' difiere del esperado '${nombreEsperado}'.`
         );
       }
+    } else if (accionEsperada === "duplicado") {
+      if (fila.accion !== "duplicado") {
+        errores.push(
+          `La fila ${fila.clave} es 'duplicado' pero en archivos.tsv tiene accion='${fila.accion}'. No se puede modificar.`
+        );
+      }
     } else {
       // Fila no es ya-esta ni duplicado en el árbol: no puede ser declarada como tal en TSV
       if (fila.accion === "ya-esta" || fila.accion === "duplicado") {
@@ -248,6 +268,19 @@ export function ejecutarAplicar(opts = parseArgs()) {
           `La fila ${fila.clave} fue marcada como '${fila.accion}' pero no corresponde a un archivo existente en el árbol ni a un duplicado previo.`
         );
       }
+    }
+
+    if (accionEsperada === "duplicado") {
+      const primera = vistosMd5.get(md5Real);
+      const itemProcesado = {
+        ...fila,
+        accion: primera.accion === "omitir" ? "omitir" : "duplicado",
+        carpeta: primera.carpeta,
+        nombre: primera.nombre,
+        rutaDestinoRel: primera.rutaDestinoRel,
+      };
+      filasProcesadas.push(itemProcesado);
+      continue;
     }
 
     // Recalcular carpeta y validar según accion
@@ -289,7 +322,7 @@ export function ejecutarAplicar(opts = parseArgs()) {
         rutaDestinoRel = carpetaRecalculada === "." ? curso.materia : path.join(curso.materia, carpetaRecalculada);
       }
     } else {
-      // ya-esta o duplicado
+      // ya-esta
       rutaDestinoRel = fila.carpeta === "." ? curso.materia : path.join(curso.materia, fila.carpeta);
     }
 
@@ -314,10 +347,6 @@ export function ejecutarAplicar(opts = parseArgs()) {
       }
     }
 
-    if (!vistosMd5.has(md5Real)) {
-      vistosMd5.set(md5Real, { carpeta: carpetaRecalculada, nombre: fila.nombre });
-    }
-
     const itemProcesado = {
       ...fila,
       accion: accionFinal,
@@ -325,6 +354,10 @@ export function ejecutarAplicar(opts = parseArgs()) {
       rutaDestinoRel,
     };
     filasProcesadas.push(itemProcesado);
+
+    if (!vistosMd5.has(md5Real)) {
+      vistosMd5.set(md5Real, itemProcesado);
+    }
 
     if (accionFinal === "copiar" || accionFinal === "ya-esta") {
       filasParaChoques.push({
