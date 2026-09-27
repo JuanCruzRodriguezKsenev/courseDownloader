@@ -1293,6 +1293,79 @@ describe("ScraperClassroom.escanearListado", () => {
       document.removeEventListener("click", clickHandler, true);
     }
   });
+
+  // El DOM real de Classroom (medido 2026-09-27): la <nav> lateral tiene overflow-y:auto pero NO
+  // scrollea; el que scrollea es el documento, y Novedades carga 10 publicaciones más por scroll.
+  function simularNovedadesPaginadas({ paginas = 3, porPagina = 2 } = {}) {
+    const nav = document.querySelector("nav");
+    nav.style.overflowY = "auto";
+    Object.defineProperty(nav, "scrollHeight", { configurable: true, get: () => 806 });
+    Object.defineProperty(nav, "clientHeight", { configurable: true, get: () => 806 });
+
+    const doc = document.documentElement;
+    Object.defineProperty(document, "scrollingElement", { configurable: true, get: () => doc });
+    let cargadas = 0;
+    Object.defineProperty(doc, "scrollTop", {
+      configurable: true,
+      get: () => 0,
+      set: () => {
+        const vista = document.getElementById("vista-novedades");
+        if (!vista || vista.hasAttribute("aria-hidden") || cargadas >= paginas) return;
+        cargadas++;
+        const n = cargadas;
+        setTimeout(() => {
+          for (let i = 1; i <= porPagina; i++) {
+            const post = document.createElement("div");
+            post.setAttribute("data-stream-item-id", `post-pag-${n}-${i}`);
+            post.innerHTML = `
+              <h2>Publicación ${n}.${i}</h2>
+              <div data-attachment-id="att-pag-${n}-${i}">
+                <a aria-label="Archivo adjunto: PDF: Pagina${n}_${i}.pdf" href="https://drive.google.com/file/d/drive-pag-${n}-${i}/view"></a>
+              </div>`;
+            vista.appendChild(post);
+          }
+        }, 1);
+      },
+    });
+    return () => cargadas;
+  }
+
+  it("39. Novedades: scrollea el documento aunque la <nav> tenga overflow-y:auto, y lee todas las páginas", async () => {
+    const obtenerCargadas = simularNovedadesPaginadas();
+    const res = await ScraperClassroom.escanearListado({ tiempos: TIEMPOS_TEST });
+    const ids = res.enlaces.map((e) => e.idArchivo);
+    expect(ids).toContain("drive-cronograma");
+    for (let n = 1; n <= 3; n++) {
+      for (let i = 1; i <= 2; i++) {
+        expect(ids).toContain(`drive-pag-${n}-${i}`);
+      }
+    }
+    expect(obtenerCargadas()).toBe(3);
+  });
+
+  it("40. un contenedor que scrollea de verdad se prefiere al documento", async () => {
+    const scroller = document.createElement("div");
+    scroller.id = "scroller";
+    scroller.style.overflowY = "auto";
+    Object.defineProperty(scroller, "scrollHeight", { configurable: true, get: () => 5000 });
+    Object.defineProperty(scroller, "clientHeight", { configurable: true, get: () => 600 });
+    let scrollCount = 0;
+    Object.defineProperty(scroller, "scrollTop", {
+      configurable: true,
+      get: () => 0,
+      set: () => {
+        scrollCount++;
+      },
+    });
+    document.body.appendChild(scroller);
+
+    try {
+      await ScraperClassroom.escanearListado({ tiempos: TIEMPOS_TEST });
+      expect(scrollCount).toBeGreaterThan(0);
+    } finally {
+      scroller.remove();
+    }
+  });
 });
 
 

@@ -941,6 +941,7 @@ Entran al corte 1 **antes del merge** (decisión del dueño). El 🔴 de los adj
     frente, y mirar el storage **inmediatamente después**. Si los 26 aparecen, el escaneo está bien y el
     defecto está aguas abajo (cola o descarga) o fue puntual de aquella corrida; si no aparecen, recién
     ahí hay un defecto de escaneo que perseguir, y habrá que instrumentar el paso 9 con logs.
+    → Causa hallada el 2026-09-27: ver plan-classroom-novedades-scroll.md.
 
 - ⚠️ **`MC4 1S 2026` desapareció de la portada del dueño** entre el 2026-09-12 y el 2026-09-16, así que no
   se bajó (esperaba 13). **No es un defecto de la extensión**: en `recorrido-3/00-partida.json` (2026-09-12)

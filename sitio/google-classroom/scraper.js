@@ -1,6 +1,9 @@
 /**
- * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.5.0)
+ * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.5.1)
  * ==========================================================================
+ * CHANGELOG v1.5.1:
+ * - [CLASSROOM NOVEDADES SCROLL] buscarContenedorScroll exige que el contenedor scrollee de verdad; la <nav> lateral tapaba la paginación de Novedades.
+ *
  * CHANGELOG v1.5.0:
  * - [LOADER CON PROGRESO] Emisión de evento "progreso" en modo todos y
  *   "escaneo_progreso" en modo un curso con tope de frecuencia (500 ms).
@@ -349,6 +352,9 @@ const ScraperClassroom = {
       return null;
     }
 
+    // En Classroom el que scrollea es el documento; la <nav> lateral tiene overflow-y: auto pero
+    // no scrollea (scrollHeight === clientHeight, medido 2026-09-27). El `+ 1` descarta contenedores
+    // sin scroll real y evita falsos positivos por redondeos sub-pixel.
     function buscarContenedorScroll() {
       let mejor = null;
       let maxScrollHeight = 0;
@@ -356,7 +362,7 @@ const ScraperClassroom = {
       for (const el of todos) {
         const style = window.getComputedStyle(el);
         if (style.overflowY === "auto" || style.overflowY === "scroll") {
-          if (el.scrollHeight > maxScrollHeight) {
+          if (el.scrollHeight > el.clientHeight + 1 && el.scrollHeight > maxScrollHeight) {
             maxScrollHeight = el.scrollHeight;
             mejor = el;
           }

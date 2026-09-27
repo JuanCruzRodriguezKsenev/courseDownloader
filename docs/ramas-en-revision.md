@@ -16,7 +16,22 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## 🚧 En revisión
 
-Nada. `main` tiene todo lo construido.
+`classroom-novedades-scroll` (desde el 2026-09-27): corrección de `buscarContenedorScroll` en
+`sitio/google-classroom/scraper.js` para exigir que el contenedor scrollee de verdad
+(`scrollHeight > clientHeight + 1`). Evita que la `<nav>` lateral con `overflow-y: auto` capture el
+scroll e impida paginar el documento en Novedades de Classroom.
+
+- **Plan**: `docs/plan-classroom-novedades-scroll.md`.
+- **Qué mirar en Brave (Verificación B)**:
+  `pnpm run build`, recargar la extensión en `chrome://extensions/`. Pestaña de Classroom al frente y
+  recién recargada con F5.
+  - **N-1**: entrar a G25 (archivado) y escanear ese curso solo. En la lista, el grupo Novedades tiene
+    que traer bastante más que 4. Tanda lo cuenta en el storage y lo cruza con los 25 que ya están en
+    `~/Descargas/verificacion-b/google-classroom/fisica_ii_g25_2026/` (`Guia*_P*.jpeg`,
+    `1parcial_*.jpg`, `Resumen_guia*.pdf`…). Como ya están en disco, tienen que aparecer **marcados
+    como descargados**.
+  - **N-2**: portada → "Escanear todos los cursos" y dejarlo terminar. Tanda compara las Novedades de
+    G25 contra N-1 y el tiempo total contra los ~124 s de B-3.
 
 ## Lo último que se mergeó (2026-09-27)
 
