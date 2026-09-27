@@ -964,3 +964,5 @@ Entran al corte 1 **antes del merge** (decisión del dueño). El 🔴 de los adj
 - ✅ **Integridad de lo descargado** (verificada en disco, no por reporte): 53 PDF que son PDF de verdad,
   1 pptx real, 0 de tamaño nulo, ningún HTML de error disfrazado; el saneo `Nº`→`N_`, `#`→`_`, `,`→`_`
   se aplicó bien y los `.md` de acceso llevan el link correcto.
+
+- ⚠️ **M-C — Marcador de "sin tema" prematuro en primera visita** (2026-09-27): en primera visita a Trabajo en clase, el marcador `[data-no-topic-items]` se renderiza antes de que lleguen los ítems reales; el escaneo espera a que se asiente (`asentadoVacio`, 2000 ms) sin ítems, progressbar ni "Ver más" para no dar por vacío un curso con material (detalle y tabla de mediciones en [`docs/plan-classroom-escanear-todas-correcciones.md`](./plan-classroom-escanear-todas-correcciones.md)).

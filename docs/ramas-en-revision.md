@@ -30,7 +30,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   - Paso 7: Lista agrupada por curso (`ctx.grupos`), estilos `.grupo-curso` y `.lista-nota: white-space: pre-line` en `styles/list.css`, isla `listaClases.preact.js` v1.4.0. 39 tests.
   - Paso 8: Revisión de copy en onboarding (slide 3).
   - Paso 9: Documentación (ADR-0016, README ADRs, `AGENTS.md`, `data-model.md`, `patterns.md`, `architecture.md`, `multisitio-diseno.md`, `portal-google-classroom-diseno.md`, `TECHNICAL_DEBT.md`, `testing.md`).
-  - **Correcciones pendientes**: `docs/plan-classroom-escanear-todas-correcciones.md` (7 pasos, 2026-09-27), por los hallazgos de la Revisión de tanda y de B-2/B-3.
+  - **Correcciones**: plan `plan-classroom-escanear-todas-correcciones.md` (2026-09-27): asentado de Trabajo en clase (Paso 1), espera de nav (Paso 2), espera de archivados y nombres limpios de anclas globales (Paso 3), cancelación por token idCancelacion y test 23 sensible a zombis (Paso 4), estado terminal en reductor (Paso 5), botón recorriendo oculto, desacople de oferta y guarda fila 1 (Paso 6). 44 archivos / 764 tests en verde.
 - **Verificación B — en Brave, la hace el dueño**:
   - [ ] 1. **M-1**: con el escaneo de un curso (como en `main`), cronometrar cada curso por separado. Si el promedio se aleja de 45 s, corregir texto en Paso 6f y NFR-1.
   - [ ] 2. **AC-1**: Portada `/u/2/h`, abrir el popup: tarjeta "Todas mis clases", botón "Escanear todos los cursos", y la pestaña **no** se mueve.
@@ -45,55 +45,37 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   - [ ] 11. **AC-12**: En la portada con lista de todos, 🔄 arranca un recorrido nuevo desde el curso 1.
   - [ ] 12. **AC-13**: Dentro de G22, sin recorrido: el popup se comporta igual que en `main`.
   - [ ] 13. **Consola del SW**: llegan los `recorrido_evento`, sin errores.
-- **Revisión de tanda (2026-09-27)** — compuerta re-corrida por el verificador: 44 archivos / 758
+- **Revisión de tanda (2026-09-27)** — compuerta re-corrida por el verificador: 44 archivos / 764
   tests, lint, `tsc` y build en verde, árbol limpio. Hallazgos:
-  - 🔴 **El nombre del curso sale como id base64 en 7 de 8 cursos.** `leerCursosDePagina`
-    (`scraper.js`, recorrido) se queda con la PRIMERA ancla fuera de `nav` de cada id, y en el DOM
-    real cada tarjeta tiene tres y la primera (la imagen) no tiene texto ni `aria-label`. Simulado
-    sobre `recorrido-3/00-partida.html` y `00-archivadas.html`: sólo G22 sale con nombre. Pega en la
-    tarjeta de progreso y en el `⚠ <nombre>: <motivo>` del resumen (AC-7); los encabezados de grupo
-    no, porque salen del `modulo`. El fixture `portada.html` miente: una sola ancla con texto por
-    curso. Los nombres buenos están en el `aria-label` del sidebar (activos) y en el texto de la
-    segunda ancla de la tarjeta (archivados).
-  - 🟡 **El test 23 no tiene poder de detección**: con `dormir` sin rechazar por `cancelado`, pasa
-    igual (control negativo corrido por la tanda). La cancelación está bien por lectura (ningún
-    `catch` del escaneo se traga el error), pero el fixture no tiene un curso "zombi" que haga
-    daño al seguir corriendo. El test 20 también pasa sin el chequeo de `visible()` entre cursos,
-    y ahí es legítimo: el chequeo dentro del curso lo cubre (el control estaba mal elegido en el
-    plan). **Lo que dice arriba, "control negativo probado", no era cierto.**
-  - 🟡 **AC-14 no se ve**: `lanzarRecorridoTodos` no cambia el modo del botón, y en
-    `renderizarListadoInterfaz` la tarjeta de oferta (`data-modo === 'escanear-todos'`) se evalúa
-    antes que la de "El recorrido no trajo material". Mismo origen: durante el progreso el botón
-    sigue diciendo "Escanear todos los cursos", habilitado.
-  - 🟡 **`lanzarRecorridoTodos` no tiene la guarda de la fila 1.** Entre curso y curso la pestaña
-    pasa por `/h/archived`, que es portada: popup reabierto ahí + 🔄 → segundo recorrido en la
-    misma pestaña.
-  - ⚪ **El reductor no tiene estado terminal**: `latido`/`curso`/`fin` se aplican después de un
-    `fin` o de `materializado`. Si el popup corta por vigencia (`sin-respuesta`) mientras el
-    script sigue vivo, el script vuelve a escribir enlaces y un `fin terminado`. El peor caso
-    latido→curso es 15 + 15 + 180 s = 210 s, justo el umbral de `esVigente`.
+  - ✅ **El nombre del curso sale como id base64 en 7 de 8 cursos.** (Cerrado en Paso 3).
+    `resolverNombreCurso(id)` busca anclas globales en sidebar y portada, resolviendo el nombre
+    limpio sin inicial pegada y sin ids base64.
+  - ✅ **El test 23 no tiene poder de detección**: (Cerrado en Paso 4).
+    Test 23 afilado para que un escaneo zombi valide identidad, haga click en Novedades y rompa
+    el curso siguiente; control negativo verificado fallando sin la cancelación. Cancelación
+    implementada mediante token `idCancelacion`.
+  - ✅ **AC-14 no se ve**: (Cerrado en Paso 6).
+    `ofreciendoTodos` desacoplado del modo del botón; el botón adopta modo `"recorriendo"` con
+    label `""` (oculto). La tarjeta de fin sin material deja de quedar tapada.
+  - ✅ **`lanzarRecorridoTodos` no tiene la guarda de la fila 1.** (Cerrado en Paso 6).
+    Agregada guarda de fila 1 con `esVigente` en `lanzarRecorridoTodos` ante `/h/archived`.
+  - ✅ **El reductor no tiene estado terminal**: (Cerrado en Paso 5).
+    `recorridoTodos.ts` ignora eventos `latido`, `curso` y `fin` si `prev.estado !== "escaneando"`.
   - ✅ **Loader "Conectando con el servidor…" infinito en la portada** (lo vio el dueño en B-2,
-    2026-09-27). `escanearOUsarGuardada()` devuelve `true` ("el loader es mío") y las tres
-    decisiones nuevas (`mostrar-recorrido`, `materializar-recorrido`, `ofrecer-todos`) volvían sin
-    `ocultarLoader()`; `usar-guardada` sí lo apaga vía `mostrarListaGuardada`. Corregido por la
-    tanda (3 líneas en `popup.js`). Sin test: el mecanismo de loader de `popup.js` no tiene
-    cobertura (🔴 "El loader del popup no tiene dueño", `TECHNICAL_DEBT.md`).
+    2026-09-27). Corregido con `ocultarLoader()`.
   - **B-2/B-3 en Brave (dueño, 2026-09-27 12:24–12:26)**, tres recorridos leídos del storage de la
     extensión (`Local Extension Settings/<id>/000026.log`), no de capturas:
-    - 🔴 **Los archivados no entran**: los tres enumeran 5 cursos (los activos); G25 y MB5 faltan.
-      El script lee `/h/archived` apenas cambia la URL, antes de que pinten las tarjetas.
-    - 🔴 **El primer curso (G22) falla siempre** con "Classroom no terminó de abrir Trabajo en
-      clase" en menos de 1 s: es la rama `!linkTrabajo`, el escaneo arranca con la URL ya en
-      `/c/<id>` pero sin el `nav` del curso pintado. En el primer recorrido fallaron los 5 igual.
-    - 🔴 **Lo escaneado está incompleto**: Física I-Grupo G trajo 1 enlace en un recorrido y 7 en
-      el otro (la muestra `recorrido-3/05-…-trabajo.html` tiene 80 ítems). Cada curso tardó 7–8 s.
-      Causa sin medir.
-    - Nombres: además del id base64, cuando salen del texto traen la inicial del avatar pegada
-      ("FFísica II G22", "MMC2 2025", "QQ5Primer…"). El `aria-label` es el limpio.
-    - El dueño pide que el botón no quede usable durante el recorrido. Decidido por la tanda:
-      **se oculta** (no hay acción que ofrecer; la tarjeta de progreso ya dice qué pasa) y **no**
-      se usa el loader del escaneo de un curso, que taparía la tarjeta de progreso y el resumen.
-      El resumen (cursos, con material, vacíos, fallidos) al dueño le sirve: se queda.
+    - ✅ **Los archivados no entran**: (Cerrado en Paso 3).
+      `esperaArchivadosMs = 5000` con `esperarCondicion` hasta que pinten anclas nuevas en archivados.
+    - ✅ **El primer curso (G22) falla siempre** con "Classroom no terminó de abrir Trabajo en
+      clase": (Cerrado en Paso 2).
+      `navTrabajoOk` espera hasta que el nav pinte el enlace a `/w/${curso.id}/t/all`.
+    - ✅ **Lo escaneado está incompleto**: (Cerrado en Paso 1).
+      Asentado de Trabajo en clase (`asentadoVacio = 2000` ms) antes de darlo por vacío (M-C, M-D).
+    - ✅ Nombres con inicial pegada: (Cerrado en Paso 3).
+      Extrae `aria-label` del sidebar o anclas sin inicial pegada.
+    - ✅ Botón durante el recorrido oculto: (Cerrado en Paso 6).
+      Modo `"recorriendo"` con label vacía y botón oculto.
   - ⚠️ **NO REPRODUCIDO — mirar en B-3**: (a) si al llegar a un curso queda montada la vista de
     Trabajo en clase del anterior, el chequeo `/c/<otroId>/m/` devuelve `avisoCursoCambiado` y el
     recorrido entero se corta como "navegaste fuera del recorrido"; las muestras guardan una sola
