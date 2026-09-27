@@ -1204,6 +1204,95 @@ describe("ScraperClassroom.escanearListado", () => {
       limpiar();
     }
   });
+
+  const VISTA_OTRO_CURSO_HTML = `
+<c-wiz id="vista-otro-curso" aria-hidden="true">
+  <a href="/u/2/c/OTRO999/sp/xyz/all/default">Ver tus trabajos</a>
+  <div role="region" aria-label="Tema Viejo">
+    <li data-stream-item-id="viejo-1" data-expandable-row-id="row-viejo-1">
+      <div role="button" aria-expanded="true" aria-label="Material Viejo"></div>
+      <a href="/u/2/c/OTRO999/m/m1/details">Material Viejo</a>
+      <div data-attachment-id="att-viejo">
+        <a aria-label="Archivo adjunto: PDF: Viejo.pdf" href="https://drive.google.com/file/d/drive-viejo/view"></a>
+      </div>
+    </li>
+  </div>
+</c-wiz>
+`;
+
+  it("37. Trabajo: la vista de otro curso que queda visible un instante no se lee", async () => {
+    const htmlConOtroCurso = htmlFixture.replace(
+      '<c-wiz id="vista-trabajo">',
+      `${VISTA_OTRO_CURSO_HTML}\n  <c-wiz id="vista-trabajo">`
+    );
+    prepararDom(htmlConOtroCurso, "https://classroom.google.com/u/2/c/CURSO123");
+    document.getElementById("vista-trabajo")?.setAttribute("aria-hidden", "true");
+    document.getElementById("vista-novedades")?.removeAttribute("aria-hidden");
+
+    let primerClic = true;
+    const clickHandler = (e) => {
+      const a = e.target.closest('a[href="/u/2/w/CURSO123/t/all"]');
+      if (a && primerClic) {
+        primerClic = false;
+        e.preventDefault();
+        e.stopPropagation();
+        document.getElementById("vista-novedades")?.setAttribute("aria-hidden", "true");
+        document.getElementById("vista-otro-curso")?.removeAttribute("aria-hidden");
+        window.location.pathname = "/u/2/w/CURSO123/t/all";
+        setTimeout(() => {
+          document.getElementById("vista-otro-curso")?.setAttribute("aria-hidden", "true");
+          document.getElementById("vista-trabajo")?.removeAttribute("aria-hidden");
+        }, 150);
+      }
+    };
+    document.addEventListener("click", clickHandler, true);
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        tiempos: { ...TIEMPOS_TEST, navegacion: 1000, pintado: 1000 },
+      });
+      expect(res.motivoAviso).toBeUndefined();
+      expect(res.aviso).toBeUndefined();
+      expect(res.enlaces.some((e) => e.idArchivo === "drive-sin-tema")).toBe(true);
+      expect(res.enlaces.some((e) => e.idArchivo === "drive-viejo")).toBe(false);
+    } finally {
+      document.removeEventListener("click", clickHandler, true);
+    }
+  });
+
+  it("38. Novedades: con ningún c-wiz visible no se lee el body", async () => {
+    const htmlConOtroCurso = htmlFixture.replace(
+      '<c-wiz id="vista-trabajo">',
+      `${VISTA_OTRO_CURSO_HTML}\n  <c-wiz id="vista-trabajo">`
+    );
+    prepararDom(htmlConOtroCurso, "https://classroom.google.com/u/2/w/CURSO123/t/all");
+
+    let primerClic = true;
+    const clickHandler = (e) => {
+      const a = e.target.closest('a[href="/u/2/c/CURSO123"]');
+      if (a && primerClic) {
+        primerClic = false;
+        e.preventDefault();
+        e.stopPropagation();
+        for (const cwiz of document.querySelectorAll("body > c-wiz")) {
+          cwiz.setAttribute("aria-hidden", "true");
+        }
+        window.location.pathname = "/u/2/c/CURSO123";
+        setTimeout(() => {
+          document.getElementById("vista-novedades")?.removeAttribute("aria-hidden");
+        }, 150);
+      }
+    };
+    document.addEventListener("click", clickHandler, true);
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        tiempos: { ...TIEMPOS_TEST, navegacion: 1000, pintado: 1000 },
+      });
+      expect(res.motivoAviso).toBeUndefined();
+      expect(res.enlaces.some((e) => e.idArchivo === "drive-viejo")).toBe(false);
+    } finally {
+      document.removeEventListener("click", clickHandler, true);
+    }
+  });
 });
 
 

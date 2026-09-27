@@ -295,6 +295,25 @@ const ScraperClassroom = {
       return href.endsWith("/c/" + idCurso);
     }
 
+    // Classroom, al cambiar de vista, deja ver ~100-200 ms la vista del curso ANTERIOR, o ninguna
+    // (y `obtenerVistaActiva` cae a `body`, que tiene todas). Medido 2026-09-27: cada vista de un
+    // curso nombra en sus enlaces a su curso y a ningún otro (39/39 muestras). Una vista que nombra
+    // a otro curso todavía no es la nuestra.
+    const PATRONES_ID_CURSO = [
+      /^(?:https:\/\/classroom\.google\.com)?(?:\/u\/\d+)?\/(?:c|w)\/([^/?#]+)/,
+      /^(?:https:\/\/classroom\.google\.com)?(?:\/u\/\d+)?\/a\/[^/?#]+\/([^/?#]+)(?:[?#]|$)/,
+    ];
+    function nombraOtroCurso(raiz) {
+      for (const a of raiz.querySelectorAll("a[href]")) {
+        const href = a.getAttribute("href") || "";
+        for (const patron of PATRONES_ID_CURSO) {
+          const m = patron.exec(href);
+          if (m && m[1] !== idCurso) return true;
+        }
+      }
+      return false;
+    }
+
     // Devuelve { nombre, fuente } o null. NUNCA devuelve un nombre que el DOM no confirme.
     function resolverIdentidadCurso() {
       // (a) Cursos activos: el ancla del curso actual en la barra lateral. Su `aria-label` trae
@@ -458,6 +477,7 @@ const ScraperClassroom = {
       const navOk = await esperarCondicion(() => {
         const va = obtenerVistaActiva();
         if (va === vistaPrevia) return false;
+        if (nombraOtroCurso(va)) return false;
         return Boolean(
           va.querySelector("[data-stream-item-id]") || va.querySelector("[data-no-topic-items]")
         );
@@ -476,6 +496,10 @@ const ScraperClassroom = {
     let desdeCuandoVacio = null;
     function trabajoAsentado(va) {
       if (!va) return null;
+      if (nombraOtroCurso(va)) {
+        desdeCuandoVacio = null;
+        return null;
+      }
       const hayLis = Boolean(va.querySelector("li[data-stream-item-id]"));
       const hayProgress = Boolean(va.querySelector('[role="progressbar"]'));
       if (hayLis && !hayProgress) {
@@ -499,12 +523,22 @@ const ScraperClassroom = {
     }
 
     let resultadoAsentado = null;
+    let vistaAsentada = null;
     const pintadoOk = await esperarCondicion(() => {
-      resultadoAsentado = trabajoAsentado(obtenerVistaActiva());
+      const va = obtenerVistaActiva();
+      resultadoAsentado = trabajoAsentado(va);
+      if (resultadoAsentado !== null) vistaAsentada = va;
       return resultadoAsentado !== null;
     }, tiempos.pintado);
 
     if (!pintadoOk) {
+      const va = obtenerVistaActiva();
+      if (va) {
+        for (const a of va.querySelectorAll('a[href*="/m/"]')) {
+          const m = /\/c\/([^/?#]+)\/m\//.exec(a.getAttribute("href") || "");
+          if (m && m[1] !== idCurso) return avisoCursoCambiado;
+        }
+      }
       return {
         materia: "",
         enlaces: [],
@@ -514,7 +548,7 @@ const ScraperClassroom = {
 
     if (!visible()) return avisoVisibilidad;
 
-    const vistaTrabajo = obtenerVistaActiva();
+    const vistaTrabajo = vistaAsentada;
     const trabajoVacio = resultadoAsentado === "vacio";
 
     let nombreCurso = "";
@@ -702,10 +736,14 @@ const ScraperClassroom = {
     if (linkNovedades) {
       const vistaPrevia = obtenerVistaActiva();
       linkNovedades.click();
+      let vistaNovedadesLista = null;
       const navNovOk = await esperarCondicion(() => {
         const va = obtenerVistaActiva();
         if (va === vistaPrevia) return false;
-        return Boolean(va.querySelector("[data-stream-item-id]"));
+        if (nombraOtroCurso(va)) return false;
+        const ok = Boolean(va.querySelector("[data-stream-item-id]"));
+        if (ok) vistaNovedadesLista = va;
+        return ok;
       }, tiempos.navegacion);
 
       if (!navNovOk) {
@@ -718,7 +756,7 @@ const ScraperClassroom = {
 
       if (!visible()) return avisoVisibilidad;
 
-      const vistaNovedades = obtenerVistaActiva();
+      const vistaNovedades = vistaNovedadesLista;
       await esperarQuietud(vistaNovedades);
 
       if (!visible()) return avisoVisibilidad;

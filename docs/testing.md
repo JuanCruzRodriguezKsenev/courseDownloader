@@ -30,10 +30,12 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **46 archivos, 796 tests**, todo en verde |
+| `pnpm test` | **46 archivos, 798 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 798** (2026-09-27, plan `classroom-vista-del-curso`). Son los 796 de abajo más **+2** tests en `sitio/google-classroom/scraper.test.js` (tests 37 y 38: descarte de vista transitoria de otro curso en Trabajo y descarte de caída a body en Novedades con ningún c-wiz visible; 35 → 37 tests).
 
 **De dónde sale el 796** (2026-09-27, plan `loader-con-progreso`). Son los 764 de abajo más **+32** tests (y 2 archivos nuevos):
 **+7** en `core/estado/recorridoTodos.test.ts` (duracionMs, actual, limpieza de actual en latido/curso, progreso en reductor; 16 → 23 tests),
