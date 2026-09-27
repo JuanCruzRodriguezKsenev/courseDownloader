@@ -17,6 +17,7 @@ import { crearEstadosProgreso } from './core/cola/estadosProgreso.ts';
 import { crearProcesadorCola } from './core/cola/procesadorCola.ts';
 import { notificarFallo, sitioIdDeNotificacion } from './plataforma/chrome/notificaciones.ts';
 import { crearIdentidadClase } from './core/cola/identidadClase.ts';
+import { aplicarEvento, esRecorridoTodos } from './core/estado/recorridoTodos.ts';
 
 /**
  * [CORTE 8] Un SEGUNDO portal, que es el punto: con uno solo el bug es invisible. Sólo se usa
@@ -273,6 +274,7 @@ beforeAll(async () => {
         return undefined;
       },
     }),
+    recorrido: { aplicarEvento, esRecorridoTodos },
   });
 });
 
@@ -752,5 +754,51 @@ describe('click en la notificación de fallo → pestaña del portal DEL ÍTEM',
     await onClickedNotificacion(id);
 
     expect(notificacionesLimpiadas).toEqual([id]);
+  });
+});
+
+describe('recorrido_evento', () => {
+  it('reduce evento inicio y lo guarda en storage.local', async () => {
+    const res = await mensajeria.enviar({
+      action: 'recorrido_evento',
+      tipo: 'inicio',
+      idRecorrido: 99,
+      tabId: 1,
+      sitioId: 'google-classroom',
+      cursos: [{ id: 'c1', nombre: 'Física' }],
+    });
+    expect(res).toEqual({ status: 'ok' });
+    expect(store.local.recorridoTodos).toMatchObject({
+      idRecorrido: 99,
+      tabId: 1,
+      sitioId: 'google-classroom',
+      estado: 'escaneando',
+      cursos: [{ id: 'c1', nombre: 'Física' }],
+      indice: 0,
+      materializado: false,
+    });
+  });
+
+  it('reduce evento curso y actualiza el curso en storage.local', async () => {
+    await mensajeria.enviar({
+      action: 'recorrido_evento',
+      tipo: 'inicio',
+      idRecorrido: 99,
+      tabId: 1,
+      sitioId: 'google-classroom',
+      cursos: [{ id: 'c1', nombre: 'Física' }],
+    });
+
+    const res = await mensajeria.enviar({
+      action: 'recorrido_evento',
+      tipo: 'curso',
+      idRecorrido: 99,
+      indice: 0,
+      resultado: 'ok',
+      enlaces: [{ id: 'e1' }],
+    });
+    expect(res).toEqual({ status: 'ok' });
+    expect(store.local.recorridoTodos.cursos[0].resultado).toBe('ok');
+    expect(store.local.recorridoTodos.cursos[0].enlaces).toHaveLength(1);
   });
 });

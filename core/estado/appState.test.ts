@@ -289,6 +289,47 @@ describe("AppState.limpiarSesionLocal", () => {
   });
 });
 
+describe("AppState.limpiarColaConservandoLista", () => {
+  it("vacía la cola pero conserva la lista, el origen y el recorrido", async () => {
+    const listaInicial = [{ titulo: "A", sitioId: "google-classroom" }];
+    const origenInicial = { sitioId: "google-classroom", clave: "todos" };
+    await almacenamiento.guardarLocal({
+      listaPersistente: listaInicial,
+      origenListado: origenInicial,
+      colaDescargas: [{ id: 1 }],
+      faseDiscoOk: true,
+      recorridoTodos: { estado: "terminado" },
+      facetasElegidas: { ramonnet: "B" },
+      tutorialCompletado: true,
+    });
+    await app.inicializarSincronizacionStorage();
+    app.colaDescargas = [{ id: 1 }];
+    app.ráfagaEnCurso = true;
+    app.sincronizacionDiscoCompletada = true;
+    app.videoActualEnTransmisiónSW = "algo";
+
+    app.limpiarColaConservandoLista();
+    await dejarCorrer();
+
+    expect(app.colaDescargas).toEqual([]);
+    expect(app.ráfagaEnCurso).toBe(false);
+    expect(app.sincronizacionDiscoCompletada).toBe(false);
+    expect(app.videoActualEnTransmisiónSW).toBe("");
+    expect(app.listadoClasesGlobal).toHaveLength(1);
+    expect(app.listadoClasesGlobal[0]?.titulo).toBe("A");
+    expect(app.origenListado).toEqual(origenInicial);
+
+    const { local } = almacenamiento._volcar();
+    expect(local.colaDescargas).toBeUndefined();
+    expect(local.faseDiscoOk).toBeUndefined();
+    expect(local.listaPersistente).toEqual(listaInicial);
+    expect(local.origenListado).toEqual(origenInicial);
+    expect(local.recorridoTodos).toEqual({ estado: "terminado" });
+    expect(local.facetasElegidas).toEqual({ ramonnet: "B" });
+    expect(local.tutorialCompletado).toBe(true);
+  });
+});
+
 describe("AppState.conmutarSeleccionMasiva", () => {
   it("marca sólo las clases 'pending' y respalda", async () => {
     const spy = vi.spyOn(almacenamiento, "guardarLocal");

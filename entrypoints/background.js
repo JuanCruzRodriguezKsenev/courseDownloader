@@ -44,6 +44,7 @@ import '../sitio/google-classroom/parserTitulos.js';
 import '../sitio/google-classroom/descargarAdjunto.js';
 
 import BunClient from '../core/backend/bunClient.ts';
+import { aplicarEvento, esRecorridoTodos } from '../core/estado/recorridoTodos.ts';
 // [MULTISITIO CORTE 8] Acá se importaba `sitioAsumido`: el SW era el último lector del andamio
 // del corte 2. Ya no hay UN sitio del lado del service worker — el bucle resuelve por ítem
 // (corte 3) y la notificación por su id (corte 8).
@@ -70,6 +71,7 @@ iniciarServiceWorker({
   resolverSitioDeNotificacion: sitioDeNotificacionDeFallo,
   // [MULTIPORTAL D] El MISMO que recibe el bucle: la regla de identidad vive en un solo lugar.
   identidad: identidadClase,
+  recorrido: { aplicarEvento, esRecorridoTodos },
 });
 
 // WXT requiere esta forma como entrypoint. Los listeners ya quedaron registrados por la

@@ -14,26 +14,28 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ---
 
-## Nada en revisión
+## 🚧 En revisión
 
-`main` es lo último (2026-09-25).
+Nada. `main` tiene todo lo construido.
 
-## Lo último que se mergeó (2026-09-25)
+## Lo último que se mergeó (2026-09-27)
 
-`classroom-corte-1` (41 commits, desde el 2026-09-12): el tercer portal, Google Classroom. Escanea
-un curso entero y baja sus archivos de Drive a `raíz/google-classroom/<curso>/`; videos, YouTube y
-vínculos quedan como `.md` con el link.
+`classroom-escanear-todas` (desde el 2026-09-25): escanear todos los cursos de Classroom desde la
+portada en un solo recorrido que sobrevive a cerrar el popup, con el loader mostrando el progreso
+por curso, la vuelta a la portada al terminar y la lista conservada al terminar la descarga.
 
-- **Verificado en Brave por el dueño (2026-09-25)**: escaneo curso por curso y descarga. Los
-  tres 🔴 de la Verificación B quedaron resueltos antes del merge.
-- **NO verificado en navegador**: los pasos 4, 6, 7, 10, 11, 13 y 15 de la checklist → entrada ⚪
-  en `docs/TECHNICAL_DEBT.md` §🔴 Abierto.
+- **Verificado en Brave por el dueño (2026-09-27)**: la sesión única de cierre S-1..S-9 entera
+  ("todo ok"), que cubre L-1..L-10 y los ítems 2..13 de la primera Verificación B. Comprobado por
+  tanda en el disco y el storage: los 3 PDF de S-2 cayeron en la carpeta de su curso con md5
+  idéntico al respaldo; la lista guardada tiene 337 ítems en 5 carpetas.
+- **NO verificado**: AC-9 (el mismo archivo de Drive en dos cursos), porque hoy ningún archivo está
+  en dos cursos → entrada ⚪ en `docs/TECHNICAL_DEBT.md` §🔴 Abierto.
 - **Dónde quedó**:
-  - El registro completo de la rama (planes ejecutados, checklist, hallazgos con su evidencia) →
-    `docs/portal-google-classroom-diseno.md` §9.
-  - Lo abierto (el 🟡 de Novedades con M-6c pendiente, y los dos insumos de la spec del corte 2)
-    → `docs/TECHNICAL_DEBT.md` §🔴 Abierto.
-  - La baseline → `docs/testing.md` §Baseline.
+  - El registro completo de la rama (planes, checklists, hallazgos con su evidencia) →
+    `docs/portal-google-classroom-diseno.md` §10.
+  - Lo abierto (dos 🟡 NO REPRODUCIDOS, el riesgo de navegación, la segunda bandera del loader y
+    AC-9) → `docs/TECHNICAL_DEBT.md` §🔴 Abierto.
+  - La baseline → `docs/testing.md` §Baseline (46 archivos / 799 tests).
 
 ---
 

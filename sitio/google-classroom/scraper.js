@@ -1,6 +1,34 @@
 /**
- * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.3.1)
+ * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.5.0)
  * ==========================================================================
+ * CHANGELOG v1.5.0:
+ * - [LOADER CON PROGRESO] Emisión de evento "progreso" en modo todos y
+ *   "escaneo_progreso" en modo un curso con tope de frecuencia (500 ms).
+ * - [SERIALIZACIÓN IPC] Cola serializada de avisos para evitar carreras en SW.
+ * - [DURACIÓN Y LANZAMIENTO] duracionMs en eventos curso y lanzadoEn en inicio.
+ * - [VUELTA A LA PORTADA] Vuelve a /h al terminar el recorrido antes de fin.
+ *
+ * CHANGELOG v1.4.1:
+ * - [CLASSROOM — ASENTADO DE TRABAJO EN CLASE] Trabajo en clase se da por pintado
+ *   sólo cuando se asentó: espera que el marcador de vacío se sostenga `asentadoVacio`
+ *   ms (por defecto 2000 ms) sin ítems, progressbar ni "Ver más". Corrige también
+ *   el escaneo de un curso en primera visita contra el marcador prematuro (M-C, M-D).
+ * - [CLASSROOM — ESPERA DE NAV] Espera a que el nav del curso pinte el link a
+ *   Trabajo en clase antes de continuar (M-E).
+ * - [CLASSROOM — CURSOS ARCHIVADOS Y NOMBRES] Espera hidratación de vista archivados
+ *   (5000 ms) y resuelve nombres de cursos desde anclas globales (sidebar y portada).
+ * - [CLASSROOM — CANCELACIÓN POR TOKEN] Cancelación de escaneo zombi mediante
+ *   `idCancelacion` en `dormir` para evitar residuales tras vencer el tope de curso.
+ *
+ * CHANGELOG v1.4.0:
+ * - [CLASSROOM — RECORRIDO DE TODOS LOS CURSOS] Soporta `modo: "todos"` para
+ *   recorrer todos los cursos (activos y archivados) desde la portada. Emite
+ *   eventos `recorrido_evento` al SW con `chrome.runtime.sendMessage`.
+ * - Tope de escaneo por curso (`topeCursoMs`) con cancelación por señal interna.
+ * - `motivoAviso` en avisos para distinguir visibilidad, cambio de curso y sin-material.
+ * - Credenciales: el recorrido no manda credenciales (Classroom sólo expone `authuser`,
+ *   y lo cosecha cualquier escaneo de un curso).
+ *
  * CHANGELOG v1.3.1:
  * - [CLASSROOM CORTE 1 — IDENTIDAD EN ARCHIVADOS] En cursos archivados el title lo confirma el
  *   ancla del `<h1>` (el encabezado del curso), no "cualquier ancla al curso menos los links de
@@ -35,8 +63,8 @@ const ScraperClassroom = {
    * Función inyectada por executeScript en la pestaña: debe ser estrictamente
    * autocontenida (sin closures sobre el módulo ni variables externas).
    *
-   * @param {{ tiempos?: Record<string, number> }} [opciones]
-   * @returns {Promise<{ materia: string, enlaces: any[], aviso?: string, credenciales?: Record<string, string> }>}
+   * @param {{ tiempos?: Record<string, number>, modo?: string, idRecorrido?: number, tabId?: number, sitioId?: string, topeCursoMs?: number }} [opciones]
+   * @returns {Promise<{ materia: string, enlaces: any[], aviso?: string, credenciales?: Record<string, string>, recorrido?: boolean, motivoAviso?: string }>}
    */
   escanearListado: async function (opciones) {
     const tiempos = Object.assign(
@@ -50,11 +78,22 @@ const ScraperClassroom = {
         sinAdjuntos: 1500,
         hidratacion: 10000,
         identidadCurso: 8000,
+        asentadoVacio: 2000,
       },
       opciones && opciones.tiempos
     );
 
-    const dormir = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    let idCancelacion = 0;
+    const dormir = (ms, token = idCancelacion) =>
+      new Promise((resolve, reject) => {
+        setTimeout(() => {
+          if (token !== idCancelacion) {
+            reject(new Error("cancelado"));
+          } else {
+            resolve();
+          }
+        }, ms);
+      });
 
     async function esperarCondicion(predicado, timeoutMs, pasoMs = 50) {
       const inicio = Date.now();
@@ -70,6 +109,7 @@ const ScraperClassroom = {
       materia: "",
       enlaces: [],
       aviso: "Cambiaste de pestaña durante el escaneo y Classroom dejó de cargar la página. Dejá Classroom al frente y re-escaneá.",
+      motivoAviso: "visibilidad",
     };
     const avisoCursoCambiado = {
       materia: "",
@@ -77,10 +117,137 @@ const ScraperClassroom = {
       aviso:
         "Cambiaste de curso mientras escaneábamos, así que descartamos lo leído para no " +
         "mezclar los archivos. Re-escaneá en el curso que quieras bajar.",
+      motivoAviso: "curso-cambiado",
     };
 
-    // 1. Visibilidad inicial
-    if (!visible()) return avisoVisibilidad;
+    function obtenerVistaActiva() {
+      const wizzes = document.querySelectorAll("body > c-wiz");
+      for (const w of wizzes) {
+        if (w.getAttribute("aria-hidden") !== "true") return w;
+      }
+      return document.body;
+    }
+
+    const modoTodos = Boolean(opciones && opciones.modo === "todos");
+    const { idRecorrido, tabId, sitioId, topeCursoMs = 180000 } = opciones || {};
+
+    let colaAvisos = Promise.resolve();
+    let ultimoReporteMs = 0;
+    let timerProgreso = null;
+    let progresoPendiente = null;
+    let indiceCursoActual = 0;
+
+    function descartarProgresoPendiente() {
+      if (timerProgreso) {
+        clearTimeout(timerProgreso);
+        timerProgreso = null;
+      }
+      progresoPendiente = null;
+    }
+
+    const avisar = (evento) => {
+      descartarProgresoPendiente();
+      const p = colaAvisos.then(async () => {
+        try {
+          if (
+            typeof chrome !== "undefined" &&
+            chrome.runtime &&
+            typeof chrome.runtime.sendMessage === "function"
+          ) {
+            await chrome.runtime.sendMessage({
+              action: "recorrido_evento",
+              idRecorrido,
+              tabId,
+              sitioId,
+              ...evento,
+            });
+          }
+        } catch {}
+      });
+      colaAvisos = p.catch(() => {});
+      return p;
+    };
+
+    function enviarProgreso(datos) {
+      ultimoReporteMs = Date.now();
+      if (modoTodos) {
+        colaAvisos = colaAvisos
+          .then(async () => {
+            try {
+              if (
+                typeof chrome !== "undefined" &&
+                chrome.runtime &&
+                typeof chrome.runtime.sendMessage === "function"
+              ) {
+                await chrome.runtime.sendMessage({
+                  action: "recorrido_evento",
+                  idRecorrido,
+                  tabId,
+                  sitioId,
+                  tipo: "progreso",
+                  indice: indiceCursoActual,
+                  fase: datos.fase,
+                  verMas: datos.verMas ?? 0,
+                  publicaciones: datos.publicaciones ?? 0,
+                  archivos: datos.archivos ?? 0,
+                });
+              }
+            } catch {}
+          })
+          .catch(() => {});
+      } else if (opciones && typeof opciones.idEscaneo !== "undefined") {
+        try {
+          if (
+            typeof chrome !== "undefined" &&
+            chrome.runtime &&
+            typeof chrome.runtime.sendMessage === "function"
+          ) {
+            const payload = {
+              action: "escaneo_progreso",
+              idEscaneo: opciones.idEscaneo,
+              fase: datos.fase,
+              verMas: datos.verMas ?? 0,
+              publicaciones: datos.publicaciones ?? 0,
+              archivos: datos.archivos ?? 0,
+            };
+            if (datos.nombre) payload.nombre = datos.nombre;
+            chrome.runtime.sendMessage(payload).catch(() => {});
+          }
+        } catch {}
+      }
+    }
+
+    function reportar(datos, token) {
+      if (token !== idCancelacion) return;
+      const ahora = Date.now();
+      const transcurrido = ahora - ultimoReporteMs;
+      if (transcurrido >= 500) {
+        descartarProgresoPendiente();
+        enviarProgreso(datos);
+      } else {
+        progresoPendiente = datos;
+        if (!timerProgreso) {
+          const espera = 500 - transcurrido;
+          timerProgreso = setTimeout(() => {
+            timerProgreso = null;
+            if (token !== idCancelacion) return;
+            if (progresoPendiente) {
+              const d = progresoPendiente;
+              progresoPendiente = null;
+              enviarProgreso(d);
+            }
+          }, espera);
+        }
+      }
+    }
+
+    async function escanearCursoActual() {
+      const miToken = idCancelacion;
+      let verMasCount = 0;
+      let estadoProgreso = { fase: "trabajo", verMas: 0, publicaciones: 0, archivos: 0 };
+
+      // 1. Visibilidad inicial
+      if (!visible()) return avisoVisibilidad;
 
     // 2. Curso y cuenta
     const path = location.pathname || "";
@@ -107,14 +274,6 @@ const ScraperClassroom = {
       return t.trim();
     }
 
-    function obtenerVistaActiva() {
-      const wizzes = document.querySelectorAll("body > c-wiz");
-      for (const w of wizzes) {
-        if (w.getAttribute("aria-hidden") !== "true") return w;
-      }
-      return document.body;
-    }
-
     function buscarLinkNav(patronRegex) {
       const links = document.querySelectorAll("nav a[href]");
       for (const a of links) {
@@ -134,6 +293,25 @@ const ScraperClassroom = {
     function hrefDelCurso(a) {
       const href = (a.getAttribute("href") || "").split(/[?#]/)[0];
       return href.endsWith("/c/" + idCurso);
+    }
+
+    // Classroom, al cambiar de vista, deja ver ~100-200 ms la vista del curso ANTERIOR, o ninguna
+    // (y `obtenerVistaActiva` cae a `body`, que tiene todas). Medido 2026-09-27: cada vista de un
+    // curso nombra en sus enlaces a su curso y a ningún otro (39/39 muestras). Una vista que nombra
+    // a otro curso todavía no es la nuestra.
+    const PATRONES_ID_CURSO = [
+      /^(?:https:\/\/classroom\.google\.com)?(?:\/u\/\d+)?\/(?:c|w)\/([^/?#]+)/,
+      /^(?:https:\/\/classroom\.google\.com)?(?:\/u\/\d+)?\/a\/[^/?#]+\/([^/?#]+)(?:[?#]|$)/,
+    ];
+    function nombraOtroCurso(raiz) {
+      for (const a of raiz.querySelectorAll("a[href]")) {
+        const href = a.getAttribute("href") || "";
+        for (const patron of PATRONES_ID_CURSO) {
+          const m = patron.exec(href);
+          if (m && m[1] !== idCurso) return true;
+        }
+      }
+      return false;
     }
 
     // Devuelve { nombre, fuente } o null. NUNCA devuelve un nombre que el DOM no confirme.
@@ -299,6 +477,7 @@ const ScraperClassroom = {
       const navOk = await esperarCondicion(() => {
         const va = obtenerVistaActiva();
         if (va === vistaPrevia) return false;
+        if (nombraOtroCurso(va)) return false;
         return Boolean(
           va.querySelector("[data-stream-item-id]") || va.querySelector("[data-no-topic-items]")
         );
@@ -313,15 +492,53 @@ const ScraperClassroom = {
       }
     }
 
-    // 4. Esperar a que pinte Trabajo en clase
+    // 4. Esperar a que pinte y se asiente Trabajo en clase
+    let desdeCuandoVacio = null;
+    function trabajoAsentado(va) {
+      if (!va) return null;
+      if (nombraOtroCurso(va)) {
+        desdeCuandoVacio = null;
+        return null;
+      }
+      const hayLis = Boolean(va.querySelector("li[data-stream-item-id]"));
+      const hayProgress = Boolean(va.querySelector('[role="progressbar"]'));
+      if (hayLis && !hayProgress) {
+        desdeCuandoVacio = null;
+        return "con-items";
+      }
+      const tieneMarcador = Boolean(va.querySelector("[data-no-topic-items]"));
+      const hayVerMas = Boolean(va.querySelector('button[aria-label="Ver más publicaciones"]'));
+      if (tieneMarcador && !hayLis && !hayVerMas && !hayProgress) {
+        const ahora = Date.now();
+        if (desdeCuandoVacio === null) {
+          desdeCuandoVacio = ahora;
+        }
+        if (ahora - desdeCuandoVacio >= tiempos.asentadoVacio) {
+          return "vacio";
+        }
+        return null;
+      }
+      desdeCuandoVacio = null;
+      return null;
+    }
+
+    let resultadoAsentado = null;
+    let vistaAsentada = null;
     const pintadoOk = await esperarCondicion(() => {
       const va = obtenerVistaActiva();
-      return Boolean(
-        va.querySelector("li[data-stream-item-id]") || va.querySelector("[data-no-topic-items]")
-      );
+      resultadoAsentado = trabajoAsentado(va);
+      if (resultadoAsentado !== null) vistaAsentada = va;
+      return resultadoAsentado !== null;
     }, tiempos.pintado);
 
     if (!pintadoOk) {
+      const va = obtenerVistaActiva();
+      if (va) {
+        for (const a of va.querySelectorAll('a[href*="/m/"]')) {
+          const m = /\/c\/([^/?#]+)\/m\//.exec(a.getAttribute("href") || "");
+          if (m && m[1] !== idCurso) return avisoCursoCambiado;
+        }
+      }
       return {
         materia: "",
         enlaces: [],
@@ -331,10 +548,8 @@ const ScraperClassroom = {
 
     if (!visible()) return avisoVisibilidad;
 
-    const vistaTrabajo = obtenerVistaActiva();
-    const tieneMarcadorVacio = Boolean(vistaTrabajo.querySelector("[data-no-topic-items]"));
-    const lisTrabajo = vistaTrabajo.querySelectorAll("li[data-stream-item-id]");
-    const trabajoVacio = tieneMarcadorVacio && lisTrabajo.length === 0;
+    const vistaTrabajo = vistaAsentada;
+    const trabajoVacio = resultadoAsentado === "vacio";
 
     let nombreCurso = "";
     let identidad = null;
@@ -342,6 +557,10 @@ const ScraperClassroom = {
     const itemsLeidosTrabajo = [];
 
     if (!trabajoVacio) {
+      const pubsIniciales = vistaTrabajo.querySelectorAll("li[data-stream-item-id]").length;
+      estadoProgreso = { fase: "trabajo", verMas: 0, publicaciones: pubsIniciales, archivos: 0 };
+      reportar(estadoProgreso, miToken);
+
       // 5. Quietud
       await esperarQuietud(vistaTrabajo);
       if (!visible()) return avisoVisibilidad;
@@ -375,6 +594,15 @@ const ScraperClassroom = {
 
           if (crecio) {
             algunTemaCrecio = true;
+            verMasCount++;
+            const pubsTotales = vistaTrabajo.querySelectorAll("li[data-stream-item-id]").length;
+            estadoProgreso = {
+              fase: "ver-mas",
+              verMas: verMasCount,
+              publicaciones: pubsTotales,
+              archivos: 0,
+            };
+            reportar(estadoProgreso, miToken);
             await dormir(tiempos.vuelta);
           } else {
             break;
@@ -438,6 +666,7 @@ const ScraperClassroom = {
         };
       }
       nombreCurso = identidad.nombre;
+      reportar({ ...estadoProgreso, nombre: nombreCurso }, miToken);
 
       // 8. Leer "Trabajo en clase"
       const regionesActualizadas = vistaTrabajo.querySelectorAll('div[role="region"][aria-label]');
@@ -492,6 +721,14 @@ const ScraperClassroom = {
     }
 
     // 9. Ir a "Novedades"
+    estadoProgreso = {
+      fase: "novedades",
+      verMas: verMasCount,
+      publicaciones: estadoProgreso.publicaciones,
+      archivos: itemsLeidosTrabajo.length,
+    };
+    reportar({ ...estadoProgreso, ...(nombreCurso ? { nombre: nombreCurso } : {}) }, miToken);
+
     const regexNovedades = new RegExp(`^(?:/u/\\d+)?/c/${idCurso}(?:$|\\?)`);
     const linkNovedades = buscarLinkNav(regexNovedades);
     const itemsLeidosNovedades = [];
@@ -499,10 +736,14 @@ const ScraperClassroom = {
     if (linkNovedades) {
       const vistaPrevia = obtenerVistaActiva();
       linkNovedades.click();
+      let vistaNovedadesLista = null;
       const navNovOk = await esperarCondicion(() => {
         const va = obtenerVistaActiva();
         if (va === vistaPrevia) return false;
-        return Boolean(va.querySelector("[data-stream-item-id]"));
+        if (nombraOtroCurso(va)) return false;
+        const ok = Boolean(va.querySelector("[data-stream-item-id]"));
+        if (ok) vistaNovedadesLista = va;
+        return ok;
       }, tiempos.navegacion);
 
       if (!navNovOk) {
@@ -515,7 +756,7 @@ const ScraperClassroom = {
 
       if (!visible()) return avisoVisibilidad;
 
-      const vistaNovedades = obtenerVistaActiva();
+      const vistaNovedades = vistaNovedadesLista;
       await esperarQuietud(vistaNovedades);
 
       if (!visible()) return avisoVisibilidad;
@@ -569,6 +810,14 @@ const ScraperClassroom = {
         }
       }
     }
+
+    estadoProgreso = {
+      fase: "novedades",
+      verMas: verMasCount,
+      publicaciones: estadoProgreso.publicaciones,
+      archivos: itemsLeidosTrabajo.length + itemsLeidosNovedades.length,
+    };
+    reportar({ ...estadoProgreso, ...(nombreCurso ? { nombre: nombreCurso } : {}) }, miToken);
 
     // 10. Volver a "Trabajo en clase"
     try {
@@ -687,6 +936,7 @@ const ScraperClassroom = {
           idsSinResolver.size > 0
             ? `Classroom no terminó de cargar los ${idsSinResolver.size} adjuntos de este curso. Dejá la pestaña al frente y re-escaneá.`
             : "Este curso no tiene archivos en Trabajo en clase ni en Novedades.",
+        ...(idsSinResolver.size === 0 ? { motivoAviso: "sin-material" } : {}),
       };
     }
 
@@ -703,7 +953,278 @@ const ScraperClassroom = {
       credenciales: { authuser: cuenta },
       ...(idsSinResolver.size > 0 ? { adjuntosSinResolver: idsSinResolver.size } : {}),
     };
-  },
+  }
+
+  if (!opciones || opciones.modo !== "todos") {
+    return escanearCursoActual();
+  }
+
+  if (!visible()) {
+    await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "visibilidad" });
+    return { materia: "", enlaces: [], recorrido: true };
+  }
+
+  // 3. Enumerar
+  const esRutaPortada = (p) => /\/h(?:\/st)?(?:\/|\?|#|$)/.test(p);
+  if (!esRutaPortada(location.pathname || "")) {
+    const linkH = document.querySelector('nav a[href$="/h"]');
+    if (linkH) {
+      linkH.click();
+      await esperarCondicion(() => esRutaPortada(location.pathname || ""), tiempos.navegacion);
+    }
+  }
+
+  function resolverNombreCurso(id) {
+    const todasAnclas = document.querySelectorAll("a[href]");
+    for (const a of todasAnclas) {
+      const href = (a.getAttribute("href") || "").split(/[?#]/)[0];
+      if (href.endsWith(`/c/${id}`)) {
+        const ariaLabel = (a.getAttribute("aria-label") || "").trim();
+        if (ariaLabel) {
+          return ariaLabel;
+        }
+      }
+    }
+    for (const a of todasAnclas) {
+      if (a.closest("nav")) continue;
+      const href = (a.getAttribute("href") || "").split(/[?#]/)[0];
+      if (href.endsWith(`/c/${id}`)) {
+        const ariaLabel = (a.getAttribute("aria-label") || "").trim();
+        if (!ariaLabel) {
+          const texto = (a.textContent || "").trim();
+          if (texto) {
+            return texto;
+          }
+        }
+      }
+    }
+    return id;
+  }
+
+  function leerCursosDePagina(idsVistos) {
+    const res = [];
+    const raiz = obtenerVistaActiva();
+    const anclas = raiz.querySelectorAll('a[href*="/c/"]');
+    const nuevosIds = [];
+    for (const a of anclas) {
+      if (a.closest("nav")) continue;
+      const href = (a.getAttribute("href") || "").split(/[?#]/)[0];
+      const match = /\/c\/([^/]+)$/.exec(href);
+      if (!match) continue;
+      const id = match[1];
+      if (idsVistos.has(id)) continue;
+      idsVistos.add(id);
+      nuevosIds.push(id);
+    }
+    for (const id of nuevosIds) {
+      res.push({ id, nombre: resolverNombreCurso(id) });
+    }
+    return res;
+  }
+
+  const idsVistos = new Set();
+  const activos = leerCursosDePagina(idsVistos);
+
+  const esperaArchivadosMs = 5000;
+  const linkArchived = document.querySelector('nav a[href$="/h/archived"]');
+  if (linkArchived) {
+    linkArchived.click();
+    await esperarCondicion(
+      () => (location.pathname || "").includes("/h/archived"),
+      tiempos.navegacion
+    );
+    await esperarCondicion(() => {
+      const va = obtenerVistaActiva();
+      const anclas = va.querySelectorAll('a[href*="/c/"]');
+      for (const a of anclas) {
+        if (a.closest("nav")) continue;
+        const href = (a.getAttribute("href") || "").split(/[?#]/)[0];
+        const match = /\/c\/([^/]+)$/.exec(href);
+        if (match && !idsVistos.has(match[1])) {
+          return true;
+        }
+      }
+      return false;
+    }, esperaArchivadosMs);
+  }
+  const archivados = leerCursosDePagina(idsVistos);
+  const listaFinal = [...activos, ...archivados];
+
+  if (listaFinal.length === 0) {
+    await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "sin-cursos" });
+    return { materia: "", enlaces: [], recorrido: true };
+  }
+
+  // 4. Inicio
+  await avisar({
+    tipo: "inicio",
+    cursos: listaFinal.map((c) => ({ id: c.id, nombre: c.nombre })),
+    ...(opciones && opciones.lanzadoEn !== undefined ? { lanzadoEn: opciones.lanzadoEn } : {}),
+  });
+
+  // 5. Por cada curso
+  for (let i = 0; i < listaFinal.length; i++) {
+    indiceCursoActual = i;
+    const curso = listaFinal[i];
+    if (!visible()) {
+      await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "visibilidad" });
+      return { materia: "", enlaces: [], recorrido: true };
+    }
+
+    const inicioCurso = Date.now();
+    await avisar({ tipo: "latido", indice: i });
+
+    const navArchived = document.querySelector('nav a[href$="/h/archived"]');
+    if (navArchived) {
+      navArchived.click();
+    }
+    const selectorCurso = `a[href$="/c/${curso.id}"]`;
+    const aparecio = await esperarCondicion(
+      () => Boolean(document.querySelector(selectorCurso)),
+      tiempos.navegacion
+    );
+    if (!aparecio) {
+      await avisar({
+        tipo: "curso",
+        indice: i,
+        resultado: "fallido",
+        motivo: "no abrió",
+        duracionMs: Date.now() - inicioCurso,
+      });
+      continue;
+    }
+    const linkCurso = document.querySelector(selectorCurso);
+    linkCurso.click();
+    const llego = await esperarCondicion(
+      () => (location.pathname || "").includes(`/c/${curso.id}`),
+      tiempos.navegacion
+    );
+    if (!llego) {
+      await avisar({
+        tipo: "curso",
+        indice: i,
+        resultado: "fallido",
+        motivo: "no abrió",
+        duracionMs: Date.now() - inicioCurso,
+      });
+      continue;
+    }
+
+    const regexTrabajo = new RegExp(`^(?:/u/\\d+)?/w/${curso.id}/t/all(?:$|\\?)`);
+    const navTrabajoOk = await esperarCondicion(() => {
+      const links = document.querySelectorAll("nav a[href]");
+      for (const a of links) {
+        const href = a.getAttribute("href") || "";
+        const pathname = a.pathname || "";
+        if (regexTrabajo.test(href) || regexTrabajo.test(pathname)) {
+          return true;
+        }
+      }
+      return false;
+    }, tiempos.navegacion);
+    if (!navTrabajoOk) {
+      await avisar({
+        tipo: "curso",
+        indice: i,
+        resultado: "fallido",
+        motivo: "no abrió",
+        duracionMs: Date.now() - inicioCurso,
+      });
+      continue;
+    }
+
+    let resCurso;
+    let timer = null;
+    const promesa = escanearCursoActual();
+    try {
+      const carrera = await Promise.race([
+        promesa.then((res) => ({ res })),
+        new Promise((resolve) => {
+          timer = setTimeout(() => resolve({ vencido: true }), topeCursoMs);
+        }),
+      ]);
+      if (timer) clearTimeout(timer);
+      if (carrera.vencido) {
+        idCancelacion++;
+        promesa.catch(() => {});
+        const segs = Math.round(topeCursoMs / 1000);
+        await avisar({
+          tipo: "curso",
+          indice: i,
+          resultado: "fallido",
+          motivo: `superó ${segs} s`,
+          duracionMs: Date.now() - inicioCurso,
+        });
+        continue;
+      }
+      resCurso = carrera.res;
+    } catch {
+      if (timer) clearTimeout(timer);
+      await avisar({
+        tipo: "curso",
+        indice: i,
+        resultado: "fallido",
+        motivo: "error inesperado",
+        duracionMs: Date.now() - inicioCurso,
+      });
+      continue;
+    }
+
+    if (resCurso.motivoAviso === "visibilidad") {
+      await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "visibilidad" });
+      return { materia: "", enlaces: [], recorrido: true };
+    }
+    if (resCurso.motivoAviso === "curso-cambiado") {
+      await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "navegacion" });
+      return { materia: "", enlaces: [], recorrido: true };
+    }
+    if (resCurso.motivoAviso === "sin-material") {
+      await avisar({
+        tipo: "curso",
+        indice: i,
+        resultado: "vacio",
+        duracionMs: Date.now() - inicioCurso,
+      });
+      continue;
+    }
+    if (resCurso.aviso) {
+      await avisar({
+        tipo: "curso",
+        indice: i,
+        resultado: "fallido",
+        motivo: resCurso.aviso,
+        duracionMs: Date.now() - inicioCurso,
+      });
+      continue;
+    }
+
+    await avisar({
+      tipo: "curso",
+      indice: i,
+      resultado: "ok",
+      enlaces: resCurso.enlaces,
+      duracionMs: Date.now() - inicioCurso,
+      ...(resCurso.adjuntosSinResolver ? { adjuntosSinResolver: resCurso.adjuntosSinResolver } : {}),
+    });
+  }
+
+  // 6. Vuelta a la portada (RN-20..22)
+  try {
+    if (!/\/h\/?$/.test(location.pathname || "")) {
+      const linkH = document.querySelector('nav a[href$="/h"]');
+      if (linkH) {
+        linkH.click();
+        await esperarCondicion(() => /\/h\/?$/.test(location.pathname || ""), tiempos.navegacion);
+      }
+    }
+  } catch {}
+
+  // 7. Fin
+  await avisar({ tipo: "fin", estado: "terminado" });
+
+  // 7. Retorno
+  return { materia: "", enlaces: [], recorrido: true };
+},
 };
 
 globalThis.ScraperClassroom = ScraperClassroom;

@@ -548,6 +548,7 @@ describe('FilterFeature.renderizarFiltrosMenuPopover', () => {
 
     const titulos = [...nodos.filterMenu.querySelectorAll('.popover-section-title')].map(t => t.textContent);
     expect(titulos).toContain('Materia');
+    expect(titulos[0]).toBe('Estado');
     const opciones = [...nodos.filterMenu.querySelectorAll('.popover-option span')].map(s => s.textContent);
     // Ordenadas y sin repetir: Tórax aparece en dos clases y da UNA opción.
     expect(opciones.filter(o => o.startsWith('📁'))).toEqual(['📁 ABDOMEN', '📁 TORAX']);

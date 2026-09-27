@@ -6,7 +6,7 @@ Explicación de los patrones que sostienen el código actual — qué problema r
 
 **Dónde**: `background.js` (`Mensajeria.onMensaje` + el objeto `manejadoresIPC`), llamado desde `popup.js` con `Mensajeria.enviar/notificar({ action: "...", ...payload })`. Desde el 2026-08-03 **las dos puntas de las dos zonas** van por el puerto: no queda `chrome.runtime.sendMessage`/`onMessage` en el proyecto.
 
-**Qué hace**: todo el contrato entre popup y service worker pasa por un único canal de mensajes, despachado por el campo `action` (string). Acciones soportadas hoy: `escanear_carpeta_local`, `obtener_estados_en_progreso`, `inyectar_items_en_cola_activa`, `remover_item_de_cola`, `iniciar_descarga_cola`, `activar_frenado_suave`, `abortar_rafaga_inmediata`, `limpiar_estados_progreso`.
+**Qué hace**: todo el contrato entre popup y service worker pasa por un único canal de mensajes, despachado por el campo `action` (string). Acciones soportadas hoy: `escanear_carpeta_local`, `obtener_estados_en_progreso`, `inyectar_items_en_cola_activa`, `remover_item_de_cola`, `iniciar_descarga_cola`, `activar_frenado_suave`, `abortar_rafaga_inmediata`, `limpiar_estados_progreso`, y `recorrido_evento` (la **manda la pestaña** vía `chrome.runtime.sendMessage` durante el escaneo multi-curso, ver ADR-0016, y también eventos de cierre desde el popup).
 
 **Por qué así**: es el único mecanismo de comunicación entre contextos de ejecución aislados que ofrece la plataforma de extensiones — no hay alternativa (no se pueden compartir referencias de memoria entre popup y service worker).
 

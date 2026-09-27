@@ -511,4 +511,69 @@ describe('Isla Preact: ListaClases — la alerta comparte contenedor', () => {
 
     expect(root.querySelector('.lista-nota')).toBeNull();
   });
+
+  it('con ctx.grupos de dos cursos se pintan dos .grupo-curso en las posiciones correctas con su conteo', async () => {
+    const items = [
+      { id: 1, titulo: 'Clase A1', estado: 'pending' },
+      { id: 2, titulo: 'Clase A2', estado: 'pending' },
+      { id: 3, titulo: 'Clase B1', estado: 'pending' },
+    ];
+    const grupos = [
+      { desde: 0, titulo: 'Curso A', conteo: 2 },
+      { desde: 2, titulo: 'Curso B', conteo: 1 },
+    ];
+    puente.render({
+      modo: 'lista',
+      items,
+      ctx: ctxBase({ grupos }),
+    });
+    await flush();
+
+    const grupoEls = root.querySelectorAll('.grupo-curso');
+    expect(grupoEls.length).toBe(2);
+
+    expect(grupoEls[0].children[0].textContent).toBe('Curso A');
+    expect(grupoEls[0].children[1].textContent).toBe('2');
+
+    expect(grupoEls[1].children[0].textContent).toBe('Curso B');
+    expect(grupoEls[1].children[1].textContent).toBe('1');
+
+    // Posición: grupo 0 antes de fila 0, grupo 1 antes de fila 2
+    const hijos = Array.from(root.children);
+    expect(hijos[0]).toBe(grupoEls[0]);
+    expect(hijos[1].querySelector('.video-label').textContent).toBe('Clase A1');
+    expect(hijos[2].querySelector('.video-label').textContent).toBe('Clase A2');
+    expect(hijos[3]).toBe(grupoEls[1]);
+    expect(hijos[4].querySelector('.video-label').textContent).toBe('Clase B1');
+  });
+
+  it('sin ctx.grupos, el render es el de hoy sin divisores de curso', async () => {
+    puente.render({
+      modo: 'lista',
+      items: [
+        { id: 1, titulo: 'Clase 1', estado: 'pending' },
+        { id: 2, titulo: 'Clase 2', estado: 'pending' },
+      ],
+      ctx: ctxBase({ grupos: undefined }),
+    });
+    await flush();
+
+    expect(root.querySelectorAll('.grupo-curso').length).toBe(0);
+  });
+
+  it('un título de grupo con <b> sale como texto literal sin parsear HTML', async () => {
+    puente.render({
+      modo: 'lista',
+      items: [{ id: 1, titulo: 'Clase 1', estado: 'pending' }],
+      ctx: ctxBase({
+        grupos: [{ desde: 0, titulo: '<b>Curso Hack</b>', conteo: 1 }],
+      }),
+    });
+    await flush();
+
+    const grupoEl = root.querySelector('.grupo-curso');
+    expect(grupoEl).not.toBeNull();
+    expect(grupoEl.querySelector('b')).toBeNull();
+    expect(grupoEl.textContent).toContain('<b>Curso Hack</b>');
+  });
 });

@@ -1,6 +1,11 @@
 /**
- * PUERTO DE SITIO (V1.6.0)
+ * PUERTO DE SITIO (V1.7.0)
  * ==========================================================================
+ * CHANGELOG v1.7.0:
+ * - [CLASSROOM ESCANEAR TODAS] Miembro nuevo `esPortada?(url)` (opcional):
+ *   predicado que identifica la portada desde donde se puede escanear todos los listados.
+ *   El puerto pasa de 13 a 14 miembros.
+ *
  * CHANGELOG v1.6.0:
  * - [CLASSROOM CORTE 1 — ADJUNTOS SIN RESOLVER] Miembro opcional `adjuntosSinResolver`
  *   en `ResultadoEscaneo`: conteo de adjuntos descartados por hidratación incompleta.
@@ -244,6 +249,14 @@ export interface PuertoSitio {
 
   /** ¿Esta URL pertenece al portal? */
   esPaginaDelSitio(url: string | undefined): boolean;
+
+  /**
+   * [CLASSROOM ESCANEAR TODAS] ¿Esta URL es la portada del portal desde la que se
+   * ofrece escanear todos sus listados (en Classroom, /h)?
+   * Corre en el popup, no en la pestaña.
+   */
+  esPortada?(url: string | undefined): boolean;
+
   /** Patrón de match para `chrome.tabs.query`. */
   readonly patronPestañas: string;
   /**

@@ -56,9 +56,13 @@ describe("Sitios.resolverPorUrl (para la pestaña activa)", () => {
     ).toBe(SitioGoogleClassroom);
   });
 
-  it("Google Classroom NO reclama páginas que no son de un curso (/h o /h/archived)", () => {
-    expect(Sitios.resolverPorUrl("https://classroom.google.com/u/2/h")).toBeUndefined();
-    expect(Sitios.resolverPorUrl("https://classroom.google.com/u/2/h/archived")).toBeUndefined();
+  it("reconoce páginas de Classroom de cursos y de portada (/h o /h/archived)", () => {
+    expect(Sitios.resolverPorUrl("https://classroom.google.com/u/2/h")).toBe(
+      SitioGoogleClassroom
+    );
+    expect(Sitios.resolverPorUrl("https://classroom.google.com/u/2/h/archived")).toBe(
+      SitioGoogleClassroom
+    );
   });
 
   it("una URL ajena no resuelve a ningún portal", () => {
@@ -81,6 +85,8 @@ describe("Sitios.resolverPorUrl (para la pestaña activa)", () => {
       "https://hotmart.com/es/club/anatomy-by-chris/products/6083220/content/ABC",
       "https://classroom.google.com/u/2/w/MjQzNjkyNDM0NTEw/t/all",
       "https://classroom.google.com/c/MjQzNjkyNDM0NTEw",
+      "https://classroom.google.com/u/2/h",
+      "https://classroom.google.com/u/2/h/archived",
     ];
     for (const url of urls) {
       const reclaman = Sitios.todos().filter((s) => s.esPaginaDelSitio(url));
@@ -166,7 +172,7 @@ describe("topeEscaneoMs: el techo del escaneo es una medición, no un default", 
     expect(SitioGoogleClassroom.topeEscaneoMs).toBeGreaterThan(SitioAnatomyByChris.topeEscaneoMs);
   });
 
-  it("claveDeListado: Classroom devuelve el id del curso y los otros portales no la declaran", () => {
+  it("claveDeListado: Classroom devuelve el id del curso, 'todos' en portada, y los otros portales no la declaran", () => {
     expect(
       SitioGoogleClassroom.claveDeListado!(
         "https://classroom.google.com/u/2/w/ODc0ODk1NDcwNTMw/t/all"
@@ -179,9 +185,24 @@ describe("topeEscaneoMs: el techo del escaneo es una medición, no un default", 
     ).toBe("ODc0ODk1NDcwNTMw");
     expect(
       SitioGoogleClassroom.claveDeListado!("https://classroom.google.com/u/2/h")
-    ).toBeUndefined();
+    ).toBe("todos");
     expect(SitioGoogleClassroom.claveDeListado!(undefined)).toBeUndefined();
     expect(SitioRamonNet.claveDeListado).toBeUndefined();
     expect(SitioAnatomyByChris.claveDeListado).toBeUndefined();
+  });
+
+  it("esPortada: Classroom identifica /h, /h/st y /h/archived como portada, y no un curso ni portales ajenos", () => {
+    expect(SitioGoogleClassroom.esPortada!("https://classroom.google.com/u/2/h")).toBe(true);
+    expect(SitioGoogleClassroom.esPortada!("https://classroom.google.com/u/2/h/st")).toBe(true);
+    expect(SitioGoogleClassroom.esPortada!("https://classroom.google.com/u/2/h/archived")).toBe(true);
+    expect(
+      SitioGoogleClassroom.esPortada!("https://classroom.google.com/u/2/c/ODc0ODk1NDcwNTMw")
+    ).toBe(false);
+    expect(
+      SitioGoogleClassroom.esPortada!("https://classroom.google.com/u/2/w/ODc0ODk1NDcwNTMw/t/all")
+    ).toBe(false);
+    expect(SitioGoogleClassroom.esPortada!(undefined)).toBe(false);
+    expect(SitioRamonNet.esPortada).toBeUndefined();
+    expect(SitioAnatomyByChris.esPortada).toBeUndefined();
   });
 });

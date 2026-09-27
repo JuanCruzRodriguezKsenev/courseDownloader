@@ -1,6 +1,13 @@
 /**
- * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: CONFIGURACIÓN (V1.2.0)
+ * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: CONFIGURACIÓN (V1.3.0)
  * ==========================================================================
+ * CHANGELOG v1.3.0:
+ * - [CLASSROOM ESCANEAR TODAS] Portada y escaneo de todos los cursos:
+ *   - `esPaginaDelSitio` reclama también `/h`, `/h/st`, `/h/archived`.
+ *   - Implementa `esPortada(url)`: `true` para `/h` y sus subrutas.
+ *   - `claveDeListado(url)`: devuelve `"todos"` para la portada.
+ *   - `instruccionEscaneo`: copy actualizado explicando escaneo desde curso o portada.
+ *
  * CHANGELOG v1.2.0:
  * - [CLASSROOM CORTE 1 — LISTA GUARDADA] Implementa `claveDeListado(url)`: extrae el id del curso
  *   de URLs `/c/<id>` o `/w/<id>`.
@@ -52,11 +59,17 @@ const SitioGoogleClassroom: PuertoSitio = {
 
   esPaginaDelSitio(url) {
     if (typeof url !== "string") return false;
-    return /^https:\/\/classroom\.google\.com\/(?:u\/\d+\/)?(?:c|w)\/[^/]+/.test(url);
+    return /^https:\/\/classroom\.google\.com\/(?:u\/\d+\/)?(?:(?:c|w)\/[^/]+|h(?:\/|$|\?))/.test(url);
+  },
+
+  esPortada(url) {
+    if (typeof url !== "string") return false;
+    return /^https:\/\/classroom\.google\.com\/(?:u\/\d+\/)?h(?:\/|$|\?)/.test(url);
   },
 
   claveDeListado(url) {
     if (typeof url !== "string") return undefined;
+    if (this.esPortada?.(url)) return "todos";
     const m = /^https:\/\/classroom\.google\.com\/(?:u\/\d+\/)?(?:c|w)\/([^/?#]+)/.exec(url);
     return m ? m[1] : undefined;
   },
@@ -70,7 +83,7 @@ const SitioGoogleClassroom: PuertoSitio = {
   },
 
   instruccionEscaneo:
-    "Escaneá desde un curso (Trabajo en clase o Novedades) y dejá esa pestaña al frente hasta que termine: puede tardar un par de minutos, y si cambiás de pestaña el escaneo se corta.",
+    "Escaneá desde un curso, o desde «Todas mis clases» para escanear todos. Dejá esa pestaña al frente hasta que termine: puede tardar varios minutos, y si cambiás de pestaña el escaneo se corta.",
 
   topeEscaneoMs: 180000,
 

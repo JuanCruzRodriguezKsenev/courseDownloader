@@ -14,9 +14,9 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 ## 🔴 Abierto
 
-> ## Estado al 2026-09-25: **DIECISÉIS** entradas abiertas
+> ## Estado al 2026-09-27: **VEINTIUNA** entradas abiertas
 >
-> Re-contadas, no sumadas al número anterior (3 🔴, 4 🟠, 9 ⚪):
+> Re-contadas, no sumadas al número anterior (3 🔴, 4 🟠, 14 ⚪):
 >
 > 1. 🔴 **El mecanismo de popovers sin tests** (hallado 2026-08-05).
 > 2. 🔴 **El loader del popup no tiene dueño**: tokens y demora pendientes (hallado 2026-08-12).
@@ -34,6 +34,11 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 > 14. ⚪ **Classroom corte 1: siete pasos de la Verificación B sin mirar en navegador** (mergeado 2026-09-25).
 > 15. ⚪ **Spec corte 2: un curso ya asociado deja de aparecer** (`MC4 1S 2026`, hallado 2026-09-16).
 > 16. ⚪ **Spec corte 2: D12 deja copias md5-idénticas dentro de un mismo curso** (hallado 2026-09-21).
+> 17. ⚪ **Classroom recorrido: el fallback de `pintadoOk` puede cortar todo el recorrido por un curso lento — NO REPRODUCIDO** (hallado 2026-09-27).
+> 18. ⚪ **Classroom recorrido: el loader puede tapar el popup hasta 210 s si el script muere sin `fin` — NO APARECIÓ en L-9** (hallado 2026-09-27).
+> 19. ⚪ **Classroom recorrido: dos carreras de navegación que cortarían el recorrido — NO APARECIERON** (hallado 2026-09-27).
+> 20. ⚪ **`loaderEsDelRecorrido`: un segundo dueño del loader coordinado a mano** (hallado 2026-09-27; agrava el 🔴 del loader).
+> 21. ⚪ **Classroom recorrido: AC-9 sin verificar, ningún archivo está en dos cursos** (2026-09-27).
 >
 > ### Lo que se cerró el 2026-09-12 (Classroom corte 1)
 >
@@ -503,6 +508,10 @@ Llegaron acá al mergear la tanda del toolbar (2026-08-13): vivían en
   del par (el piso evita el destello de lo que ya salió; la demora evita que salga lo que no hace
   falta); (3) el módulo **no es dueño de ningún nodo** — nada impide escribir `nodos.loader` por
   atrás y saltearlo, que es exactamente lo que este ítem se llama.
+- **2026-09-27 (loader con progreso)**: el detalle bajo el título vive en la isla
+  `popup/features/loaderDetalle.preact.js` (`#ui-loader-detalle`), que se escribe sin piso; el
+  título sigue en `#ui-loader-txt`. Entró una bandera más, `loaderEsDelRecorrido` en `popup.js`:
+  tokens y demora de aparición **siguen abiertos**.
 - **Estado**: 🔴 abierto (la mitad del tiempo, construida y **sin verificar en Chrome**). Detalle
   completo → `docs/ramas-en-revision.md` §Lo que falta.
 
@@ -555,7 +564,7 @@ Llegaron acá al mergear la tanda del toolbar (2026-08-13): vivían en
 ### ⚪ Cerrar el popup a mitad del escaneo descarta el resultado
 
 - **Dónde**: `popup.js` (`chrome.scripting.executeScript({ func: portal.escanearListado })`).
-- **Qué pasa**: el callback de `executeScript` vive en el popup; si el popup se cierra, el escaneo sigue en la pestaña y nadie guarda lo que devuelve. Con Classroom (minutos) es fácil que pase.
+- **Qué pasa**: el callback de `executeScript` vive en el popup; si el popup se cierra, el escaneo sigue en la pestaña y nadie guarda lo que devuelve. El recorrido multi-curso de Classroom ya no lo sufre porque reporta eventos directo al SW vía `chrome.runtime.sendMessage` ([ADR-0016](adr/0016-escaneo-inyectado-avisa-al-sw.md)); el escaneo de un solo curso sí lo sigue sufriendo, a propósito (RN-19).
 - **Estado**: ⚪ abierto (hallado el 2026-09-13, no medido).
 
 ### ⚪ Un 403 de un solo archivo de Drive pausa la cola entera
@@ -608,6 +617,38 @@ Llegaron acá al mergear la tanda del toolbar (2026-08-13): vivían en
 - **Dónde**: `docs/specs/classroom-destino/assumptions.md` (el supuesto 20 cubre dos cursos, no éste).
 - **Qué pasa**: `Informe de laboratorio FISICA I 2024 (Template).docx` quedó 5 veces con md5 idéntico e `interferencia2025.pdf` 2 veces: mismo curso, mismo archivo, distinto material. Decidir si el desempate de D12 mira el contenido antes de copiar.
 - **Estado**: ⚪ abierto, entra a la spec del corte 2 (hallado el 2026-09-21).
+
+### ⚪ Classroom recorrido: el fallback de `pintadoOk` puede cortar todo el recorrido — NO REPRODUCIDO
+
+- **Dónde**: `sitio/google-classroom/scraper.js`, fallback de `!pintadoOk` que agregó obra en `711a6b1` (busca `/c/<otro>/m/` → `curso-cambiado`).
+- **Qué pasa**: si `pintado` vence con ningún `c-wiz` visible, `obtenerVistaActiva()` da `body`, que tiene las vistas ocultas del curso anterior → `curso-cambiado` → se corta el recorrido entero en vez de marcar ese curso como fallido. Arreglo de una línea (`va !== document.body`) si aparece; hoy el estado intermedio dura ~100-200 ms contra un tope de segundos.
+- **Evidencia**: `docs/portal-google-classroom-diseno.md` §10.
+- **Estado**: ⚪ abierto (hallado el 2026-09-27).
+
+### ⚪ Classroom recorrido: el loader puede tapar el popup hasta 210 s — NO APARECIÓ en L-9
+
+- **Dónde**: `popup.js`, `sincronizarLoaderRecorrido`; vigencia en `core/estado/recorridoTodos.ts` (`esVigente` = `topeEscaneoMs + 30 s`).
+- **Qué pasa**: si el script del recorrido muere sin mandar `fin` (F5, pestaña cerrada), ningún manejador del SW lo corta y el loader sólo se re-evalúa cuando cambia el storage. L-9 (F5 en el curso 2) no lo mostró el 2026-09-27.
+- **Estado**: ⚪ abierto como riesgo (hallado el 2026-09-27).
+
+### ⚪ Classroom recorrido: dos carreras de navegación — NO APARECIERON
+
+- **Dónde**: `sitio/google-classroom/scraper.js`, recorrido.
+- **Qué pasa**: (a) si al llegar a un curso sigue montada la vista de Trabajo del anterior, el chequeo `/c/<otroId>/m/` corta el recorrido como "navegaste fuera"; (b) para los activos, el script hace click en `/h/archived` y sin esperar en el link del sidebar. Ninguna apareció en B-3 ni en la sesión de cierre.
+- **Evidencia**: `docs/portal-google-classroom-diseno.md` §10.
+- **Estado**: ⚪ abierto como riesgo (hallado el 2026-09-27).
+
+### ⚪ `loaderEsDelRecorrido`: un segundo dueño del loader coordinado a mano
+
+- **Dónde**: `popup.js`, `sincronizarLoaderRecorrido` (`loaderEsDelRecorrido`) junto a `elEscaneoTomoElLoader`.
+- **Qué pasa**: dos banderas deciden quién es dueño del loader. Es la misma deuda que el 🔴 "El loader del popup no tiene dueño", con un dueño más; se resuelve con él.
+- **Estado**: ⚪ abierto (hallado el 2026-09-27).
+
+### ⚪ Classroom recorrido: AC-9 sin verificar
+
+- **Dónde**: `docs/specs/classroom-escanear-todas/spec.md`, AC-9 (un archivo de Drive en dos cursos aparece en los dos grupos y bajarlo desde uno no marca el otro).
+- **Qué pasa**: en la lista del 2026-09-27 (337 ítems, 5 carpetas) ningún `idArchivo` está en dos cursos, así que no se puede probar con los datos reales. Hace falta un test con fixture o esperar a que Classroom lo traiga.
+- **Estado**: ⚪ abierto (2026-09-27).
 
 ### ✅ Ningún test serializa las funciones que se inyectan en la pestaña
 

@@ -6,6 +6,8 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import htmlFixture from "./__fixtures__/curso.html?raw";
+import portadaHtml from "./__fixtures__/portada.html?raw";
+import archivadasHtml from "./__fixtures__/archivadas.html?raw";
 import ScraperClassroom from "./scraper.js";
 
 const TIEMPOS_TEST = {
@@ -18,6 +20,7 @@ const TIEMPOS_TEST = {
   sinAdjuntos: 10,
   hidratacion: 200,
   identidadCurso: 200,
+  asentadoVacio: 30,
 };
 
 function prepararDom(html = htmlFixture, urlInicial = "https://classroom.google.com/u/2/w/CURSO123/t/all") {
@@ -402,5 +405,894 @@ describe("ScraperClassroom.escanearListado", () => {
     expect(res.aviso).toBeDefined();
     expect(res.aviso).toContain("Cambiaste de curso");
   });
+
+  function simularNavegacionClassroom({ hooksPorCurso = {}, demoraNavMs = 0 } = {}) {
+    globalThis.chrome = globalThis.chrome || {};
+    globalThis.chrome.runtime = globalThis.chrome.runtime || {};
+    const mensajesEnviados = [];
+    let reloj = 0;
+    const navegaciones = [];
+    globalThis.chrome.runtime.sendMessage = vi.fn(async (msg) => {
+      mensajesEnviados.push({ ...msg, orden: ++reloj, timestamp: Date.now() });
+    });
+
+    let timerArchivadas = null;
+
+    const cargarPagina = (html, urlStr) => {
+      document.documentElement.innerHTML = html;
+      delete window.location;
+      window.location = new URL(urlStr);
+    };
+
+    const prepararInteractividadCurso = () => {
+      let quedanPorCargar = 1;
+      const btnVerMas = document.querySelector('button[aria-label="Ver más publicaciones"]');
+      if (btnVerMas) {
+        btnVerMas.getClientRects = () => (quedanPorCargar > 0 ? [{ width: 100, height: 30 }] : []);
+        btnVerMas.addEventListener("click", () => {
+          setTimeout(() => {
+            const region = btnVerMas.closest('div[role="region"]');
+            if (region && quedanPorCargar > 0) {
+              const li = document.createElement("li");
+              li.setAttribute("data-stream-item-id", "tp-11");
+              li.setAttribute("data-expandable-row-id", "row-tp-11");
+              li.innerHTML = `
+                <div role="button" aria-expanded="true" aria-label="TP 11"></div>
+                <div data-attachment-id="att-tp-11">
+                  <a aria-label="Archivo adjunto: PDF: TP11.pdf" href="https://drive.google.com/file/d/drive-tp-11/view"></a>
+                </div>
+              `;
+              region.appendChild(li);
+              quedanPorCargar = 0;
+            }
+          }, 10);
+        });
+      }
+
+      const btnPlegado = document.querySelector('li[data-stream-item-id="item-plegado"] div[role="button"]');
+      if (btnPlegado) {
+        btnPlegado.addEventListener("click", () => {
+          setTimeout(() => {
+            const li = btnPlegado.closest("li");
+            if (li) {
+              btnPlegado.setAttribute("aria-expanded", "true");
+              const divAtt = document.createElement("div");
+              divAtt.setAttribute("data-attachment-id", "att-plegado");
+              divAtt.innerHTML = `<a aria-label="Archivo adjunto: PDF: Plegado.pdf" href="https://drive.google.com/file/d/drive-plegado/view"></a>`;
+              li.appendChild(divAtt);
+            }
+          }, 10);
+        });
+      }
+    };
+
+    const handlerClick = (e) => {
+      const a = e.target.closest("a");
+      if (!a) return;
+      const href = a.getAttribute("href") || "";
+      if (!href) return;
+      e.preventDefault();
+
+      navegaciones.push({ href, orden: ++reloj, timestamp: Date.now() });
+
+      if (timerArchivadas) {
+        clearTimeout(timerArchivadas);
+        timerArchivadas = null;
+      }
+
+      if (href.endsWith("/h") || href.endsWith("/h/st")) {
+        cargarPagina(portadaHtml, `https://classroom.google.com${href}`);
+      } else if (href.endsWith("/h/archived")) {
+        const htmlSinActiva = archivadasHtml.replace(
+          /<c-wiz>[\s\S]*?<\/c-wiz>\s*<\/body>/,
+          "</body>"
+        );
+        cargarPagina(htmlSinActiva, `https://classroom.google.com${href}`);
+        timerArchivadas = setTimeout(() => {
+          timerArchivadas = null;
+          cargarPagina(archivadasHtml, `https://classroom.google.com${href}`);
+        }, 50);
+      } else if (href.includes("/w/")) {
+        document.getElementById("vista-novedades")?.setAttribute("aria-hidden", "true");
+        document.getElementById("vista-trabajo")?.removeAttribute("aria-hidden");
+        delete window.location;
+        window.location = new URL(`https://classroom.google.com${href}`);
+      } else if (href.includes("/c/")) {
+        const m = /\/c\/([^/?#]+)/.exec(href);
+        const id = m ? m[1] : "CURSO123";
+        if (location.pathname.includes(`/c/${id}`) || location.pathname.includes(`/w/${id}`)) {
+          document.getElementById("vista-trabajo")?.setAttribute("aria-hidden", "true");
+          document.getElementById("vista-novedades")?.removeAttribute("aria-hidden");
+          delete window.location;
+          window.location = new URL(`https://classroom.google.com${href}`);
+          return;
+        }
+
+        let htmlCurso = htmlFixture
+          .replace(/CURSO123/g, id)
+          .replace('<c-wiz id="vista-trabajo">', '<c-wiz id="vista-trabajo" aria-hidden="true">')
+          .replace('<c-wiz id="vista-novedades" aria-hidden="true">', '<c-wiz id="vista-novedades">');
+        if (id === "CURSO456") {
+          htmlCurso = htmlCurso.replace(/Física II/g, "Química I");
+        } else if (id === "CURSO789") {
+          htmlCurso = htmlCurso
+            .replace(/Física<span> II<\/span>/g, "Matemática<span> Discreta</span>")
+            .replace(/Física II/g, "Matemática Discreta")
+            .replace('aria-current="page"', "");
+        }
+        if (!htmlCurso.includes("/h/archived")) {
+          htmlCurso = htmlCurso.replace(
+            "<nav>",
+            `<nav>\n    <a href="/u/2/h">Clases</a>\n    <a href="/u/2/h/archived">Clases archivadas</a>\n    <a href="/u/2/c/CURSO123" aria-label="Física II">Física II</a>\n    <a href="/u/2/c/CURSO456" aria-label="Química I">Química I</a>`
+          );
+        }
+        if (hooksPorCurso[id]) {
+          htmlCurso = hooksPorCurso[id](htmlCurso);
+        }
+        if (demoraNavMs > 0) {
+          const htmlSinNav = htmlCurso.replace(/<nav>[\s\S]*?<\/nav>/, "<nav></nav>");
+          cargarPagina(htmlSinNav, `https://classroom.google.com/u/2/c/${id}`);
+          setTimeout(() => {
+            const nav = document.querySelector("nav");
+            if (nav) {
+              const divTemp = document.createElement("div");
+              divTemp.innerHTML = htmlCurso;
+              const nuevoNav = divTemp.querySelector("nav");
+              if (nuevoNav) {
+                nav.innerHTML = nuevoNav.innerHTML;
+              }
+            }
+            prepararInteractividadCurso();
+          }, demoraNavMs);
+        } else {
+          cargarPagina(htmlCurso, `https://classroom.google.com/u/2/c/${id}`);
+          prepararInteractividadCurso();
+        }
+      }
+    };
+
+    document.addEventListener("click", handlerClick);
+    cargarPagina(portadaHtml, "https://classroom.google.com/u/2/h");
+
+    return {
+      mensajesEnviados,
+      navegaciones,
+      limpiar: () => {
+        if (timerArchivadas) {
+          clearTimeout(timerArchivadas);
+          timerArchivadas = null;
+        }
+        document.removeEventListener("click", handlerClick);
+      },
+    };
+  }
+
+  it("19. recorre 3 cursos (2 activos + 1 archivado) en ese orden y emite eventos con enlaces y su modulo", async () => {
+    const { mensajesEnviados, limpiar } = simularNavegacionClassroom();
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        modo: "todos",
+        idRecorrido: 100,
+        tabId: 1,
+        sitioId: "google-classroom",
+        tiempos: TIEMPOS_TEST,
+        topeCursoMs: 5000,
+      });
+
+      expect(res.recorrido).toBe(true);
+      const tipos = mensajesEnviados.map((m) => m.tipo).filter((t) => t !== "progreso");
+      expect(tipos).toEqual([
+        "inicio",
+        "latido",
+        "curso",
+        "latido",
+        "curso",
+        "latido",
+        "curso",
+        "fin",
+      ]);
+
+      const evInicio = mensajesEnviados[0];
+      expect(evInicio.cursos).toHaveLength(3);
+      expect(evInicio.cursos.map((c) => c.id)).toEqual(["CURSO123", "CURSO456", "CURSO789"]);
+      expect(evInicio.cursos.map((c) => c.nombre)).toEqual([
+        "Física II",
+        "Química I",
+        "Matemática Discreta",
+      ]);
+
+      const cursosOk = mensajesEnviados.filter((m) => m.tipo === "curso");
+      expect(cursosOk).toHaveLength(3);
+      expect(cursosOk[0].resultado).toBe("ok");
+      expect(cursosOk[0].enlaces[0].modulo).toContain("Física II ›");
+      expect(cursosOk[1].resultado).toBe("ok");
+      expect(cursosOk[1].enlaces[0].modulo).toContain("Química I ›");
+      expect(cursosOk[2].resultado).toBe("ok");
+      expect(cursosOk[2].enlaces[0].modulo).toContain("Matemática Discreta ›");
+
+      const evFin = mensajesEnviados.at(-1);
+      expect(evFin.estado).toBe("terminado");
+    } finally {
+      limpiar();
+    }
+  });
+
+  it("20. visibilityState pasa a hidden durante el curso 2: hay 1 curso ok y fin cortado visibilidad", async () => {
+    const { mensajesEnviados, navegaciones, limpiar } = simularNavegacionClassroom({
+      hooksPorCurso: {
+        CURSO456: (html) => {
+          Object.defineProperty(document, "visibilityState", {
+            value: "hidden",
+            configurable: true,
+          });
+          return html;
+        },
+      },
+    });
+
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        modo: "todos",
+        idRecorrido: 101,
+        tabId: 1,
+        sitioId: "google-classroom",
+        tiempos: TIEMPOS_TEST,
+        topeCursoMs: 5000,
+      });
+
+      expect(res.recorrido).toBe(true);
+      const tipos = mensajesEnviados.map((m) => m.tipo).filter((t) => t !== "progreso");
+      expect(tipos).toEqual(["inicio", "latido", "curso", "latido", "fin"]);
+
+      const evCursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+      expect(evCursos).toHaveLength(1);
+      expect(evCursos[0].indice).toBe(0);
+      expect(evCursos[0].resultado).toBe("ok");
+
+      const evFin = mensajesEnviados.at(-1);
+      expect(evFin.estado).toBe("cortado");
+      expect(evFin.motivoCorte).toBe("visibilidad");
+
+      // 35. Corte por visibilidad no navega a /h
+      const navH = navegaciones.filter((n) => n.href.endsWith("/h"));
+      expect(navH).toHaveLength(0);
+      expect(window.location.pathname).not.toMatch(/\/h\/?$/);
+    } finally {
+      Object.defineProperty(document, "visibilityState", {
+        value: "visible",
+        configurable: true,
+      });
+      limpiar();
+    }
+  });
+
+  it("21. un curso no confirma identidad: curso fallido con aviso y el recorrido sigue hasta fin terminado", async () => {
+    const { mensajesEnviados, limpiar } = simularNavegacionClassroom({
+      hooksPorCurso: {
+        CURSO456: (html) => {
+          return html
+            .replace('aria-current="page"', "")
+            .replace(/<title>.*?<\/title>/, "<title>Trabajo en clase</title>");
+        },
+      },
+    });
+
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        modo: "todos",
+        idRecorrido: 102,
+        tabId: 1,
+        sitioId: "google-classroom",
+        tiempos: TIEMPOS_TEST,
+        topeCursoMs: 5000,
+      });
+
+      expect(res.recorrido).toBe(true);
+      const evCursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+      expect(evCursos).toHaveLength(3);
+      expect(evCursos[0].resultado).toBe("ok");
+      expect(evCursos[1].resultado).toBe("fallido");
+      expect(evCursos[1].motivo).toContain("curso");
+      expect(evCursos[2].resultado).toBe("ok");
+
+      const evFin = mensajesEnviados.at(-1);
+      expect(evFin.estado).toBe("terminado");
+    } finally {
+      limpiar();
+    }
+  });
+
+  it("22. un curso con [data-no-topic-items] y sin posts resulta en curso vacio", async () => {
+    const { mensajesEnviados, limpiar } = simularNavegacionClassroom({
+      hooksPorCurso: {
+        CURSO456: (html) => {
+          return html
+            .replace(
+              /<c-wiz id="vista-trabajo"[^>]*>[\s\S]*?<\/c-wiz>/,
+              '<c-wiz id="vista-trabajo" aria-hidden="true"><div data-no-topic-items="true">No hay publicaciones</div></c-wiz>'
+            )
+            .replace(
+              /<c-wiz id="vista-novedades"[^>]*>[\s\S]*?<\/c-wiz>/,
+              '<c-wiz id="vista-novedades"><div data-stream-item-id="post-vacio"><h2>Bienvenida</h2></div></c-wiz>'
+            );
+        },
+      },
+    });
+
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        modo: "todos",
+        idRecorrido: 103,
+        tabId: 1,
+        sitioId: "google-classroom",
+        tiempos: TIEMPOS_TEST,
+        topeCursoMs: 5000,
+      });
+
+      expect(res.recorrido).toBe(true);
+      const evCursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+      expect(evCursos).toHaveLength(3);
+      expect(evCursos[1].resultado).toBe("vacio");
+
+      const evFin = mensajesEnviados.at(-1);
+      expect(evFin.estado).toBe("terminado");
+    } finally {
+      limpiar();
+    }
+  });
+
+  it("23. tope por curso: curso que nunca pinta es fallido 'superó...' y el siguiente se escanea bien sin residuales", async () => {
+    const topeCursoMs = 800;
+    let timerPintadoTardio = null;
+    const { mensajesEnviados, navegaciones, limpiar } = simularNavegacionClassroom({
+      hooksPorCurso: {
+        CURSO123: (html) => {
+          const htmlSinItems = html
+            .replace(/data-stream-item-id/g, "data-ignorado")
+            .replace(/data-no-topic-items/g, "data-ignorado");
+          timerPintadoTardio = setTimeout(() => {
+            const items = document.querySelectorAll("[data-ignorado]");
+            for (const el of items) {
+              el.setAttribute("data-stream-item-id", el.getAttribute("data-ignorado"));
+            }
+          }, topeCursoMs + 100);
+          return htmlSinItems;
+        },
+        CURSO456: (html) => {
+          return html.replace(
+            '<a href="/u/2/c/CURSO123" aria-label="Física II">Física II</a>',
+            '<a aria-current="page" href="/u/2/c/CURSO123" aria-label="Física II">Física II</a>'
+          );
+        },
+      },
+    });
+
+    const tiemposConNavegacionLarga = { ...TIEMPOS_TEST, navegacion: 2000 };
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        modo: "todos",
+        idRecorrido: 104,
+        tabId: 1,
+        sitioId: "google-classroom",
+        tiempos: tiemposConNavegacionLarga,
+        topeCursoMs,
+      });
+
+      expect(res.recorrido).toBe(true);
+      const evCursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+      expect(evCursos).toHaveLength(3);
+      expect(evCursos[0].resultado).toBe("fallido");
+      expect(evCursos[0].motivo).toMatch(/superó \d+ s/);
+      expect(evCursos[1].resultado).toBe("ok");
+      for (const e of evCursos[1].enlaces) {
+        expect(e.modulo.startsWith("Química I › ")).toBe(true);
+      }
+
+      const evLatidoCurso2 = mensajesEnviados.find((m) => m.tipo === "latido" && m.indice === 1);
+      expect(evLatidoCurso2).toBeDefined();
+
+      const navsCurso123PostLatido2 = navegaciones.filter(
+        (n) => n.href.includes("CURSO123") && n.orden > evLatidoCurso2.orden
+      );
+      expect(navsCurso123PostLatido2).toHaveLength(0);
+    } finally {
+      if (timerPintadoTardio) clearTimeout(timerPintadoTardio);
+      limpiar();
+    }
+  });
+
+  it("24. sin opciones de modo: escaneo de curso idéntico a hoy y sendMessage no se llama", async () => {
+    prepararDom();
+    globalThis.chrome = globalThis.chrome || {};
+    globalThis.chrome.runtime = globalThis.chrome.runtime || {};
+    const sendMessageSpy = vi.fn();
+    globalThis.chrome.runtime.sendMessage = sendMessageSpy;
+
+    const res = await ScraperClassroom.escanearListado({ tiempos: TIEMPOS_TEST });
+    expect(sendMessageSpy).not.toHaveBeenCalled();
+    expect(res.enlaces.length).toBeGreaterThan(0);
+    expect(res.aviso).toBeUndefined();
+  });
+
+  it("25. vista con marcador de vacío que recibe 11 li a los 60 ms espera el asentado y trae los enlaces", async () => {
+    const htmlInicial = `
+      <title>Trabajo en clase de Física II - Classroom</title>
+      <nav>
+        <a href="/u/2/c/CURSO123">Novedades</a>
+        <a href="/u/2/w/CURSO123/t/all">Trabajo en clase</a>
+        <a aria-current="page" href="/u/2/c/CURSO123" aria-label="Física II">Física II</a>
+      </nav>
+      <c-wiz id="vista-trabajo">
+        <div data-no-topic-items>No hay publicaciones</div>
+        <div role="region" aria-label="Tema 1">
+          <ul id="lista-items"></ul>
+        </div>
+      </c-wiz>
+      <c-wiz id="vista-novedades" aria-hidden="true">
+        <div data-stream-item-id="post-vacio"></div>
+      </c-wiz>
+    `;
+    prepararDom(htmlInicial, "https://classroom.google.com/u/2/w/CURSO123/t/all");
+
+    setTimeout(() => {
+      const ul = document.getElementById("lista-items");
+      if (ul) {
+        for (let i = 1; i <= 11; i++) {
+          const li = document.createElement("li");
+          li.setAttribute("data-stream-item-id", `item-${i}`);
+          li.innerHTML = `
+            <div role="button" aria-expanded="true" aria-label="TP ${i}"></div>
+            <div data-attachment-id="att-${i}">
+              <a aria-label="Archivo adjunto: PDF: TP${i}.pdf" href="https://drive.google.com/file/d/drive-tp-${i}/view"></a>
+            </div>
+          `;
+          ul.appendChild(li);
+        }
+      }
+    }, 60);
+
+    const res = await ScraperClassroom.escanearListado({
+      tiempos: { ...TIEMPOS_TEST, asentadoVacio: 200, pintado: 2000 },
+    });
+
+    expect(res.aviso).toBeUndefined();
+    expect(res.enlaces).toHaveLength(11);
+  });
+
+  it("26. marcador con progressbar que se quita a los 80 ms con llegada de li trae los enlaces", async () => {
+    const htmlInicial = `
+      <title>Trabajo en clase de Física II - Classroom</title>
+      <nav>
+        <a href="/u/2/c/CURSO123">Novedades</a>
+        <a href="/u/2/w/CURSO123/t/all">Trabajo en clase</a>
+        <a aria-current="page" href="/u/2/c/CURSO123" aria-label="Física II">Física II</a>
+      </nav>
+      <c-wiz id="vista-trabajo">
+        <div data-no-topic-items>No hay publicaciones</div>
+        <div role="progressbar"></div>
+        <div role="region" aria-label="Tema 1">
+          <ul id="lista-items"></ul>
+        </div>
+      </c-wiz>
+      <c-wiz id="vista-novedades" aria-hidden="true">
+        <div data-stream-item-id="post-vacio"></div>
+      </c-wiz>
+    `;
+    prepararDom(htmlInicial, "https://classroom.google.com/u/2/w/CURSO123/t/all");
+
+    setTimeout(() => {
+      const pb = document.querySelector('[role="progressbar"]');
+      if (pb) pb.remove();
+      const ul = document.getElementById("lista-items");
+      if (ul) {
+        for (let i = 1; i <= 5; i++) {
+          const li = document.createElement("li");
+          li.setAttribute("data-stream-item-id", `item-${i}`);
+          li.innerHTML = `
+            <div role="button" aria-expanded="true" aria-label="TP ${i}"></div>
+            <div data-attachment-id="att-${i}">
+              <a aria-label="Archivo adjunto: PDF: TP${i}.pdf" href="https://drive.google.com/file/d/drive-tp-${i}/view"></a>
+            </div>
+          `;
+          ul.appendChild(li);
+        }
+      }
+    }, 80);
+
+    const res = await ScraperClassroom.escanearListado({
+      tiempos: { ...TIEMPOS_TEST, asentadoVacio: 200, pintado: 2000 },
+    });
+
+    expect(res.aviso).toBeUndefined();
+    expect(res.enlaces).toHaveLength(5);
+  });
+
+  it("27. demora en montar nav: espera a que aparezca nav del curso y sale ok", async () => {
+    const { mensajesEnviados, limpiar } = simularNavegacionClassroom({
+      demoraNavMs: 50,
+    });
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        modo: "todos",
+        idRecorrido: 105,
+        tabId: 1,
+        sitioId: "google-classroom",
+        tiempos: TIEMPOS_TEST,
+        topeCursoMs: 5000,
+      });
+
+      expect(res.recorrido).toBe(true);
+      const cursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+      expect(cursos.length).toBeGreaterThan(0);
+      expect(cursos[0].resultado).toBe("ok");
+    } finally {
+      limpiar();
+    }
+  });
+
+  it("28. con demora de 50 ms en archivadas, el inicio trae los 3 cursos", async () => {
+    const { mensajesEnviados, limpiar } = simularNavegacionClassroom();
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        modo: "todos",
+        idRecorrido: 106,
+        tabId: 1,
+        sitioId: "google-classroom",
+        tiempos: TIEMPOS_TEST,
+        topeCursoMs: 5000,
+      });
+
+      expect(res.recorrido).toBe(true);
+      const evInicio = mensajesEnviados[0];
+      expect(evInicio.cursos).toHaveLength(3);
+    } finally {
+      limpiar();
+    }
+  });
+
+  it("29. serialización: sendMessage simulado que tarda 300 ms y cuenta envíos en vuelo; recorrido con progreso -> en vuelo nunca > 1 y orden respeta latido -> progreso -> curso", async () => {
+    let enVuelo = 0;
+    let maxEnVuelo = 0;
+    const mensajesEnviados = [];
+    let reloj = 0;
+
+    const { limpiar } = simularNavegacionClassroom();
+    globalThis.chrome.runtime.sendMessage = vi.fn(async (msg) => {
+      enVuelo++;
+      if (enVuelo > maxEnVuelo) maxEnVuelo = enVuelo;
+      await new Promise((resolve) => setTimeout(resolve, 300)); // con 20 ms el control negativo (progreso fuera de la cola) no fallaba
+      mensajesEnviados.push({ ...msg, orden: ++reloj, timestamp: Date.now() });
+      enVuelo--;
+    });
+
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        modo: "todos",
+        idRecorrido: 100,
+        tabId: 1,
+        sitioId: "google-classroom",
+        tiempos: { ...TIEMPOS_TEST, asentadoVacio: 550, pintado: 2000 },
+        topeCursoMs: 5000,
+      });
+
+      expect(res.recorrido).toBe(true);
+      expect(maxEnVuelo).toBe(1);
+
+      const progresos = mensajesEnviados.filter((m) => m.tipo === "progreso");
+      expect(progresos.length).toBeGreaterThan(0);
+
+      const relevantes = mensajesEnviados
+        .filter((m) => m.tipo === "latido" || m.tipo === "progreso" || m.tipo === "curso" || m.tipo === "fin");
+
+      for (let i = 0; i < relevantes.length - 1; i++) {
+        const actual = relevantes[i].tipo;
+        const siguiente = relevantes[i + 1].tipo;
+        if (actual === "latido") {
+          expect(["progreso", "curso"]).toContain(siguiente);
+        } else if (actual === "progreso") {
+          expect(["progreso", "curso"]).toContain(siguiente);
+        } else if (actual === "curso") {
+          expect(["latido", "fin"]).toContain(siguiente);
+        }
+      }
+    } finally {
+      limpiar();
+    }
+  }, 15000);
+
+  it("30. en modo todos llegan eventos progreso con fase trabajo y novedades para un curso con material, y ninguno llega después de curso", async () => {
+    const { mensajesEnviados, limpiar } = simularNavegacionClassroom();
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        modo: "todos",
+        idRecorrido: 102,
+        tabId: 1,
+        sitioId: "google-classroom",
+        tiempos: { ...TIEMPOS_TEST, vuelta: 200 },
+        topeCursoMs: 5000,
+      });
+
+      expect(res.recorrido).toBe(true);
+      const progresos = mensajesEnviados.filter((m) => m.tipo === "progreso");
+      expect(progresos.length).toBeGreaterThan(0);
+
+      const fases = progresos.map((p) => p.fase);
+      expect(fases).toContain("trabajo");
+      expect(fases).toContain("novedades");
+
+      for (const p of progresos) {
+        const idxCurso = mensajesEnviados.findIndex(
+          (m) => m.tipo === "curso" && m.indice === p.indice
+        );
+        const idxProgreso = mensajesEnviados.indexOf(p);
+        expect(idxProgreso).toBeLessThan(idxCurso);
+      }
+    } finally {
+      limpiar();
+    }
+  }, 15000);
+
+  it("31. modo un curso con idEscaneo emite escaneo_progreso con idEscaneo, fases en orden y nombre; sin idEscaneo cero escaneo_progreso", async () => {
+    globalThis.chrome = globalThis.chrome || {};
+    globalThis.chrome.runtime = globalThis.chrome.runtime || {};
+    const recibidosConId = [];
+    globalThis.chrome.runtime.sendMessage = vi.fn(async (msg) => {
+      recibidosConId.push(msg);
+    });
+
+    await ScraperClassroom.escanearListado({
+      idEscaneo: 7,
+      tiempos: { ...TIEMPOS_TEST, asentadoVacio: 50, pintado: 100, vuelta: 550 },
+    });
+
+    const progresos7 = recibidosConId.filter((m) => m.action === "escaneo_progreso");
+    expect(progresos7.length).toBeGreaterThan(0);
+    expect(progresos7.every((p) => p.idEscaneo === 7)).toBe(true);
+    expect(progresos7.some((p) => p.nombre === "Física II")).toBe(true);
+
+    const recibidosSinId = [];
+    globalThis.chrome.runtime.sendMessage = vi.fn(async (msg) => {
+      recibidosSinId.push(msg);
+    });
+
+    await ScraperClassroom.escanearListado({
+      tiempos: TIEMPOS_TEST,
+    });
+
+    const progresosSin = recibidosSinId.filter((m) => m.action === "escaneo_progreso");
+    expect(progresosSin).toHaveLength(0);
+  }, 15000);
+
+  it("32. frecuencia: progresos enviados están separados >= 500 ms entre sí", async () => {
+    globalThis.chrome = globalThis.chrome || {};
+    globalThis.chrome.runtime = globalThis.chrome.runtime || {};
+    const envios = [];
+    globalThis.chrome.runtime.sendMessage = vi.fn(async (msg) => {
+      if (msg.action === "escaneo_progreso") {
+        envios.push({ msg, t: Date.now() });
+      }
+    });
+
+    const region = document.querySelector('div[role="region"]');
+    const btnVerMas = document.querySelector('button[aria-label="Ver más publicaciones"]');
+    let clicks = 0;
+    if (btnVerMas && region) {
+      btnVerMas.getClientRects = () => [{ width: 100, height: 30 }];
+      btnVerMas.addEventListener("click", () => {
+        clicks++;
+        if (clicks <= 10) {
+          const li = document.createElement("li");
+          li.setAttribute("data-stream-item-id", `tp-extra-${clicks}`);
+          li.innerHTML = `<div>Item extra ${clicks}</div>`;
+          region.appendChild(li);
+        }
+      });
+    }
+
+    await ScraperClassroom.escanearListado({
+      idEscaneo: 99,
+      tiempos: { ...TIEMPOS_TEST, asentadoVacio: 550, verMas: 50, vuelta: 5 },
+    });
+
+    await new Promise((r) => setTimeout(r, 600));
+
+    expect(envios.length).toBeGreaterThan(1);
+    for (let i = 0; i < envios.length - 1; i++) {
+      const delta = envios[i + 1].t - envios[i].t;
+      expect(delta).toBeGreaterThanOrEqual(490);
+    }
+  });
+
+  it("33. al terminar el recorrido de test 19, location.pathname termina en /h y el último mensaje es fin terminado", async () => {
+    const { mensajesEnviados, limpiar } = simularNavegacionClassroom();
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        modo: "todos",
+        idRecorrido: 100,
+        tabId: 1,
+        sitioId: "google-classroom",
+        tiempos: TIEMPOS_TEST,
+        topeCursoMs: 5000,
+      });
+
+      expect(res.recorrido).toBe(true);
+      expect(window.location.pathname).toMatch(/\/h\/?$/);
+      const evFin = mensajesEnviados.at(-1);
+      expect(evFin.tipo).toBe("fin");
+      expect(evFin.estado).toBe("terminado");
+    } finally {
+      limpiar();
+    }
+  });
+
+  it("34. sin link /h en el nav: el recorrido igual manda fin terminado", async () => {
+    const { mensajesEnviados, limpiar } = simularNavegacionClassroom({
+      hooksPorCurso: {
+        CURSO789: (html) => {
+          return html.replace(/<a href="\/u\/2\/h">Clases<\/a>/g, "");
+        },
+      },
+    });
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        modo: "todos",
+        idRecorrido: 104,
+        tabId: 1,
+        sitioId: "google-classroom",
+        tiempos: TIEMPOS_TEST,
+        topeCursoMs: 5000,
+      });
+
+      expect(res.recorrido).toBe(true);
+      const evFin = mensajesEnviados.at(-1);
+      expect(evFin.tipo).toBe("fin");
+      expect(evFin.estado).toBe("terminado");
+    } finally {
+      limpiar();
+    }
+  });
+
+  it("36. curso lleva duracionMs numérico >= 0 en ok, vacío y fallido; inicio lleva lanzadoEn", async () => {
+    const { mensajesEnviados, limpiar } = simularNavegacionClassroom({
+      hooksPorCurso: {
+        CURSO456: (html) => {
+          return html
+            .replace(
+              /<c-wiz id="vista-trabajo"[^>]*>[\s\S]*?<\/c-wiz>/,
+              '<c-wiz id="vista-trabajo" aria-hidden="true"><div data-no-topic-items="true">No hay publicaciones</div></c-wiz>'
+            )
+            .replace(
+              /<c-wiz id="vista-novedades"[^>]*>[\s\S]*?<\/c-wiz>/,
+              '<c-wiz id="vista-novedades"><div data-stream-item-id="post-vacio"><h2>Bienvenida</h2></div></c-wiz>'
+            );
+        },
+        CURSO789: (html) => {
+          return html.replace(/<nav>[\s\S]*?<\/nav>/, "<nav></nav>");
+        },
+      },
+    });
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        modo: "todos",
+        idRecorrido: 105,
+        tabId: 1,
+        sitioId: "google-classroom",
+        lanzadoEn: 987654321,
+        tiempos: TIEMPOS_TEST,
+        topeCursoMs: 5000,
+      });
+
+      expect(res.recorrido).toBe(true);
+      const evInicio = mensajesEnviados.find((m) => m.tipo === "inicio");
+      expect(evInicio.lanzadoEn).toBe(987654321);
+
+      const cursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+      expect(cursos.length).toBeGreaterThanOrEqual(3);
+
+      expect(cursos[0].resultado).toBe("ok");
+      expect(typeof cursos[0].duracionMs).toBe("number");
+      expect(cursos[0].duracionMs).toBeGreaterThanOrEqual(0);
+
+      expect(cursos[1].resultado).toBe("vacio");
+      expect(typeof cursos[1].duracionMs).toBe("number");
+      expect(cursos[1].duracionMs).toBeGreaterThanOrEqual(0);
+
+      expect(cursos[2].resultado).toBe("fallido");
+      expect(typeof cursos[2].duracionMs).toBe("number");
+      expect(cursos[2].duracionMs).toBeGreaterThanOrEqual(0);
+    } finally {
+      limpiar();
+    }
+  });
+
+  const VISTA_OTRO_CURSO_HTML = `
+<c-wiz id="vista-otro-curso" aria-hidden="true">
+  <a href="/u/2/c/OTRO999/sp/xyz/all/default">Ver tus trabajos</a>
+  <div role="region" aria-label="Tema Viejo">
+    <li data-stream-item-id="viejo-1" data-expandable-row-id="row-viejo-1">
+      <div role="button" aria-expanded="true" aria-label="Material Viejo"></div>
+      <a href="/u/2/c/OTRO999/m/m1/details">Material Viejo</a>
+      <div data-attachment-id="att-viejo">
+        <a aria-label="Archivo adjunto: PDF: Viejo.pdf" href="https://drive.google.com/file/d/drive-viejo/view"></a>
+      </div>
+    </li>
+  </div>
+</c-wiz>
+`;
+
+  it("37. Trabajo: la vista de otro curso que queda visible un instante no se lee", async () => {
+    const htmlConOtroCurso = htmlFixture.replace(
+      '<c-wiz id="vista-trabajo">',
+      `${VISTA_OTRO_CURSO_HTML}\n  <c-wiz id="vista-trabajo">`
+    );
+    prepararDom(htmlConOtroCurso, "https://classroom.google.com/u/2/c/CURSO123");
+    document.getElementById("vista-trabajo")?.setAttribute("aria-hidden", "true");
+    document.getElementById("vista-novedades")?.removeAttribute("aria-hidden");
+
+    let primerClic = true;
+    const clickHandler = (e) => {
+      const a = e.target.closest('a[href="/u/2/w/CURSO123/t/all"]');
+      if (a && primerClic) {
+        primerClic = false;
+        e.preventDefault();
+        e.stopPropagation();
+        document.getElementById("vista-novedades")?.setAttribute("aria-hidden", "true");
+        document.getElementById("vista-otro-curso")?.removeAttribute("aria-hidden");
+        window.location.pathname = "/u/2/w/CURSO123/t/all";
+        setTimeout(() => {
+          document.getElementById("vista-otro-curso")?.setAttribute("aria-hidden", "true");
+          document.getElementById("vista-trabajo")?.removeAttribute("aria-hidden");
+        }, 150);
+      }
+    };
+    document.addEventListener("click", clickHandler, true);
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        tiempos: { ...TIEMPOS_TEST, navegacion: 1000, pintado: 1000 },
+      });
+      expect(res.motivoAviso).toBeUndefined();
+      expect(res.aviso).toBeUndefined();
+      expect(res.enlaces.some((e) => e.idArchivo === "drive-sin-tema")).toBe(true);
+      expect(res.enlaces.some((e) => e.idArchivo === "drive-viejo")).toBe(false);
+    } finally {
+      document.removeEventListener("click", clickHandler, true);
+    }
+  });
+
+  it("38. Novedades: con ningún c-wiz visible no se lee el body", async () => {
+    const htmlConOtroCurso = htmlFixture.replace(
+      '<c-wiz id="vista-trabajo">',
+      `${VISTA_OTRO_CURSO_HTML}\n  <c-wiz id="vista-trabajo">`
+    );
+    prepararDom(htmlConOtroCurso, "https://classroom.google.com/u/2/w/CURSO123/t/all");
+
+    let primerClic = true;
+    const clickHandler = (e) => {
+      const a = e.target.closest('a[href="/u/2/c/CURSO123"]');
+      if (a && primerClic) {
+        primerClic = false;
+        e.preventDefault();
+        e.stopPropagation();
+        for (const cwiz of document.querySelectorAll("body > c-wiz")) {
+          cwiz.setAttribute("aria-hidden", "true");
+        }
+        window.location.pathname = "/u/2/c/CURSO123";
+        setTimeout(() => {
+          document.getElementById("vista-novedades")?.removeAttribute("aria-hidden");
+        }, 150);
+      }
+    };
+    document.addEventListener("click", clickHandler, true);
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        tiempos: { ...TIEMPOS_TEST, navegacion: 1000, pintado: 1000 },
+      });
+      expect(res.motivoAviso).toBeUndefined();
+      expect(res.enlaces.some((e) => e.idArchivo === "drive-viejo")).toBe(false);
+    } finally {
+      document.removeEventListener("click", clickHandler, true);
+    }
+  });
 });
+
 

@@ -30,10 +30,31 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **43 archivos, 724 tests**, todo en verde |
+| `pnpm test` | **46 archivos, 799 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 799** (2026-09-27, plan `classroom-fin-descarga-todos`). Son los 798 de abajo más **+1** test en `core/estado/appState.test.ts` (`AppState.limpiarColaConservandoLista`: vacía la cola pero conserva la lista, el origen y el recorrido; 37 → 38 tests).
+
+**De dónde sale el 798** (2026-09-27, plan `classroom-vista-del-curso`). Son los 796 de abajo más **+2** tests en `sitio/google-classroom/scraper.test.js` (tests 37 y 38: descarte de vista transitoria de otro curso en Trabajo y descarte de caída a body en Novedades con ningún c-wiz visible; 35 → 37 tests).
+
+**De dónde sale el 796** (2026-09-27, plan `loader-con-progreso`). Son los 764 de abajo más **+32** tests (y 2 archivos nuevos):
+**+7** en `core/estado/recorridoTodos.test.ts` (duracionMs, actual, limpieza de actual en latido/curso, progreso en reductor; 16 → 23 tests),
+**+13** en el archivo nuevo `core/estado/progresoEscaneo.test.ts` (funciones puras de reloj, textos de fase, estimación restante y vistas del loader),
+**+7** en `sitio/google-classroom/scraper.test.js` (tests 29–34 y 36: serialización de avisos, reporte de progreso, un curso con idEscaneo, frecuencia ≥ 500 ms, vuelta a portada /h, duracionMs en cursos e inicio con lanzadoEn; 28 → 35 tests),
+y **+5** en el archivo nuevo `popup/features/loaderDetalle.preact.test.js` (isla del detalle del loader: líneas/pie, lista de cursos con marcas y resalte de actual, reloj fake timers, y limpiar).
+
+**De dónde sale el 764** (2026-09-27, correcciones de `classroom-escanear-todas`). Son los 758 de abajo más **+6** tests:
+**+4** en `sitio/google-classroom/scraper.test.js` (tests 25–28: asentado de vacío con 11 li, marcador con progressbar, demora en montar nav, y demora en vista de archivadas; 24 → 28 tests),
+y **+2** en `core/estado/recorridoTodos.test.ts` (estado terminal en reductor: ignorar eventos tras fin cortado, y materializado tras fin; 14 → 16 tests).
+
+**De dónde sale el 758** (2026-09-25, `classroom-escanear-todas`). Son los 724 de abajo más **+34** tests:
+**+6** en `sitio/google-classroom/scraper.test.js` (tests 19–24: modo todos, eventos, visibilidad, curso fallido, curso vacío, tope curso),
+**+14** en el archivo nuevo `core/estado/recorridoTodos.test.ts` (reductor puro, vigencia, resumen, enlacesDe),
+**+5** en `background.test.js` (manejador IPC `recorrido_evento` persistiendo en `storage.local.recorridoTodos`),
+**+6** en `core/estado/origenListado.test.ts` (decisión al abrir con recorrido y portada, 9 → 15 tests),
+y **+3** en `popup/features/listaClases.preact.test.js` (`ctx.grupos` de cursos, 36 → 39 tests).
 
 **De dónde sale el 724** (2026-09-22, identidad en cursos archivados de Classroom corte 1). Son los 723 de abajo más
 **+1** test en `sitio/google-classroom/scraper.test.js` (test 18: un ancla del curso fuera del `<h1>` no confirma el title; el test 15 no suma, cambia para probar el mecanismo real sin el ancla inventada).

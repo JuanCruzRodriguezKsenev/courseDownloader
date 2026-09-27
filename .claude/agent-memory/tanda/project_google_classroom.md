@@ -46,32 +46,80 @@ antes de la extensión, D13 paginar con "Ver más" (botón visible y habilitado 
 8. El **verificador corre la batería de courseDownloader**: no verifica planes sobre otro repo (`~/U.N.L.P`) → ahí,
    contraste propio.
 9. **`git push` por iniciativa propia lo bloquea el clasificador de auto mode**; con pedido explícito del dueño pasa.
+10. **Claude in Chrome: su pestaña queda con `visibilityState = "hidden"`** aunque pinte → sirve para medir navegación
+    y DOM, pero NO para correr el scraper (aborta por visibilidad). Cronometrar escaneos = el dueño.
 
-## Estado al 2026-09-22
+## Estado al 2026-09-25
 
-Rama `classroom-corte-1`, **34 commits** sobre `main` (que sigue en `733ec91` del 2026-08-28). Baseline declarada
-en `docs/testing.md`: **43 archivos / 724 tests**.
+**Corte 1 MERGEADO** a `main` (`080f7aa`, sin push) con escaneo + descarga verificados en Brave por el dueño.
+Pasos 4/6/7/10/11/13/15 de la Verificación B sin mirar → ⚪ en TECHNICAL_DEBT. El registro entero de la rama
+(planes, checklist, hallazgos) se mudó a `docs/portal-google-classroom-diseno.md` §9. M-6c (Novedades) → 🟠 en deuda.
 
-Planes ejecutados: corte 1 base, verificación B, lista-guardada-y-explorar, abrir-todos, adjuntos-sin-resolver,
-identidad-del-curso, **identidad-en-archivados** (`2a0cf6c`, scraper v1.3.1, obra el 2026-09-22 00:24).
+Orden del dueño: **escanear todos los cursos desde la portada** → destino en `~/U.N.L.P` (corte 2) → rediseño de la extensión.
+Rama `classroom-escanear-todas`: spec `docs/specs/classroom-escanear-todas/spec.md` (draft, 21 RN / 14 AC,
+tabla de decisión al abrir el popup). **El dueño aprobó los 23 supuestos "sin leer"** → avisado en el encabezado;
+filo: RN-15 (sobrevivir al popup = la deuda ⚪ de cerrar popup), RN-16 (no re-escanear el curso donde está parada la
+pestaña a mitad del recorrido), RN-18 (una sola lista). M-3 cerrado sobre muestras (portada 6 activos + link
+`/h/archived`; archivadas enumera los 8). M-2 CERRADO por mí en Brave (todo navega por SPA; hoy 5 activos + 2 archivados).
+**Plan escrito: `docs/plan-classroom-escanear-todas.md`** (9 pasos): recorrido en UNA inyección en la pestaña que
+avisa al SW con `chrome.runtime.sendMessage` (acción `recorrido_evento`, clave `recorridoTodos`, ADR-0016 nuevo);
+el popup materializa con la rama feliz extraída; lector vía `crearLectorRecorrido` en composicion (el popup NO recibe
+`almacenamiento`). M-1 va en la Verificación B (estimación 45 s/curso). Próximo: obra ejecuta; yo re-verifico. Radio de impacto ya visto: `config.ts:53-56` (`esPaginaDelSitio` no reclama
+`/h`), `scraper.js` devuelve UNA `materia`, `popup.js:1166,1516` origen de lista único, `decidirAlAbrir`
+(`core/estado/origenListado.ts`).
 
-**No queda ningún 🔴 de Classroom abierto.** Los cuatro planes de defecto están ejecutados y `docs/ramas-en-revision.md`
-los marca RESUELTOS. Lo único 🟡 vivo es Novedades, y no se toca hasta M-6c.
+## Estado al 2026-09-27
 
-**Re-verificado por mí el 2026-09-22** (batería + contraste contra las 62 muestras, ambos en verde; el detalle
-quedó en `docs/ramas-en-revision.md`). Los 11 HTML de curso archivado que abortaban ahora resuelven, ninguna de las
-55 muestras de curso resuelve con nombre equivocado, y `buscarLinkNav` sigue viva y correcta en sus 3 usos de
-navegación. **La rama no tiene nada pendiente del lado del código.**
+obra ejecutó los 9 pasos; B-2/B-3 del dueño (leídas del storage de Brave) dieron 3 🔴: archivados no entran, primer
+curso falla, cursos incompletos (Física I 1–7 vs 130 solo). Medido en Brave con Claude in Chrome (**la pestaña SÍ
+quedó visible esta vez**): archivadas pinta a ~520 ms tras la URL; el link a Trabajo aparece ~620 ms tras la URL; en
+**primera visita** `[data-no-topic-items]` llega antes que los `li` (latente del corte 1); vacío real = marcador sin
+"Ver más" ni `role=progressbar`. Plan escrito: `docs/plan-classroom-escanear-todas-correcciones.md` (7 pasos). Botón
+durante el recorrido: OCULTO (decidí yo, el dueño delegó); al dueño le gusta el resumen. Loader infinito en portada
+corregido por mí (`ee98446`). obra volvió a declarar "control negativo probado" sin que detectara → correrlos yo.
+El filtro de Claude in Chrome bloquea salidas con ids base64 de Classroom en URLs: no imprimir paths.
+**Correcciones ejecutadas por obra (HEAD `842f506`) y re-verificadas por mí**: compuerta 44/764; los 4 controles
+negativos (25/26, 27, 28, 23) muerden de verdad (sabotaje en worktree de scratch; pnpm se niega en worktree →
+`./node_modules/.bin/vitest` directo); `trabajoAsentado` simulado sobre las 34 muestras de Trabajo: 0 progressbar
+en vistas cargadas, vacíos = MC6/Q5; nombres limpios en 00-partida (aria) y 00-archivadas (texto). Falta B-2/B-3/B-6 del dueño.
+Pedido nuevo (2026-09-27): spec `docs/specs/loader-con-progreso/spec.md` (draft, 23 RN / 11 AC; aprobada SIN LEER):
+progreso en el loader para un curso y recorrido (sale la tarjeta `popup.js:2053`), vuelta a `/h` al terminar el
+recorrido (RN-20..22, derivados no vistos por el dueño; arregla que reabrir en el último curso re-escanee), Estado
+primero en filtros (`filters.js:371-434`). B-2/B-3/B-6 ✅ (storage: 7 cursos, 0 fallidos, ~124 s ≈ 18 s/curso). Plan escrito:
+`docs/plan-loader-con-progreso.md` (6 pasos). Claves: el SW hace leer-modificar-escribir por evento → el progreso
+del recorrido va por una COLA de mensajes (si no, pisa el `curso`); un curso usa `escaneo_progreso` directo al
+popup (SW devuelve false a acciones sin manejador); `esRutaPortada` acepta `/h/archived` (no usarla para esperar `/h`).
+**Ejecutado por obra y revisado por mí (HEAD `1aa0a83`)**: 46/796 verde; controles Paso 1 y 33 muerden;
+**el 29 NO mordía** (latencia simulada 20 ms nunca solapa envíos) → lo afilé a 300 ms + timeout 15 s. Tercera vez
+que obra declara un control verificado que no muerde. 🟡 no reproducido: loader bloquea hasta 210 s si el script
+muere sin `fin` (F5) → L-9. Checklist L-1..L-9 en `ramas-en-revision.md`. L-1 del dueño: CSS roto (overlay translúcido, detalle pegado a la izquierda) → plan `docs/plan-loader-detalle-css.md`.
+**Para ver CSS del popup sin el dueño**: CSS compilado de `.output/chrome-mv3/assets/` + markup en scratch, servido con
+`python3 -m http.server` (Claude in Chrome no abre `file://`). Cazó y validó el arreglo en 5 min.
+**CSS del loader ejecutado por obra (`5a88754`) y re-verificado por mí**: diff idéntico al plan, 46/796 verde,
+reproducción en iframe 400×560 OK en oscuro y claro (para el claro: borrar las reglas `@media dark` vía JS). Falta L-1/L-2 del dueño en Brave.
+L-2 del dueño: recorrido cortado en el 2º curso → **Classroom muestra ~100-200 ms la vista del curso ANTERIOR o
+ninguna** (`obtenerVistaActiva` cae a `body`) al cambiar de vista; intermitente (4/4 y 0/3). Criterio medido:
+los ids de curso en los `a[href]` de la vista (`/c/`, `/w/`, `/a/<x>/<id>$`) = {propio} en 39/39 muestras.
+**Los fixtures NO tienen hrefs con id dentro de las vistas** → filtro negativo. Plan `docs/plan-classroom-vista-del-curso.md`.
+**Ejecutado por obra (`711a6b1`) y re-verificado por mí**: 46/798 verde; controles 37/38 MUERDEN (esta vez sí).
+obra agregó por su cuenta un fallback en `!pintadoOk` (busca `/c/<otro>/m/` → `curso-cambiado`) que el plan no
+nombraba: hace falta (sin él cae el test 17) — el plan debió prever que el filtro deja al 17 sin aviso. 🟡 anotado:
+el fallback lee `body` si vence sin c-wiz visible. Falta L-2 del dueño en Brave (2 corridas).
 
-**Lo único que falta para el merge: la Verificación B en Brave** — checklist de 15 pasos en
-`docs/ramas-en-revision.md`, la hace el dueño. Ojo al armarla: los totales esperados de los cursos **activos**
-vencieron (G22 ya trae ~63, no 57); los únicos firmes son G25 (71) y MB5 (24), que son justo los archivados que
-este arreglo destrabó. Luego el corte 2 sobre la spec.
+Fin de cola con popup abierto tiraba la lista de todos (`limpiarSesionLocal` + escaneo de 1 curso en `/h`) →
+plan `docs/plan-classroom-fin-descarga-todos.md` (sólo si `origenListado.clave === "todos"`; un curso sigue igual).
+**Ejecutado por obra (`c38b5ae`) y re-verificado por mí**: 46/799 verde; el control negativo MUERDE (worktree de
+scratch necesita symlink a `node_modules` **y a `.wxt`**, si no vitest no carga el tsconfig). Para L-10 moví 3 PDF
+de `~/Descargas/verificacion-b` (uno por curso: Física I G, G22, G25) a `scratchpad/respaldo-verificacion-b`.
 
-**M-6c sigue pendiente del dueño** y es lo único que puede reabrir el 🟡 de Novedades (re-escanear G25 con la pestaña
-al frente y mirar el storage enseguida).
+**Decidido 2026-09-27**: cerrar esta rama primero (sesión S-1..S-9 en `ramas-en-revision.md`, M-1 cerrado por
+B-3), mergear, y recién después corte 2 (ordenar en ~/U.N.L.P) ANTES que Moodle. Corte 2 arranca por PA-3.
 
 ## Spec del corte 2 (destino en ~/U.N.L.P)
+**2026-09-27, retomando el corte 2**: el dueño decidió raíz por portal — Ramón Net y Anatomy quedan como están;
+Classroom **y los Moodle de la UNLP que vienen "en un futuro inmediato"** van a `~/U.N.L.P` (pensar la raíz como
+"UNLP", no "classroom"). PA-3 (adopción) SIN cerrar: el dueño dice que en `~/Descargas/verificacion-b` (raíz actual
+del backend) ya bajó todo → posible semilla: evitar la re-bajada leyendo de ahí. Preguntarle de nuevo con eso.
 
 `docs/specs/classroom-destino/spec.md` (draft, **30 RN / 13 AC**, tabla de decisión, wireframes) + `assumptions.md`.
 Decisiones del dueño: "ya descargado" **por md5, no por nombre**; el nombre lo propone la extensión y el dueño lo

@@ -1,6 +1,10 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: FILTROS Y BÚSQUEDA (V2.5.0)
+ * CLON DOWNLOADHELPER - FEATURE: FILTROS Y BÚSQUEDA (V2.6.0)
  * ==========================================================================
+ * CHANGELOG v2.6.0:
+ * - [FILTROS — ESTADO PRIMERO] En Disponibles la sección Estado va antes que
+ *   Materia (RN-23, AC-10).
+ *
  * CHANGELOG v2.5.0:
  * - [CLASSROOM CORTE 1 — BOTÓN 🔄] `desbanearFiltros` re-habilita `nodos.btnRescan`
  *   incondicionalmente junto con el buscador y filtros: es una salida, no actúa
@@ -369,6 +373,35 @@ const FilterFeature = {
       nodos.filterMenu.innerHTML = "";
 
       if (appState.pestañaActiva === "disponibles") {
+        // --- Sección Estado ---
+        const secEstado = document.createElement("div");
+        secEstado.className = "popover-section";
+
+        const titEstado = document.createElement("div");
+        titEstado.className = "popover-section-title";
+        titEstado.textContent = "Estado";
+        secEstado.appendChild(titEstado);
+
+        const estadosDisponibles = [
+          { key: "pending", label: "Pendientes" },
+          { key: "downloaded", label: "Descargados" },
+          { key: "process", label: "En Fila" }
+        ];
+
+        estadosDisponibles.forEach(est => {
+          const opt = crearPopoverOptionDOM(est.label, filtrosActivos.estados.has(est.key), (checked) => {
+            if (checked) {
+              filtrosActivos.estados.add(est.key);
+            } else {
+              filtrosActivos.estados.delete(est.key);
+            }
+            actualizarPillsUIState();
+            aplicarFiltrosCruzados();
+          });
+          secEstado.appendChild(opt);
+        });
+        nodos.filterMenu.appendChild(secEstado);
+
         // --- Sección Materia (portales de dos niveles) ---
         // [ESCANEO-API CORTE 1, deuda] En un portal donde cada clase trae su propio módulo, la
         // carpeta dejó de salir del input de materia — y con eso Disponibles se quedó SIN eje de
@@ -403,35 +436,6 @@ const FilterFeature = {
           });
           nodos.filterMenu.appendChild(secMateria);
         }
-
-        // --- Sección Estado ---
-        const secEstado = document.createElement("div");
-        secEstado.className = "popover-section";
-
-        const titEstado = document.createElement("div");
-        titEstado.className = "popover-section-title";
-        titEstado.textContent = "Estado";
-        secEstado.appendChild(titEstado);
-
-        const estadosDisponibles = [
-          { key: "pending", label: "Pendientes" },
-          { key: "downloaded", label: "Descargados" },
-          { key: "process", label: "En Fila" }
-        ];
-
-        estadosDisponibles.forEach(est => {
-          const opt = crearPopoverOptionDOM(est.label, filtrosActivos.estados.has(est.key), (checked) => {
-            if (checked) {
-              filtrosActivos.estados.add(est.key);
-            } else {
-              filtrosActivos.estados.delete(est.key);
-            }
-            actualizarPillsUIState();
-            aplicarFiltrosCruzados();
-          });
-          secEstado.appendChild(opt);
-        });
-        nodos.filterMenu.appendChild(secEstado);
 
         // --- Sección Tipo (escaneo-api corte 5) ---
         // Sólo aparece si el portal escaneado trajo adjuntos: en Ramón Net todo es video y una

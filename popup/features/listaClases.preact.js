@@ -1,6 +1,11 @@
 /**
- * ISLA PREACT #4 (Etapa 2) — la región #ui-list: listas y alerta (V1.3.0)
+ * ISLA PREACT #4 (Etapa 2) — la región #ui-list: listas y alerta (V1.4.0)
  * ==========================================================================
+ * CHANGELOG v1.4.0:
+ * - [CLASSROOM ESCANEAR TODAS] Agrupado por curso: si `ctx.grupos` está presente en
+ *   `modo:'lista'`, inserta `<div class="grupo-curso">` antes de la fila `desde` con el
+ *   título y conteo del curso.
+ *
  * CHANGELOG v1.3.0:
  * - [CLASSROOM CORTE 1 — ADJUNTOS SIN RESOLVER] Si `ctx.nota` está presente en `modo:'lista'`,
  *   pinta `<p class="lista-nota">${ctx.nota}</p>` arriba de las filas.
@@ -254,6 +259,21 @@ export function ListaClases() {
   const { items, ctx } = vm;
   const filas = items.map((clase) => html`<${FilaClase} key=${clase.id} clase=${clase} ctx=${ctx} />`);
 
+  // [CLASSROOM ESCANEAR TODAS] Divisores de curso en lista multi-curso
+  let hijos = filas;
+  if (Array.isArray(ctx.grupos) && ctx.grupos.length > 0) {
+    const mapaGrupos = new Map(ctx.grupos.map((g) => [g.desde, g]));
+    const acumulado = [];
+    items.forEach((clase, idx) => {
+      const g = mapaGrupos.get(idx);
+      if (g) {
+        acumulado.push(html`<div class="grupo-curso" key=${'g-' + g.titulo}><span>${g.titulo}</span><span>${g.conteo}</span></div>`);
+      }
+      acumulado.push(html`<${FilaClase} key=${clase.id} clase=${clase} ctx=${ctx} />`);
+    });
+    hijos = acumulado;
+  }
+
   // [CLASSROOM CORTE 1] La nota del escaneo va DENTRO de la lista, como `.cola-divisor`: la
   // región sigue teniendo un solo dueño (esta isla) y un solo `if`, que es la regla de
   // `docs/alertas-y-bloqueo-diseno.md` §1. Texto plano: no usa dangerouslySetInnerHTML.
@@ -262,7 +282,7 @@ export function ListaClases() {
   // [MULTISITIO CORTE 6A] La fila anclada (la que se está bajando) llega SIEMPRE primera —
   // eso lo decide popup.js al armar el vm, no la isla. Acá sólo se pinta la línea divisoria
   // detrás de ella, que es puro asunto de vista.
-  if (!ctx.anclaActiva || filas.length === 0) return nota ? [nota, ...filas] : filas;
+  if (!ctx.anclaActiva || filas.length === 0) return nota ? [nota, ...hijos] : hijos;
 
   const divisor = html`<div class="cola-divisor" key="divisor"><span>En cola</span></div>`;
   const resto = ctx.sinResultados
