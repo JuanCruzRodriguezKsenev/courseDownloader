@@ -21,7 +21,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   - Spec: `docs/specs/classroom-escanear-todas/spec.md`.
   - Plan: `docs/plan-classroom-escanear-todas.md`.
 - **Hecho por paso**:
-  - Paso 1: `ScraperClassroom` con `modo: "todos"`, cancelación entre cursos/latidos y emisión de eventos `recorrido_evento` vía `chrome.runtime.sendMessage`. 24 tests con control negativo probado.
+  - Paso 1: `ScraperClassroom` con `modo: "todos"`, cancelación entre cursos/latidos y emisión de eventos `recorrido_evento` vía `chrome.runtime.sendMessage`. 24 tests (el control negativo de 20 y 23 NO detecta: ver Revisión de tanda).
   - Paso 2: Contrato `PuertoSitio` v1.7.0 con `esPortada?`, config Classroom v1.3.0 (`claveDeListado: "todos"` en portada, instruccionEscaneo).
   - Paso 3: Módulo puro `core/estado/recorridoTodos.ts` (reductor, vigencia, resumen, enlacesDe) y lector `RecorridoTodos` exportado en `plataforma/composicion.ts`. 14 tests.
   - Paso 4: Manejador IPC `recorrido_evento` en `background.js` persistiendo en `storage.local.recorridoTodos`. 30 tests.
@@ -44,6 +44,38 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   - [ ] 11. **AC-12**: En la portada con lista de todos, 🔄 arranca un recorrido nuevo desde el curso 1.
   - [ ] 12. **AC-13**: Dentro de G22, sin recorrido: el popup se comporta igual que en `main`.
   - [ ] 13. **Consola del SW**: llegan los `recorrido_evento`, sin errores.
+- **Revisión de tanda (2026-09-27)** — compuerta re-corrida por el verificador: 44 archivos / 758
+  tests, lint, `tsc` y build en verde, árbol limpio. Hallazgos:
+  - 🔴 **El nombre del curso sale como id base64 en 7 de 8 cursos.** `leerCursosDePagina`
+    (`scraper.js`, recorrido) se queda con la PRIMERA ancla fuera de `nav` de cada id, y en el DOM
+    real cada tarjeta tiene tres y la primera (la imagen) no tiene texto ni `aria-label`. Simulado
+    sobre `recorrido-3/00-partida.html` y `00-archivadas.html`: sólo G22 sale con nombre. Pega en la
+    tarjeta de progreso y en el `⚠ <nombre>: <motivo>` del resumen (AC-7); los encabezados de grupo
+    no, porque salen del `modulo`. El fixture `portada.html` miente: una sola ancla con texto por
+    curso. Los nombres buenos están en el `aria-label` del sidebar (activos) y en el texto de la
+    segunda ancla de la tarjeta (archivados).
+  - 🟡 **El test 23 no tiene poder de detección**: con `dormir` sin rechazar por `cancelado`, pasa
+    igual (control negativo corrido por la tanda). La cancelación está bien por lectura (ningún
+    `catch` del escaneo se traga el error), pero el fixture no tiene un curso "zombi" que haga
+    daño al seguir corriendo. El test 20 también pasa sin el chequeo de `visible()` entre cursos,
+    y ahí es legítimo: el chequeo dentro del curso lo cubre (el control estaba mal elegido en el
+    plan). **Lo que dice arriba, "control negativo probado", no era cierto.**
+  - 🟡 **AC-14 no se ve**: `lanzarRecorridoTodos` no cambia el modo del botón, y en
+    `renderizarListadoInterfaz` la tarjeta de oferta (`data-modo === 'escanear-todos'`) se evalúa
+    antes que la de "El recorrido no trajo material". Mismo origen: durante el progreso el botón
+    sigue diciendo "Escanear todos los cursos", habilitado.
+  - 🟡 **`lanzarRecorridoTodos` no tiene la guarda de la fila 1.** Entre curso y curso la pestaña
+    pasa por `/h/archived`, que es portada: popup reabierto ahí + 🔄 → segundo recorrido en la
+    misma pestaña.
+  - ⚪ **El reductor no tiene estado terminal**: `latido`/`curso`/`fin` se aplican después de un
+    `fin` o de `materializado`. Si el popup corta por vigencia (`sin-respuesta`) mientras el
+    script sigue vivo, el script vuelve a escribir enlaces y un `fin terminado`. El peor caso
+    latido→curso es 15 + 15 + 180 s = 210 s, justo el umbral de `esVigente`.
+  - ⚠️ **NO REPRODUCIDO — mirar en B-3**: (a) si al llegar a un curso queda montada la vista de
+    Trabajo en clase del anterior, el chequeo `/c/<otroId>/m/` devuelve `avisoCursoCambiado` y el
+    recorrido entero se corta como "navegaste fuera del recorrido"; las muestras guardan una sola
+    `c-wiz`, así que no lo pueden confirmar ni descartar. (b) Para los activos, el script hace
+    click en `/h/archived` y, sin esperar, en el link del sidebar: carrera entre dos navegaciones.
 
 ## Lo último que se mergeó (2026-09-25)
 
