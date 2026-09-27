@@ -73,6 +73,12 @@ transformación de texto.
 - **RN-6** — El destino se decide **por tema**: todos los adjuntos de un tema van a la misma carpeta.
 - **RN-7** — Al asociar, la extensión precarga una sugerencia de carpeta para cada tema y el dueño la
   confirma o corrige, una vez por curso.
+  - **RN-7a** (dueño, 2026-09-27) — La sugerencia sale primero del **nombre del tema**. Si el nombre no
+    dice nada, sale de los **títulos de las publicaciones** del tema: gana el destino que suman más de
+    la mitad de sus adjuntos. Caso que lo motivó: en MC2 los temas se llaman "Complejos" o "Sistemas
+    lineales", pero sus 14 publicaciones dicen "Ejercicios para practicar: …" o "Ejercicios resueltos".
+  - **RN-7b** (dueño, 2026-09-27) — Un tema que se llama "Links" es de videos y simulaciones, y va a
+    `Teorias/`, igual que "Videos de experiencias y simulaciones". Caso: Física I, "Links-Módulo I/II".
 - **RN-8** — Los adjuntos de Novedades y los de "Sin tema" van a la raíz de la materia.
 - **RN-9** — Un tema que aparece después de asociar el curso va a la raíz de la materia y queda
   marcado como sin asignar hasta que el dueño le fije carpeta.

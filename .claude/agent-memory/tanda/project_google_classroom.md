@@ -197,3 +197,10 @@ el `:` es pseudo-clase) → corregido por mí con `CSS.escape` (editor.html:1031
 carga 299/55/4/8/2, 366 filas, 0 errores de consola. **Lección: toda la Verificación A del editor fue por curl y nunca ejecutó el JS
 de la página; E-1..E-6 (míos) no se habían corrido.** Página web nueva → abrirla en el navegador ANTES de mandar al dueño.
 ⚪ pendiente: `editor.html:955` mete `nombrePrimera` en `innerHTML` sin escapar.
+**RN-7a/7b (dueño, 2026-09-27)**: MC2 tenía 9 temas en `.` porque los temas son unidades ("Complejos") y la señal
+está en el TÍTULO DE LA PUBLICACIÓN (`material` en scraper.js, se perdía en `enlaces`). El dueño quiere detección
+automática, ya. Plan `docs/plan-classroom-destino-2a-publicacion.md`: `sugerirDestino(tema, publicaciones)` (tema
+manda; si no, mayoría estricta por adjunto), "Links" → Teorias, `publicacion` en enlace + `popup.js:aplicarEnlacesEscaneados`
+(lista FIJA de campos: un campo nuevo del scraper no llega a listaPersistente si no se agrega ahí). Requiere re-escanear.
+El dueño YA guardó docentes en cursos.tsv (Física I=Lucila, MB5=benevetano) → al regenerar, re-aplicarlos.
+Línea de base: generar.js actual reproduce los TSV reales byte a byte (12 regla=no).
