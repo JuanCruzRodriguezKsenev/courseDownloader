@@ -30,6 +30,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   - Paso 7: Lista agrupada por curso (`ctx.grupos`), estilos `.grupo-curso` y `.lista-nota: white-space: pre-line` en `styles/list.css`, isla `listaClases.preact.js` v1.4.0. 39 tests.
   - Paso 8: Revisión de copy en onboarding (slide 3).
   - Paso 9: Documentación (ADR-0016, README ADRs, `AGENTS.md`, `data-model.md`, `patterns.md`, `architecture.md`, `multisitio-diseno.md`, `portal-google-classroom-diseno.md`, `TECHNICAL_DEBT.md`, `testing.md`).
+  - **Correcciones pendientes**: `docs/plan-classroom-escanear-todas-correcciones.md` (7 pasos, 2026-09-27), por los hallazgos de la Revisión de tanda y de B-2/B-3.
 - **Verificación B — en Brave, la hace el dueño**:
   - [ ] 1. **M-1**: con el escaneo de un curso (como en `main`), cronometrar cada curso por separado. Si el promedio se aleja de 45 s, corregir texto en Paso 6f y NFR-1.
   - [ ] 2. **AC-1**: Portada `/u/2/h`, abrir el popup: tarjeta "Todas mis clases", botón "Escanear todos los cursos", y la pestaña **no** se mueve.

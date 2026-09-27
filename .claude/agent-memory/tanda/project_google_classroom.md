@@ -70,11 +70,14 @@ el popup materializa con la rama feliz extraída; lector vía `crearLectorRecorr
 
 ## Estado al 2026-09-27
 
-obra ejecutó los 9 pasos de `classroom-escanear-todas`; compuerta 44/758 verde (re-verificada). Revisión de tanda con
-6 hallazgos (1 🔴 nombre de curso = id base64, 3 🟡, 1 ⚪, 1 ⚠️ DOM viejo → corte falso) anotados en
-`docs/ramas-en-revision.md` §Revisión de tanda, commit `316f6bc`. Próximo: el dueño corre B-2/B-3 en Brave (decide
-el ⚠️), después UN plan de correcciones con todo. **obra volvió a declarar "control negativo probado" sin que
-detectara**: correr los controles yo, siempre.
+obra ejecutó los 9 pasos; B-2/B-3 del dueño (leídas del storage de Brave) dieron 3 🔴: archivados no entran, primer
+curso falla, cursos incompletos (Física I 1–7 vs 130 solo). Medido en Brave con Claude in Chrome (**la pestaña SÍ
+quedó visible esta vez**): archivadas pinta a ~520 ms tras la URL; el link a Trabajo aparece ~620 ms tras la URL; en
+**primera visita** `[data-no-topic-items]` llega antes que los `li` (latente del corte 1); vacío real = marcador sin
+"Ver más" ni `role=progressbar`. Plan escrito: `docs/plan-classroom-escanear-todas-correcciones.md` (7 pasos). Botón
+durante el recorrido: OCULTO (decidí yo, el dueño delegó); al dueño le gusta el resumen. Loader infinito en portada
+corregido por mí (`ee98446`). obra volvió a declarar "control negativo probado" sin que detectara → correrlos yo.
+El filtro de Claude in Chrome bloquea salidas con ids base64 de Classroom en URLs: no imprimir paths.
 
 ## Spec del corte 2 (destino en ~/U.N.L.P)
 
