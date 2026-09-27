@@ -167,7 +167,7 @@ grep -c 'adopcion/' $S/server.log                                          # (s)
 curl -s localhost:3001/api/health | jq -c 'keys'                          # (t) incluye "ruta" (rutas viejas intactas)
 curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' 127.0.0.1:3001/adopcion   # (u) 301 http://127.0.0.1:3001/adopcion/
 curl -s 127.0.0.1:3001/adopcion/ | head -c 15; echo                        # (v) <!doctype html>
-curl -s 127.0.0.1:3001/adopcion/api/datos | jq -c '[(.cursos|length), (.temas|length), (.archivos|length), (.materias|index("Ingenieria/Fisica 1")!=null)]'   # (w) [7,<temas>,366,true]
+curl -s 127.0.0.1:3001/adopcion/api/datos | jq -c '[(.cursos|length), (.temas|length), (.archivos|length), (.materias|index("Ingenieria/Fisica 1")!=null)]'   # (w) [7,45,366,true]
 curl -s -XPOST 127.0.0.1:3001/adopcion/api/ensayo | jq '.codigo'           # (x) 1 (los 2 choques siguen)
 curl -s -XPOST -H 'Origin: https://ejemplo.com' -H 'Content-Type: text/plain' -d '{}' 127.0.0.1:3001/adopcion/api/guardar -w ' %{http_code}\n'   # (y) {"ok":false,"errores":["origen no permitido"]} 403
 curl -s -XPOST -H 'Origin: https://ejemplo.com' 127.0.0.1:3001/adopcion/api/ensayo -o /dev/null -w '%{http_code}\n'   # (z) 403
@@ -177,7 +177,7 @@ kill $PID
 sha256sum -c $S/antes.sha                                                  # (ac) los tres OK: nada escribió los TSV reales
 ```
 
-Si (w) da otro número de temas, pegalo: tanda lo contrasta con el (c) del modo suelto.
+Si (w) no da 45 temas (medido por el verificador el 2026-09-27 en modo suelto), pegalo.
 
 ## Verificación B (tanda, con Claude in Chrome en el Brave del dueño)
 
