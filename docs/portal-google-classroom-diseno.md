@@ -969,3 +969,144 @@ Entran al corte 1 **antes del merge** (decisión del dueño). El 🔴 de los adj
   se aplicó bien y los `.md` de acceso llevan el link correcto.
 
 - ⚠️ **M-C — Marcador de "sin tema" prematuro en primera visita** (2026-09-27): en primera visita a Trabajo en clase, el marcador `[data-no-topic-items]` se renderiza antes de que lleguen los ítems reales; el escaneo espera a que se asiente (`asentadoVacio`, 2000 ms) sin ítems, progressbar ni "Ver más" para no dar por vacío un curso con material (detalle y tabla de mediciones en [`docs/plan-classroom-escanear-todas-correcciones.md`](./plan-classroom-escanear-todas-correcciones.md)).
+
+## 10. Registro de escanear todos los cursos (rama `classroom-escanear-todas`, mergeada el 2026-09-27)
+
+Mudado tal cual desde `docs/ramas-en-revision.md` al mergear. Describe el estado **de cada fecha**:
+los números y líneas que cita no se corrigen hacia atrás. Qué se verificó en navegador al cerrar →
+`docs/ramas-en-revision.md` §Lo último que se mergeó.
+
+- **Qué trae**: escanear todos los cursos de Classroom desde la portada, en un solo recorrido
+  que sobrevive a cerrar el popup.
+  - Spec: `docs/specs/classroom-escanear-todas/spec.md`.
+  - Plan: `docs/plan-classroom-escanear-todas.md`.
+- **Hecho por paso**:
+  - Paso 1: `ScraperClassroom` con `modo: "todos"`, cancelación entre cursos/latidos y emisión de eventos `recorrido_evento` vía `chrome.runtime.sendMessage`. 24 tests (el control negativo de 20 y 23 NO detecta: ver Revisión de tanda).
+  - Paso 2: Contrato `PuertoSitio` v1.7.0 con `esPortada?`, config Classroom v1.3.0 (`claveDeListado: "todos"` en portada, instruccionEscaneo).
+  - Paso 3: Módulo puro `core/estado/recorridoTodos.ts` (reductor, vigencia, resumen, enlacesDe) y lector `RecorridoTodos` exportado en `plataforma/composicion.ts`. 14 tests.
+  - Paso 4: Manejador IPC `recorrido_evento` en `background.js` persistiendo en `storage.local.recorridoTodos`. 30 tests.
+  - Paso 5: `decidirAlAbrir` v1.1.0 en `core/estado/origenListado.ts` con 5 filas y `"recorridoTodos"` en `CLAVES_DE_SESION`. 15 tests.
+  - Paso 6: Orquestador `popup.js` v5.28.0 (lanzar, mirar, materializar recorrido multi-curso, cards de progreso/oferta/terminado-sin-material).
+  - Paso 7: Lista agrupada por curso (`ctx.grupos`), estilos `.grupo-curso` y `.lista-nota: white-space: pre-line` en `styles/list.css`, isla `listaClases.preact.js` v1.4.0. 39 tests.
+  - Paso 8: Revisión de copy en onboarding (slide 3).
+  - Paso 9: Documentación (ADR-0016, README ADRs, `AGENTS.md`, `data-model.md`, `patterns.md`, `architecture.md`, `multisitio-diseno.md`, `portal-google-classroom-diseno.md`, `TECHNICAL_DEBT.md`, `testing.md`).
+  - **Correcciones**: plan `plan-classroom-escanear-todas-correcciones.md` (2026-09-27): asentado de Trabajo en clase (Paso 1), espera de nav (Paso 2), espera de archivados y nombres limpios de anclas globales (Paso 3), cancelación por token idCancelacion y test 23 sensible a zombis (Paso 4), estado terminal en reductor (Paso 5), botón recorriendo oculto, desacople de oferta y guarda fila 1 (Paso 6). 44 archivos / 764 tests en verde.
+  - **Loader con progreso**: plan `docs/plan-loader-con-progreso.md` (2026-09-27): Estado primero en el popover de filtros (Paso 1), núcleo puro de recorridoTodos y progresoEscaneo (Paso 2), scraper con eventos de progreso, duracionMs y vuelta a la portada con controles negativos verificados (Paso 3), isla del detalle del loader ui-loader-detalle con reloj, lista y pie (Paso 4), orquestador popup.js con sincronizarLoaderRecorrido, oyente escaneo_progreso y 20 s/curso (Paso 5), documentación y baseline actualizada (Paso 6). 46 archivos / 796 tests en verde.
+- **Verificación B — en Brave, la hace el dueño**:
+  - [x] 1. **M-1** — cerrado por tanda (2026-09-27) sin medir aparte: B-3 midió ~18 s/curso en el recorrido y el loader ya usa 20 s/curso; el 45 s quedó superado. Texto original: con el escaneo de un curso (como en `main`), cronometrar cada curso por separado. Si el promedio se aleja de 45 s, corregir texto en Paso 6f y NFR-1.
+  - [x] 2. **AC-1** (dueño, 2026-09-27, tras las correcciones: "funciona perfecto"): Portada `/u/2/h`, abrir el popup: tarjeta "Todas mis clases", botón "Escanear todos los cursos", y la pestaña **no** se mueve.
+  - [x] 3. **AC-2 / AC-8** (2026-09-27, leído del storage: `terminado`, 7 cursos, 5 ok + MC6/Q5 vacíos, 0 fallidos, G22 ok, nombres limpios; **~124 s en total ≈ 18 s/curso** — NFR-1 cumplido; la cantidad de ítems por curso no queda en storage, la confirmó el dueño a ojo): Apretar el botón con la pestaña al frente, esperar sin tocar. Al final: resumen con los cursos de hoy (5 activos + 2 archivados = 7), G25 con 71 de Trabajo en clase y MB5 con 24, un encabezado por curso con material, y MC6 y Q5 sin grupo, contados como vacíos. Cronometrar el total (NFR-1: menos de 6 min).
+  - [x] 4. **AC-4**: Relanzar con 🔄. En el curso 2, cerrar el popup. A los 60 s, reabrirlo: progreso en un curso posterior. Al terminar, la lista está completa.
+  - [x] 5. **AC-5**: A mitad del recorrido, abrir el popup (la pestaña está dentro de un curso): se ve el progreso y **no** aparece "Escaneando la pestaña…".
+  - [x] 6. **AC-3** (dueño, 2026-09-27): Terminado el recorrido, entrar a MC2 y escanearla sola: mismos ítems y nombres que en su grupo.
+  - [x] 7. **AC-6**: Relanzar y, en el curso 4, cambiar de pestaña. Volver y abrir el popup: resumen "Se cortó en el curso 4 de 7: Classroom quedó en segundo plano", con los 3 completos en la lista. Repetir haciendo click en otro curso del sidebar: "navegaste fuera del recorrido".
+  - [ ] 8. **AC-9** (no verificable: 0 archivos en dos cursos → deuda ⚪): Si algún archivo de Drive está en dos cursos, aparece en los dos grupos, y bajarlo desde uno no lo marca en el otro.
+  - [x] 9. **AC-10**: Bajar un PDF de G22 y uno de MC2: cada uno en `raíz/google-classroom/<curso>/`.
+  - [x] 10. **AC-11**: Con la lista de todos, entrar a MC2 y abrir el popup: escanea MC2. Volver a la portada y abrir el popup: tarjeta "Todas mis clases", no la lista de todos.
+  - [x] 11. **AC-12**: En la portada con lista de todos, 🔄 arranca un recorrido nuevo desde el curso 1.
+  - [x] 12. **AC-13**: Dentro de G22, sin recorrido: el popup se comporta igual que en `main`.
+  - [x] 13. **Consola del SW**: llegan los `recorrido_evento`, sin errores.
+- **Verificación B del loader con progreso** (plan `plan-loader-con-progreso.md`; antes: `pnpm run build`
+  y recargar la extensión, no hay cambios en `backend/`):
+  - [x] L-1. **AC-1**: portada → "Escanear todos los cursos": el loader tapa todo con "Escaneando todos
+    los cursos", el reloj corre y **no** hay tarjeta de progreso en la lista.
+  - [x] L-2. **AC-2 / AC-6 / AC-11**: dejar correr sin tocar. Durante: "Curso i de 7: <nombre>", la fase
+    con números que suben, contadores, lista con marcas y, desde el 2º curso, "≈ N min restantes". Al
+    terminar: la pestaña queda en la portada de cursos y se ve la lista agrupada. **Cronometrar el
+    total: ≤ 130 s** (124 s de B-3 + 5 %).
+  - [x] L-3. **AC-5**: relanzar con 🔄; en el curso 3 cerrar el popup; esperar ~20 s y reabrirlo: loader
+    con el curso actual, las marcas y el reloj contando desde el lanzamiento.
+  - [x] L-4. **AC-4**: entrar a Física I (pestaña recién recargada) y abrir el popup: título con el nombre
+    del curso, "Cargando más publicaciones (n)" con números que suben, "Dejá Google Classroom al
+    frente." y **sin** "Podés cerrar este popup".
+  - [x] L-5. **AC-7**: relanzar; en el curso 3 cambiar de pestaña. Volver: la pestaña de Classroom sigue
+    en ese curso y el popup muestra el resumen parcial, sin loader.
+  - [x] L-6. **AC-8**: en Ramón Net, escanear: "Escaneando la pestaña..." con reloj, sin fase.
+  - [x] L-7. **AC-9**: en un curso de Classroom, a mitad del escaneo cambiar de pestaña y volver: loader
+    apagado y la tarjeta del aviso, sin restos del detalle.
+  - [x] L-8. **AC-10**: con la lista del recorrido, abrir Filtros: la primera sección es "Estado".
+  - [x] L-9. **Hallazgo 🟡 de abajo**: relanzar; en el curso 2 **recargar** la pestaña (F5) y abrir el
+    popup. Anotar si el loader queda tapando todo y cuánto tarda en soltarse.
+  - [x] L-10. con la lista de todos los cursos en pantalla, elegir 2-3 archivos y bajarlos **con el popup abierto** hasta que termine la cola. Tiene que quedar la lista de los 7 cursos, con el resumen, lo bajado marcado como descargado y el 🔄 de la cabecera visible. **No** tiene que aparecer el loader "Escaneando la pestaña..." ni un "no hay nada".
+- **Sesión única de cierre de la rama (tanda, 2026-09-27)** — los 12 ítems abiertos de arriba y L-1..L-10
+  se solapan; esta es la lista deduplicada, en el orden que minimiza recorridos. Antes: recargar la
+  extensión (build ya hecho, sin cambios en `backend/`), pestaña de Classroom **al frente**, consola del SW
+  abierta (cubre el 13). Cada paso dice qué ítems marca.
+  - [x] S-1. Portada → "Escanear todos los cursos", sin tocar, **cronometrar** → L-1, L-2, 13.
+  - [x] S-2. Con la lista: abrir Filtros → L-8. Elegir los 3 PDF que faltan en disco (Física I G, G22,
+    G25) y bajarlos con el popup abierto → L-10 y 9 (dónde cayeron lo miro yo en el disco). Cerrar y
+    reabrir en la portada: misma lista, sin escanear.
+  - [x] S-3. Entrar a MC2, abrir el popup: escanea MC2. Volver a la portada y abrir → 10.
+  - [x] S-4. En la portada, 🔄 → recorrido desde el curso 1 (11). En el curso 3 cerrar el popup, ~20 s,
+    reabrir: loader con el curso actual y el reloj desde el lanzamiento → L-3, 4, 5. Dejar terminar.
+  - [x] S-5. Relanzar; en el curso 3 cambiar de pestaña y volver → L-5, 7 (primera mitad).
+  - [x] S-6. Relanzar; en el curso 2 click en otro curso del sidebar → 7 (segunda mitad: "navegaste fuera").
+  - [x] S-7. Relanzar; en el curso 2 **F5** y abrir el popup; anotar cuánto tarda en soltarse → L-9.
+  - [x] S-8. Física I con la pestaña recién recargada → L-4. A mitad del escaneo cambiar de pestaña y
+    volver → L-7. G22 sin recorrido: igual que en `main` → 12.
+  - [x] S-9. Ramón Net: escanear → L-6.
+  - El 8 (mismo archivo de Drive en dos cursos) no se prueba a mano: lo busco yo en el storage tras S-1.
+- **Revisión de tanda del loader con progreso (2026-09-27)** — compuerta re-corrida por el
+  verificador: 46 archivos / 796 tests, lint, `tsc` y build en verde. Controles negativos corridos
+  por mí en un worktree de scratch (Paso 1 y test 33 fallan sin su arreglo). Hallazgos:
+  - ✅ **El recorrido se corta en el 2º curso (L-2 del dueño, 2026-09-27)**: `nombraOtroCurso` descarta vistas intermedias o del curso anterior en espera de Trabajo, `trabajoAsentado` y espera de Novedades, capturando la vista asentada (y devolviendo `avisoCursoCambiado` si vence con `/c/<otro>/m/`). 46 archivos / 798 tests en verde.
+    Re-verificado por tanda: compuerta 46/798 + lint + `tsc` + build en verde (verificador); control
+    negativo corrido por mí en worktree de scratch: sin el Paso 1, el 37 y el 38 fallan con
+    `curso-cambiado`; sin el fallback de `pintadoOk` que agregó obra (no estaba en el plan), falla el 17
+    → el fallback hace falta. Falta L-2 del dueño en Brave (dos corridas, cronometradas).
+  - ✅ **Al terminar la cola se tira la lista de todos los cursos (dueño, 2026-09-27)**: `limpiarColaConservandoLista()` vacía la cola y conserva lista, origen y `recorridoTodos` cuando `origenListado.clave === "todos"`; `restaurarPanelPorInterrupcion` en `popup.js` muestra la lista guardada y sincroniza disco en vez de re-escanear. 46 archivos / 799 tests en verde. Revisión de tanda: compuerta re-corrida por el verificador (46/799, lint, `tsc`, build en verde); control negativo corrido por mí en worktree de scratch (con el cuerpo cambiado por `limpiarSesionLocal()` falla 1/38). La rama del popup (`mostrarListaGuardada` al fin de cola) no tiene test: la cubre L-10.
+  - 🟡 **NO REPRODUCIDO — el fallback de `pintadoOk` puede cortar el recorrido por un curso lento**: si
+    `pintado` vence justo con ningún `c-wiz` visible, `obtenerVistaActiva()` da `body`, que tiene las
+    vistas ocultas del curso anterior con `/c/<otro>/m/` → `curso-cambiado` → corta todo el recorrido
+    en vez de marcar el curso como fallido y seguir. Arreglo de una línea (`va !== document.body`) si
+    alguna vez aparece; hoy el estado intermedio dura ~100-200 ms contra un tope de segundos.
+  - ✅ **CSS del detalle roto (L-1 del dueño)**: fondo opaco con `&:has(.loader-detalle)` (`--bg-main`), host estirado con margen lateral (`.loader-detalle-host`), detalle centrado y lista alineada a la izquierda.
+  - ✅ **El test 29 no tenía poder de detección** (obra lo declaró verificado): con el progreso
+    enviado **fuera** de la cola seguía verde, porque 20 ms de latencia simulada nunca solapaban dos
+    envíos. Con 300 ms el sabotaje da `maxEnVuelo = 2` y el arreglo pasa (3 corridas, ~3,7 s el
+    test). Corregido por tanda: latencia 300 ms y timeout explícito de 15 s.
+  - 🟡 **NO REPRODUCIDO — el loader puede quedar tapando todo hasta 210 s** si el script del
+    recorrido muere sin mandar `fin` (pestaña recargada o cerrada): no hay manejador en el SW que lo
+    corte, `esVigente` sólo vence a `topeEscaneoMs + 30 s` = 210 s en Classroom, y
+    `sincronizarLoaderRecorrido` sólo se re-evalúa cuando cambia el storage. Antes la tarjeta decía
+    lo mismo pero dejaba usar la Cola; ahora la cortina bloquea todo el popup. Lo mide L-9.
+  - ⚪ `sincronizarLoaderRecorrido` suma una segunda bandera (`loaderEsDelRecorrido`) junto a
+    `elEscaneoTomoElLoader`: más dueños del loader coordinados a mano (ver la deuda 🔴 del loader).
+  - ⚪ La memoria de obra dice que la vuelta a `/h` ocurre "al terminar o al detenerse"; el código
+    hace lo correcto (sólo al terminar, RN-21, test 35): la nota está mal, no el código.
+- **Revisión de tanda (2026-09-27)** — compuerta re-corrida por el verificador: 44 archivos / 764
+  tests, lint, `tsc` y build en verde, árbol limpio. Hallazgos:
+  - ✅ **El nombre del curso sale como id base64 en 7 de 8 cursos.** (Cerrado en Paso 3).
+    `resolverNombreCurso(id)` busca anclas globales en sidebar y portada, resolviendo el nombre
+    limpio sin inicial pegada y sin ids base64.
+  - ✅ **El test 23 no tiene poder de detección**: (Cerrado en Paso 4).
+    Test 23 afilado para que un escaneo zombi valide identidad, haga click en Novedades y rompa
+    el curso siguiente; control negativo verificado fallando sin la cancelación. Cancelación
+    implementada mediante token `idCancelacion`.
+  - ✅ **AC-14 no se ve**: (Cerrado en Paso 6).
+    `ofreciendoTodos` desacoplado del modo del botón; el botón adopta modo `"recorriendo"` con
+    label `""` (oculto). La tarjeta de fin sin material deja de quedar tapada.
+  - ✅ **`lanzarRecorridoTodos` no tiene la guarda de la fila 1.** (Cerrado en Paso 6).
+    Agregada guarda de fila 1 con `esVigente` en `lanzarRecorridoTodos` ante `/h/archived`.
+  - ✅ **El reductor no tiene estado terminal**: (Cerrado en Paso 5).
+    `recorridoTodos.ts` ignora eventos `latido`, `curso` y `fin` si `prev.estado !== "escaneando"`.
+  - ✅ **Loader "Conectando con el servidor…" infinito en la portada** (lo vio el dueño en B-2,
+    2026-09-27). Corregido con `ocultarLoader()`.
+  - **B-2/B-3 en Brave (dueño, 2026-09-27 12:24–12:26)**, tres recorridos leídos del storage de la
+    extensión (`Local Extension Settings/<id>/000026.log`), no de capturas:
+    - ✅ **Los archivados no entran**: (Cerrado en Paso 3).
+      `esperaArchivadosMs = 5000` con `esperarCondicion` hasta que pinten anclas nuevas en archivados.
+    - ✅ **El primer curso (G22) falla siempre** con "Classroom no terminó de abrir Trabajo en
+      clase": (Cerrado en Paso 2).
+      `navTrabajoOk` espera hasta que el nav pinte el enlace a `/w/${curso.id}/t/all`.
+    - ✅ **Lo escaneado está incompleto**: (Cerrado en Paso 1).
+      Asentado de Trabajo en clase (`asentadoVacio = 2000` ms) antes de darlo por vacío (M-C, M-D).
+    - ✅ Nombres con inicial pegada: (Cerrado en Paso 3).
+      Extrae `aria-label` del sidebar o anclas sin inicial pegada.
+    - ✅ Botón durante el recorrido oculto: (Cerrado en Paso 6).
+      Modo `"recorriendo"` con label vacía y botón oculto.
+  - ⚪ **NO APARECIÓ en B-3 del 2026-09-27** (el recorrido terminó `terminado`, sin corte por navegación) — queda como riesgo, no como hallazgo: (a) si al llegar a un curso queda montada la vista de
+    Trabajo en clase del anterior, el chequeo `/c/<otroId>/m/` devuelve `avisoCursoCambiado` y el
+    recorrido entero se corta como "navegaste fuera del recorrido"; las muestras guardan una sola
+    `c-wiz`, así que no lo pueden confirmar ni descartar. (b) Para los activos, el script hace
+    click en `/h/archived` y, sin esperar, en el link del sidebar: carrera entre dos navegaciones.
