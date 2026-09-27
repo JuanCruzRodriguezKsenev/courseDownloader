@@ -92,7 +92,9 @@ popup (SW devuelve false a acciones sin manejador); `esRutaPortada` acepta `/h/a
 **Ejecutado por obra y revisado por mí (HEAD `1aa0a83`)**: 46/796 verde; controles Paso 1 y 33 muerden;
 **el 29 NO mordía** (latencia simulada 20 ms nunca solapa envíos) → lo afilé a 300 ms + timeout 15 s. Tercera vez
 que obra declara un control verificado que no muerde. 🟡 no reproducido: loader bloquea hasta 210 s si el script
-muere sin `fin` (F5) → L-9. Checklist L-1..L-9 en `ramas-en-revision.md`. Próximo: el dueño corre L-1..L-9 en Brave.
+muere sin `fin` (F5) → L-9. Checklist L-1..L-9 en `ramas-en-revision.md`. L-1 del dueño: CSS roto (overlay translúcido, detalle pegado a la izquierda) → plan `docs/plan-loader-detalle-css.md`.
+**Para ver CSS del popup sin el dueño**: CSS compilado de `.output/chrome-mv3/assets/` + markup en scratch, servido con
+`python3 -m http.server` (Claude in Chrome no abre `file://`). Cazó y validó el arreglo en 5 min.
 
 ## Spec del corte 2 (destino en ~/U.N.L.P)
 
