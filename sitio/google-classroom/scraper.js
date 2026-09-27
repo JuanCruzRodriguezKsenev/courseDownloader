@@ -1,6 +1,18 @@
 /**
- * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.4.0)
+ * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.4.1)
  * ==========================================================================
+ * CHANGELOG v1.4.1:
+ * - [CLASSROOM — ASENTADO DE TRABAJO EN CLASE] Trabajo en clase se da por pintado
+ *   sólo cuando se asentó: espera que el marcador de vacío se sostenga `asentadoVacio`
+ *   ms (por defecto 2000 ms) sin ítems, progressbar ni "Ver más". Corrige también
+ *   el escaneo de un curso en primera visita contra el marcador prematuro (M-C, M-D).
+ * - [CLASSROOM — ESPERA DE NAV] Espera a que el nav del curso pinte el link a
+ *   Trabajo en clase antes de continuar (M-E).
+ * - [CLASSROOM — CURSOS ARCHIVADOS Y NOMBRES] Espera hidratación de vista archivados
+ *   (5000 ms) y resuelve nombres de cursos desde anclas globales (sidebar y portada).
+ * - [CLASSROOM — CANCELACIÓN POR TOKEN] Cancelación de escaneo zombi mediante
+ *   `idCancelacion` en `dormir` para evitar residuales tras vencer el tope de curso.
+ *
  * CHANGELOG v1.4.0:
  * - [CLASSROOM — RECORRIDO DE TODOS LOS CURSOS] Soporta `modo: "todos"` para
  *   recorrer todos los cursos (activos y archivados) desde la portada. Emite
@@ -59,15 +71,16 @@ const ScraperClassroom = {
         sinAdjuntos: 1500,
         hidratacion: 10000,
         identidadCurso: 8000,
+        asentadoVacio: 2000,
       },
       opciones && opciones.tiempos
     );
 
-    let cancelado = false;
-    const dormir = (ms) =>
+    let idCancelacion = 0;
+    const dormir = (ms, token = idCancelacion) =>
       new Promise((resolve, reject) => {
         setTimeout(() => {
-          if (cancelado) {
+          if (token !== idCancelacion) {
             reject(new Error("cancelado"));
           } else {
             resolve();
@@ -100,6 +113,14 @@ const ScraperClassroom = {
       motivoAviso: "curso-cambiado",
     };
 
+    function obtenerVistaActiva() {
+      const wizzes = document.querySelectorAll("body > c-wiz");
+      for (const w of wizzes) {
+        if (w.getAttribute("aria-hidden") !== "true") return w;
+      }
+      return document.body;
+    }
+
     async function escanearCursoActual() {
       // 1. Visibilidad inicial
       if (!visible()) return avisoVisibilidad;
@@ -127,14 +148,6 @@ const ScraperClassroom = {
       if (t.startsWith("Novedades de ")) t = t.slice("Novedades de ".length);
       if (t.endsWith(" - Classroom")) t = t.slice(0, -" - Classroom".length);
       return t.trim();
-    }
-
-    function obtenerVistaActiva() {
-      const wizzes = document.querySelectorAll("body > c-wiz");
-      for (const w of wizzes) {
-        if (w.getAttribute("aria-hidden") !== "true") return w;
-      }
-      return document.body;
     }
 
     function buscarLinkNav(patronRegex) {
@@ -335,12 +348,36 @@ const ScraperClassroom = {
       }
     }
 
-    // 4. Esperar a que pinte Trabajo en clase
+    // 4. Esperar a que pinte y se asiente Trabajo en clase
+    let desdeCuandoVacio = null;
+    function trabajoAsentado(va) {
+      if (!va) return null;
+      const hayLis = Boolean(va.querySelector("li[data-stream-item-id]"));
+      const hayProgress = Boolean(va.querySelector('[role="progressbar"]'));
+      if (hayLis && !hayProgress) {
+        desdeCuandoVacio = null;
+        return "con-items";
+      }
+      const tieneMarcador = Boolean(va.querySelector("[data-no-topic-items]"));
+      const hayVerMas = Boolean(va.querySelector('button[aria-label="Ver más publicaciones"]'));
+      if (tieneMarcador && !hayLis && !hayVerMas && !hayProgress) {
+        const ahora = Date.now();
+        if (desdeCuandoVacio === null) {
+          desdeCuandoVacio = ahora;
+        }
+        if (ahora - desdeCuandoVacio >= tiempos.asentadoVacio) {
+          return "vacio";
+        }
+        return null;
+      }
+      desdeCuandoVacio = null;
+      return null;
+    }
+
+    let resultadoAsentado = null;
     const pintadoOk = await esperarCondicion(() => {
-      const va = obtenerVistaActiva();
-      return Boolean(
-        va.querySelector("li[data-stream-item-id]") || va.querySelector("[data-no-topic-items]")
-      );
+      resultadoAsentado = trabajoAsentado(obtenerVistaActiva());
+      return resultadoAsentado !== null;
     }, tiempos.pintado);
 
     if (!pintadoOk) {
@@ -354,9 +391,7 @@ const ScraperClassroom = {
     if (!visible()) return avisoVisibilidad;
 
     const vistaTrabajo = obtenerVistaActiva();
-    const tieneMarcadorVacio = Boolean(vistaTrabajo.querySelector("[data-no-topic-items]"));
-    const lisTrabajo = vistaTrabajo.querySelectorAll("li[data-stream-item-id]");
-    const trabajoVacio = tieneMarcadorVacio && lisTrabajo.length === 0;
+    const trabajoVacio = resultadoAsentado === "vacio";
 
     let nombreCurso = "";
     let identidad = null;
@@ -757,9 +792,38 @@ const ScraperClassroom = {
     }
   }
 
+  function resolverNombreCurso(id) {
+    const todasAnclas = document.querySelectorAll("a[href]");
+    for (const a of todasAnclas) {
+      const href = (a.getAttribute("href") || "").split(/[?#]/)[0];
+      if (href.endsWith(`/c/${id}`)) {
+        const ariaLabel = (a.getAttribute("aria-label") || "").trim();
+        if (ariaLabel) {
+          return ariaLabel;
+        }
+      }
+    }
+    for (const a of todasAnclas) {
+      if (a.closest("nav")) continue;
+      const href = (a.getAttribute("href") || "").split(/[?#]/)[0];
+      if (href.endsWith(`/c/${id}`)) {
+        const ariaLabel = (a.getAttribute("aria-label") || "").trim();
+        if (!ariaLabel) {
+          const texto = (a.textContent || "").trim();
+          if (texto) {
+            return texto;
+          }
+        }
+      }
+    }
+    return id;
+  }
+
   function leerCursosDePagina(idsVistos) {
     const res = [];
-    const anclas = document.querySelectorAll('a[href*="/c/"]');
+    const raiz = obtenerVistaActiva();
+    const anclas = raiz.querySelectorAll('a[href*="/c/"]');
+    const nuevosIds = [];
     for (const a of anclas) {
       if (a.closest("nav")) continue;
       const href = (a.getAttribute("href") || "").split(/[?#]/)[0];
@@ -768,15 +832,10 @@ const ScraperClassroom = {
       const id = match[1];
       if (idsVistos.has(id)) continue;
       idsVistos.add(id);
-
-      let nombre = (a.textContent || "")
-        .split("\n")
-        .map((l) => l.trim())
-        .filter(Boolean)[0];
-      if (!nombre) {
-        nombre = (a.getAttribute("aria-label") || "").trim();
-      }
-      res.push({ id, nombre: nombre || id });
+      nuevosIds.push(id);
+    }
+    for (const id of nuevosIds) {
+      res.push({ id, nombre: resolverNombreCurso(id) });
     }
     return res;
   }
@@ -784,6 +843,7 @@ const ScraperClassroom = {
   const idsVistos = new Set();
   const activos = leerCursosDePagina(idsVistos);
 
+  const esperaArchivadosMs = 5000;
   const linkArchived = document.querySelector('nav a[href$="/h/archived"]');
   if (linkArchived) {
     linkArchived.click();
@@ -791,6 +851,19 @@ const ScraperClassroom = {
       () => (location.pathname || "").includes("/h/archived"),
       tiempos.navegacion
     );
+    await esperarCondicion(() => {
+      const va = obtenerVistaActiva();
+      const anclas = va.querySelectorAll('a[href*="/c/"]');
+      for (const a of anclas) {
+        if (a.closest("nav")) continue;
+        const href = (a.getAttribute("href") || "").split(/[?#]/)[0];
+        const match = /\/c\/([^/]+)$/.exec(href);
+        if (match && !idsVistos.has(match[1])) {
+          return true;
+        }
+      }
+      return false;
+    }, esperaArchivadosMs);
   }
   const archivados = leerCursosDePagina(idsVistos);
   const listaFinal = [...activos, ...archivados];
@@ -840,6 +913,23 @@ const ScraperClassroom = {
       continue;
     }
 
+    const regexTrabajo = new RegExp(`^(?:/u/\\d+)?/w/${curso.id}/t/all(?:$|\\?)`);
+    const navTrabajoOk = await esperarCondicion(() => {
+      const links = document.querySelectorAll("nav a[href]");
+      for (const a of links) {
+        const href = a.getAttribute("href") || "";
+        const pathname = a.pathname || "";
+        if (regexTrabajo.test(href) || regexTrabajo.test(pathname)) {
+          return true;
+        }
+      }
+      return false;
+    }, tiempos.navegacion);
+    if (!navTrabajoOk) {
+      await avisar({ tipo: "curso", indice: i, resultado: "fallido", motivo: "no abrió" });
+      continue;
+    }
+
     let resCurso;
     let timer = null;
     const promesa = escanearCursoActual();
@@ -852,11 +942,8 @@ const ScraperClassroom = {
       ]);
       if (timer) clearTimeout(timer);
       if (carrera.vencido) {
-        cancelado = true;
-        try {
-          await promesa;
-        } catch {}
-        cancelado = false;
+        idCancelacion++;
+        promesa.catch(() => {});
         const segs = Math.round(topeCursoMs / 1000);
         await avisar({ tipo: "curso", indice: i, resultado: "fallido", motivo: `superó ${segs} s` });
         continue;

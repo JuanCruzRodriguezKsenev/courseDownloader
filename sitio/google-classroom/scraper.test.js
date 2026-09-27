@@ -20,6 +20,7 @@ const TIEMPOS_TEST = {
   sinAdjuntos: 10,
   hidratacion: 200,
   identidadCurso: 200,
+  asentadoVacio: 30,
 };
 
 function prepararDom(html = htmlFixture, urlInicial = "https://classroom.google.com/u/2/w/CURSO123/t/all") {
@@ -405,13 +406,17 @@ describe("ScraperClassroom.escanearListado", () => {
     expect(res.aviso).toContain("Cambiaste de curso");
   });
 
-  function simularNavegacionClassroom({ hooksPorCurso = {} } = {}) {
+  function simularNavegacionClassroom({ hooksPorCurso = {}, demoraNavMs = 0 } = {}) {
     globalThis.chrome = globalThis.chrome || {};
     globalThis.chrome.runtime = globalThis.chrome.runtime || {};
     const mensajesEnviados = [];
+    let reloj = 0;
+    const navegaciones = [];
     globalThis.chrome.runtime.sendMessage = vi.fn(async (msg) => {
-      mensajesEnviados.push(msg);
+      mensajesEnviados.push({ ...msg, orden: ++reloj, timestamp: Date.now() });
     });
+
+    let timerArchivadas = null;
 
     const cargarPagina = (html, urlStr) => {
       document.documentElement.innerHTML = html;
@@ -468,10 +473,25 @@ describe("ScraperClassroom.escanearListado", () => {
       if (!href) return;
       e.preventDefault();
 
+      navegaciones.push({ href, orden: ++reloj, timestamp: Date.now() });
+
+      if (timerArchivadas) {
+        clearTimeout(timerArchivadas);
+        timerArchivadas = null;
+      }
+
       if (href.endsWith("/h") || href.endsWith("/h/st")) {
         cargarPagina(portadaHtml, `https://classroom.google.com${href}`);
       } else if (href.endsWith("/h/archived")) {
-        cargarPagina(archivadasHtml, `https://classroom.google.com${href}`);
+        const htmlSinActiva = archivadasHtml.replace(
+          /<c-wiz>[\s\S]*?<\/c-wiz>\s*<\/body>/,
+          "</body>"
+        );
+        cargarPagina(htmlSinActiva, `https://classroom.google.com${href}`);
+        timerArchivadas = setTimeout(() => {
+          timerArchivadas = null;
+          cargarPagina(archivadasHtml, `https://classroom.google.com${href}`);
+        }, 50);
       } else if (href.includes("/w/")) {
         document.getElementById("vista-novedades")?.setAttribute("aria-hidden", "true");
         document.getElementById("vista-trabajo")?.removeAttribute("aria-hidden");
@@ -509,8 +529,25 @@ describe("ScraperClassroom.escanearListado", () => {
         if (hooksPorCurso[id]) {
           htmlCurso = hooksPorCurso[id](htmlCurso);
         }
-        cargarPagina(htmlCurso, `https://classroom.google.com/u/2/c/${id}`);
-        prepararInteractividadCurso();
+        if (demoraNavMs > 0) {
+          const htmlSinNav = htmlCurso.replace(/<nav>[\s\S]*?<\/nav>/, "<nav></nav>");
+          cargarPagina(htmlSinNav, `https://classroom.google.com/u/2/c/${id}`);
+          setTimeout(() => {
+            const nav = document.querySelector("nav");
+            if (nav) {
+              const divTemp = document.createElement("div");
+              divTemp.innerHTML = htmlCurso;
+              const nuevoNav = divTemp.querySelector("nav");
+              if (nuevoNav) {
+                nav.innerHTML = nuevoNav.innerHTML;
+              }
+            }
+            prepararInteractividadCurso();
+          }, demoraNavMs);
+        } else {
+          cargarPagina(htmlCurso, `https://classroom.google.com/u/2/c/${id}`);
+          prepararInteractividadCurso();
+        }
       }
     };
 
@@ -519,7 +556,14 @@ describe("ScraperClassroom.escanearListado", () => {
 
     return {
       mensajesEnviados,
-      limpiar: () => document.removeEventListener("click", handlerClick),
+      navegaciones,
+      limpiar: () => {
+        if (timerArchivadas) {
+          clearTimeout(timerArchivadas);
+          timerArchivadas = null;
+        }
+        document.removeEventListener("click", handlerClick);
+      },
     };
   }
 
@@ -551,6 +595,11 @@ describe("ScraperClassroom.escanearListado", () => {
       const evInicio = mensajesEnviados[0];
       expect(evInicio.cursos).toHaveLength(3);
       expect(evInicio.cursos.map((c) => c.id)).toEqual(["CURSO123", "CURSO456", "CURSO789"]);
+      expect(evInicio.cursos.map((c) => c.nombre)).toEqual([
+        "Física II",
+        "Química I",
+        "Matemática Discreta",
+      ]);
 
       const cursosOk = mensajesEnviados.filter((m) => m.tipo === "curso");
       expect(cursosOk).toHaveLength(3);
@@ -688,17 +737,32 @@ describe("ScraperClassroom.escanearListado", () => {
   });
 
   it("23. tope por curso: curso que nunca pinta es fallido 'superó...' y el siguiente se escanea bien sin residuales", async () => {
-    const { mensajesEnviados, limpiar } = simularNavegacionClassroom({
+    const topeCursoMs = 800;
+    let timerPintadoTardio = null;
+    const { mensajesEnviados, navegaciones, limpiar } = simularNavegacionClassroom({
       hooksPorCurso: {
         CURSO123: (html) => {
-          return html
+          const htmlSinItems = html
             .replace(/data-stream-item-id/g, "data-ignorado")
             .replace(/data-no-topic-items/g, "data-ignorado");
+          timerPintadoTardio = setTimeout(() => {
+            const items = document.querySelectorAll("[data-ignorado]");
+            for (const el of items) {
+              el.setAttribute("data-stream-item-id", el.getAttribute("data-ignorado"));
+            }
+          }, topeCursoMs + 100);
+          return htmlSinItems;
+        },
+        CURSO456: (html) => {
+          return html.replace(
+            '<a href="/u/2/c/CURSO123" aria-label="Física II">Física II</a>',
+            '<a aria-current="page" href="/u/2/c/CURSO123" aria-label="Física II">Física II</a>'
+          );
         },
       },
     });
 
-    const tiemposConNavegacionLarga = { ...TIEMPOS_TEST, navegacion: 1500 };
+    const tiemposConNavegacionLarga = { ...TIEMPOS_TEST, navegacion: 2000 };
     try {
       const res = await ScraperClassroom.escanearListado({
         modo: "todos",
@@ -706,7 +770,7 @@ describe("ScraperClassroom.escanearListado", () => {
         tabId: 1,
         sitioId: "google-classroom",
         tiempos: tiemposConNavegacionLarga,
-        topeCursoMs: 600,
+        topeCursoMs,
       });
 
       expect(res.recorrido).toBe(true);
@@ -718,7 +782,16 @@ describe("ScraperClassroom.escanearListado", () => {
       for (const e of evCursos[1].enlaces) {
         expect(e.modulo.startsWith("Química I › ")).toBe(true);
       }
+
+      const evLatidoCurso2 = mensajesEnviados.find((m) => m.tipo === "latido" && m.indice === 1);
+      expect(evLatidoCurso2).toBeDefined();
+
+      const navsCurso123PostLatido2 = navegaciones.filter(
+        (n) => n.href.includes("CURSO123") && n.orden > evLatidoCurso2.orden
+      );
+      expect(navsCurso123PostLatido2).toHaveLength(0);
     } finally {
+      if (timerPintadoTardio) clearTimeout(timerPintadoTardio);
       limpiar();
     }
   });
@@ -735,5 +808,142 @@ describe("ScraperClassroom.escanearListado", () => {
     expect(res.enlaces.length).toBeGreaterThan(0);
     expect(res.aviso).toBeUndefined();
   });
+
+  it("25. vista con marcador de vacío que recibe 11 li a los 60 ms espera el asentado y trae los enlaces", async () => {
+    const htmlInicial = `
+      <title>Trabajo en clase de Física II - Classroom</title>
+      <nav>
+        <a href="/u/2/c/CURSO123">Novedades</a>
+        <a href="/u/2/w/CURSO123/t/all">Trabajo en clase</a>
+        <a aria-current="page" href="/u/2/c/CURSO123" aria-label="Física II">Física II</a>
+      </nav>
+      <c-wiz id="vista-trabajo">
+        <div data-no-topic-items>No hay publicaciones</div>
+        <div role="region" aria-label="Tema 1">
+          <ul id="lista-items"></ul>
+        </div>
+      </c-wiz>
+      <c-wiz id="vista-novedades" aria-hidden="true">
+        <div data-stream-item-id="post-vacio"></div>
+      </c-wiz>
+    `;
+    prepararDom(htmlInicial, "https://classroom.google.com/u/2/w/CURSO123/t/all");
+
+    setTimeout(() => {
+      const ul = document.getElementById("lista-items");
+      if (ul) {
+        for (let i = 1; i <= 11; i++) {
+          const li = document.createElement("li");
+          li.setAttribute("data-stream-item-id", `item-${i}`);
+          li.innerHTML = `
+            <div role="button" aria-expanded="true" aria-label="TP ${i}"></div>
+            <div data-attachment-id="att-${i}">
+              <a aria-label="Archivo adjunto: PDF: TP${i}.pdf" href="https://drive.google.com/file/d/drive-tp-${i}/view"></a>
+            </div>
+          `;
+          ul.appendChild(li);
+        }
+      }
+    }, 60);
+
+    const res = await ScraperClassroom.escanearListado({
+      tiempos: { ...TIEMPOS_TEST, asentadoVacio: 200, pintado: 2000 },
+    });
+
+    expect(res.aviso).toBeUndefined();
+    expect(res.enlaces).toHaveLength(11);
+  });
+
+  it("26. marcador con progressbar que se quita a los 80 ms con llegada de li trae los enlaces", async () => {
+    const htmlInicial = `
+      <title>Trabajo en clase de Física II - Classroom</title>
+      <nav>
+        <a href="/u/2/c/CURSO123">Novedades</a>
+        <a href="/u/2/w/CURSO123/t/all">Trabajo en clase</a>
+        <a aria-current="page" href="/u/2/c/CURSO123" aria-label="Física II">Física II</a>
+      </nav>
+      <c-wiz id="vista-trabajo">
+        <div data-no-topic-items>No hay publicaciones</div>
+        <div role="progressbar"></div>
+        <div role="region" aria-label="Tema 1">
+          <ul id="lista-items"></ul>
+        </div>
+      </c-wiz>
+      <c-wiz id="vista-novedades" aria-hidden="true">
+        <div data-stream-item-id="post-vacio"></div>
+      </c-wiz>
+    `;
+    prepararDom(htmlInicial, "https://classroom.google.com/u/2/w/CURSO123/t/all");
+
+    setTimeout(() => {
+      const pb = document.querySelector('[role="progressbar"]');
+      if (pb) pb.remove();
+      const ul = document.getElementById("lista-items");
+      if (ul) {
+        for (let i = 1; i <= 5; i++) {
+          const li = document.createElement("li");
+          li.setAttribute("data-stream-item-id", `item-${i}`);
+          li.innerHTML = `
+            <div role="button" aria-expanded="true" aria-label="TP ${i}"></div>
+            <div data-attachment-id="att-${i}">
+              <a aria-label="Archivo adjunto: PDF: TP${i}.pdf" href="https://drive.google.com/file/d/drive-tp-${i}/view"></a>
+            </div>
+          `;
+          ul.appendChild(li);
+        }
+      }
+    }, 80);
+
+    const res = await ScraperClassroom.escanearListado({
+      tiempos: { ...TIEMPOS_TEST, asentadoVacio: 200, pintado: 2000 },
+    });
+
+    expect(res.aviso).toBeUndefined();
+    expect(res.enlaces).toHaveLength(5);
+  });
+
+  it("27. demora en montar nav: espera a que aparezca nav del curso y sale ok", async () => {
+    const { mensajesEnviados, limpiar } = simularNavegacionClassroom({
+      demoraNavMs: 50,
+    });
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        modo: "todos",
+        idRecorrido: 105,
+        tabId: 1,
+        sitioId: "google-classroom",
+        tiempos: TIEMPOS_TEST,
+        topeCursoMs: 5000,
+      });
+
+      expect(res.recorrido).toBe(true);
+      const cursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+      expect(cursos.length).toBeGreaterThan(0);
+      expect(cursos[0].resultado).toBe("ok");
+    } finally {
+      limpiar();
+    }
+  });
+
+  it("28. con demora de 50 ms en archivadas, el inicio trae los 3 cursos", async () => {
+    const { mensajesEnviados, limpiar } = simularNavegacionClassroom();
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        modo: "todos",
+        idRecorrido: 106,
+        tabId: 1,
+        sitioId: "google-classroom",
+        tiempos: TIEMPOS_TEST,
+        topeCursoMs: 5000,
+      });
+
+      expect(res.recorrido).toBe(true);
+      const evInicio = mensajesEnviados[0];
+      expect(evInicio.cursos).toHaveLength(3);
+    } finally {
+      limpiar();
+    }
+  });
 });
+
 
