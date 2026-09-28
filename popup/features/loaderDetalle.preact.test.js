@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 /**
- * Test de la isla Preact #6 (detalle del loader con progreso). Verifica:
- *  - Pinta líneas informativas y pie
- *  - Lista con marcas y clase actual
- *  - Reloj avanza con fake timers
+ * Test de la isla Preact #6 (detalle del loader con progreso en tarjetas). Verifica:
+ *  - Arranca vacío
+ *  - Tarjeta actual, pie y fila Escaneando…
+ *  - Lista de cursos con marcas SVG, clase actual y scrollIntoView
+ *  - Contadores con etiquetas y valores
+ *  - Reloj con fake timers y restante condicional
  *  - limpiar() deja el root vacío
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -30,28 +32,47 @@ describe('Isla Preact: LoaderDetalle', () => {
 
   it('arranca vacío sin pintar nada', () => {
     expect(root.innerHTML).toBe('');
-    expect(puente.get()).toEqual({ lineas: [], cursos: [], pie: [], desde: null });
+    expect(puente.get()).toEqual({
+      actual: null,
+      contadores: null,
+      restante: null,
+      cursos: [],
+      pie: [],
+      desde: null,
+    });
   });
 
-  it('pinta líneas y pie correctamente', async () => {
+  it('tarjeta actual y pie', async () => {
     puente.mostrar({
-      lineas: ['Curso 1 de 3: Física II', 'Trabajo en clase · 5 publicaciones'],
+      actual: {
+        posicion: 'Curso 1 de 3',
+        nombre: 'Física II',
+        detalle: 'Trabajo en clase · 5 publicaciones',
+      },
       pie: ['Dejá Classroom al frente.', 'Podés cerrar este popup.'],
     });
     await flush();
 
-    const lineas = root.querySelectorAll('.loader-detalle-linea');
-    expect(lineas).toHaveLength(2);
-    expect(lineas[0].textContent).toBe('Curso 1 de 3: Física II');
-    expect(lineas[1].textContent).toBe('Trabajo en clase · 5 publicaciones');
+    const titulo = root.querySelector('.loader-actual-titulo');
+    expect(titulo.textContent.trim()).toBe('Curso 1 de 3 · Física II');
+
+    const detalle = root.querySelector('.loader-actual-detalle');
+    expect(detalle.textContent.trim()).toBe('Trabajo en clase · 5 publicaciones');
 
     const pie = root.querySelectorAll('.loader-detalle-pie');
     expect(pie).toHaveLength(2);
     expect(pie[0].textContent).toBe('Dejá Classroom al frente.');
     expect(pie[1].textContent).toBe('Podés cerrar este popup.');
+
+    expect(root.querySelector('.loader-cursos')).toBeNull();
+    expect(root.querySelector('.loader-contadores')).toBeNull();
+
+    const escaneando = root.querySelector('.loader-escaneando');
+    expect(escaneando).not.toBeNull();
+    expect(escaneando.textContent.trim()).toBe('Escaneando…');
   });
 
-  it('pinta lista de cursos con marcas y resalta el actual con scrollIntoView', async () => {
+  it('lista con íconos', async () => {
     const scrollMock = vi.fn();
     window.HTMLElement.prototype.scrollIntoView = scrollMock;
 
@@ -64,49 +85,78 @@ describe('Isla Preact: LoaderDetalle', () => {
     });
     await flush();
 
-    const lis = root.querySelectorAll('.loader-detalle-curso');
+    const lis = root.querySelectorAll('li.loader-curso');
     expect(lis).toHaveLength(3);
 
-    expect(lis[0].textContent).toContain('✓');
-    expect(lis[0].textContent).toContain('Física II');
+    expect(lis[0].querySelector('.loader-marca-listo')).not.toBeNull();
     expect(lis[0].classList.contains('actual')).toBe(false);
+    expect(lis[0].querySelector('svg')).not.toBeNull();
+    expect(lis[0].querySelector('.loader-curso-nombre').textContent).toBe('Física II');
 
-    expect(lis[1].textContent).toContain('▸');
-    expect(lis[1].textContent).toContain('Química I');
+    expect(lis[1].querySelector('.loader-marca-actual')).not.toBeNull();
     expect(lis[1].classList.contains('actual')).toBe(true);
+    expect(lis[1].querySelector('svg')).not.toBeNull();
+    expect(lis[1].querySelector('.loader-curso-nombre').textContent).toBe('Química I');
 
-    expect(lis[2].textContent).toContain('·');
-    expect(lis[2].textContent).toContain('Álgebra');
+    expect(lis[2].querySelector('.loader-marca-pendiente')).not.toBeNull();
     expect(lis[2].classList.contains('actual')).toBe(false);
+    expect(lis[2].querySelector('svg')).not.toBeNull();
+    expect(lis[2].querySelector('.loader-curso-nombre').textContent).toBe('Álgebra');
 
     expect(scrollMock).toHaveBeenCalled();
   });
 
-  it('reloj avanza de 0:00 a 0:02 con fake timers', async () => {
+  it('contadores', async () => {
+    puente.mostrar({
+      contadores: { listos: 3, vacios: 2, fallidos: 0 },
+    });
+    await flush();
+
+    const contadores = root.querySelectorAll('.loader-contador');
+    expect(contadores).toHaveLength(3);
+
+    const etiquetas = root.querySelectorAll('.loader-contador-etiqueta');
+    expect(etiquetas[0].textContent).toBe('Listos');
+    expect(etiquetas[1].textContent).toBe('Vacíos');
+    expect(etiquetas[2].textContent).toBe('Fallidos');
+
+    const valores = root.querySelectorAll('.loader-contador-valor');
+    expect(valores[0].textContent.trim()).toBe('3');
+    expect(valores[1].textContent.trim()).toBe('2');
+    expect(valores[2].textContent.trim()).toBe('0');
+  });
+
+  it('reloj y restante', async () => {
     vi.useFakeTimers();
     const t0 = 1000000;
     vi.setSystemTime(t0);
 
     puente.mostrar({
       desde: t0,
-      lineas: ['Iniciando…'],
+      restante: '≈ 1 min restante',
     });
-    // Forzar montaje del efecto del reloj
     await vi.advanceTimersByTimeAsync(100);
 
     const reloj = () => root.querySelector('.loader-detalle-reloj');
     expect(reloj()).not.toBeNull();
     expect(reloj().textContent).toBe('0:00');
 
-    // Avanzar 2 segundos más
-    await vi.advanceTimersByTimeAsync(2000);
+    const restante = root.querySelector('.loader-tiempo-restante');
+    expect(restante).not.toBeNull();
+    expect(restante.textContent.trim()).toBe('≈ 1 min restante');
 
+    await vi.advanceTimersByTimeAsync(2000);
     expect(reloj().textContent).toBe('0:02');
+
+    // Sin restante no debe haber .loader-tiempo-restante
+    puente.mostrar({ desde: t0 });
+    await vi.advanceTimersByTimeAsync(100);
+    expect(root.querySelector('.loader-tiempo-restante')).toBeNull();
   });
 
-  it('limpiar deja el root completamente vacío', async () => {
+  it('limpiar', async () => {
     puente.mostrar({
-      lineas: ['Línea activa'],
+      actual: { posicion: 'Curso 1', nombre: 'Curso 1', detalle: 'Fase' },
       cursos: [{ nombre: 'Curso 1', marca: '▸', actual: true }],
       pie: ['Pie activo'],
       desde: Date.now(),

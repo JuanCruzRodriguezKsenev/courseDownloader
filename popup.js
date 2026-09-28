@@ -1585,7 +1585,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       mostrarLoader("Escaneando la pestaña...");
       desdeEscaneoActual = Date.now();
       ultimoNombreCursoEscaneado = null;
-      LoaderDetalle.mostrar({ lineas: [], cursos: [], pie: [], desde: desdeEscaneoActual });
+      LoaderDetalle.mostrar({ desde: desdeEscaneoActual });
       // Ocultar badge de cátedra al iniciar un nuevo escaneo para evitar estados inconsistentes
       nodos.facetaBadge.style.display = "none";
 
