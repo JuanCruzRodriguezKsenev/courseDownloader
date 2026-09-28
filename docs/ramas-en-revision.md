@@ -16,7 +16,17 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## 🚧 En revisión
 
-Nada. `main` tiene todo lo construido.
+`loader-tarjetas` (desde `main` `0442598`): el loader con detalle (un curso y recorrido) se dibuja en
+tarjetas según la maqueta del dueño. Sólo presentación: el contenido sigue la spec.
+
+- **Plan**: `docs/plan-loader-tarjetas.md` (5 pasos). Compuerta esperada 46 archivos / 802 tests.
+- **Spec**: `docs/specs/loader-con-progreso/spec.md` §Enmienda 2026-09-27 (RN-24..27, AC-12);
+  maqueta en `docs/specs/loader-con-progreso/maqueta-loader.png`.
+- **Checklist B (dueño, Brave)**: T-1..T-5 al final del plan. Antes, la tanda lo reproduce en
+  Claude in Chrome (oscuro y claro).
+
+`classroom-destino-adopcion` (corte 2a, adopción en `~/U.N.L.P`) sigue en su rama, esperando A-2;
+su estado vive en el `ramas-en-revision.md` de esa rama.
 
 ## Lo último que se mergeó (2026-09-27)
 
