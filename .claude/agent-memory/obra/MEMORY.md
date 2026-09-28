@@ -9,4 +9,5 @@
 - [Classroom: Vista del curso](project_classroom_vista_del_curso.md) — descarte de vistas transitorias y del curso anterior vía `nombraOtroCurso`, captura de vistas asentadas y red de aviso
 - [Classroom: Fin de descarga de todos](project_classroom_fin_descarga_todos.md) — conservación de lista, origen y recorrido al vaciar la cola multi-curso vía `limpiarColaConservandoLista`
 - [Classroom: Scroll de Novedades](project_classroom_novedades_scroll.md) — `buscarContenedorScroll` exige scroll real (`scrollHeight > clientHeight + 1`) destrabando la paginación del documento
+- [Loader en tarjetas](project_loader_tarjetas.md) — presentación en tarjetas con íconos SVG, acento azul temático, VistaLoader estructurada y contadores de recorrido
 
