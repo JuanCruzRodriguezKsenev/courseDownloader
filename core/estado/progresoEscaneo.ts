@@ -1,6 +1,8 @@
 /**
- * NÚCLEO — PROGRESO Y TEXTOS DEL LOADER (V1.0.0)
+ * NÚCLEO — PROGRESO Y TEXTOS DEL LOADER (V1.1.0)
  * ==========================================================================
+ * CHANGELOG v1.1.0:
+ * - VistaLoader estructurada: actual/contadores/restante en vez de lineas.
  * CHANGELOG v1.0.0:
  * - Funciones puras para formateo de tiempos, textos de fases y vistas del
  *   loader con progreso para el escaneo de un curso y el recorrido completo.

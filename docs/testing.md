@@ -30,10 +30,12 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **46 archivos, 801 tests**, todo en verde |
+| `pnpm test` | **46 archivos, 802 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 802** (2026-09-27, plan `loader-tarjetas`). Son los 801 de abajo más **+1** test en `popup/features/loaderDetalle.preact.test.js` (contadores; los demás se reescribieron para la presentación en tarjetas; 5 → 6 tests). Los 3 de `core/estado/progresoEscaneo.test.ts` cambian de aserciones, no de cantidad.
 
 **De dónde sale el 801** (2026-09-27, plan `classroom-novedades-scroll`). Son los 799 de abajo más **+2** tests en `sitio/google-classroom/scraper.test.js` (tests 39 y 40: scrolleo del documento ignorando <nav> lateral sin scroll real para paginar Novedades, y preferencia de contenedor con scroll real sobre el documento; 37 → 39 tests).
 

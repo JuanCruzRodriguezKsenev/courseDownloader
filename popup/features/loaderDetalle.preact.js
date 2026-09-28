@@ -1,6 +1,9 @@
 /**
- * ISLA PREACT #6 — detalle del loader con progreso (V1.0.0)
+ * ISLA PREACT #6 — detalle del loader con progreso (V1.1.0)
  * ==========================================================================
+ * CHANGELOG v1.1.0:
+ * - Presentación en tarjetas con íconos: lista, curso actual, contadores,
+ *   tiempo, fila Escaneando…
  * CHANGELOG v1.0.0:
  * - Store y componente para el detalle del loader durante el escaneo.
  * - Soporta líneas informativas, lista de cursos con scroll automático sobre
