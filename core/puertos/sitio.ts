@@ -1,6 +1,11 @@
 /**
- * PUERTO DE SITIO (V1.7.0)
+ * PUERTO DE SITIO (V1.8.0)
  * ==========================================================================
+ * CHANGELOG v1.8.0:
+ * - [CANCELAR ESCANEO] Miembro nuevo `escaneoCancelable?: boolean;` (opcional):
+ *   indica si el escaneo inyectado atiende `cancelar_escaneo`.
+ *   El puerto tiene 19 miembros medidos.
+ *
  * CHANGELOG v1.7.0:
  * - [CLASSROOM ESCANEAR TODAS] Miembro nuevo `esPortada?(url)` (opcional):
  *   predicado que identifica la portada desde donde se puede escanear todos los listados.
@@ -256,6 +261,13 @@ export interface PuertoSitio {
    * Corre en el popup, no en la pestaña.
    */
   esPortada?(url: string | undefined): boolean;
+
+  /**
+   * [CANCELAR ESCANEO] `true` si el escaneo inyectado atiende `cancelar_escaneo`
+   * (`chrome.runtime.onMessage` dentro de `escanearListado`). Lo lee el popup
+   * para mostrar el botón Cancelar.
+   */
+  escaneoCancelable?: boolean;
 
   /** Patrón de match para `chrome.tabs.query`. */
   readonly patronPestañas: string;
