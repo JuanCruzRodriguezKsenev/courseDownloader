@@ -45,7 +45,7 @@ popover de filtros la sección **Estado** vaya siempre primera.
 - El loader pasa a tener un dueño único (componente propio).
 
 **No incluye**
-- Botón para cancelar el escaneo o el recorrido.
+- ~~Botón para cancelar el escaneo o el recorrido.~~ *(entró en [`../cancelar-escaneo/spec.md`](../cancelar-escaneo/spec.md), 2026-09-27)*
 - Que el escaneo de **un** curso sobreviva a cerrar el popup (sigue la deuda ⚪).
 - Cambios al resumen final del recorrido (nota sobre la lista, tarjeta "El recorrido no trajo material").
 - ~~El texto "unos 45 s por curso" de la tarjeta de oferta (espera M-1 del recorrido).~~ *(entró en el plan: B-3 ya midió ~18 s/curso, se actualizó a 20 s/curso)*
@@ -333,7 +333,7 @@ siguen igual); cambia cómo se dispone. Plan: [`docs/plan-loader-tarjetas.md`](.
   no se dibuja.
 - **RN-25** — Las marcas de RN-13 se dibujan como íconos: ✓ círculo verde con tilde, ○ anillo gris,
   ✗ círculo rojo con cruz, ▸ triángulo sobre la fila resaltada, · punto gris. El curso actual va
-  resaltado con el color de acento azul.
+  resaltado con el color de acento de la app (naranja, `--accent-orange`).
 - **RN-26** — Sin detalle (conectando con el servidor, sincronizando) el loader queda como hoy:
   spinner y texto centrados sobre el velo translúcido.
 - **RN-27** — Los colores salen de los tokens del proyecto (claro y oscuro); la maqueta fija la
