@@ -37,6 +37,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   - Con el servidor Bun del 3001 levantado, el dueño abre el editor con 🗂️ en el encabezado del popup (`http://127.0.0.1:3001/adopcion/`).
   - En la página decide lo mismo que dice hoy la lista (docente de Física I, destinos `regla=no`, nombres, cronogramas, los 7 choques), hasta que Probar dé `codigo` 0.
   - No correr `generar.js` después de editar: pisa los TSV.
+- **A-2 → sesión de revisión (dueño, 2026-09-27)**: en otra sesión se revisa `archivos.tsv` **archivo por archivo** (que cada uno vaya a donde corresponde en `~/U.N.L.P`), se corrige el TSV y se informa lo hallado. Antes de tocar: respaldo de los tres TSV reales; editarlos directo o por el editor (guarda byte-idéntico), **nunca** regenerar con `generar.js`. Cierra cuando Probar/ensayo dé `codigo` 0 y el dueño aprobó el informe.
 - **A-3** — Tanda: `aplicar.js` sin `--escribir` y revisa la salida con el dueño. Después, `--escribir`.
 - **A-4** — Tanda verifica en disco:
   - `git -C ~/U.N.L.P status --porcelain`: sólo ` M .gitignore` y `?? Ingenieria/…`. **Ninguna** ` M` ni ` D` dentro de `Ingenieria/` (NFR-4). El índice **no** aparece (RN-24, NFR-2).

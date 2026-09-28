@@ -230,3 +230,6 @@ Parser de storage de Brave reutilizable: `lista.py` en el scratchpad de la sesi�
 **RN-16a ejecutado por obra (`849d93a`) y re-verificado por mí**: diff = plan; 50/859 verde; (b)(c) idénticos; los 3 controles
 MUERDEN; `textoDelAnuncio` REAL (extraído con awk de scraper.js) sobre las 8 muestras de Novedades con jsdom: 36/36 posts con
 texto, los 5 de MC2 dan los nombres de C1 exactos. Sigue B-1 (dueño re-escanea todos) → B-2/B-3 míos → B-4 dueño → A-2.
+**A-1c ✅ (21:10)**: 7 renombrados, 0 choques; archivos.tsv real actualizado (respaldo `~/Descargas/adopcion-classroom-respaldo-20260927-rn16a`).
+**A-2 pasa a una sesión propia (dueño)**: revisar archivos.tsv archivo por archivo contra el árbol, corregir el TSV, informar lo hallado.
+Criterio de "dónde corresponde": el árbol existente (materia/docente/tipo) y los 55 ya-esta como referencia. Después A-3/A-4 → merge.
