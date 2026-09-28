@@ -14,6 +14,7 @@
 - [Classroom: Destino por publicación (corte 2a)](project_classroom_destino_publicacion.md) — sugerencia de destino por mayoría de títulos de publicación (RN-7a) y regex links? (RN-7b)
 - [Classroom: Editor de adopción por curso (corte 2a)](project_classroom_destino_adopcion.md) — navegación de un curso a la vez con pestañas, archivos bajo su tema, insignias reactivas y script de humo jsdom
 - [Classroom: Nombrado de choques en Novedades por anuncio (corte 2a)](project_classroom_destino_anuncio.md) — extracción de la primera frase del anuncio (RN-16a), resolución de choques con sufijo _N y propagación a duplicados
+- [Classroom: Destino a la bóveda (corte 2a)](project_classroom_destino_boveda.md) — raíz en ~/Boveda/Areas/Facultad, índice versionado (ADR-0018), destino Notas/ y spec actualizada
 
 
 
