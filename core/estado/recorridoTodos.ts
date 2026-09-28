@@ -1,6 +1,14 @@
 /**
- * NÚCLEO — ESTADO DEL RECORRIDO DE TODOS LOS CURSOS (V1.1.0)
+ * NÚCLEO — ESTADO DEL RECORRIDO DE TODOS LOS CURSOS (V1.2.0)
  * ==========================================================================
+ * CHANGELOG v1.2.0:
+ * - [CANCELAR ESCANEO] MotivoCorte exportado con nuevo motivo "cancelado".
+ * - [FIN SIN PREVIO] Evento "fin" con tabId y sitioId puede crear un recorrido
+ *   cortado cuando no hay previo o su id es mayor (cierra A4 y sin-cursos).
+ * - [INICIO SOBRE TERMINAL] Evento "inicio" con el mismo idRecorrido sobre un
+ *   recorrido terminal devuelve prev sin revivirlo.
+ * - [TEXTO RESUMEN] Mensajes de cancelación y de corte antes de encontrar cursos.
+ *
  * CHANGELOG v1.1.0:
  * - [LOADER CON PROGRESO] Evento "progreso", FaseEscaneo, duracionMs por curso,
  *   lanzadoEn e indicador "actual" en RecorridoTodos.
@@ -25,6 +33,8 @@ export type EstadoRecorrido = "escaneando" | "terminado" | "cortado";
 
 export type FaseEscaneo = "trabajo" | "ver-mas" | "novedades";
 
+export type MotivoCorte = "visibilidad" | "navegacion" | "sin-cursos" | "sin-respuesta" | "cancelado";
+
 export interface CursoRecorrido {
   id: string;
   nombre: string;
@@ -43,7 +53,7 @@ export interface RecorridoTodos {
   cursos: CursoRecorrido[];
   indice: number;
   ultimaSenal: number; // ms epoch del último evento
-  motivoCorte?: "visibilidad" | "navegacion" | "sin-cursos" | "sin-respuesta";
+  motivoCorte?: MotivoCorte;
   materializado: boolean;
   lanzadoEn?: number;
   actual?: {
@@ -91,8 +101,10 @@ export type EventoRecorrido =
   | {
       tipo: "fin";
       idRecorrido: number;
+      tabId?: number;
+      sitioId?: string;
       estado: "terminado" | "cortado";
-      motivoCorte?: "visibilidad" | "navegacion" | "sin-cursos" | "sin-respuesta";
+      motivoCorte?: MotivoCorte;
     }
   | {
       tipo: "materializado";
@@ -107,6 +119,9 @@ export function aplicarEvento(
   ahora: number
 ): RecorridoTodos | null {
   if (ev.tipo === "inicio") {
+    if (prev && prev.idRecorrido === ev.idRecorrido && prev.estado !== "escaneando") {
+      return prev;
+    }
     return {
       idRecorrido: ev.idRecorrido,
       tabId: ev.tabId,
@@ -118,6 +133,29 @@ export function aplicarEvento(
       materializado: false,
       ...(ev.lanzadoEn !== undefined ? { lanzadoEn: ev.lanzadoEn } : {}),
     };
+  }
+
+  if (
+    ev.tipo === "fin" &&
+    typeof ev.tabId === "number" &&
+    typeof ev.sitioId === "string"
+  ) {
+    if (!prev || ev.idRecorrido > prev.idRecorrido) {
+      return {
+        idRecorrido: ev.idRecorrido,
+        tabId: ev.tabId,
+        sitioId: ev.sitioId,
+        estado: ev.estado,
+        cursos: [],
+        indice: 0,
+        ultimaSenal: ahora,
+        materializado: false,
+        ...(ev.motivoCorte ? { motivoCorte: ev.motivoCorte } : {}),
+      };
+    }
+    if (ev.idRecorrido < prev.idRecorrido) {
+      return prev;
+    }
   }
 
   if (!prev) return null;
@@ -254,9 +292,20 @@ export function textoResumen(r: RecorridoTodos): string {
     };
     const motivoLegible =
       (r.motivoCorte && mapaMotivos[r.motivoCorte]) || r.motivoCorte || "motivo desconocido";
-    lineas.push(
-      `Se cortó en el curso ${r.indice + 1} de ${res.total}: ${motivoLegible}. Quedaron ${res.sinRecorrer} sin recorrer.`
-    );
+
+    if (res.total === 0 && r.motivoCorte === "cancelado") {
+      lineas.push("Cancelaste el recorrido antes de encontrar los cursos.");
+    } else if (res.total === 0) {
+      lineas.push(`Se cortó antes de encontrar los cursos: ${motivoLegible}.`);
+    } else if (r.motivoCorte === "cancelado") {
+      lineas.push(
+        `Cancelaste el recorrido en el curso ${r.indice + 1} de ${res.total}. Quedaron ${res.sinRecorrer} sin recorrer.`
+      );
+    } else {
+      lineas.push(
+        `Se cortó en el curso ${r.indice + 1} de ${res.total}: ${motivoLegible}. Quedaron ${res.sinRecorrer} sin recorrer.`
+      );
+    }
   }
   return lineas.join("\n");
 }

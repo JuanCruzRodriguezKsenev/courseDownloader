@@ -667,4 +667,139 @@ describe("crearLectorRecorrido con AlmacenamientoEnMemoria", () => {
       expect(esRecorridoTodos(conCamposNuevos)).toBe(true);
     });
   });
+
+  describe("Cancelar el escaneo (v1.2.0)", () => {
+    it("R1: textoResumen con 7 cursos, 3 con resultado, indice 3, cortado por cancelado", () => {
+      const r: RecorridoTodos = {
+        idRecorrido: 100,
+        tabId: 1,
+        sitioId: "google-classroom",
+        estado: "cortado",
+        motivoCorte: "cancelado",
+        indice: 3,
+        ultimaSenal: 1000,
+        materializado: false,
+        cursos: [
+          { id: "c1", nombre: "Curso 1", resultado: "ok" },
+          { id: "c2", nombre: "Curso 2", resultado: "ok" },
+          { id: "c3", nombre: "Curso 3", resultado: "vacio" },
+          { id: "c4", nombre: "Curso 4" },
+          { id: "c5", nombre: "Curso 5" },
+          { id: "c6", nombre: "Curso 6" },
+          { id: "c7", nombre: "Curso 7" },
+        ],
+      };
+      const lineas = textoResumen(r).split("\n");
+      const ultimaLinea = lineas[lineas.length - 1];
+      expect(ultimaLinea).toBe("Cancelaste el recorrido en el curso 4 de 7. Quedaron 4 sin recorrer.");
+    });
+
+    it("R2: textoResumen con 0 cursos en cancelado y sin-cursos", () => {
+      const base0: RecorridoTodos = {
+        idRecorrido: 101,
+        tabId: 1,
+        sitioId: "google-classroom",
+        estado: "cortado",
+        indice: 0,
+        ultimaSenal: 1000,
+        materializado: false,
+        cursos: [],
+      };
+
+      const rCancelado: RecorridoTodos = {
+        ...base0,
+        motivoCorte: "cancelado",
+      };
+      expect(textoResumen(rCancelado)).toContain("Cancelaste el recorrido antes de encontrar los cursos.");
+
+      const rSinCursos: RecorridoTodos = {
+        ...base0,
+        motivoCorte: "sin-cursos",
+      };
+      expect(textoResumen(rSinCursos)).toContain(
+        "Se cortó antes de encontrar los cursos: no encontramos cursos en la portada."
+      );
+    });
+
+    it("R3: fin con tabId/sitioId crea cortado con cursos vacios sin prev o id menor, y toBe(prev) con id mayor", () => {
+      const ahora = 5000;
+      // prev = null -> crea nuevo cortado con cursos: []
+      const evFin: EventoRecorrido = {
+        tipo: "fin",
+        idRecorrido: 200,
+        tabId: 5,
+        sitioId: "google-classroom",
+        estado: "cortado",
+        motivoCorte: "cancelado",
+      };
+      const nuevo = aplicarEvento(null, evFin, ahora);
+      expect(nuevo).toEqual({
+        idRecorrido: 200,
+        tabId: 5,
+        sitioId: "google-classroom",
+        estado: "cortado",
+        motivoCorte: "cancelado",
+        cursos: [],
+        indice: 0,
+        ultimaSenal: ahora,
+        materializado: false,
+      });
+
+      // con prev de id menor -> crea nuevo
+      const prevViejo: RecorridoTodos = {
+        idRecorrido: 150,
+        tabId: 2,
+        sitioId: "google-classroom",
+        estado: "escaneando",
+        cursos: [{ id: "c1", nombre: "Curso 1" }],
+        indice: 0,
+        ultimaSenal: 1000,
+        materializado: false,
+      };
+      const nuevoDeMenor = aplicarEvento(prevViejo, evFin, ahora);
+      expect(nuevoDeMenor?.idRecorrido).toBe(200);
+      expect(nuevoDeMenor?.cursos).toEqual([]);
+      expect(nuevoDeMenor?.estado).toBe("cortado");
+
+      // con prev de id mayor -> toBe(prev)
+      const prevMayor: RecorridoTodos = {
+        idRecorrido: 250,
+        tabId: 2,
+        sitioId: "google-classroom",
+        estado: "escaneando",
+        cursos: [{ id: "c1", nombre: "Curso 1" }],
+        indice: 0,
+        ultimaSenal: 1000,
+        materializado: false,
+      };
+      const resMayor = aplicarEvento(prevMayor, evFin, ahora);
+      expect(resMayor).toBe(prevMayor);
+    });
+
+    it("R4: inicio del mismo id sobre un prev cortado devuelve toBe(prev)", () => {
+      const prevCortado: RecorridoTodos = {
+        idRecorrido: 300,
+        tabId: 1,
+        sitioId: "google-classroom",
+        estado: "cortado",
+        motivoCorte: "cancelado",
+        cursos: [],
+        indice: 0,
+        ultimaSenal: 2000,
+        materializado: false,
+      };
+
+      const evInicioMismoId: EventoRecorrido = {
+        tipo: "inicio",
+        idRecorrido: 300,
+        tabId: 1,
+        sitioId: "google-classroom",
+        cursos: [{ id: "c1", nombre: "Física" }],
+      };
+
+      const res = aplicarEvento(prevCortado, evInicioMismoId, 3000);
+      expect(res).toBe(prevCortado);
+    });
+  });
 });
+
