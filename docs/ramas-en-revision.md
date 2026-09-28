@@ -24,6 +24,12 @@ tarjetas según la maqueta del dueño. Sólo presentación: el contenido sigue l
   maqueta en `docs/specs/loader-con-progreso/maqueta-loader.png`.
 - **Checklist B (dueño, Brave)**: T-1..T-5 al final del plan. Antes, la tanda lo reproduce en
   Claude in Chrome (oscuro y claro).
+- **Acento** (2026-09-28): el curso actual y el reloj usan `--accent-orange`, el de la app; el azul de la
+  maqueta se descartó (`--accent-blue` ya no existe). El Paso 1 del plan quedó superado por esto.
+- **Siguiente en la misma rama — cancelar el escaneo**: plan `docs/plan-cancelar-escaneo.md` (6 pasos),
+  spec `docs/specs/cancelar-escaneo/spec.md`. Compuerta esperada 46 / 813. Cierra de paso un defecto
+  latente: un `fin` anterior a `inicio` (`sin-cursos`) no llegaba al storage. Checklist C-1..C-10 al
+  final del plan; C-1 mide M-1.
 
 `classroom-destino-adopcion` (corte 2a, adopción en `~/U.N.L.P`) sigue en su rama, esperando A-2;
 su estado vive en el `ramas-en-revision.md` de esa rama.

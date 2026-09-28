@@ -1,6 +1,6 @@
 ---
 name: loader-tarjetas
-description: Rama loader-tarjetas (desde main 0442598): rediseño visual del loader con detalle según maqueta del dueño; plan listo para obra
+description: Rama loader-tarjetas (desde main 0442598): loader en tarjetas (maqueta del dueño) + cancelar escaneo; ambos planes y cómo revisarlos
 metadata:
   type: project
 ---
@@ -16,5 +16,17 @@ el CSS lo convierte en cabecera con `:has(.loader-detalle)`; el spinner estátic
 
 **How to apply:** al revisar lo de obra: correr el control negativo yo mismo, y reproducir el CSS compilado en
 Claude in Chrome (390×600, oscuro y claro) ANTES de mandar al dueño a T-1..T-5. Decidí sin preguntar: mismo
-diseño para un curso y recorrido; token nuevo `--accent-blue` (la hoja prohíbe colores literales).
+diseño para un curso y recorrido; ~~token `--accent-blue`~~ → el dueño lo rechazó (2026-09-27): el acento de la app es `--accent-orange`; el azul salía de la maqueta. Ya reemplazado.
 Memoria de la tanda también vive en la rama de adopción: al mergear, unir los MEMORY.md a mano.
+
+**Regla aprendida:** una maqueta dice la estructura, no la paleta. Antes de meter un color, mirá qué token de acento
+usa la app (`grep var(--accent-` en styles/components) y reusalo; no crees tokens de color nuevos sin preguntar.
+
+**2026-09-28, cancelar escaneo:** plan `docs/plan-cancelar-escaneo.md` entregado a obra (misma rama). El dueño
+eligió tarjeta neutra "Escaneo cancelado" con lista vacía (RN-15 enmendado). Al revisar: control negativo del
+Paso 2 (S1), contar el nuevo número de miembros de PuertoSitio (ya estaba desfasado: `claveDeListado?` nunca se sumó),
+y C-1..C-10 en Claude in Chrome antes del dueño. Tropezón evitado: un obra al que le pasan la **spec** la rechaza
+— el traspaso siempre lleva la ruta del `plan-*.md`.
+
+**Trampa del scraper (vale para cualquier corte futuro):** `dormir` captura el token al llamar y sólo mira al vencer;
+un `fin` previo a `inicio` lo tiraba el reductor (arreglado en este plan).
