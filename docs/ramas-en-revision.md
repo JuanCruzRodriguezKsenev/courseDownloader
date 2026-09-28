@@ -30,6 +30,14 @@ tarjetas según la maqueta del dueño. Sólo presentación: el contenido sigue l
   spec `docs/specs/cancelar-escaneo/spec.md`. Compuerta esperada 46 / 813. Cierra de paso un defecto
   latente: un `fin` anterior a `inicio` (`sin-cursos`) no llegaba al storage. Checklist C-1..C-10 al
   final del plan; C-1 mide M-1.
+  - **Ejecutado y revisado por tanda (2026-09-28)**: compuerta 46 / 813, lint 0/0, tsc limpio, build OK.
+    Control negativo del Paso 2 corrido en un worktree aparte: sin el `if (cancelado) throw` del `catch`
+    de la carrera, S1 falla (`expected … length of 1 but got 2`); restaurado, 43/43. C-10 reproducido con el
+    CSS compilado (oscuro y claro, 390 px): botón a la derecha, `CANCELANDO…` atenuado, sin colores nuevos.
+    **Falta el dueño en Brave: T-1..T-5 del loader y C-1..C-9.**
+  - **Hueco conocido, no bloquea**: el respaldo de 3 s del recorrido vive en el popup. Si la pestaña está
+    muda y el popup se cierra antes de los 3 s, no se manda el `fin` y el recorrido queda `escaneando`
+    hasta que vence `esVigente` (~210 s). C-4 no lo cubre porque ahí el popup queda abierto.
 
 `classroom-destino-adopcion` (corte 2a, adopción en `~/U.N.L.P`) sigue en su rama, esperando A-2;
 su estado vive en el `ramas-en-revision.md` de esa rama.

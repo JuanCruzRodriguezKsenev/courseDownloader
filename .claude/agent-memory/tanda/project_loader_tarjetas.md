@@ -30,3 +30,10 @@ y C-1..C-10 en Claude in Chrome antes del dueño. Tropezón evitado: un obra al 
 
 **Trampa del scraper (vale para cualquier corte futuro):** `dormir` captura el token al llamar y sólo mira al vencer;
 un `fin` previo a `inicio` lo tiraba el reductor (arreglado en este plan).
+
+**2026-09-28, revisión de cancelar escaneo:** compuerta 46/813 verde, el control negativo falla S1 como debe, y C-10 se ve bien
+con el CSS compilado. Queda esperando al dueño: T-1..T-5 y C-1..C-9. Hueco anotado en ramas-en-revision: el respaldo de 3 s vive
+en el popup. Trampas de la revisión: en un worktree con `node_modules` enlazado, `pnpm exec` intenta reinstalar →
+usar `./node_modules/.bin/vitest`. `resize_window` a 390 falla → limitar el `body` a 390 px con JS. El tema sigue a
+`prefers-color-scheme`: generar dos CSS con sed (`min-width:0px` para oscuro y `max-width:0px` para claro).
+La memoria de obra (`project_classroom_cancelar_escaneo.md`) tiene textos de resumen que no son los reales: fiarse del código.
