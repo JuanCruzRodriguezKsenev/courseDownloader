@@ -130,7 +130,9 @@ describe("progresoEscaneo — vistaLoaderRecorrido (AC-2)", () => {
     };
     const vista = vistaLoaderRecorrido(r, "Google Classroom");
     expect(vista.titulo).toBe("Escaneando todos los cursos");
-    expect(vista.lineas).toEqual(["Buscando tus cursos…"]);
+    expect(vista.actual).toEqual({ posicion: null, nombre: null, detalle: "Buscando tus cursos…" });
+    expect(vista.contadores).toBeNull();
+    expect(vista.restante).toBeNull();
     expect(vista.cursos).toEqual([]);
     expect(vista.pie).toEqual([
       "Dejá Google Classroom al frente.",
@@ -169,11 +171,14 @@ describe("progresoEscaneo — vistaLoaderRecorrido (AC-2)", () => {
 
     const vista = vistaLoaderRecorrido(r, "Google Classroom");
     expect(vista.titulo).toBe("Escaneando todos los cursos");
-    expect(vista.lineas[0]).toBe("Curso 3 de 7: Análisis II");
-    expect(vista.lineas[1]).toBe("Cargando más publicaciones (2) · 8 publicaciones");
-    expect(vista.lineas[2]).toBe("Listos: 1 · Vacíos: 1 · Fallidos: 0");
+    expect(vista.actual).toEqual({
+      posicion: "Curso 3 de 7",
+      nombre: "Análisis II",
+      detalle: "Cargando más publicaciones (2) · 8 publicaciones",
+    });
+    expect(vista.contadores).toEqual({ listos: 1, vacios: 1, fallidos: 0 });
     // 2 cursos con duración promedian (20+15)/2 = 17.5 s. Pendientes = 7 - 2 = 5. 5 * 17.5 = 87.5 s -> 2 min
-    expect(vista.lineas[3]).toBe("≈ 2 min restantes");
+    expect(vista.restante).toBe("≈ 2 min restantes");
 
     const marcas = vista.cursos.map((c) => c.marca);
     expect(marcas).toEqual(["✓", "○", "▸", "·", "·", "·", "·"]);
@@ -197,7 +202,12 @@ describe("progresoEscaneo — vistaLoaderCurso", () => {
       },
       "Google Classroom"
     );
-    expect(vista.lineas).toEqual(["Trabajo en clase · 15 publicaciones"]);
+    expect(vista.actual).toEqual({
+      posicion: null,
+      nombre: null,
+      detalle: "Trabajo en clase · 15 publicaciones",
+    });
+    expect(vista.contadores).toBeNull();
     expect(vista.cursos).toEqual([]);
     expect(vista.pie).toEqual(["Dejá Google Classroom al frente."]);
   });

@@ -15,9 +15,26 @@ export interface ElementoCursoLoader {
   actual: boolean;
 }
 
+export interface TarjetaActualLoader {
+  /** "Curso 6 de 7" — sólo en el recorrido, una vez enumerados los cursos. */
+  posicion: string | null;
+  /** Nombre del curso actual — sólo en el recorrido. En un curso el nombre ya es el título. */
+  nombre: string | null;
+  /** Fase e ítems (`textoFase`), o "Buscando tus cursos…" antes de enumerar. */
+  detalle: string | null;
+}
+
+export interface ContadoresLoader {
+  listos: number;
+  vacios: number;
+  fallidos: number;
+}
+
 export interface VistaLoader {
   titulo?: string;
-  lineas: string[];
+  actual: TarjetaActualLoader | null;
+  contadores: ContadoresLoader | null;
+  restante: string | null;
   cursos: ElementoCursoLoader[];
   pie: string[];
   desde?: number;
@@ -105,7 +122,9 @@ export function vistaLoaderRecorrido(r: RecorridoTodos, nombrePortal: string): V
   if (!r.cursos || r.cursos.length === 0) {
     return {
       titulo,
-      lineas: ["Buscando tus cursos…"],
+      actual: { posicion: null, nombre: null, detalle: "Buscando tus cursos…" },
+      contadores: null,
+      restante: null,
       cursos: [],
       pie,
       desde,
@@ -114,18 +133,17 @@ export function vistaLoaderRecorrido(r: RecorridoTodos, nombrePortal: string): V
 
   const res = resumen(r);
   const cursoActual = r.cursos[r.indice] || { nombre: "" };
-  const lineas: string[] = [`Curso ${r.indice + 1} de ${r.cursos.length}: ${cursoActual.nombre}`];
-
-  if (r.actual) {
-    lineas.push(textoFase(r.actual));
-  }
-
-  lineas.push(`Listos: ${res.ok} · Vacíos: ${res.vacios} · Fallidos: ${res.fallidos.length}`);
-
+  const actual: TarjetaActualLoader = {
+    posicion: `Curso ${r.indice + 1} de ${r.cursos.length}`,
+    nombre: cursoActual.nombre,
+    detalle: r.actual ? (textoFase(r.actual) || null) : null,
+  };
+  const contadores: ContadoresLoader = {
+    listos: res.ok,
+    vacios: res.vacios,
+    fallidos: res.fallidos.length,
+  };
   const restante = textoRestante(r);
-  if (restante !== null) {
-    lineas.push(restante);
-  }
 
   const cursos: ElementoCursoLoader[] = r.cursos.map((c, idx) => {
     let marca: ElementoCursoLoader["marca"] = "·";
@@ -147,7 +165,9 @@ export function vistaLoaderRecorrido(r: RecorridoTodos, nombrePortal: string): V
 
   return {
     titulo,
-    lineas,
+    actual,
+    contadores,
+    restante,
     cursos,
     pie,
     desde,
@@ -159,7 +179,13 @@ export function vistaLoaderRecorrido(r: RecorridoTodos, nombrePortal: string): V
  */
 export function vistaLoaderCurso(progreso: ProgresoCurso, nombrePortal: string): VistaLoader {
   return {
-    lineas: [textoFase(progreso)],
+    actual: {
+      posicion: null,
+      nombre: null,
+      detalle: textoFase(progreso) || null,
+    },
+    contadores: null,
+    restante: null,
     cursos: [],
     pie: [`Dejá ${nombrePortal} al frente.`],
   };
