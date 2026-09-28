@@ -164,7 +164,7 @@ mismo trade-off sin transacciones que el resto de las claves, y el dato es infor
   cursos: CursoRecorrido[],      // [{ id, nombre, resultado?, enlaces?, motivo?, duracionMs? }]
   indice: number,                // índice del curso actual en proceso
   ultimaSenal: number,           // Date.now() del último latido o evento
-  motivoCorte?: MotivoCorte,     // "visibilidad" | "navegacion" | "sin-cursos" | "desconocido"
+  motivoCorte?: MotivoCorte,     // "visibilidad" | "navegacion" | "sin-cursos" | "sin-respuesta" | "cancelado"
   materializado: boolean,        // true cuando el popup volcó los enlaces a listaPersistente
   lanzadoEn?: number,            // Date.now() de cuando el usuario apretó el botón
   actual?: {                     // progreso intra-curso vigente (reseteado en latido/curso)
@@ -181,11 +181,14 @@ Eventos de ciclo de vida (`EventoRecorrido` vía mensaje IPC `recorrido_evento` 
 - `"latido"`: `{ indice }`
 - `"progreso"`: `{ indice, fase, verMas?, publicaciones?, archivos? }`
 - `"curso"`: `{ indice, resultado, enlaces?, motivo?, duracionMs? }`
-- `"fin"`: `{ estado, motivoCorte? }`
+- `"fin"`: `{ estado, motivoCorte?, tabId?, sitioId? }`
 - `"materializado"`: `{}`
 
-Mensajes IPC directos al popup:
+Un `fin` con `tabId`/`sitioId` sin recorrido previo (o con uno más viejo) crea uno `cortado` con `cursos: []`; un `inicio` del mismo id sobre un terminal se ignora.
+
+Mensajes IPC directos:
 - `escaneo_progreso`: enviado por el scraper en modo un curso directamente al popup vía `chrome.runtime.sendMessage({ action: "escaneo_progreso", idEscaneo, fase, verMas, publicaciones, archivos, nombre? })` para actualizar el loader en vivo sin pasar por `storage`.
+- `cancelar_escaneo`: popup → pestaña por `chrome.tabs.sendMessage`, `{ idRecorrido }` o `{ idEscaneo }`. Atendido por el scraper inyectado.
 
 ## `chrome.storage.session` — volátil, sobrevive a la suspensión del Service Worker pero no a un reinicio del navegador
 

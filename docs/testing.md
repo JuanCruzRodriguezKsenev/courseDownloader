@@ -30,10 +30,15 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **46 archivos, 802 tests**, todo en verde |
+| `pnpm test` | **46 archivos, 813 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 813** (2026-09-28, plan `cancelar-escaneo`). Son los 802 de abajo más **+11** tests:
+**+4** en `core/estado/recorridoTodos.test.ts` (R1..R4: textoResumen cancelado en recorrido y con 0 cursos, fin con tabId/sitioId creando cortado, inicio sobre terminal; 23 → 27 tests),
+**+4** en `sitio/google-classroom/scraper.test.js` (tests 41–44 / S1..S4: cancelar recorrido en curso 1 con fin cortado cancelado y sin vuelta a /h, cancelar antes de enumeración sin inicio, cancelar un curso en < 200 ms, y cancelación de otro idRecorrido ignorada; 39 → 43 tests),
+y **+3** en `popup/features/loaderDetalle.preact.test.js` (L1..L3: botón Cancelar con click, marcarCancelando deshabilitado sin clicks repetidos, y preservación/limpieza de cancelación; 6 → 9 tests).
 
 **De dónde sale el 802** (2026-09-27, plan `loader-tarjetas`). Son los 801 de abajo más **+1** test en `popup/features/loaderDetalle.preact.test.js` (contadores; los demás se reescribieron para la presentación en tarjetas; 5 → 6 tests). Los 3 de `core/estado/progresoEscaneo.test.ts` cambian de aserciones, no de cantidad.
 

@@ -1111,3 +1111,23 @@ los números y líneas que cita no se corrigen hacia atrás. Qué se verificó e
     recorrido entero se corta como "navegaste fuera del recorrido"; las muestras guardan una sola
     `c-wiz`, así que no lo pueden confirmar ni descartar. (b) Para los activos, el script hace
     click en `/h/archived` y, sin esperar, en el link del sidebar: carrera entre dos navegaciones.
+
+---
+
+## 11. Registro de cancelar el escaneo (rama `loader-tarjetas`)
+
+- **Spec**: [`docs/specs/cancelar-escaneo/spec.md`](specs/cancelar-escaneo/spec.md)
+- **Plan**: [`docs/plan-cancelar-escaneo.md`](plan-cancelar-escaneo.md)
+
+### Decisiones de diseño implementadas:
+1. **Canal popup → pestaña**: `chrome.tabs.sendMessage` con `{ action: "cancelar_escaneo", idRecorrido | idEscaneo }` atendido dentro de `escanearListado` inyectado.
+2. **Confirmación**: el recorrido pasa a `estado !== "escaneando"` en storage y un curso recibe callback de `executeScript`, ambos con timeout de seguridad de 3 s.
+3. **Descriptor de portal**: miembro opcional `PuertoSitio.escaneoCancelable?: boolean`, activado únicamente en `sitio/google-classroom/config.ts`.
+4. **Motivo nuevo**: `MotivoCorte: "cancelado"` propagado en reductor, eventos y resúmenes.
+5. **Fin sin previo**: `fin` con `tabId`/`sitioId` crea un recorrido cortado si no hay previo (o id mayor), e `inicio` con el mismo id sobre un terminal no revive el recorrido.
+6. **Resumen con 0 cursos (PA-1)**: mensaje específico "Cancelaste el recorrido antes de encontrar los cursos." (o "Se cortó antes de encontrar los cursos: <motivo>.").
+7. **Restauración en un curso**: con lista previa recupera los ítems vía `mostrarListaGuardada()`; con lista vacía muestra tarjeta informativa `cancelado` (`info`, ⏹️).
+8. **Botón Cancelar**: clase `.btn-cancel` sin estilos ni colores inventados, con estado `cancelando` deshabilitado.
+
+### Defecto latente cerrado:
+- Antes, un evento `fin` emitido antes de `inicio` (`sin-cursos` en scraper o visibilidad previa) devolvía `null` en el reductor por falta de `prev`, perdiéndose en el storage y dejando al popup colgado hasta vencer `esVigente`. Ahora crea un recorrido `cortado` con `cursos: []`.
