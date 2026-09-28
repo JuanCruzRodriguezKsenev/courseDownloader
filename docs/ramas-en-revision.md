@@ -19,7 +19,6 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 `classroom-destino-adopcion`: Corte 2a del destino de Google Classroom en `~/U.N.L.P`. Adopción de lo ya descargado mediante TSV editable, cálculo de md5, detección de choques y generación del índice `.course-downloader.json`.
 
 - **Plan**: `docs/plan-classroom-destino-2a-adopcion.md`. Compuerta 50 archivos / 837 tests.
-- **Pendiente de obra**: `docs/plan-classroom-destino-2a-editor-popup.md` — el editor pasa al servidor del 3001 (`/adopcion/`) y se abre con 🗂️ desde el popup.
 - **Spec**: `docs/specs/classroom-destino/spec.md`.
 - **ADR**: `docs/adr/0017-indice-de-destino-en-la-raiz.md`.
 
@@ -29,7 +28,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   - Dueño: `pnpm run build` → recargar la extensión en Brave → portada de Classroom al frente → "Escanear todos los cursos" (≈3 min), sin escanear nada después.
   - Tanda: regenera los TSV con `generar.js` y re-aplica los docentes que el dueño ya había guardado en `cursos.tsv` (Física I = `Lucila`, MB5 = `benevetano`).
   - Números esperados detallados en la Verificación B de `docs/plan-classroom-destino-2a-publicacion.md` (366 ítems, regla=no en 1 correspondiente a `Cuestiones administrativas`, MC2 en `Practicas si`, Links en `Teorias si`).
-- **A-1c** — Dueño y tanda (nombramiento de choques en Novedades por la primera frase del anuncio, RN-16a):
+- **A-1c** ✅ 2026-09-27 (re-escaneo 21:10; `generar.js`: 366 ítems, 55/4/8/299, 7 renombrados, 0 choques, 0 Novedades sin anuncio; `archivos.tsv` real difiere del respaldo `~/Descargas/adopcion-classroom-respaldo-20260927-rn16a` sólo en `nombre` de esas 7 filas; `cursos.tsv`/`temas.tsv` intactos) — Dueño y tanda (nombramiento de choques en Novedades por la primera frase del anuncio, RN-16a):
   - Dueño: `pnpm run build` → recargar la extensión en Brave → portada de Classroom al frente → "Escanear todos los cursos" (≈3 min), sin escanear nada después.
   - Tanda: regenera los TSV con `generar.js` y re-aplica los docentes que el dueño ya había guardado en `cursos.tsv` (Física I = `Lucila`, MB5 = `benevetano`).
   - Números esperados detallados en la Verificación B de `docs/plan-classroom-destino-2a-anuncio.md` (366 ítems, 7 renombrados por la frase del anuncio, 0 choques).
