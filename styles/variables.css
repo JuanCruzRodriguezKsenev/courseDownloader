@@ -13,6 +13,7 @@
   --accent-cyan-disco: #005AD7; /* Azul oscuro legible con texto blanco */
   --accent-cyan-disco-hover: #0045B5;
   --accent-green: #30D158;
+  --accent-blue: #0060DF; /* acento del loader con detalle: curso actual y reloj */
   --accent-error: #FF3B30;
   --accent-error-hover: #D72621;
   --accent-error-visible: #FF3B30;
@@ -28,6 +29,7 @@
   --accent-orange-rgb: 255, 94, 0;   /* = --accent-orange  #FF5E00 */
   --accent-error-rgb: 255, 59, 48;   /* = --accent-error   #FF3B30 */
   --accent-green-rgb: 48, 209, 88;   /* = --accent-green   #30D158 */
+  --accent-blue-rgb: 0, 96, 223;     /* = --accent-blue #0060DF */
   --shadow-rgb: 0, 0, 0;             /* tinte de TODAS las sombras */
   --shine-rgb: 255, 255, 255;        /* barrido del gradiente del footer */
 
@@ -118,6 +120,8 @@
     --accent-orange-hover: #FF8C42;
     --accent-cyan-disco: #33EBFF; /* Cian eléctrico brillante */
     --accent-cyan-disco-hover: #80F3FF;
+    --accent-blue: #4F8EF7;
+    --accent-blue-rgb: 79, 142, 247;
     --accent-error-hover: #FF665C;
     --accent-error-visible: #FF453A;
     --accent-warning-visible: #FF9F0A;
