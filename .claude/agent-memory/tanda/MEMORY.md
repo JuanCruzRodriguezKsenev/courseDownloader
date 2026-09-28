@@ -2,3 +2,4 @@
 - [Organización del material](user_organizacion_material.md) — ~/U.N.L.P: árbol git+Obsidian por facultad/materia/docente; mirar antes de proponer layouts
 - [Google Classroom](project_google_classroom.md) — corte 1 en main; loader + CSS revisados, falta L-1..L-9 del dueño en Brave
 - [Flota de agentes](reference_flota_antigravity.md) — generada desde ~/Dev/agentes a Claude y agy; `generar --check`; qué quedó derivado a forja
+- [Loader en tarjetas](project_loader_tarjetas.md) — rama loader-tarjetas: maqueta del dueño, plan para obra, cómo revisarlo
