@@ -227,3 +227,6 @@ el texto del anuncio está en `previousElementSibling` de `[data-include-stream-
 Dueño: sólo los que CHOCAN se nombran con la primera frase del anuncio (reemplaza). Plan `docs/plan-classroom-destino-2a-anuncio.md`
 (campo nuevo `anuncio`, NO tocar `material`: arma títulos y `generar.js:132` busca en disco por título). Requiere re-escaneo (A-1c).
 Parser de storage de Brave reutilizable: `lista.py` en el scratchpad de la sesión 7b06d381 (copiarlo si se borra /tmp).
+**RN-16a ejecutado por obra (`849d93a`) y re-verificado por mí**: diff = plan; 50/859 verde; (b)(c) idénticos; los 3 controles
+MUERDEN; `textoDelAnuncio` REAL (extraído con awk de scraper.js) sobre las 8 muestras de Novedades con jsdom: 36/36 posts con
+texto, los 5 de MC2 dan los nombres de C1 exactos. Sigue B-1 (dueño re-escanea todos) → B-2/B-3 míos → B-4 dueño → A-2.
