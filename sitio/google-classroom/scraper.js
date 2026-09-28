@@ -1,6 +1,10 @@
 /**
- * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.5.1)
+ * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.6.0)
  * ==========================================================================
+ * CHANGELOG v1.6.0:
+ * - [CANCELAR ESCANEO] Oyente onMessage dentro de escanearListado para la acción
+ *   "cancelar_escaneo", aborto inmediato de esperas pendientes y corte sin vuelta a portada.
+ *
  * CHANGELOG v1.5.1:
  * - [CLASSROOM NOVEDADES SCROLL] buscarContenedorScroll exige que el contenedor scrollee de verdad; la <nav> lateral tapaba la paginación de Novedades.
  *
@@ -87,15 +91,40 @@ const ScraperClassroom = {
     );
 
     let idCancelacion = 0;
+    let cancelado = false;
+    const pendientes = new Set();
+
+    function abortarEsperas() {
+      idCancelacion++;
+      for (const e of pendientes) {
+        clearTimeout(e.timer);
+        e.reject(new Error("cancelado"));
+      }
+      pendientes.clear();
+    }
+
     const dormir = (ms, token = idCancelacion) =>
       new Promise((resolve, reject) => {
-        setTimeout(() => {
+        if (cancelado) {
+          reject(new Error("cancelado"));
+          return;
+        }
+        const entrada = {
+          timer: null,
+          reject: (err) => {
+            pendientes.delete(entrada);
+            reject(err);
+          },
+        };
+        entrada.timer = setTimeout(() => {
+          pendientes.delete(entrada);
           if (token !== idCancelacion) {
             reject(new Error("cancelado"));
           } else {
             resolve();
           }
         }, ms);
+        pendientes.add(entrada);
       });
 
     async function esperarCondicion(predicado, timeoutMs, pasoMs = 50) {
@@ -133,6 +162,28 @@ const ScraperClassroom = {
 
     const modoTodos = Boolean(opciones && opciones.modo === "todos");
     const { idRecorrido, tabId, sitioId, topeCursoMs = 180000 } = opciones || {};
+
+    const oyenteCancelar = (msg, _sender, responder) => {
+      if (!msg || msg.action !== "cancelar_escaneo") return;
+      const esMio = modoTodos
+        ? msg.idRecorrido === idRecorrido
+        : msg.idEscaneo !== undefined && msg.idEscaneo === (opciones && opciones.idEscaneo);
+      if (!esMio) return;
+      cancelado = true;
+      abortarEsperas();
+      try {
+        responder({ ok: true });
+      } catch {}
+    };
+
+    if (
+      typeof chrome !== "undefined" &&
+      chrome.runtime &&
+      chrome.runtime.onMessage &&
+      typeof chrome.runtime.onMessage.addListener === "function"
+    ) {
+      chrome.runtime.onMessage.addListener(oyenteCancelar);
+    }
 
     let colaAvisos = Promise.resolve();
     let ultimoReporteMs = 0;
@@ -961,275 +1012,302 @@ const ScraperClassroom = {
     };
   }
 
-  if (!opciones || opciones.modo !== "todos") {
-    return escanearCursoActual();
-  }
-
-  if (!visible()) {
-    await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "visibilidad" });
-    return { materia: "", enlaces: [], recorrido: true };
-  }
-
-  // 3. Enumerar
-  const esRutaPortada = (p) => /\/h(?:\/st)?(?:\/|\?|#|$)/.test(p);
-  if (!esRutaPortada(location.pathname || "")) {
-    const linkH = document.querySelector('nav a[href$="/h"]');
-    if (linkH) {
-      linkH.click();
-      await esperarCondicion(() => esRutaPortada(location.pathname || ""), tiempos.navegacion);
-    }
-  }
-
-  function resolverNombreCurso(id) {
-    const todasAnclas = document.querySelectorAll("a[href]");
-    for (const a of todasAnclas) {
-      const href = (a.getAttribute("href") || "").split(/[?#]/)[0];
-      if (href.endsWith(`/c/${id}`)) {
-        const ariaLabel = (a.getAttribute("aria-label") || "").trim();
-        if (ariaLabel) {
-          return ariaLabel;
-        }
+  try {
+    if (!opciones || opciones.modo !== "todos") {
+      try {
+        return await escanearCursoActual();
+      } catch (e) {
+        if (cancelado) return { materia: "", enlaces: [], cancelado: true };
+        throw e;
       }
     }
-    for (const a of todasAnclas) {
-      if (a.closest("nav")) continue;
-      const href = (a.getAttribute("href") || "").split(/[?#]/)[0];
-      if (href.endsWith(`/c/${id}`)) {
-        const ariaLabel = (a.getAttribute("aria-label") || "").trim();
-        if (!ariaLabel) {
-          const texto = (a.textContent || "").trim();
-          if (texto) {
-            return texto;
+
+    try {
+      if (!visible()) {
+        await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "visibilidad" });
+        return { materia: "", enlaces: [], recorrido: true };
+      }
+
+      // 3. Enumerar
+      const esRutaPortada = (p) => /\/h(?:\/st)?(?:\/|\?|#|$)/.test(p);
+      if (!esRutaPortada(location.pathname || "")) {
+        const linkH = document.querySelector('nav a[href$="/h"]');
+        if (linkH) {
+          linkH.click();
+          await esperarCondicion(() => esRutaPortada(location.pathname || ""), tiempos.navegacion);
+        }
+      }
+
+      function resolverNombreCurso(id) {
+        const todasAnclas = document.querySelectorAll("a[href]");
+        for (const a of todasAnclas) {
+          const href = (a.getAttribute("href") || "").split(/[?#]/)[0];
+          if (href.endsWith(`/c/${id}`)) {
+            const ariaLabel = (a.getAttribute("aria-label") || "").trim();
+            if (ariaLabel) {
+              return ariaLabel;
+            }
           }
         }
-      }
-    }
-    return id;
-  }
-
-  function leerCursosDePagina(idsVistos) {
-    const res = [];
-    const raiz = obtenerVistaActiva();
-    const anclas = raiz.querySelectorAll('a[href*="/c/"]');
-    const nuevosIds = [];
-    for (const a of anclas) {
-      if (a.closest("nav")) continue;
-      const href = (a.getAttribute("href") || "").split(/[?#]/)[0];
-      const match = /\/c\/([^/]+)$/.exec(href);
-      if (!match) continue;
-      const id = match[1];
-      if (idsVistos.has(id)) continue;
-      idsVistos.add(id);
-      nuevosIds.push(id);
-    }
-    for (const id of nuevosIds) {
-      res.push({ id, nombre: resolverNombreCurso(id) });
-    }
-    return res;
-  }
-
-  const idsVistos = new Set();
-  const activos = leerCursosDePagina(idsVistos);
-
-  const esperaArchivadosMs = 5000;
-  const linkArchived = document.querySelector('nav a[href$="/h/archived"]');
-  if (linkArchived) {
-    linkArchived.click();
-    await esperarCondicion(
-      () => (location.pathname || "").includes("/h/archived"),
-      tiempos.navegacion
-    );
-    await esperarCondicion(() => {
-      const va = obtenerVistaActiva();
-      const anclas = va.querySelectorAll('a[href*="/c/"]');
-      for (const a of anclas) {
-        if (a.closest("nav")) continue;
-        const href = (a.getAttribute("href") || "").split(/[?#]/)[0];
-        const match = /\/c\/([^/]+)$/.exec(href);
-        if (match && !idsVistos.has(match[1])) {
-          return true;
+        for (const a of todasAnclas) {
+          if (a.closest("nav")) continue;
+          const href = (a.getAttribute("href") || "").split(/[?#]/)[0];
+          if (href.endsWith(`/c/${id}`)) {
+            const ariaLabel = (a.getAttribute("aria-label") || "").trim();
+            if (!ariaLabel) {
+              const texto = (a.textContent || "").trim();
+              if (texto) {
+                return texto;
+              }
+            }
+          }
         }
+        return id;
       }
-      return false;
-    }, esperaArchivadosMs);
-  }
-  const archivados = leerCursosDePagina(idsVistos);
-  const listaFinal = [...activos, ...archivados];
 
-  if (listaFinal.length === 0) {
-    await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "sin-cursos" });
-    return { materia: "", enlaces: [], recorrido: true };
-  }
-
-  // 4. Inicio
-  await avisar({
-    tipo: "inicio",
-    cursos: listaFinal.map((c) => ({ id: c.id, nombre: c.nombre })),
-    ...(opciones && opciones.lanzadoEn !== undefined ? { lanzadoEn: opciones.lanzadoEn } : {}),
-  });
-
-  // 5. Por cada curso
-  for (let i = 0; i < listaFinal.length; i++) {
-    indiceCursoActual = i;
-    const curso = listaFinal[i];
-    if (!visible()) {
-      await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "visibilidad" });
-      return { materia: "", enlaces: [], recorrido: true };
-    }
-
-    const inicioCurso = Date.now();
-    await avisar({ tipo: "latido", indice: i });
-
-    const navArchived = document.querySelector('nav a[href$="/h/archived"]');
-    if (navArchived) {
-      navArchived.click();
-    }
-    const selectorCurso = `a[href$="/c/${curso.id}"]`;
-    const aparecio = await esperarCondicion(
-      () => Boolean(document.querySelector(selectorCurso)),
-      tiempos.navegacion
-    );
-    if (!aparecio) {
-      await avisar({
-        tipo: "curso",
-        indice: i,
-        resultado: "fallido",
-        motivo: "no abrió",
-        duracionMs: Date.now() - inicioCurso,
-      });
-      continue;
-    }
-    const linkCurso = document.querySelector(selectorCurso);
-    linkCurso.click();
-    const llego = await esperarCondicion(
-      () => (location.pathname || "").includes(`/c/${curso.id}`),
-      tiempos.navegacion
-    );
-    if (!llego) {
-      await avisar({
-        tipo: "curso",
-        indice: i,
-        resultado: "fallido",
-        motivo: "no abrió",
-        duracionMs: Date.now() - inicioCurso,
-      });
-      continue;
-    }
-
-    const regexTrabajo = new RegExp(`^(?:/u/\\d+)?/w/${curso.id}/t/all(?:$|\\?)`);
-    const navTrabajoOk = await esperarCondicion(() => {
-      const links = document.querySelectorAll("nav a[href]");
-      for (const a of links) {
-        const href = a.getAttribute("href") || "";
-        const pathname = a.pathname || "";
-        if (regexTrabajo.test(href) || regexTrabajo.test(pathname)) {
-          return true;
+      function leerCursosDePagina(idsVistos) {
+        const res = [];
+        const raiz = obtenerVistaActiva();
+        const anclas = raiz.querySelectorAll('a[href*="/c/"]');
+        const nuevosIds = [];
+        for (const a of anclas) {
+          if (a.closest("nav")) continue;
+          const href = (a.getAttribute("href") || "").split(/[?#]/)[0];
+          const match = /\/c\/([^/]+)$/.exec(href);
+          if (!match) continue;
+          const id = match[1];
+          if (idsVistos.has(id)) continue;
+          idsVistos.add(id);
+          nuevosIds.push(id);
         }
+        for (const id of nuevosIds) {
+          res.push({ id, nombre: resolverNombreCurso(id) });
+        }
+        return res;
       }
-      return false;
-    }, tiempos.navegacion);
-    if (!navTrabajoOk) {
-      await avisar({
-        tipo: "curso",
-        indice: i,
-        resultado: "fallido",
-        motivo: "no abrió",
-        duracionMs: Date.now() - inicioCurso,
-      });
-      continue;
-    }
 
-    let resCurso;
-    let timer = null;
-    const promesa = escanearCursoActual();
-    try {
-      const carrera = await Promise.race([
-        promesa.then((res) => ({ res })),
-        new Promise((resolve) => {
-          timer = setTimeout(() => resolve({ vencido: true }), topeCursoMs);
-        }),
-      ]);
-      if (timer) clearTimeout(timer);
-      if (carrera.vencido) {
-        idCancelacion++;
-        promesa.catch(() => {});
-        const segs = Math.round(topeCursoMs / 1000);
+      const idsVistos = new Set();
+      const activos = leerCursosDePagina(idsVistos);
+
+      const esperaArchivadosMs = 5000;
+      const linkArchived = document.querySelector('nav a[href$="/h/archived"]');
+      if (linkArchived) {
+        linkArchived.click();
+        await esperarCondicion(
+          () => (location.pathname || "").includes("/h/archived"),
+          tiempos.navegacion
+        );
+        await esperarCondicion(() => {
+          const va = obtenerVistaActiva();
+          const anclas = va.querySelectorAll('a[href*="/c/"]');
+          for (const a of anclas) {
+            if (a.closest("nav")) continue;
+            const href = (a.getAttribute("href") || "").split(/[?#]/)[0];
+            const match = /\/c\/([^/]+)$/.exec(href);
+            if (match && !idsVistos.has(match[1])) {
+              return true;
+            }
+          }
+          return false;
+        }, esperaArchivadosMs);
+      }
+      const archivados = leerCursosDePagina(idsVistos);
+      const listaFinal = [...activos, ...archivados];
+
+      if (listaFinal.length === 0) {
+        await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "sin-cursos" });
+        return { materia: "", enlaces: [], recorrido: true };
+      }
+
+      // 4. Inicio
+      await avisar({
+        tipo: "inicio",
+        cursos: listaFinal.map((c) => ({ id: c.id, nombre: c.nombre })),
+        ...(opciones && opciones.lanzadoEn !== undefined ? { lanzadoEn: opciones.lanzadoEn } : {}),
+      });
+
+      // 5. Por cada curso
+      for (let i = 0; i < listaFinal.length; i++) {
+        if (cancelado) throw new Error("cancelado");
+        indiceCursoActual = i;
+        const curso = listaFinal[i];
+        if (!visible()) {
+          await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "visibilidad" });
+          return { materia: "", enlaces: [], recorrido: true };
+        }
+
+        const inicioCurso = Date.now();
+        await avisar({ tipo: "latido", indice: i });
+
+        const navArchived = document.querySelector('nav a[href$="/h/archived"]');
+        if (navArchived) {
+          navArchived.click();
+        }
+        const selectorCurso = `a[href$="/c/${curso.id}"]`;
+        const aparecio = await esperarCondicion(
+          () => Boolean(document.querySelector(selectorCurso)),
+          tiempos.navegacion
+        );
+        if (!aparecio) {
+          await avisar({
+            tipo: "curso",
+            indice: i,
+            resultado: "fallido",
+            motivo: "no abrió",
+            duracionMs: Date.now() - inicioCurso,
+          });
+          continue;
+        }
+        const linkCurso = document.querySelector(selectorCurso);
+        linkCurso.click();
+        const llego = await esperarCondicion(
+          () => (location.pathname || "").includes(`/c/${curso.id}`),
+          tiempos.navegacion
+        );
+        if (!llego) {
+          await avisar({
+            tipo: "curso",
+            indice: i,
+            resultado: "fallido",
+            motivo: "no abrió",
+            duracionMs: Date.now() - inicioCurso,
+          });
+          continue;
+        }
+
+        const regexTrabajo = new RegExp(`^(?:/u/\\d+)?/w/${curso.id}/t/all(?:$|\\?)`);
+        const navTrabajoOk = await esperarCondicion(() => {
+          const links = document.querySelectorAll("nav a[href]");
+          for (const a of links) {
+            const href = a.getAttribute("href") || "";
+            const pathname = a.pathname || "";
+            if (regexTrabajo.test(href) || regexTrabajo.test(pathname)) {
+              return true;
+            }
+          }
+          return false;
+        }, tiempos.navegacion);
+        if (!navTrabajoOk) {
+          await avisar({
+            tipo: "curso",
+            indice: i,
+            resultado: "fallido",
+            motivo: "no abrió",
+            duracionMs: Date.now() - inicioCurso,
+          });
+          continue;
+        }
+
+        let resCurso;
+        let timer = null;
+        const promesa = escanearCursoActual();
+        try {
+          const carrera = await Promise.race([
+            promesa.then((res) => ({ res })),
+            new Promise((resolve) => {
+              timer = setTimeout(() => resolve({ vencido: true }), topeCursoMs);
+            }),
+          ]);
+          if (timer) clearTimeout(timer);
+          if (carrera.vencido) {
+            abortarEsperas();
+            promesa.catch(() => {});
+            const segs = Math.round(topeCursoMs / 1000);
+            await avisar({
+              tipo: "curso",
+              indice: i,
+              resultado: "fallido",
+              motivo: `superó ${segs} s`,
+              duracionMs: Date.now() - inicioCurso,
+            });
+            continue;
+          }
+          resCurso = carrera.res;
+          if (cancelado) throw new Error("cancelado");
+        } catch {
+          if (timer) clearTimeout(timer);
+          if (cancelado) throw new Error("cancelado");
+          await avisar({
+            tipo: "curso",
+            indice: i,
+            resultado: "fallido",
+            motivo: "error inesperado",
+            duracionMs: Date.now() - inicioCurso,
+          });
+          continue;
+        }
+
+        if (resCurso.motivoAviso === "visibilidad") {
+          await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "visibilidad" });
+          return { materia: "", enlaces: [], recorrido: true };
+        }
+        if (resCurso.motivoAviso === "curso-cambiado") {
+          await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "navegacion" });
+          return { materia: "", enlaces: [], recorrido: true };
+        }
+        if (resCurso.motivoAviso === "sin-material") {
+          await avisar({
+            tipo: "curso",
+            indice: i,
+            resultado: "vacio",
+            duracionMs: Date.now() - inicioCurso,
+          });
+          continue;
+        }
+        if (resCurso.aviso) {
+          await avisar({
+            tipo: "curso",
+            indice: i,
+            resultado: "fallido",
+            motivo: resCurso.aviso,
+            duracionMs: Date.now() - inicioCurso,
+          });
+          continue;
+        }
+
         await avisar({
           tipo: "curso",
           indice: i,
-          resultado: "fallido",
-          motivo: `superó ${segs} s`,
+          resultado: "ok",
+          enlaces: resCurso.enlaces,
           duracionMs: Date.now() - inicioCurso,
+          ...(resCurso.adjuntosSinResolver ? { adjuntosSinResolver: resCurso.adjuntosSinResolver } : {}),
         });
-        continue;
       }
-      resCurso = carrera.res;
-    } catch {
-      if (timer) clearTimeout(timer);
-      await avisar({
-        tipo: "curso",
-        indice: i,
-        resultado: "fallido",
-        motivo: "error inesperado",
-        duracionMs: Date.now() - inicioCurso,
-      });
-      continue;
-    }
 
-    if (resCurso.motivoAviso === "visibilidad") {
-      await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "visibilidad" });
-      return { materia: "", enlaces: [], recorrido: true };
-    }
-    if (resCurso.motivoAviso === "curso-cambiado") {
-      await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "navegacion" });
-      return { materia: "", enlaces: [], recorrido: true };
-    }
-    if (resCurso.motivoAviso === "sin-material") {
-      await avisar({
-        tipo: "curso",
-        indice: i,
-        resultado: "vacio",
-        duracionMs: Date.now() - inicioCurso,
-      });
-      continue;
-    }
-    if (resCurso.aviso) {
-      await avisar({
-        tipo: "curso",
-        indice: i,
-        resultado: "fallido",
-        motivo: resCurso.aviso,
-        duracionMs: Date.now() - inicioCurso,
-      });
-      continue;
-    }
+      // 6. Vuelta a la portada (RN-20..22)
+      try {
+        if (!/\/h\/?$/.test(location.pathname || "")) {
+          const linkH = document.querySelector('nav a[href$="/h"]');
+          if (linkH) {
+            linkH.click();
+            await esperarCondicion(() => /\/h\/?$/.test(location.pathname || ""), tiempos.navegacion);
+          }
+        }
+      } catch {}
 
-    await avisar({
-      tipo: "curso",
-      indice: i,
-      resultado: "ok",
-      enlaces: resCurso.enlaces,
-      duracionMs: Date.now() - inicioCurso,
-      ...(resCurso.adjuntosSinResolver ? { adjuntosSinResolver: resCurso.adjuntosSinResolver } : {}),
-    });
+      // 7. Fin
+      await avisar({ tipo: "fin", estado: "terminado" });
+
+      // 7. Retorno
+      return { materia: "", enlaces: [], recorrido: true };
+    } catch (e) {
+      if (cancelado) {
+        await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "cancelado" });
+        return { materia: "", enlaces: [], recorrido: true, cancelado: true };
+      }
+      throw e;
+    }
+  } finally {
+    if (
+      typeof chrome !== "undefined" &&
+      chrome.runtime &&
+      chrome.runtime.onMessage &&
+      typeof chrome.runtime.onMessage.removeListener === "function"
+    ) {
+      chrome.runtime.onMessage.removeListener(oyenteCancelar);
+    }
   }
-
-  // 6. Vuelta a la portada (RN-20..22)
-  try {
-    if (!/\/h\/?$/.test(location.pathname || "")) {
-      const linkH = document.querySelector('nav a[href$="/h"]');
-      if (linkH) {
-        linkH.click();
-        await esperarCondicion(() => /\/h\/?$/.test(location.pathname || ""), tiempos.navegacion);
-      }
-    }
-  } catch {}
-
-  // 7. Fin
-  await avisar({ tipo: "fin", estado: "terminado" });
-
-  // 7. Retorno
-  return { materia: "", enlaces: [], recorrido: true };
 },
 };
 
