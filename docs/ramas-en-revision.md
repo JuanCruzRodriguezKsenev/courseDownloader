@@ -38,8 +38,9 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   - En la página decide lo mismo que dice hoy la lista (docente de Física I, destinos `regla=no`, nombres, cronogramas, los 7 choques), hasta que Probar dé `codigo` 0.
   - No correr `generar.js` después de editar: pisa los TSV.
 - **A-2 → sesión de revisión (dueño, 2026-09-27)**: en otra sesión se revisa `archivos.tsv` **archivo por archivo** (que cada uno vaya a donde corresponde en `~/U.N.L.P`), se corrige el TSV y se informa lo hallado. Antes de tocar: respaldo de los tres TSV reales; editarlos directo o por el editor (guarda byte-idéntico), **nunca** regenerar con `generar.js`. Cierra cuando Probar/ensayo dé `codigo` 0 y el dueño aprobó el informe.
-- **A-3** — Tanda: `aplicar.js` sin `--escribir` y revisa la salida con el dueño. Después, `--escribir`.
-- **A-4** — Tanda verifica en disco:
+- **A-2** ✅ 2026-09-28 (sesión de revisión del dueño, TSV guardados 01:06): único cambio contra A-1c, el tema `Cuestiones administrativas` de Física I pasa a `-` (omite el `.md` del formulario de inscripción) → omitidos 8→9, copiar 299→298. Respaldo de los TSV antes de escribir: `~/Descargas/adopcion-classroom-respaldo-20260928-a3`.
+- **A-3** ✅ 2026-09-28 (ensayo del dueño = ensayo de tanda: copiar 298 / ya-esta 55 / duplicado 4 / omitidos 9, código 0; `--escribir`: 298 copiados, 2 carpetas creadas, 0 errores con `2>&1`) — Tanda: `aplicar.js` sin `--escribir` y revisa la salida con el dueño. Después, `--escribir`.
+- **A-4** ✅ 2026-09-28 (status: 298 `??` en `Ingenieria/` + ` M .gitignore` que agrega `.course-downloader.json`, 0 ` M`/` D` en `Ingenieria/`, índice ignorado; md5 298/298 iguales; `getfattr` vacío; `parsearIndice` ok, 357 entradas = 366 − 9 omitidos; el `.md` omitido no está en índice ni en disco). Nada commiteado en `~/U.N.L.P`: lo commitea el dueño. — Tanda verifica en disco:
   - `git -C ~/U.N.L.P status --porcelain`: sólo ` M .gitignore` y `?? Ingenieria/…`. **Ninguna** ` M` ni ` D` dentro de `Ingenieria/` (NFR-4). El índice **no** aparece (RN-24, NFR-2).
   - Cada fila `copiar`: md5 en destino igual al de origen.
   - `getfattr -d -R` sobre lo copiado: vacío (RN-28, NFR-1).
