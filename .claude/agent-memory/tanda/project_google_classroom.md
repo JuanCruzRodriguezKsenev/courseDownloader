@@ -233,3 +233,26 @@ texto, los 5 de MC2 dan los nombres de C1 exactos. Sigue B-1 (dueño re-escanea 
 **A-1c ✅ (21:10)**: 7 renombrados, 0 choques; archivos.tsv real actualizado (respaldo `~/Descargas/adopcion-classroom-respaldo-20260927-rn16a`).
 **A-2 pasa a una sesión propia (dueño)**: revisar archivos.tsv archivo por archivo contra el árbol, corregir el TSV, informar lo hallado.
 Criterio de "dónde corresponde": el árbol existente (materia/docente/tipo) y los 55 ya-esta como referencia. Después A-3/A-4 → merge.
+**A-2/A-3/A-4 ✅ 2026-09-28** (doc en rama `39e5787`): A-2 cambió sólo `Cuestiones administrativas`→`-`; `--escribir` copió 298
+a `~/U.N.L.P` (md5 298/298, índice 357 entradas, sin xattr). Sin commitear en `~/U.N.L.P` (lo decide el dueño). Respaldo TSV:
+`~/Descargas/adopcion-classroom-respaldo-20260928-a3`. ⚠️ Avisado: repo U.N.L.P PÚBLICO y entraron `notas_*` de MC2 (notas de
+alumnos) + `.md` de meet de Haucke. Próximo: merge de `classroom-destino-adopcion` (checkout actual = `prueba-combinada`) → 2b.
+**2026-09-28 — la facultad vive en ~/Boveda/Areas/Facultad** (git subtree de U.N.L.P el 26-09; U.N.L.P retirado pero NO
+se borra: respaldo). La extensión escribió los 298 en el árbol viejo → cambiar destino (spec/plan pendiente). Decidido
+por el dueño: índice TRACKEADO en `Areas/Facultad/.course-downloader.json`; `.md` de acceso = `tipo: acceso`; convertir las 4
+materias (F1 y MB incluidas); conversión e ingesta las dispara él. Orden: mapa → bibliotecario contrasta y commitea →
+convertir-documentos → apuntes. Notas de alumnos → `<materia>/Notas/` (Repasar de apuntes lee `Parciales/`).
+Mapa en `scratchpad/mapa/` de la sesión 8c1054b7 (inventario.json, decisiones.py, mapa.json, revision.json; página
+`servidor.py` en 127.0.0.1:3010). Pares: bibliotecario = sesión en ~/Boveda, forja = sesión en ~ (SendMessage).
+2026-09-28 madrugada: mapa CERRADO (dueño no lo revisó, "confío"): Lucila→`Teorias/Lucila/`, notas→`<materia>/Notas/`.
+`mapa-boveda.tsv` + `aplicar_mapa.py` (ensayo 0 errores: copia 295, índice 354) en el scratch de la sesión 8c1054b7.
+**El clasificador de auto mode BLOQUEÓ escribir en ~/Boveda** (Sensitive-Source Provenance): no esquivar ni delegar a
+bibliotecario; lo aprueba el dueño (`python3 aplicar_mapa.py --escribir`). Bóveda intacta.
+**2026-09-28: copia APLICADA** (dueño aprobó): 295 en ~/Boveda/Areas/Facultad + índice (354, trackeable), md5 295/295, sin
+xattr. Commit y move de 10 PDF de Lucila → bibliotecario (con Obsidian abierto; debe actualizar `ruta` de 9 ya-esta en el
+índice). ~/U.N.L.P conserva los 298 untracked + .gitignore M (respaldo; limpiar sólo si el dueño lo pide). Pendiente mío:
+plan de cambio de destino de la extensión a la bóveda (raíz + índice trackeado + editor fijo en ~/U.N.L.P).
+**2026-09-28 — plan `docs/plan-classroom-destino-2a-boveda.md`** (rama `classroom-destino-adopcion`, checkout movido desde
+`prueba-combinada`): RAIZ_FACULTAD=~/Boveda/Areas/Facultad en `backend/adopcion/raiz.js`, aplicar sin .gitignore, destino
+`Notas` (regla ^notas|resultados antes de Parciales), spec RN-3a/17/19/24/29a (PA-4 decidido: acceso con id no se recrea),
+ADR-0018 supera 0017 pts 1-2. Esperado 50/862. Después: merge 2a → plan 2b (la extensión baja a la bóveda).

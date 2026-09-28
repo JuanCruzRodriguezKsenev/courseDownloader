@@ -1,6 +1,6 @@
 - [Ficha en AGENTS.md](project_ficha_en_agents.md) — sin ficha en CLAUDE.md; qué docs de estado leer al arrancar y estado al 2026-09-25
 - [Organización del material](user_organizacion_material.md) — ~/U.N.L.P: árbol git+Obsidian por facultad/materia/docente; mirar antes de proponer layouts
-- [Google Classroom](project_google_classroom.md) — corte 1 en main; loader + CSS revisados, falta L-1..L-9 del dueño en Brave
+- [Google Classroom](project_google_classroom.md) — 2a aplicado en ~/Boveda (32136ca); plan 2a-boveda para obra; después merge y plan 2b
 - [Edición por UI](feedback_edicion_por_ui.md) — el dueño no edita TSV/JSON crudos: pantalla o preguntas
 - [Flota de agentes](reference_flota_antigravity.md) — generada desde ~/Dev/agentes a Claude y agy; `generar --check`; qué quedó derivado a forja
 - [jq en verificaciones](feedback_jq_precedencia.md) — `|` es lo de menor precedencia: parentizar cada término; probar los jq antes de entregar
