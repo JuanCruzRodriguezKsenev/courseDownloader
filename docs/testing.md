@@ -30,10 +30,12 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **50 archivos, 859 tests**, todo en verde |
+| `pnpm test` | **50 archivos, 862 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 862** (2026-09-28, plan `classroom-destino-2a-boveda`). Son los 859 de abajo más **+3** tests en `core/destino/carpetas.test.ts` (dos en temas reales para "Notas de evaluaciones" y "Resultados", y uno en publicaciones para mayoría de notas; 20 → 23 tests; el de DESTINOS se renombra sin sumar).
 
 **De dónde sale el 859** (2026-09-27, plan `classroom-destino-2a-anuncio`). Son los 843 de abajo más **+16** tests:
 **+10** en `core/destino/nombres.test.ts` (primeraFrase RN-16a; 10 → 20 tests),

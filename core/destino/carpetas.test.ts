@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { DESTINOS, sugerirDestino, resolverCarpeta } from "./carpetas";
 
 describe("core/destino/carpetas.ts", () => {
-  it("DESTINOS contiene los 7 destinos canónicos", () => {
+  it("DESTINOS contiene los 8 destinos canónicos", () => {
     expect(DESTINOS).toEqual([
       ".",
       "Teorias",
@@ -11,6 +11,7 @@ describe("core/destino/carpetas.ts", () => {
       "Parciales",
       "Finales",
       "Bibliografia",
+      "Notas",
     ]);
   });
 
@@ -91,6 +92,20 @@ describe("core/destino/carpetas.ts", () => {
         regla: true,
       });
     });
+
+    it("Notas de evaluaciones -> Notas (regla: true)", () => {
+      expect(sugerirDestino("Notas de evaluaciones")).toEqual({
+        destino: "Notas",
+        regla: true,
+      });
+    });
+
+    it("Resultados -> Notas (regla: true)", () => {
+      expect(sugerirDestino("Resultados")).toEqual({
+        destino: "Notas",
+        regla: true,
+      });
+    });
   });
 
   describe("sugerirDestino con títulos de publicación (RN-7a)", () => {
@@ -138,6 +153,15 @@ describe("core/destino/carpetas.ts", () => {
       expect(sugerirDestino("Unidad 3", ["Guía 1", "Clase I"])).toEqual({
         destino: ".",
         regla: false,
+      });
+    });
+
+    it("T6. Mayoría de notas -> Notas (regla: true)", () => {
+      expect(
+        sugerirDestino("Unidad 3", ["Notas del parcial", "Resultados finales"])
+      ).toEqual({
+        destino: "Notas",
+        regla: true,
       });
     });
   });

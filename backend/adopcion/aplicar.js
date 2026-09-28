@@ -6,11 +6,12 @@ import { sanitizarNombreArchivo } from "../utils.js";
 import { NOMBRE_INDICE, serializarIndice } from "../../core/destino/indice.ts";
 import { DESTINOS, resolverCarpeta } from "../../core/destino/carpetas.ts";
 import { buscarChoques } from "../../core/destino/choques.ts";
+import { RAIZ_FACULTAD } from "./raiz.js";
 
 function parseArgs() {
   const args = process.argv.slice(2);
   const opts = {
-    raiz: path.join(os.homedir(), "U.N.L.P"),
+    raiz: RAIZ_FACULTAD,
     salida: path.join(os.homedir(), "Descargas/adopcion-classroom"),
     escribir: false,
   };
@@ -95,21 +96,6 @@ export function ejecutarAplicar(opts = parseArgs()) {
     errores.push(`El índice ${rutaIndice} ya existe. La adopción es de una sola vez y no pisa índices existentes (RN-25, RN-26).`);
   }
 
-  // - Chequeo de UTF-16 en .gitignore
-  const rutaGitignore = path.join(opts.raiz, ".gitignore");
-  if (fs.existsSync(rutaGitignore)) {
-    const fd = fs.openSync(rutaGitignore, "r");
-    const bom = Buffer.alloc(2);
-    const leidos = fs.readSync(fd, bom, 0, 2, 0);
-    fs.closeSync(fd);
-    if (leidos >= 2) {
-      if ((bom[0] === 0xff && bom[1] === 0xfe) || (bom[0] === 0xfe && bom[1] === 0xff)) {
-        errores.push(
-          `.gitignore en ${opts.raiz} está codificado en UTF-16. Debe convertirse a UTF-8 o agregarse ${NOMBRE_INDICE} a mano.`
-        );
-      }
-    }
-  }
 
   // Cargar TSVs
   let datosCursos, datosTemas, datosArchivos;
@@ -486,18 +472,6 @@ export function ejecutarAplicar(opts = parseArgs()) {
   fs.writeFileSync(rutaTmp, jsonIndice, "utf8");
   fs.renameSync(rutaTmp, rutaIndice);
 
-  // Actualizar .gitignore si no tiene .course-downloader.json
-  if (fs.existsSync(rutaGitignore)) {
-    const contenidoGitignore = fs.readFileSync(rutaGitignore, "utf8");
-    const lineas = contenidoGitignore.split(/\r?\n/);
-    const yaEsta = lineas.some((l) => l.trim() === NOMBRE_INDICE);
-    if (!yaEsta) {
-      const sep = contenidoGitignore.endsWith("\n") || contenidoGitignore.length === 0 ? "" : "\n";
-      fs.appendFileSync(rutaGitignore, `${sep}${NOMBRE_INDICE}\n`, "utf8");
-    }
-  } else {
-    fs.writeFileSync(rutaGitignore, `${NOMBRE_INDICE}\n`, "utf8");
-  }
 
   console.log("\n=== Resumen de Escritura Finalizada ===");
   console.log(`Archivos copiados: ${stats.copiados}`);

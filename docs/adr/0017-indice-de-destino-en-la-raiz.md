@@ -1,7 +1,7 @@
 # 0017 — Índice de destino en la raíz del árbol
 
 **Fecha**: 2026-09-27
-**Estado**: Aceptada
+**Estado**: Aceptada — puntos 1 (ubicación) y 2 superados por [0018](0018-raiz-en-la-boveda-indice-versionado.md)
 **Contexto previo**: [ADR-0007](0007-dry-docs-canonical-homes.md) (documentación DRY), [ADR-0014](0014-identidad-compuesta-de-clase.md) (identidad de ítem).
 **Diseño de ejecución**: `docs/specs/classroom-destino/spec.md`, `docs/plan-classroom-destino-2a-adopcion.md`.
 

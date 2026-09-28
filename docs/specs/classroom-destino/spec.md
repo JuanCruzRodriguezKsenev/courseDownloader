@@ -3,6 +3,7 @@
 **Estado**: `draft` — depende de **M-2** (§Mediciones pendientes), que no bloquea ninguna descarga.
 **Cortes**: se construye en tres (§Cortes de construcción, decididos por el dueño el 2026-09-27).
 **Fecha**: 2026-09-16
+**Raíz**: desde el 2026-09-28 es `~/Boveda/Areas/Facultad` (ADR-0018). `~/U.N.L.P` quedó retirado el 2026-09-26 y se conserva como respaldo. Las menciones a `~/U.N.L.P` en §Medición de respaldo y en las preguntas son históricas.
 **Traza de decisiones**: [`assumptions.md`](./assumptions.md)
 **Diseño del portal**: [`../../portal-google-classroom-diseno.md`](../../portal-google-classroom-diseno.md) (D1–D13)
 
@@ -37,13 +38,13 @@ transformación de texto.
 - Elegir carpeta destino por curso y por tema.
 - Proponer el nombre final, dejarlo editar y recordarlo.
 - Saber si un archivo ya está, aunque tenga otro nombre o esté en otra carpeta.
-- El índice `~/U.N.L.P/.course-downloader.json` y su ciclo de vida.
+- El índice `~/Boveda/Areas/Facultad/.course-downloader.json` y su ciclo de vida.
 
 **No incluye**
 - Anatomy y RamonNet: su layout no cambia.
-- Reordenar o renombrar lo que ya está en `~/U.N.L.P` (salvo la corrección de ruta de RN-19,
+- Reordenar o renombrar lo que ya está en la raíz (salvo la corrección de ruta de RN-19,
   que sólo escribe en el índice, nunca en el disco).
-- El vault `ObsidianUNLP_Vault`, que no se toca.
+- Las notas de la bóveda (las conversiones `.md`, `Wiki/`, `Mis notas/`, `Clases/`): la extensión no las toca.
 - El escaneo: es del corte 1. Ver §Dependencias.
 
 ## Actores
@@ -60,12 +61,16 @@ transformación de texto.
 
 ### Asociación de un curso
 
-- **RN-1** — La raíz es `~/U.N.L.P`. Cada curso se asocia una vez a una carpeta de materia que **ya
+- **RN-1** — La raíz es `~/Boveda/Areas/Facultad`. Cada curso se asocia una vez a una carpeta de materia que **ya
   existe**, elegida con 📂.
 - **RN-2** — Un curso sin asociar se escanea y se lista, pero no se descarga.
 - **RN-3** — Los destinos posibles de una materia son `raíz`, `Teorias/`, `Practicas/`,
-  `Laboratorios/`, `Parciales/`, `Finales/` y `Bibliografia/`, con esa capitalización. Si falta
+  `Laboratorios/`, `Parciales/`, `Finales/`, `Bibliografia/` y `Notas/`, con esa capitalización. Si falta
   alguno, se crea al usarlo.
+- **RN-3a** — Las planillas de notas van a `Notas/`, en la materia y **fuera de `Parciales/`**,
+  porque la skill `apuntes` saca de `Parciales/` las preguntas para repasar. El tema que empieza
+  con "Notas" o "Resultados" sugiere `Notas/`. Una planilla que llega por Novedades cae en la
+  raíz (RN-8) y la mueve el dueño. *(Dueño, 2026-09-28)*.
 - **RN-4** — Al asociar, el dueño puede escribir un apellido de docente. Si lo escribe, las teorías
   de ese curso van a `Teorias/<Apellido>/`; si lo deja vacío, van a `Teorias/` plana.
 - **RN-5** — Si `Teorias/` ya tiene archivos sueltos y se asocia un curso con docente, **lo que ya
@@ -105,7 +110,7 @@ transformación de texto.
   (excepción a RN-16, que agrega `_<título del material>`). Si dos del mismo anuncio siguen chocando, el
   que tiene "(N)" lleva `_N`. Lo que choque después queda para el dueño. *(Dueño, 2026-09-27)*.
 - **RN-17** — Los videos, los de YouTube y los vínculos se guardan como acceso `.md` (D10) con el
-  nombre sencillo del recurso.
+  nombre sencillo del recurso. El `.md` nace con el frontmatter de la bóveda: `tipo: acceso` y `revisado: <fecha de descarga>`. *(Dueño, 2026-09-28)*.
 
 ### Qué ya está descargado
 
@@ -113,11 +118,10 @@ transformación de texto.
   para los adjuntos, `acceso:<url>:<título>` para los accesos — RN-29). Si el id figura y
   el archivo está en la ruta anotada, está descargado y no se baja.
 - **RN-19** — Si el id figura pero el archivo no está en la ruta anotada, y **su md5 aparece en otro
-  lugar de la raíz** (`~/U.N.L.P` entera, salvo `.git/`, `.obsidian/` y `ObsidianUNLP_Vault/`), la
+  lugar de la raíz** (la raíz entera, salvo las carpetas `Wiki/`, `Mis notas/` y `Clases/` en cualquier nivel), la
   ruta del índice se corrige sola y no se baja. Mover o renombrar un archivo a mano, **también a otra
   materia**, es una orden, no un error. *(Dueño, 2026-09-27: antes decía "de la misma materia", y un
-  archivo movido a otra materia se volvía a bajar duplicado. Las tres carpetas excluidas no guardan
-  adjuntos: el repo, la config del vault y el espejo `.md` de los PDF.)*
+  archivo movido a otra materia se volvía a bajar duplicado. Las carpetas excluidas son de notas, no guardan adjuntos (D-6 de `docs/plan-classroom-destino-2a-boveda.md`).)*
 - **RN-20** — Si el id no figura en el índice, se baja, se calcula su md5 y **si ya existe un archivo
   de contenido idéntico en la carpeta destino, se descarta sin escribir** y se anota en el índice
   como descargado. Esto es lo que reconoce lo que el dueño puso a mano.
@@ -128,9 +132,9 @@ transformación de texto.
 
 ### El índice
 
-- **RN-23** — El índice es un único archivo, `~/U.N.L.P/.course-downloader.json`, y es la **fuente de
+- **RN-23** — El índice es un único archivo, `~/Boveda/Areas/Facultad/.course-downloader.json`, y es la **fuente de
   verdad** de los nombres y las asociaciones. El storage de la extensión no guarda nada de esto.
-- **RN-24** — El índice **no se versiona**: se agrega a `~/U.N.L.P/.gitignore`.
+- **RN-24** — El índice **se versiona** con la bóveda, que es un repo privado. Ningún código lo agrega a `.gitignore`. *(Dueño, 2026-09-28; ADR-0018 supera el punto 2 de ADR-0017.)*
 - **RN-25** — Si el índice no parsea, la extensión **avisa y no baja nada**. No lo pisa ni lo
   regenera.
 - **RN-26** — Si el dueño edita el índice a mano, gana lo que dice el índice.
@@ -150,6 +154,10 @@ transformación de texto.
   existe y no está en el índice, se anota y no se escribe, cualquiera sea su md5. Es el único tipo
   que el dueño puede editar sin renombrar, y el árbol tiene un vault de Obsidian: comparar por
   contenido (RN-20) no alcanza, porque una nota agregada a mano cambia el md5.
+- **RN-29a** — Un acceso cuyo id ya figura en el índice está descargado **siempre**: no se
+  vuelve a crear aunque no esté en la ruta anotada ni su md5 aparezca en la raíz. Editarlo,
+  moverlo o borrarlo es decisión del dueño. Para que vuelva a crearse, se borra su entrada del
+  índice. *(Dueño, 2026-09-28; cierra PA-4.)*
 
 ---
 
@@ -160,6 +168,7 @@ Se evalúa en este orden; la primera fila que coincide, decide.
 | # | ¿id en el índice? | ¿está en la ruta anotada? | ¿md5 en la raíz? (filas 2–3, RN-19) / ¿en la carpeta destino? (fila 5) | Acción |
 |---|---|---|---|---|
 | 0 | — | sí, y el destino es un `.md` | — | **No escribir.** Anotar en el índice si falta (RN-30). |
+| 0b | sí, y es un acceso (`acceso:…`) | — | — | **No escribir** (RN-29a). |
 | 1 | sí | sí | — | No bajar. Marcar descargado. |
 | 2 | sí | no | sí | No bajar. **Corregir la ruta en el índice.** |
 | 3 | sí | no | no | Bajar con el nombre del índice. |
@@ -172,6 +181,8 @@ La fila 5 es la que reconoce los 4 archivos de `Fisica 2/Laboratorios/` que el d
 
 La fila 0 va **antes** que todas porque un `.md` editado a mano tiene md5 propio: sin ella caería
 en la fila 6 y se pisaría (RN-30).
+
+La fila 0b va antes que la 2 y la 3 porque un acceso editado tiene otro md5: sin ella, un acceso movido caería en la 3 y se crearía de nuevo.
 
 ---
 
@@ -207,7 +218,7 @@ en la fila 6 y se pisaría (RN-30).
 
 ## Datos
 
-### `~/U.N.L.P/.course-downloader.json`
+### `~/Boveda/Areas/Facultad/.course-downloader.json`
 
 ```json
 {
@@ -249,11 +260,11 @@ en la fila 6 y se pisaría (RN-30).
 |---|---|
 | `version` | Entero. Permite migrar el formato sin adivinar. |
 | `cursos.<portal>:<id>` | El id del portal (`google-classroom`) y el id de curso de su URL. El prefijo existe porque la raíz es de la UNLP, no de Classroom: los Moodle de la UNLP van a escribir en el mismo índice (dueño, 2026-09-27). |
-| `cursos.<clave>.materia` | Ruta relativa a `~/U.N.L.P`. Tiene que existir (RN-1). |
+| `cursos.<clave>.materia` | Ruta relativa a la raíz. Tiene que existir (RN-1). |
 | `cursos.<clave>.temas.<tema>` | Ruta relativa a la materia. `"."` es la raíz de la materia. |
 | `archivos.<portal>:<id>` | El portal, `:`, y el id de archivo: id de Drive para los adjuntos, `acceso:<url>:<título>` para los accesos (RN-29). Es la identidad estable, y la misma que viaja por el pipeline — no se inventa un eje nuevo (ADR-0014). |
 | `archivos.<clave>.nombre` | El nombre final, editado o propuesto. |
-| `archivos.<clave>.ruta` | Ruta relativa a `~/U.N.L.P`. La corrige RN-19. |
+| `archivos.<clave>.ruta` | Ruta relativa a la raíz. La corrige RN-19. |
 | `archivos.<clave>.md5` | Se calcula una vez al bajar y no se recalcula. En un `.md` es informativo: no decide nada, porque manda RN-30. |
 | `archivos.<clave>.original` | El nombre de Classroom. Sólo para que el dueño se ubique. |
 
@@ -401,7 +412,7 @@ AC-5b — Mover un archivo a otra materia también corrige el índice (RN-19, du
   Cuando se escanea el curso de Física 2
   Entonces el índice pasa a anotar la ruta y el nombre nuevos
     y el archivo no se vuelve a bajar
-    y una copia idéntica que sólo esté en "ObsidianUNLP_Vault/" no cuenta como encontrada
+    y una copia idéntica que sólo esté fuera de la raíz (por ejemplo en "~/Boveda/Archivo/") no cuenta como encontrada
 ```
 
 ```gherkin
@@ -489,8 +500,7 @@ Esquema del escenario: AC-11 — Nombres que la regla no acierta
 - **NFR-1 — Privacidad.** Ningún archivo descargado lleva metadata agregada por la extensión, ni
   interna ni en atributos extendidos. Compartir un archivo no revela su origen. *(Verificado sobre
   los 318 archivos de la Verificación B: cero xattr.)*
-- **NFR-2 — El índice no se publica.** `~/U.N.L.P` es un repo **público**. El índice va en
-  `.gitignore` y nunca se versiona.
+- **NFR-2 — El índice viaja con la bóveda.** Se versiona en el repo privado de `~/Boveda` (RN-24). La extensión nunca escribe `.gitignore`.
 - **NFR-3 — El md5 se calcula una vez por archivo** y se guarda en el índice. Un escaneo que no baja
   nada no recalcula nada.
 - **NFR-4 — El árbol previo es inmutable.** Ninguna regla escribe, mueve o renombra un archivo que
@@ -506,7 +516,7 @@ Esquema del escenario: AC-11 — Nombres que la regla no acierta
 |---|---|
 | Corte 1 mergeado a `main` | ✅ Esta spec define el destino de lo que el corte 1 baja |
 | Los dos defectos de escaneo arreglados | ✅ Novedades pagina desde `7b60e05` (G25: 28 adjuntos en vez de 4); el adjunto a medio hidratar lo cerró el corte 1 (`docs/plan-classroom-corte-1-adjuntos-sin-resolver.md`) |
-| `~/U.N.L.P/.gitignore` editable | Desde `f3ea8bc` (en `~/U.N.L.P`) está en **UTF-8 con LF**: ya no hace falta convertirlo. Lo que sí: si vuelve a aparecer un BOM `FF FE`, no se toca a ciegas |
+| Raíz en la bóveda | ✅ Adopción aplicada en `~/Boveda` `32136ca` (295 archivos + índice, 354 entradas) |
 
 ---
 
@@ -518,7 +528,7 @@ Esquema del escenario: AC-11 — Nombres que la regla no acierta
 | 12-13 | La extensión propone, el dueño edita, se recuerda por id de Drive | La regla sola acierta 15 de 26; acortar un tema es criterio, no texto |
 | 18 | "Ya descargado" por contenido, no por nombre | 4 archivos medidos con md5 idéntico y nombre distinto por el saneo `#`→`_`; y 9 teorías de Física 1 renombradas por el dueño |
 | 20 | Sin objeto | Lo cubre el 18: las copias idénticas colapsan solas |
-| 22 | Índice único en `~/U.N.L.P/.course-downloader.json`, gitignoreado | El storage muere al reinstalar; los xattr no sobreviven a `git clone` ni a `cp`; el repo es público |
+| 22 | Índice único en la raíz, versionado | El storage muere al reinstalar; los xattr no sobreviven a `git clone` ni a `cp`. Era gitignoreado mientras la raíz fue `~/U.N.L.P` (público); en la bóveda privada se versiona (ADR-0018). |
 
 ## Preguntas abiertas
 
@@ -562,8 +572,8 @@ Decididos por el dueño el 2026-09-27. Cada uno es una rama y un plan.
 
 | Corte | Qué entrega | Reglas |
 |---|---|---|
-| **2a — Adopción** | Script de una sola corrida: lleva `verificacion-b` a `~/U.N.L.P` con los nombres que el dueño eligió y hace nacer el índice. No toca la extensión. Plan: `docs/plan-classroom-destino-2a-adopcion.md` | RN-1, 3–8, 11, 12, 15–17, 20, 21, 23–26, 28, 30 (en su forma de adopción); PA-2, PA-3 |
-| **2b — La extensión usa el índice** | Raíz por portal; "ya descargado" y descarga a la carpeta del tema según la tabla de decisión; tema nuevo sin asignar; índice ilegible | RN-2, 9, 10, 18–22, 25, 27, 29, 30 |
+| **2a — Adopción** | Script de una sola corrida: lleva `verificacion-b` a la raíz (se aplicó en la bóveda, `32136ca`) con los nombres que el dueño eligió y hace nacer el índice. No toca la extensión. Plan: `docs/plan-classroom-destino-2a-adopcion.md` | RN-1, 3–8, 11, 12, 15–17, 20, 21, 23–26, 28, 30 (en su forma de adopción); PA-2, PA-3 |
+| **2b — La extensión usa el índice** | Raíz por portal; "ya descargado" y descarga a la carpeta del tema según la tabla de decisión; tema nuevo sin asignar; índice ilegible | RN-2, 3a, 9, 10, 17, 18–22, 25, 27, 29, 29a, 30 |
 | **2c — Pantallas** | Asociar un curso nuevo; editar el nombre en la lista y recordarlo | RN-1, 4, 7, 13, 14 |
 
 ## Medición de respaldo — cruce del árbol contra lo descargado (2026-09-16)
@@ -590,7 +600,7 @@ justamente lo que esta spec define. Las colisiones entre dos archivos **nuevos**
 caigan en el mismo nombre y la misma carpeta las cubre RN-16, y sólo se pueden medir con el índice
 ya poblado.
 
-- **PA-4** *(abierta 2026-09-27, para el corte 2b)* — **Un acceso `.md` editado y además movido.**
+- **PA-4** *(abierta 2026-09-27, para el corte 2b)* — **✅ DECIDIDO (dueño, 2026-09-28): RN-29a.** **Un acceso `.md` editado y además movido.**
   Su md5 cambió al editarlo, así que RN-19 no lo encuentra y RN-22 lo vuelve a crear en la ruta vieja:
   quedan dos notas. RN-30 sólo lo protege si sigue en su lugar. **Recomendación** (tanda): para los
   `.md` de acceso, si el id está en el índice no se vuelve a crear nunca, esté donde esté. Costo: un

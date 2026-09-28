@@ -16,11 +16,12 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## 🚧 En revisión
 
-`classroom-destino-adopcion`: Corte 2a del destino de Google Classroom en `~/U.N.L.P`. Adopción de lo ya descargado mediante TSV editable, cálculo de md5, detección de choques y generación del índice `.course-downloader.json`.
+`classroom-destino-adopcion`: Corte 2a del destino de Google Classroom. La raíz es `~/Boveda/Areas/Facultad` (ADR-0018); la adopción se aplicó ahí (`32136ca` de la bóveda).
 
 - **Plan**: `docs/plan-classroom-destino-2a-adopcion.md`. Compuerta 50 archivos / 837 tests.
+- **Plan de la bóveda**: `docs/plan-classroom-destino-2a-boveda.md`.
 - **Spec**: `docs/specs/classroom-destino/spec.md`.
-- **ADR**: `docs/adr/0017-indice-de-destino-en-la-raiz.md`.
+- **ADR**: `docs/adr/0017-indice-de-destino-en-la-raiz.md`, `docs/adr/0018-raiz-en-la-boveda-indice-versionado.md`.
 
 ### Checklist de verificación B (dueño + tanda)
 - **A-1** — Dueño: `pnpm run build`, recargar, portada de Classroom al frente → "Escanear todos los cursos", sin escanear nada después. Tanda corre `generar.js` y compara los números: 366 ítems en 5 carpetas; `ya-esta` 55; `duplicado` 4; `omitir` 8; `copiar` 299; 7 cursos; 2 choques (MC2, Novedades: 7 filas con copias "(N)" de distinto md5).

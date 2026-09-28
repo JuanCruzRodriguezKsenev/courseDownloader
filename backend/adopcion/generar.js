@@ -9,6 +9,7 @@ import { sugerirDestino, resolverCarpeta } from "../../core/destino/carpetas.ts"
 import { proponerNombre } from "../../core/destino/nombres.ts";
 import { buscarChoques, renombrarChoquesNovedades } from "../../core/destino/choques.ts";
 import { leerUltimoValor } from "./leerStorage.js";
+import { RAIZ_FACULTAD } from "./raiz.js";
 
 export const SEMILLA = {
   fisica_ii_g22_2026_2do_cuatrimestre_facultad_de_ingenieria_unlp: {
@@ -49,7 +50,7 @@ function parseArgs() {
       ".config/BraveSoftware/Brave-Browser/Default/Local Extension Settings/daameiendaidaagnimcbpmdjkpccfemh"
     ),
     origen: path.join(os.homedir(), "Descargas/verificacion-b/google-classroom"),
-    raiz: path.join(os.homedir(), "U.N.L.P"),
+    raiz: RAIZ_FACULTAD,
     salida: path.join(os.homedir(), "Descargas/adopcion-classroom"),
   };
 
@@ -203,7 +204,7 @@ export function ejecutarGenerar(opts = parseArgs()) {
   // 5.b temas.tsv
   const lineasTemas = [
     "# Semántica de edición:",
-    "# - Podés editar 'destino' (uno de DESTINOS: ., Teorias, Practicas, Laboratorios, Parciales, Finales, Bibliografia)",
+    "# - Podés editar 'destino' (uno de DESTINOS: ., Teorias, Practicas, Laboratorios, Parciales, Finales, Bibliografia, Notas)",
     "# - O fijar destino en '-' para omitir el tema completo.",
     "clave_curso\ttema\tdestino\tregla\titems",
   ];

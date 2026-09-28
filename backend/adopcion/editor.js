@@ -3,10 +3,11 @@ import path from "node:path";
 import os from "node:os";
 import { sanitizarNombreArchivo } from "../utils.js";
 import { DESTINOS } from "../../core/destino/carpetas.ts";
+import { RAIZ_FACULTAD } from "./raiz.js";
 
 export function opcionesPorDefecto() {
   return {
-    raiz: path.join(os.homedir(), "U.N.L.P"),
+    raiz: RAIZ_FACULTAD,
     salida: path.join(os.homedir(), "Descargas/adopcion-classroom"),
     puerto: 3002,
   };

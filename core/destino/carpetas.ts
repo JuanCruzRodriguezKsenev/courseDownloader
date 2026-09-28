@@ -6,16 +6,18 @@ export const DESTINOS = [
   "Parciales",
   "Finales",
   "Bibliografia",
+  "Notas",
 ] as const;
 
 export type Destino = (typeof DESTINOS)[number];
 
 const REGLAS_DESTINO: { regex: RegExp; destino: Destino }[] = [
+  { regex: /^(notas|resultados?)\b/i, destino: "Notas" },
   { regex: /^(novedades|sin tema)$/i, destino: "." },
   { regex: /cronograma/i, destino: "." },
   { regex: /bibliograf|libro/i, destino: "Bibliografia" },
   { regex: /laborator/i, destino: "Laboratorios" },
-  { regex: /^(parcial|notas de evaluaci|examen|recuperatorio)/i, destino: "Parciales" },
+  { regex: /^(parcial|examen|recuperatorio)/i, destino: "Parciales" },
   { regex: /^final/i, destino: "Finales" },
   { regex: /te[oó]ric|teor[ií]a/i, destino: "Teorias" },
   { regex: /video|simulaci|\blinks?\b/i, destino: "Teorias" },
