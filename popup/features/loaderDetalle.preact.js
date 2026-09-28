@@ -1,6 +1,9 @@
 /**
- * ISLA PREACT #6 — detalle del loader con progreso (V1.1.0)
+ * ISLA PREACT #6 — detalle del loader con progreso (V1.2.0)
  * ==========================================================================
+ * CHANGELOG v1.2.0:
+ * - [BOTON CANCELAR] Soporte para botón Cancelar en fila Escaneando… con estado
+ *   cancelando y métodos habilitarCancelar, marcarCancelando y getCancelar.
  * CHANGELOG v1.1.0:
  * - Presentación en tarjetas con íconos: lista, curso actual, contadores,
  *   tiempo, fila Escaneando…
@@ -44,8 +47,13 @@ function vacio() {
   return { actual: null, contadores: null, restante: null, cursos: [], pie: [], desde: null };
 }
 
+function vacioCancelar() {
+  return { onCancelar: null, cancelando: false };
+}
+
 const _store = {
   estado: vacio(),
+  cancelar: vacioCancelar(),
   _subs: new Set(),
   _emit() {
     this._subs.forEach((cb) => cb());
@@ -56,6 +64,19 @@ const _store = {
   },
   get() {
     return this.estado;
+  },
+  getCancelar() {
+    return this.cancelar;
+  },
+  habilitarCancelar(fn) {
+    if (this.cancelar.onCancelar === fn) return;
+    this.cancelar = { onCancelar: fn, cancelando: false };
+    this._emit();
+  },
+  marcarCancelando() {
+    if (this.cancelar.cancelando) return;
+    this.cancelar = { ...this.cancelar, cancelando: true };
+    this._emit();
   },
   mostrar(vista) {
     this.estado = {
@@ -76,17 +97,21 @@ const _store = {
     this._emit();
   },
   limpiar() {
-    if (
+    const estadoVacio =
       this.estado.actual === null &&
       this.estado.contadores === null &&
       this.estado.restante === null &&
       this.estado.cursos.length === 0 &&
       this.estado.pie.length === 0 &&
-      this.estado.desde === null
-    ) {
+      this.estado.desde === null;
+    const cancelarVacio =
+      this.cancelar.onCancelar === null && this.cancelar.cancelando === false;
+
+    if (estadoVacio && cancelarVacio) {
       return;
     }
     this.estado = vacio();
+    this.cancelar = vacioCancelar();
     this._emit();
   },
 };
@@ -94,7 +119,10 @@ const _store = {
 function useLoaderDetalle() {
   const [, forzar] = useState(0);
   useEffect(() => _store.suscribir(() => forzar((n) => n + 1)), []);
-  return _store.get();
+  return {
+    ..._store.get(),
+    ..._store.getCancelar(),
+  };
 }
 
 function RelojLoader({ desde }) {
@@ -137,7 +165,8 @@ function ItemCurso({ curso }) {
 }
 
 export function LoaderDetalle() {
-  const { actual, contadores, restante, cursos, pie, desde } = useLoaderDetalle();
+  const { actual, contadores, restante, cursos, pie, desde, onCancelar, cancelando } =
+    useLoaderDetalle();
 
   const estaVacio =
     actual === null &&
@@ -227,6 +256,17 @@ export function LoaderDetalle() {
       <div class="loader-escaneando">
         <div class="spinner"></div>
         <span>Escaneando…</span>
+        ${onCancelar &&
+        html`<button
+          type="button"
+          class="btn-cancel loader-cancelar"
+          disabled=${cancelando}
+          onClick=${() => {
+            if (!_store.cancelar.cancelando) onCancelar();
+          }}
+        >
+          ${cancelando ? 'Cancelando…' : 'Cancelar'}
+        </button>`}
       </div>
 
       ${pie.length > 0 &&
@@ -247,6 +287,7 @@ export function montar(root) {
 
 export function __resetStore() {
   _store.estado = vacio();
+  _store.cancelar = vacioCancelar();
   _store._subs.clear();
 }
 

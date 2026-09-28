@@ -171,4 +171,60 @@ describe('Isla Preact: LoaderDetalle', () => {
     expect(root.querySelector('.loader-detalle')).toBeNull();
     expect(root.innerHTML).toBe('');
   });
+
+  it('L1: mostrar con habilitarCancelar pinta botón Cancelar y click invoca la función', async () => {
+    const fn = vi.fn();
+    puente.mostrar({ desde: 1 });
+    puente.habilitarCancelar(fn);
+    await flush();
+
+    const btn = root.querySelector('.loader-escaneando button.loader-cancelar');
+    expect(btn).not.toBeNull();
+    expect(btn.textContent.trim()).toBe('Cancelar');
+    expect(btn.disabled).toBe(false);
+
+    btn.click();
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('L2: marcarCancelando deshabilita el botón, cambia texto y previene clicks posteriores', async () => {
+    const fn = vi.fn();
+    puente.mostrar({ desde: 1 });
+    puente.habilitarCancelar(fn);
+    await flush();
+
+    const btn = root.querySelector('.loader-escaneando button.loader-cancelar');
+    btn.click();
+    expect(fn).toHaveBeenCalledTimes(1);
+
+    puente.marcarCancelando();
+    await flush();
+
+    expect(btn.textContent.trim()).toBe('Cancelando…');
+    expect(btn.disabled).toBe(true);
+
+    btn.click();
+    btn.click();
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('L3: sin habilitarCancelar no hay botón, mostrar(...) lo conserva y limpiar() lo quita', async () => {
+    puente.mostrar({ desde: 1 });
+    await flush();
+    expect(root.querySelector('button.loader-cancelar')).toBeNull();
+
+    const fn = vi.fn();
+    puente.habilitarCancelar(fn);
+    await flush();
+    expect(root.querySelector('button.loader-cancelar')).not.toBeNull();
+
+    puente.mostrar({ desde: 2 });
+    await flush();
+    expect(root.querySelector('button.loader-cancelar')).not.toBeNull();
+
+    puente.limpiar();
+    await flush();
+    expect(root.querySelector('button.loader-cancelar')).toBeNull();
+    expect(puente.getCancelar().onCancelar).toBeNull();
+  });
 });

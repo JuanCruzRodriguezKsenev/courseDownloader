@@ -235,6 +235,9 @@
     gap: var(--space-md);
     color: var(--text-main);
 
+    &:has(.loader-cancelar) { justify-content: flex-start; }
+    .loader-cancelar { flex: 0 0 auto; margin-left: auto; padding: 0.35rem 0.75rem; }
+
     .spinner { width: 26px; height: 26px; border-width: 3px; }
   }
 
