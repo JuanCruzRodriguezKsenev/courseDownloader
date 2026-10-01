@@ -11,6 +11,7 @@ Firmado: tanda agy 3.8 flash high
 
 - **Medición y diseño en Bóveda**: `~/Boveda/Proyectos/courseDownloader/Diseños/Moodle de Asignaturas - medición del portal.md`.
 - **Spec**: `docs/specs/moodle-asignaturas/spec.md` y `assumptions.md`.
+- **Plan en Bóveda**: `~/Boveda/Proyectos/courseDownloader/Planes/13 - Moodle-Asignaturas El adaptador de la Facultad de Informatica y cierre.md`.
 - **Fixtures**: descargados y sanitizados en `~/Descargas/` (`curso.html`, `carpeta.html`, `url-intermedia.html`, `login.html`), validados bajo NFR-2 (sin sesskey, sin emails ni nombres personales). Listos para mover a la rama del adaptador cuando se planifique.
 - **Hallazgos clave frente a LINTI**:
   - `resource` responde `text/html` incrustado; resolver extrae `pluginfile.php` con regex sobre el cuerpo (D-3).
