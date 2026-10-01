@@ -22,7 +22,7 @@ Corte 2b en curso en la rama `classroom-destino-2b`: construcción finalizada (p
 - **Planes**: `~/Boveda/Proyectos/courseDownloader/Planes/01 - 2b-1 Backend raíz por portal y servicio del índice.md`, `02 - 2b-2 Backend escritura a destino y decisión al guardar.md`, `03 - 2b-3 Cola de la extensión baja a destino.md`, `04 - 2b-4 El curso viaja con cada adjunto y el popup pide el estado al backend.md`, `05 - 2b-5 Lo que ve el dueño en la lista.md`, `06 - 2b-6 Cierre del corte 2b.md`.
 - **Spec**: `docs/specs/classroom-destino/spec.md`.
 - **ADR**: `docs/adr/0019-raiz-por-portal-y-backend-decide-lo-descargado.md`.
-- **Compuerta**: 62 archivos / 987 tests (ver `docs/testing.md` §Baseline).
+- **Compuerta**: 62 archivos / 988 tests (ver `docs/testing.md` §Baseline).
 - **Medición M-1**: Recorrido en frío de 1615 archivos en `~/Boveda/Areas/Facultad` en 4,29 s (tope 10 s).
 - **Smoke test**: GET `/api/destino/indice`, POST `/api/destino/estado` y POST `/api/bypass-stream` en modo destino responden con el contrato de `deployment.md` sin escrituras colaterales en la bóveda.
 

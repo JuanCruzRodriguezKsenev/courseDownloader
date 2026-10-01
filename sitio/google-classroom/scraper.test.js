@@ -212,6 +212,29 @@ describe("ScraperClassroom.escanearListado", () => {
     expect(cronograma?.modulo).toBe("Física II › Novedades");
   });
 
+  it("5e. ignora enlaces a meet.google.com porque son reuniones efímeras", async () => {
+    const region = document.querySelector('#vista-trabajo div[role="region"]');
+    const li = document.createElement("li");
+    li.setAttribute("data-stream-item-id", "item-meet");
+    li.setAttribute("data-expandable-row-id", "row-meet");
+    li.innerHTML = `
+      <div role="button" aria-expanded="true" aria-label="Consulta Meet"></div>
+      <div data-attachment-id="att-meet-vinculo">
+        <a aria-label="Archivo adjunto: Vínculo a https://meet.google.com/abc-defg-hij" href="https://meet.google.com/abc-defg-hij"></a>
+      </div>
+      <div data-attachment-id="att-meet-directo">
+        <a aria-label="Archivo adjunto: Reunión en vivo" href="https://meet.google.com/xyz-uvw-rst"></a>
+      </div>
+    `;
+    region.appendChild(li);
+
+    const res = await ScraperClassroom.escanearListado({ tiempos: TIEMPOS_TEST });
+    const meet = res.enlaces.find(
+      (e) => e.href?.includes("meet.google.com") || e.texto?.includes("meet.google.com")
+    );
+    expect(meet).toBeUndefined();
+  });
+
   it("6. el choque de nombres le agrega el material a los dos", async () => {
     const res = await ScraperClassroom.escanearListado({ tiempos: TIEMPOS_TEST });
     const notasClase1 = res.enlaces.find((e) => e.idArchivo === "drive-dup-a");

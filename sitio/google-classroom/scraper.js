@@ -466,9 +466,23 @@ const ScraperClassroom = {
         .slice(0, 500);
     }
 
+    function esEnlaceMeet(url) {
+      if (!url) return false;
+      try {
+        const h = new URL(url).host.toLowerCase();
+        return h === "meet.google.com" || h.endsWith(".meet.google.com");
+      } catch {
+        return /(?:^|\/\/|\.)meet\.google\.com(?:\/|$)/i.test(url);
+      }
+    }
+
     function clasificarAdjunto(a, material, attId) {
       const href = a.getAttribute("href") || "";
       const label = (a.getAttribute("aria-label") || "").trim();
+
+      if (esEnlaceMeet(href)) {
+        return null;
+      }
 
       const driveIdMatch = /\/file\/d\/([^/]+)/.exec(href);
       const labelMatch = /^[^:]+: ([^:]+): ([\s\S]+)$/.exec(label);
@@ -489,6 +503,9 @@ const ScraperClassroom = {
 
       if (label.includes("Vínculo a ")) {
         const urlVinculo = label.slice(label.indexOf("Vínculo a ") + "Vínculo a ".length).trim();
+        if (esEnlaceMeet(urlVinculo)) {
+          return null;
+        }
         let host = "";
         try {
           host = new URL(urlVinculo).host;

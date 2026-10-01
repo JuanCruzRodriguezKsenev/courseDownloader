@@ -30,10 +30,12 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **62 archivos, 987 tests**, todo en verde |
+| `pnpm test` | **62 archivos, 988 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 988** (2026-10-01). Son los 987 de abajo más **+1** test en `sitio/google-classroom/scraper.test.js` (test 5e: ignora enlaces a meet.google.com porque son reuniones efímeras; 42 → 43 tests).
 
 **De dónde sale el 987** (2026-10-01, plan `06 - 2b-6 Cierre del corte 2b`). Son los 981 de abajo más **+6** tests y **+1** archivo nuevo en `backend/adopcion/migrar-omitidos.test.js` (suite de migrar-omitidos: agrega el tema '-' y los omitidos; idempotente con 0 cambios y archivo byte-idéntico; clave_curso desconocido aborta sin escribir; tema que ya tiene carpeta no se pisa; --ensayo no escribe; campos y entradas existentes quedan intactos; 0 → 6 tests).
 
