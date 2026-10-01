@@ -108,6 +108,18 @@ export interface EnlaceListado {
    * conviven un PDF de 83,9 MB con guías de 90 KB.
    */
   bytes?: number;
+
+  /**
+   * Título de la publicación de donde sale el adjunto (Classroom):
+   * lo usa la sugerencia de destino (RN-7a).
+   */
+  publicacion?: string;
+
+  /**
+   * Texto del anuncio de Novedades (Classroom), hasta 500 caracteres:
+   * nombra el archivo cuando choca (RN-16a).
+   */
+  anuncio?: string;
 }
 
 /** Lo que devuelve el escaneo del listado de clases de una pestaña. */

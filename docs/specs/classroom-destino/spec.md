@@ -1,7 +1,9 @@
 # Destino de Google Classroom en el árbol del dueño
 
 **Estado**: `draft` — depende de **M-2** (§Mediciones pendientes), que no bloquea ninguna descarga.
+**Cortes**: se construye en tres (§Cortes de construcción, decididos por el dueño el 2026-09-27).
 **Fecha**: 2026-09-16
+**Raíz**: desde el 2026-09-28 es `~/Boveda/Areas/Facultad` (ADR-0018). `~/U.N.L.P` quedó retirado el 2026-09-26 y se conserva como respaldo. Las menciones a `~/U.N.L.P` en §Medición de respaldo y en las preguntas son históricas.
 **Traza de decisiones**: [`assumptions.md`](./assumptions.md)
 **Diseño del portal**: [`../../portal-google-classroom-diseno.md`](../../portal-google-classroom-diseno.md) (D1–D13)
 
@@ -36,13 +38,13 @@ transformación de texto.
 - Elegir carpeta destino por curso y por tema.
 - Proponer el nombre final, dejarlo editar y recordarlo.
 - Saber si un archivo ya está, aunque tenga otro nombre o esté en otra carpeta.
-- El índice `~/U.N.L.P/.classroom.json` y su ciclo de vida.
+- El índice `~/Boveda/Areas/Facultad/.course-downloader.json` y su ciclo de vida.
 
 **No incluye**
 - Anatomy y RamonNet: su layout no cambia.
-- Reordenar o renombrar lo que ya está en `~/U.N.L.P` (salvo la corrección de ruta de RN-19,
+- Reordenar o renombrar lo que ya está en la raíz (salvo la corrección de ruta de RN-19,
   que sólo escribe en el índice, nunca en el disco).
-- El vault `ObsidianUNLP_Vault`, que no se toca.
+- Las notas de la bóveda (las conversiones `.md`, `Wiki/`, `Mis notas/`, `Clases/`): la extensión no las toca.
 - El escaneo: es del corte 1. Ver §Dependencias.
 
 ## Actores
@@ -59,12 +61,16 @@ transformación de texto.
 
 ### Asociación de un curso
 
-- **RN-1** — La raíz es `~/U.N.L.P`. Cada curso se asocia una vez a una carpeta de materia que **ya
+- **RN-1** — La raíz es `~/Boveda/Areas/Facultad`. Cada curso se asocia una vez a una carpeta de materia que **ya
   existe**, elegida con 📂.
 - **RN-2** — Un curso sin asociar se escanea y se lista, pero no se descarga.
 - **RN-3** — Los destinos posibles de una materia son `raíz`, `Teorias/`, `Practicas/`,
-  `Laboratorios/`, `Parciales/`, `Finales/` y `Bibliografia/`, con esa capitalización. Si falta
+  `Laboratorios/`, `Parciales/`, `Finales/`, `Bibliografia/` y `Notas/`, con esa capitalización. Si falta
   alguno, se crea al usarlo.
+- **RN-3a** — Las planillas de notas van a `Notas/`, en la materia y **fuera de `Parciales/`**,
+  porque la skill `apuntes` saca de `Parciales/` las preguntas para repasar. El tema que empieza
+  con "Notas" o "Resultados" sugiere `Notas/`. Una planilla que llega por Novedades cae en la
+  raíz (RN-8) y la mueve el dueño. *(Dueño, 2026-09-28)*.
 - **RN-4** — Al asociar, el dueño puede escribir un apellido de docente. Si lo escribe, las teorías
   de ese curso van a `Teorias/<Apellido>/`; si lo deja vacío, van a `Teorias/` plana.
 - **RN-5** — Si `Teorias/` ya tiene archivos sueltos y se asocia un curso con docente, **lo que ya
@@ -72,6 +78,12 @@ transformación de texto.
 - **RN-6** — El destino se decide **por tema**: todos los adjuntos de un tema van a la misma carpeta.
 - **RN-7** — Al asociar, la extensión precarga una sugerencia de carpeta para cada tema y el dueño la
   confirma o corrige, una vez por curso.
+  - **RN-7a** (dueño, 2026-09-27) — La sugerencia sale primero del **nombre del tema**. Si el nombre no
+    dice nada, sale de los **títulos de las publicaciones** del tema: gana el destino que suman más de
+    la mitad de sus adjuntos. Caso que lo motivó: en MC2 los temas se llaman "Complejos" o "Sistemas
+    lineales", pero sus 14 publicaciones dicen "Ejercicios para practicar: …" o "Ejercicios resueltos".
+  - **RN-7b** (dueño, 2026-09-27) — Un tema que se llama "Links" es de videos y simulaciones, y va a
+    `Teorias/`, igual que "Videos de experiencias y simulaciones". Caso: Física I, "Links-Módulo I/II".
 - **RN-8** — Los adjuntos de Novedades y los de "Sin tema" van a la raíz de la materia.
 - **RN-9** — Un tema que aparece después de asociar el curso va a la raíz de la materia y queda
   marcado como sin asignar hasta que el dueño le fije carpeta.
@@ -92,8 +104,13 @@ transformación de texto.
 - **RN-16** — Si dos archivos distintos quedan con el mismo nombre en la misma carpeta, **todos los
   del grupo** llevan `_<título del material>` antes de la extensión (D12), y se aplica después de
   simplificar el nombre.
+- **RN-16a** — En Novedades el encabezado del post es "Publicación de <autor>", así que el título del
+  material es la **primera frase del anuncio** (sin saludo, muletilla ni artículo, hasta 8 palabras).
+  En la adopción, un archivo de Novedades que choca **se nombra** con esa frase en vez de agregarla
+  (excepción a RN-16, que agrega `_<título del material>`). Si dos del mismo anuncio siguen chocando, el
+  que tiene "(N)" lleva `_N`. Lo que choque después queda para el dueño. *(Dueño, 2026-09-27)*.
 - **RN-17** — Los videos, los de YouTube y los vínculos se guardan como acceso `.md` (D10) con el
-  nombre sencillo del recurso.
+  nombre sencillo del recurso. El `.md` nace con el frontmatter de la bóveda: `tipo: acceso` y `revisado: <fecha de descarga>`. *(Dueño, 2026-09-28)*.
 
 ### Qué ya está descargado
 
@@ -101,21 +118,23 @@ transformación de texto.
   para los adjuntos, `acceso:<url>:<título>` para los accesos — RN-29). Si el id figura y
   el archivo está en la ruta anotada, está descargado y no se baja.
 - **RN-19** — Si el id figura pero el archivo no está en la ruta anotada, y **su md5 aparece en otro
-  lugar de la misma materia**, la ruta del índice se corrige sola y no se baja. Mover un archivo a
-  mano es una orden, no un error.
+  lugar de la raíz** (la raíz entera, salvo las carpetas `Wiki/`, `Mis notas/` y `Clases/` en cualquier nivel), la
+  ruta del índice se corrige sola y no se baja. Mover o renombrar un archivo a mano, **también a otra
+  materia**, es una orden, no un error. *(Dueño, 2026-09-27: antes decía "de la misma materia", y un
+  archivo movido a otra materia se volvía a bajar duplicado. Las carpetas excluidas son de notas, no guardan adjuntos (D-6 de `docs/plan-classroom-destino-2a-boveda.md`).)*
 - **RN-20** — Si el id no figura en el índice, se baja, se calcula su md5 y **si ya existe un archivo
   de contenido idéntico en la carpeta destino, se descarta sin escribir** y se anota en el índice
   como descargado. Esto es lo que reconoce lo que el dueño puso a mano.
 - **RN-21** — Nunca se compara por nombre. El saneo del backend (`#`→`_`, `º`→`_`) y los renombres
   del dueño hacen que el nombre no sea identidad.
-- **RN-22** — Si el id figura y el archivo no está en ningún lado de la materia, se vuelve a bajar
-  con el nombre que dice el índice.
+- **RN-22** — Si el id figura y su md5 no está en ningún lado de la raíz (con las exclusiones de
+  RN-19), se vuelve a bajar con el nombre que dice el índice.
 
 ### El índice
 
-- **RN-23** — El índice es un único archivo, `~/U.N.L.P/.classroom.json`, y es la **fuente de
+- **RN-23** — El índice es un único archivo, `~/Boveda/Areas/Facultad/.course-downloader.json`, y es la **fuente de
   verdad** de los nombres y las asociaciones. El storage de la extensión no guarda nada de esto.
-- **RN-24** — El índice **no se versiona**: se agrega a `~/U.N.L.P/.gitignore`.
+- **RN-24** — El índice **se versiona** con la bóveda, que es un repo privado. Ningún código lo agrega a `.gitignore`. *(Dueño, 2026-09-28; ADR-0018 supera el punto 2 de ADR-0017.)*
 - **RN-25** — Si el índice no parsea, la extensión **avisa y no baja nada**. No lo pisa ni lo
   regenera.
 - **RN-26** — Si el dueño edita el índice a mano, gana lo que dice el índice.
@@ -135,6 +154,10 @@ transformación de texto.
   existe y no está en el índice, se anota y no se escribe, cualquiera sea su md5. Es el único tipo
   que el dueño puede editar sin renombrar, y el árbol tiene un vault de Obsidian: comparar por
   contenido (RN-20) no alcanza, porque una nota agregada a mano cambia el md5.
+- **RN-29a** — Un acceso cuyo id ya figura en el índice está descargado **siempre**: no se
+  vuelve a crear aunque no esté en la ruta anotada ni su md5 aparezca en la raíz. Editarlo,
+  moverlo o borrarlo es decisión del dueño. Para que vuelva a crearse, se borra su entrada del
+  índice. *(Dueño, 2026-09-28; cierra PA-4.)*
 
 ---
 
@@ -142,9 +165,10 @@ transformación de texto.
 
 Se evalúa en este orden; la primera fila que coincide, decide.
 
-| # | ¿id en el índice? | ¿está en la ruta anotada? | ¿md5 en la materia? | Acción |
+| # | ¿id en el índice? | ¿está en la ruta anotada? | ¿md5 en la raíz? (filas 2–3, RN-19) / ¿en la carpeta destino? (fila 5) | Acción |
 |---|---|---|---|---|
 | 0 | — | sí, y el destino es un `.md` | — | **No escribir.** Anotar en el índice si falta (RN-30). |
+| 0b | sí, y es un acceso (`acceso:…`) | — | — | **No escribir** (RN-29a). |
 | 1 | sí | sí | — | No bajar. Marcar descargado. |
 | 2 | sí | no | sí | No bajar. **Corregir la ruta en el índice.** |
 | 3 | sí | no | no | Bajar con el nombre del índice. |
@@ -157,6 +181,8 @@ La fila 5 es la que reconoce los 4 archivos de `Fisica 2/Laboratorios/` que el d
 
 La fila 0 va **antes** que todas porque un `.md` editado a mano tiene md5 propio: sin ella caería
 en la fila 6 y se pisaría (RN-30).
+
+La fila 0b va antes que la 2 y la 3 porque un acceso editado tiene otro md5: sin ella, un acceso movido caería en la 3 y se crearía de nuevo.
 
 ---
 
@@ -181,9 +207,9 @@ en la fila 6 y se pisaría (RN-30).
 | A1 | El índice no parsea | Se avisa y no se baja nada de ninguna materia (RN-25) |
 | A2 | Aparece un tema nuevo después de asociar | Sus adjuntos van a la raíz de la materia, marcados como sin asignar (RN-9) |
 | A3 | El archivo ya está en disco con otro nombre | Se descarta sin escribir y se anota como descargado (RN-20) |
-| A4 | El dueño movió un archivo a mano | La ruta del índice se corrige sola (RN-19) |
+| A4 | El dueño movió o renombró un archivo a mano, aun a otra materia | La ruta del índice se corrige sola (RN-19) |
 | A5 | El dueño borró un archivo | Se vuelve a bajar con el nombre del índice (RN-22) |
-| A6 | Dos archivos distintos chocan de nombre | Todos los del grupo llevan `_<material>` (RN-16) |
+| A6 | Dos archivos distintos chocan de nombre | Todos los del grupo llevan `_<material>` (RN-16; en Novedades, RN-16a) |
 | A7 | Dos adjuntos del mismo curso son el mismo archivo | El segundo se descarta por md5 (RN-20). Ver **PA-2** |
 | A8 | El curso desapareció de Classroom | Lo bajado se conserva, nada se marca huérfano (RN-27) |
 | A9 | La materia no tiene la carpeta destino | Se crea al usarla (RN-3) |
@@ -192,13 +218,13 @@ en la fila 6 y se pisaría (RN-30).
 
 ## Datos
 
-### `~/U.N.L.P/.classroom.json`
+### `~/Boveda/Areas/Facultad/.course-downloader.json`
 
 ```json
 {
   "version": 1,
   "cursos": {
-    "ODc0ODk1NDcwNTMw": {
+    "google-classroom:ODc0ODk1NDcwNTMw": {
       "nombre": "Física II G22 2026 2do cuatrimestre",
       "materia": "Ingenieria/Fisica 2",
       "docente": "Palacio",
@@ -212,15 +238,15 @@ en la fila 6 y se pisaría (RN-30).
     }
   },
   "archivos": {
-    "1a2b3c4d5e6f": {
-      "curso": "ODc0ODk1NDcwNTMw",
+    "google-classroom:1a2b3c4d5e6f": {
+      "curso": "google-classroom:ODc0ODk1NDcwNTMw",
       "nombre": "05_capacitores.pdf",
       "ruta": "Ingenieria/Fisica 2/Teorias/Palacio",
       "md5": "3f2a9c1b8e4d7a6f",
       "original": "Palacio - Clase 5 - Capacitores.pdf"
     },
-    "acceso:https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DAbC:Campo%20el%C3%A9ctrico": {
-      "curso": "ODc0ODk1NDcwNTMw",
+    "google-classroom:acceso:https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DAbC:Campo%20el%C3%A9ctrico": {
+      "curso": "google-classroom:ODc0ODk1NDcwNTMw",
       "nombre": "campo_electrico.md",
       "ruta": "Ingenieria/Fisica 2/Teorias/Palacio",
       "md5": "9b1c3d5e7f0a2b4c",
@@ -233,14 +259,14 @@ en la fila 6 y se pisaría (RN-30).
 | Campo | Regla |
 |---|---|
 | `version` | Entero. Permite migrar el formato sin adivinar. |
-| `cursos.<id>` | El id de curso de la URL de Classroom. |
-| `cursos.<id>.materia` | Ruta relativa a `~/U.N.L.P`. Tiene que existir (RN-1). |
-| `cursos.<id>.temas.<tema>` | Ruta relativa a la materia. `"."` es la raíz de la materia. |
-| `archivos.<id>` | El id de archivo: id de Drive para los adjuntos, `acceso:<url>:<título>` para los accesos (RN-29). Es la identidad estable, y la misma que viaja por el pipeline — no se inventa un eje nuevo (ADR-0014). |
-| `archivos.<id>.nombre` | El nombre final, editado o propuesto. |
-| `archivos.<id>.ruta` | Ruta relativa a `~/U.N.L.P`. La corrige RN-19. |
-| `archivos.<id>.md5` | Se calcula una vez al bajar y no se recalcula. En un `.md` es informativo: no decide nada, porque manda RN-30. |
-| `archivos.<id>.original` | El nombre de Classroom. Sólo para que el dueño se ubique. |
+| `cursos.<portal>:<id>` | El id del portal (`google-classroom`) y el id de curso de su URL. El prefijo existe porque la raíz es de la UNLP, no de Classroom: los Moodle de la UNLP van a escribir en el mismo índice (dueño, 2026-09-27). |
+| `cursos.<clave>.materia` | Ruta relativa a la raíz. Tiene que existir (RN-1). |
+| `cursos.<clave>.temas.<tema>` | Ruta relativa a la materia. `"."` es la raíz de la materia. |
+| `archivos.<portal>:<id>` | El portal, `:`, y el id de archivo: id de Drive para los adjuntos, `acceso:<url>:<título>` para los accesos (RN-29). Es la identidad estable, y la misma que viaja por el pipeline — no se inventa un eje nuevo (ADR-0014). |
+| `archivos.<clave>.nombre` | El nombre final, editado o propuesto. |
+| `archivos.<clave>.ruta` | Ruta relativa a la raíz. La corrige RN-19. |
+| `archivos.<clave>.md5` | Se calcula una vez al bajar y no se recalcula. En un `.md` es informativo: no decide nada, porque manda RN-30. |
+| `archivos.<clave>.original` | El nombre de Classroom. Sólo para que el dueño se ubique. |
 
 **Retención**: nada se borra automáticamente. Un curso que desaparece de Classroom conserva su
 entrada (RN-27).
@@ -311,7 +337,7 @@ entrada (RN-27).
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│  ⛔  No se pudo leer .classroom.json                    │
+│  ⛔  No se pudo leer .course-downloader.json                    │
 │                                                        │
 │  Línea 47: falta una coma.                             │
 │  No se va a bajar nada hasta que se arregle. El        │
@@ -380,6 +406,16 @@ AC-5 — Mover un archivo a mano corrige el índice
 ```
 
 ```gherkin
+AC-5b — Mover un archivo a otra materia también corrige el índice (RN-19, dueño 2026-09-27)
+  Dado que el índice anota un archivo en "Ingenieria/Fisica 2/Practicas"
+    y el dueño lo movió y renombró a "Ingenieria/Fisica 1/Practicas/otro_nombre.pdf"
+  Cuando se escanea el curso de Física 2
+  Entonces el índice pasa a anotar la ruta y el nombre nuevos
+    y el archivo no se vuelve a bajar
+    y una copia idéntica que sólo esté fuera de la raíz (por ejemplo en "~/Boveda/Archivo/") no cuenta como encontrada
+```
+
+```gherkin
 AC-6 — Un archivo borrado se vuelve a bajar con su nombre
   Dado que el índice anota "05_capacitores.pdf" en "Teorias/Palacio"
     y ese archivo no está en ninguna carpeta de la materia
@@ -390,7 +426,7 @@ AC-6 — Un archivo borrado se vuelve a bajar con su nombre
 
 ```gherkin
 AC-7 — Un índice ilegible frena todo
-  Dado un ".classroom.json" con JSON inválido
+  Dado un ".course-downloader.json" con JSON inválido
   Cuando el dueño abre el popup en cualquier curso
   Entonces se muestra el aviso con el problema
     y el botón de bajar queda deshabilitado
@@ -464,8 +500,7 @@ Esquema del escenario: AC-11 — Nombres que la regla no acierta
 - **NFR-1 — Privacidad.** Ningún archivo descargado lleva metadata agregada por la extensión, ni
   interna ni en atributos extendidos. Compartir un archivo no revela su origen. *(Verificado sobre
   los 318 archivos de la Verificación B: cero xattr.)*
-- **NFR-2 — El índice no se publica.** `~/U.N.L.P` es un repo **público**. El índice va en
-  `.gitignore` y nunca se versiona.
+- **NFR-2 — El índice viaja con la bóveda.** Se versiona en el repo privado de `~/Boveda` (RN-24). La extensión nunca escribe `.gitignore`.
 - **NFR-3 — El md5 se calcula una vez por archivo** y se guarda en el índice. Un escaneo que no baja
   nada no recalcula nada.
 - **NFR-4 — El árbol previo es inmutable.** Ninguna regla escribe, mueve o renombra un archivo que
@@ -479,9 +514,9 @@ Esquema del escenario: AC-11 — Nombres que la regla no acierta
 
 | Qué | Por qué |
 |---|---|
-| Corte 1 mergeado a `main` | Esta spec define el destino de lo que el corte 1 baja |
-| Los dos defectos de escaneo arreglados | El destino correcto no salva lo que el escaneo no trajo: hoy G25 pierde 23 adjuntos de Novedades y un adjunto cualquiera puede leerse a medio hidratar. Ver `docs/ramas-en-revision.md` §Hallazgos de la Verificación B |
-| `~/U.N.L.P/.gitignore` editable | Está en **UTF-16 LE con CRLF**: agregarle una línea con `echo >>` lo corrompe |
+| Corte 1 mergeado a `main` | ✅ Esta spec define el destino de lo que el corte 1 baja |
+| Los dos defectos de escaneo arreglados | ✅ Novedades pagina desde `7b60e05` (G25: 28 adjuntos en vez de 4); el adjunto a medio hidratar lo cerró el corte 1 (`docs/plan-classroom-corte-1-adjuntos-sin-resolver.md`) |
+| Raíz en la bóveda | ✅ Adopción aplicada en `~/Boveda` `32136ca` (295 archivos + índice, 354 entradas) |
 
 ---
 
@@ -493,18 +528,18 @@ Esquema del escenario: AC-11 — Nombres que la regla no acierta
 | 12-13 | La extensión propone, el dueño edita, se recuerda por id de Drive | La regla sola acierta 15 de 26; acortar un tema es criterio, no texto |
 | 18 | "Ya descargado" por contenido, no por nombre | 4 archivos medidos con md5 idéntico y nombre distinto por el saneo `#`→`_`; y 9 teorías de Física 1 renombradas por el dueño |
 | 20 | Sin objeto | Lo cubre el 18: las copias idénticas colapsan solas |
-| 22 | Índice único en `~/U.N.L.P/.classroom.json`, gitignoreado | El storage muere al reinstalar; los xattr no sobreviven a `git clone` ni a `cp`; el repo es público |
+| 22 | Índice único en la raíz, versionado | El storage muere al reinstalar; los xattr no sobreviven a `git clone` ni a `cp`. Era gitignoreado mientras la raíz fue `~/U.N.L.P` (público); en la bóveda privada se versiona (ADR-0018). |
 
 ## Preguntas abiertas
 
 - **PA-1** *(era D-2)* — Si el contenido ya está en disco con otro nombre, hoy gana el nombre viejo y
   no se toca nada (RN-20 + NFR-4). **Recomendación**: dejarlo así. Si el dueño quiere unificar, que
   sea una acción explícita suya, nunca un efecto de bajar.
-- **PA-2** *(era D-3)* — Cuando varios adjuntos del mismo curso son el mismo archivo (medido: el
-  template de Física I ×5, `interferencia2025` ×2), RN-20 deja **uno solo**, el primero que se baja,
-  con el nombre que le tocó a ese. Ese criterio es arbitrario. **Recomendación**: que el nombre lo
-  fije el primer adjunto en orden de tema, y que los demás queden anotados en el índice apuntando al
-  mismo md5, para que la lista los muestre como descargados.
+- **PA-2 — ✅ DECIDIDO (tanda, 2026-09-27, siguiendo la recomendación)** — Cuando varios adjuntos del
+  mismo curso son el mismo archivo (template de Física I ×5, `interferencia2025` ×2: 2 grupos, 7
+  adjuntos, recontado el 2026-09-27), el primero en el orden del escaneo fija ruta y nombre, y los demás
+  quedan en el índice apuntando a la misma ruta, nombre y md5, para que la lista los muestre como
+  descargados. No cambia nada visible para el dueño salvo que no ve copias.
 
 - **PA-3 — ✅ DECIDIDO por el dueño (2026-09-27): adopción desde `~/Descargas/verificacion-b`.** Un
   script de una sola corrida (no una función de la extensión) cruza el `listaPersistente` del storage de
@@ -525,6 +560,21 @@ Esquema del escenario: AC-11 — Nombres que la regla no acierta
   - **Requisito que esto impone**: la extensión tiene que poder **exportar el mapa id de Drive →
     adjunto** de un escaneo. Hoy eso vive sólo en `chrome.storage` (LevelDB comprimido), legible a la
     fuerza pero no por una vía sostenida.
+
+- **PA-3, forma de la adopción — ✅ DECIDIDO por el dueño (2026-09-27)**: el script no copia de una. Genera
+  tres tablas TSV (cursos, temas, archivos) con materia, docente, carpeta y nombre propuestos; el dueño
+  las edita, y recién una segunda corrida copia y escribe el índice. Es el mismo método que el formateo
+  del 2026-09-13 (`docs/plan-unlp-formateo-ingenieria.tsv`).
+
+## Cortes de construcción
+
+Decididos por el dueño el 2026-09-27. Cada uno es una rama y un plan.
+
+| Corte | Qué entrega | Reglas |
+|---|---|---|
+| **2a — Adopción** | Script de una sola corrida: lleva `verificacion-b` a la raíz (se aplicó en la bóveda, `32136ca`) con los nombres que el dueño eligió y hace nacer el índice. No toca la extensión. Plan: `docs/plan-classroom-destino-2a-adopcion.md` | RN-1, 3–8, 11, 12, 15–17, 20, 21, 23–26, 28, 30 (en su forma de adopción); PA-2, PA-3 |
+| **2b — La extensión usa el índice** | Raíz por portal; "ya descargado" y descarga a la carpeta del tema según la tabla de decisión; tema nuevo sin asignar; índice ilegible | RN-2, 3a, 9, 10, 17, 18–22, 25, 27, 29, 29a, 30 |
+| **2c — Pantallas** | Asociar un curso nuevo; editar el nombre en la lista y recordarlo | RN-1, 4, 7, 13, 14 |
 
 ## Medición de respaldo — cruce del árbol contra lo descargado (2026-09-16)
 
@@ -549,6 +599,12 @@ simula el destino final, porque los nombres que el dueño elegiría y el mapeo t
 justamente lo que esta spec define. Las colisiones entre dos archivos **nuevos** que al renombrarse
 caigan en el mismo nombre y la misma carpeta las cubre RN-16, y sólo se pueden medir con el índice
 ya poblado.
+
+- **PA-4** *(abierta 2026-09-27, para el corte 2b)* — **✅ DECIDIDO (dueño, 2026-09-28): RN-29a.** **Un acceso `.md` editado y además movido.**
+  Su md5 cambió al editarlo, así que RN-19 no lo encuentra y RN-22 lo vuelve a crear en la ruta vieja:
+  quedan dos notas. RN-30 sólo lo protege si sigue en su lugar. **Recomendación** (tanda): para los
+  `.md` de acceso, si el id está en el índice no se vuelve a crear nunca, esté donde esté. Costo: un
+  acceso movido y después borrado no vuelve. El dueño todavía no la decidió.
 
 ## Mediciones pendientes
 

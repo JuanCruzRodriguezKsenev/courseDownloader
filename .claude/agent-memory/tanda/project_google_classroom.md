@@ -122,7 +122,12 @@ corrió como sesión; dijo "funciona todo". Contrastar SIEMPRE con el mtime del 
 (overflow auto, no scrollea); el que scrollea es el documento; Novedades pagina de a 10 por scroll (G25: 66 posts /
 28 adjuntos). Plan `docs/plan-classroom-novedades-scroll.md`, rama `classroom-novedades-scroll`. Corte 2 espera esto.
 **Ejecutado por obra (`7ec372b`) y re-verificado por mí**: diff idéntico al plan, 46/801 verde, el control negativo del 39 MUERDE (primera vez que obra lo declara y es cierto). Storage de Brave antes de N-1: `000043.log` mtime 17:03:36. N-1/N-2 ✅ (storage: G25 Novedades 28 adjuntos en ambos, recorrido ~175 s vs 124 s). **MERGEADA** `7b60e05` (sin push).
-Siguiente: corte 2 (spec `classroom-destino`, PA-3 ya decidido) → plan.
+**Corte 2 partido en 2a/2b/2c** (dueño, 2026-09-27; tabla en spec §Cortes). 2a = adopción con TSV editable,
+índice GENÉRICO `~/U.N.L.P/.course-downloader.json` con claves `<portal>:<id>` (Moodle UNLP va al mismo). Plan
+`docs/plan-classroom-destino-2a-adopcion.md`, rama `classroom-destino-adopcion`. Medido: 366/366 ítems de la lista
+del recorrido están en verificacion-b por `sanitizarNombreArchivo(titulo)`; 55 ya en el árbol (todos en su materia);
+2 grupos dup md5 (7 ítems). **Un escaneo de un curso pisa `listaPersistente`** → antes de generar, "escanear todos".
+Items no traen id de curso: sale de `recorridoTodos.cursos[].nombre` vía `sanearNombreCarpeta`. Bun importa `core/*.ts`.
 Tiempos del recorrido: `recorridoTodos.cursos[].duracionMs` en el storage; lista con `listaPersistente` (parser en scratchpad de sesión vieja: copiarlo).
 Para medir en Brave con Claude in Chrome: un `left_click` en la página la pone `visible` (la captura sola no).
 El filtro bloquea salidas con nombres de clase CSS: devolver sólo números.
@@ -145,8 +150,7 @@ coincidencias de nombre son todas md5-idénticas. `Fisica 2/Laboratorios` está 
 Perf medida: cola estrictamente secuencial, 62 ítems/186 s, PDF mediana 1.36 s de los cuales ~1.25 s son Drive.
 Paralelizar es la única palanca (3x) pero toca estado global y ADR-0011 → plan propio **después** del merge.
 
-Trampas de `~/U.N.L.P`: `.gitignore` en **UTF-16 LE + CRLF** (`echo >>` lo corrompe); `core.ignorecase=true` →
-renombre sólo de mayúsculas necesita `git add` por ruta; `core.quotepath` cita tildes → filtros con
+Trampas de `~/U.N.L.P`: `.gitignore` pasó a **UTF-8/LF** (`f3ea8bc`, antes UTF-16); `core.ignorecase` hoy `false`; `core.quotepath` cita tildes → filtros con
 `-c core.quotepath=false`; NFD en algunos nombres; remoto SSH y último push del 2026-05-08 (el formateo de
 septiembre NO está pusheado).
 
@@ -168,3 +172,102 @@ septiembre NO está pusheado).
 - Los informes de obra dijeron "verificación A en verde" con 33 tests rojos → **siempre re-verificar**.
 - Medir un fetch desde una pestaña **no** equivale al contexto de la extensión (cookies + CORP) → pedir la consola
   del popup temprano.
+**Corte 2a ejecutado por obra (`f77ba2a`) y revisado 2026-09-27**: 50/837 verde, control `^` Parciales MUERDE.
+Simulado con datos reales en scratch (copiar `generar.js` con predicado "lista con >1 carpeta" para saltar la N-1):
+366 / ya-esta 55 / dup 4 (no 5: 2 filas del grupo son ya-esta) / omit 8 / copiar 299 / **2 choques reales** (MC2
+Novedades, copias "(N)" con md5 distinto → el dueño renombra 7 filas en A-2). 🔴 reintento tras corte = 303 errores;
+🟡 renombrar 1ª fila de un `duplicado` bloquea → `docs/plan-classroom-destino-2a-correcciones.md`. Fixtures en
+`~/Descargas/adopcion-sim/tsv-{ok,dup,omit}` (fuera del repo). Método: sandbox `cp -a ~/U.N.L.P/Ingenieria` + `--escribir` ahí.
+**Correcciones 2a ejecutadas por obra (`528efe3`) y re-verificadas por mí**: diff = plan; 50/837 verde; Verificación A
+(a)–(h) idéntica a lo esperado (reintento: copiar 1 / ya-esta 353, 298 `Información`); control negativo MUERDE (303
+vs 0). **`aplicar.js` escribe los errores por STDERR** → contar con `2>&1`, si no el 0 es falso. Falta A-1..A-4 (dueño + yo).
+A-1 ✅ (generar dio 366/55/4/8/299, 2 choques = 5 filas MC2 + 2 MC3, todos en `Matematica C/` raíz). A-2 trabado: el
+dueño no puede editar los TSV → plan `docs/plan-classroom-destino-2a-editor.md` (página Bun 127.0.0.1:3002, guarda
+TSV byte-idénticos, Probar = aplicar ensayo en subproceso). Tras obra: verifico yo E-1..E-6 con Claude in Chrome.
+
+**2026-09-27 — editor de adopción:** el dueño quiere abrirlo DESDE LA EXTENSIÓN. Se decidió montarlo en el
+servidor del 3001 bajo `/adopcion/` + enlace 🗂️ en el popup (plan `docs/plan-classroom-destino-2a-editor-popup.md`).
+El 3001 apunta a los TSV REALES: toda prueba que escribe va en modo suelto (3002) sobre la copia. El editor usa
+`~/U.N.L.P` fijo, nunca `CARPETA_RAIZ_VIDEOS` (config_usuario.json apunta a una raíz de prueba).
+**Editor desde el popup ejecutado por obra (`cb01ab9`) y re-verificado por mí**: diff `-w` = plan exacto; (p)(q) ok;
+3001 (s)–(ac) idénticos a lo esperado + sha256 de los TSV reales intacto; modo suelto (a)–(n) idéntico en copia de
+scratchpad. Falta P-1..P-4 (popup = dueño: build + recargar extensión + levantar 3001) y después A-2.
+P-2 del dueño cazó un 🔴 que venía de `9b6e550`: el editor no cargaba en NINGÚN navegador (`querySelector("#sel-acc-google-classroom:<id>")`,
+el `:` es pseudo-clase) → corregido por mí con `CSS.escape` (editor.html:1031-1033), probado en Claude in Chrome sobre 3002+copia:
+carga 299/55/4/8/2, 366 filas, 0 errores de consola. **Lección: toda la Verificación A del editor fue por curl y nunca ejecutó el JS
+de la página; E-1..E-6 (míos) no se habían corrido.** Página web nueva → abrirla en el navegador ANTES de mandar al dueño.
+⚪ pendiente: `editor.html:955` mete `nombrePrimera` en `innerHTML` sin escapar.
+**RN-7a/7b (dueño, 2026-09-27)**: MC2 tenía 9 temas en `.` porque los temas son unidades ("Complejos") y la señal
+está en el TÍTULO DE LA PUBLICACIÓN (`material` en scraper.js, se perdía en `enlaces`). El dueño quiere detección
+automática, ya. Plan `docs/plan-classroom-destino-2a-publicacion.md`: `sugerirDestino(tema, publicaciones)` (tema
+manda; si no, mayoría estricta por adjunto), "Links" → Teorias, `publicacion` en enlace + `popup.js:aplicarEnlacesEscaneados`
+(lista FIJA de campos: un campo nuevo del scraper no llega a listaPersistente si no se agrega ahí). Requiere re-escanear.
+El dueño YA guardó docentes en cursos.tsv (Física I=Lucila, MB5=benevetano) → al regenerar, re-aplicarlos.
+Línea de base: generar.js actual reproduce los TSV reales byte a byte (12 regla=no).
+**RN-7a/7b ejecutado por obra (`65dbaf0`) y re-verificado por mí**: diff = plan; Verificación A (a)–(f) idéntica
+(regla=no 10, 366 sin publicación + "!", Links 18 → Teorias, `archivos.tsv` sin cambios fuera de Links); los 3
+controles negativos MUERDEN (5b, T5, T4). Falta A-1b: dueño re-escanea todos → yo B-2/B-3 (respaldar TSV reales y
+re-aplicar docentes Lucila/benevetano) → B-4 dueño → A-2.
+**A-1b ✅** (re-escaneo 19:33): 0 sin publicación, regla=no 1, MC2 → Practicas, Links → Teorias; TSV reales regenerados
+con docentes re-aplicados (respaldo `~/Descargas/adopcion-classroom-respaldo-20260927-rn7a`). Ensayo de aplicar: sólo
+los 2 choques. Sigue B-4 + A-2 del dueño en el editor.
+**2b, decidido por el dueño 2026-09-27**: RN-19/22 buscan el md5 en TODA `~/U.N.L.P` (salvo `.git/`, `.obsidian/`,
+`ObsidianUNLP_Vault/`) → mover a otra materia corrige el índice; AC-5b nuevo. PA-4 abierta: `.md` de acceso editado
++ movido (recomendé "id en índice → no recrear nunca"). Preguntarla al arrancar el plan 2b.
+**Editor por curso (dueño 2026-09-27)**: un curso a la vez (barra) + archivos bajo su tema. Plan
+`docs/plan-classroom-destino-2a-editor-por-curso.md`. **Humo con jsdom** (devDependency): ejecuta el JS de
+editor.html con `api/datos` guardado; DETECTA el 🔴 de `cb01ab9`. Tiene que correr desde dentro del repo (desde
+scratch no resuelve `jsdom`); los módulos de comprobación sí pueden vivir en scratch (import absoluto).
+**Editor por curso: obra `22bf3d7`, E-1..E-7 ✅ por mí (`4244f50`)**. E-1 cazó que las insignias en 0 se veían: `.badge{display}`
+pisaba `[hidden]` → agregué `[hidden]{display:none!important}`. **jsdom no evalúa CSS: el humo mira el atributo `hidden`, no la
+visibilidad** → lo visual sólo sale en el navegador. En Chrome, `ArrowDown` sobre un `select` con foco abre el popup nativo y congela
+las capturas → `Escape`. `pkill -f` con el patrón de la línea de comandos mata al propio shell de Bash. Sigue: A-2 del dueño en 3001.
+**Choques de MC2 = Novedades sin texto (2026-09-27)**: en Novedades el `h2` del post es "Publicación de <autor>" (45/45 ítems);
+el texto del anuncio está en `previousElementSibling` de `[data-include-stream-item-materials="true"]` (36/36 posts, sin clases).
+Dueño: sólo los que CHOCAN se nombran con la primera frase del anuncio (reemplaza). Plan `docs/plan-classroom-destino-2a-anuncio.md`
+(campo nuevo `anuncio`, NO tocar `material`: arma títulos y `generar.js:132` busca en disco por título). Requiere re-escaneo (A-1c).
+Parser de storage de Brave reutilizable: `lista.py` en el scratchpad de la sesión 7b06d381 (copiarlo si se borra /tmp).
+**RN-16a ejecutado por obra (`849d93a`) y re-verificado por mí**: diff = plan; 50/859 verde; (b)(c) idénticos; los 3 controles
+MUERDEN; `textoDelAnuncio` REAL (extraído con awk de scraper.js) sobre las 8 muestras de Novedades con jsdom: 36/36 posts con
+texto, los 5 de MC2 dan los nombres de C1 exactos. Sigue B-1 (dueño re-escanea todos) → B-2/B-3 míos → B-4 dueño → A-2.
+**A-1c ✅ (21:10)**: 7 renombrados, 0 choques; archivos.tsv real actualizado (respaldo `~/Descargas/adopcion-classroom-respaldo-20260927-rn16a`).
+**A-2 pasa a una sesión propia (dueño)**: revisar archivos.tsv archivo por archivo contra el árbol, corregir el TSV, informar lo hallado.
+Criterio de "dónde corresponde": el árbol existente (materia/docente/tipo) y los 55 ya-esta como referencia. Después A-3/A-4 → merge.
+**A-2/A-3/A-4 ✅ 2026-09-28** (doc en rama `39e5787`): A-2 cambió sólo `Cuestiones administrativas`→`-`; `--escribir` copió 298
+a `~/U.N.L.P` (md5 298/298, índice 357 entradas, sin xattr). Sin commitear en `~/U.N.L.P` (lo decide el dueño). Respaldo TSV:
+`~/Descargas/adopcion-classroom-respaldo-20260928-a3`. ⚠️ Avisado: repo U.N.L.P PÚBLICO y entraron `notas_*` de MC2 (notas de
+alumnos) + `.md` de meet de Haucke. Próximo: merge de `classroom-destino-adopcion` (checkout actual = `prueba-combinada`) → 2b.
+**2026-09-28 — la facultad vive en ~/Boveda/Areas/Facultad** (git subtree de U.N.L.P el 26-09; U.N.L.P retirado pero NO
+se borra: respaldo). La extensión escribió los 298 en el árbol viejo → cambiar destino (spec/plan pendiente). Decidido
+por el dueño: índice TRACKEADO en `Areas/Facultad/.course-downloader.json`; `.md` de acceso = `tipo: acceso`; convertir las 4
+materias (F1 y MB incluidas); conversión e ingesta las dispara él. Orden: mapa → bibliotecario contrasta y commitea →
+convertir-documentos → apuntes. Notas de alumnos → `<materia>/Notas/` (Repasar de apuntes lee `Parciales/`).
+Mapa en `scratchpad/mapa/` de la sesión 8c1054b7 (inventario.json, decisiones.py, mapa.json, revision.json; página
+`servidor.py` en 127.0.0.1:3010). Pares: bibliotecario = sesión en ~/Boveda, forja = sesión en ~ (SendMessage).
+2026-09-28 madrugada: mapa CERRADO (dueño no lo revisó, "confío"): Lucila→`Teorias/Lucila/`, notas→`<materia>/Notas/`.
+`mapa-boveda.tsv` + `aplicar_mapa.py` (ensayo 0 errores: copia 295, índice 354) en el scratch de la sesión 8c1054b7.
+**El clasificador de auto mode BLOQUEÓ escribir en ~/Boveda** (Sensitive-Source Provenance): no esquivar ni delegar a
+bibliotecario; lo aprueba el dueño (`python3 aplicar_mapa.py --escribir`). Bóveda intacta.
+**2026-09-28: copia APLICADA** (dueño aprobó): 295 en ~/Boveda/Areas/Facultad + índice (354, trackeable), md5 295/295, sin
+xattr. Commit y move de 10 PDF de Lucila → bibliotecario (con Obsidian abierto; debe actualizar `ruta` de 9 ya-esta en el
+índice). ~/U.N.L.P conserva los 298 untracked + .gitignore M (respaldo; limpiar sólo si el dueño lo pide). Pendiente mío:
+plan de cambio de destino de la extensión a la bóveda (raíz + índice trackeado + editor fijo en ~/U.N.L.P).
+**2026-09-28 — plan `docs/plan-classroom-destino-2a-boveda.md`** (rama `classroom-destino-adopcion`, checkout movido desde
+`prueba-combinada`): RAIZ_FACULTAD=~/Boveda/Areas/Facultad en `backend/adopcion/raiz.js`, aplicar sin .gitignore, destino
+`Notas` (regla ^notas|resultados antes de Parciales), spec RN-3a/17/19/24/29a (PA-4 decidido: acceso con id no se recrea),
+ADR-0018 supera 0017 pts 1-2. Esperado 50/862. Después: merge 2a → plan 2b (la extensión baja a la bóveda).
+**2026-09-28 tarde**: obra ejecutó el plan bóveda (`acbdf36`), FALTA re-verificarlo yo. Plan aparte
+`~/Boveda/Sistema/Plan - bóveda al 100 y Matemática C.md` (bóveda `0541eb4`): F0 Juan deny, F1 forja (trailer
+Reconversion + apuntes fuentes/rango), F2 bibliotecario (hook, AGENTS.md, Lucila), F3 convertir 22 PDF, F4 wiki
+sólo Teorias. Dueño: wiki SÓLO teoría+bibliografía de cátedra; prácticas/parciales = repaso. Hallazgo 2b: `.md` de
+acceso titulados "Publicación de <autor>" y sin `tipo: acceso`. Nombres de sesión de pares cambian: ListAgents.
+F0 ✅ (deny en settings, probado por mí: Write en Mis notas rechazado). F2 ✅ verificado por mí (bóveda 25de8b0 hook
+`.githooks`, 0736cc7 Lucila, fad8ede resúmenes, f1b9b67 AGENTS.md). F1 verificado pero sin commit (forja). **Clases/ NO
+es fuente** (Juan, en sesión de bibliotecario). Auto mode no deja a un agente editar ~/.claude/settings.json
+(Self-Modification): lo hace Juan. Sigue: F3+F4 por obra (lo pasa Juan).
+**F3+F4 re-verificados por mí 2026-09-28** (bóveda 105d918..6d5ad27): 22/22 convertidos (8 ok, 14 con-errores: Bibliografía
+casi entera, esperable con LaTeX), Wiki 3 Fuentes + 14 Conceptos, todo sin-verificar, sin citas a conversiones.
+unresolved 105→119: +13 números de ecuación de mod2 como enlace `[…](1.74)` (ver [[revision-mate-c]]) y +1 `[[Matematica C]]`
+del frontmatter `materia:` de apuntes (no hay nota hub). 12 pruebas en pruebas.csv sin commitear (normal: la skill no commitea).
+Falta: punto de control de Juan (§8, 4 preguntas). Sigue pendiente re-verificar `acbdf36` (2a-bóveda) → merge → 2b.
+**2026-09-28 11:48**: el "ok" de F3 era falso y la wiki viola reglas de apuntes → revisión en [[revision-mate-c]]; falta el informe.

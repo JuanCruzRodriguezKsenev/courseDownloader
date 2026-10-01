@@ -29,5 +29,7 @@ Registro formal de las decisiones de arquitectura significativas del proyecto.
 | [0014](0014-identidad-compuesta-de-clase.md) | La identidad de un ítem es (portal, módulo, tipo, título) | Aceptada |
 | [0015](0015-un-solo-repo-para-extension-y-backend.md) | La extensión y su backend viven en un solo repo | Aceptada |
 | [0016](0016-escaneo-inyectado-avisa-al-sw.md) | Un script inyectado puede avisar al service worker vía IPC | Aceptada |
+| [0017](0017-indice-de-destino-en-la-raiz.md) | Índice de destino en la raíz del árbol | Aceptada (1 y 2 superados por 0018) |
+| [0018](0018-raiz-en-la-boveda-indice-versionado.md) | La raíz es la bóveda y el índice se versiona | Aceptada |
 
 Estados posibles: `Propuesta` → `Aceptada` | `Rechazada` | `Diferida` → (eventualmente) `Superseded by NNNN`.
