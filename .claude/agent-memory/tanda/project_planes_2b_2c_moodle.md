@@ -26,4 +26,11 @@ asociar = reusar el editor web del 3001 en modo `?modo=indice`, no pantalla del 
 la salida; los controles negativos de obra fallaron antes ("probado" sin salida): exigir la salida roja. Estado de los
 puntos de parada: ninguno cruzado al 2026-09-30.
 
+**Moodle: spec y planes escritos el 2026-10-01** (dueño aprobó los 23 supuestos "sin leer"; 1 cambió: sugerencia por actividades
+también, RN-8). Spec `docs/specs/moodle-linti/` (draft, M-1..M-4 a medir). Planes 09 (genérico del destino) y 10 (adaptador +
+checklist Brave) en `~/Boveda/.../Planes/`. La escritura a la bóveda falló por el clasificador: quedaron en el scratchpad de la
+sesión; **verificar con `ls` que existan en la bóveda antes de dar el traspaso por hecho**. Hallazgos que los moldearon: el
+resolver debe detectar login (si no, la cola saltea por ítem sin pausar); fixture trae `sesskey`; SW sin DOMParser; Classroom
+hardcodeado en `backend/config.js:48`, `handlers.js:11`, `escritura.js:9`. Falta: tanda mide M-1/M-3/M-4 con el dueño y deja fixtures.
+
 Moodle LINTI medido (portal barato, 8 resource/3 folder/5 url…): [[Proyectos/courseDownloader/Diseños/Moodle del LINTI - medición del portal]] en la bóveda.
