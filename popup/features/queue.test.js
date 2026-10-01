@@ -324,6 +324,36 @@ describe('QueueFeature.encolarItemsEnCaliente', () => {
     expect(AppState.colaDescargas[1].destino).not.toBeNull();
     expect(AppState.colaDescargas[1].destino).not.toEqual({});
   });
+
+  it('filtra con puedeBajar: si todos están bloqueados no encola nada ni cambia ningún estado (D-4)', () => {
+    responderCon({ status: 'encolados_ok' });
+    const { feature, nodos } = crearFeature();
+
+    const bloqueado1 = { id: 1, titulo: 'B1', estado: 'pending', seleccionado: true, bloqueo: 'sin-asociar' };
+    const bloqueado2 = { id: 2, titulo: 'B2', estado: 'pending', seleccionado: true, bloqueo: 'omitido' };
+
+    feature.encolarItemsEnCaliente([bloqueado1, bloqueado2]);
+
+    expect(AppState.colaDescargas).toHaveLength(0);
+    expect(bloqueado1.estado).toBe('pending');
+    expect(bloqueado2.estado).toBe('pending');
+    expect(nodos.queueBadge.textContent).toBe('0');
+  });
+
+  it('filtra con puedeBajar: si vienen mezclados sólo encola los permitidos', () => {
+    responderCon({ status: 'encolados_ok' });
+    const { feature } = crearFeature();
+
+    const permitido = { id: 1, titulo: 'OK', estado: 'pending', seleccionado: true };
+    const bloqueado = { id: 2, titulo: 'Bloqueado', estado: 'pending', seleccionado: true, bloqueo: 'indice-ilegible' };
+
+    feature.encolarItemsEnCaliente([permitido, bloqueado]);
+
+    expect(AppState.colaDescargas).toHaveLength(1);
+    expect(AppState.colaDescargas[0].titulo).toBe('OK');
+    expect(permitido.estado).toBe('process');
+    expect(bloqueado.estado).toBe('pending');
+  });
 });
 
 describe('QueueFeature.quitarItemsDeColaEnLote', () => {

@@ -294,6 +294,18 @@ Tomada el 2026-09-12 sobre M3 y el recorrido 2 (§8).
     necesita su propio valor, medido.
   - El watchdog de `popup.js` lo lee del descriptor.
 
+### D14 — El id de curso viaja con cada enlace (D-1)
+
+Tomada el 2026-09-30 (plan 04, corte 2b-4).
+
+- **Qué**: el escaneo de Classroom estampa `cursoId`, `cursoNombre` y `tema` directamente en cada
+  `EnlaceListado` (`sitio/google-classroom/scraper.js`).
+- **Por qué**: para que el popup pueda pedir el estado de descarga al backend (`POST /api/destino/estado`)
+  por clave de curso (`<portal>:<cursoId>`) sin tener que desarmar `modulo: "<curso> › <tema>"` con
+  `split(" › ")`, que se rompe si el nombre del curso incluye ese separador. La identidad del ítem
+  (`modulo`, ADR-0014) no cambia; son campos aditivos.
+- **Detalle canónico**: spec de destino (`docs/specs/classroom-destino/spec.md` RN-2, D-1) y plan `04 - 2b-4`.
+
 ---
 
 ## 4. Lo que falta medir, en orden

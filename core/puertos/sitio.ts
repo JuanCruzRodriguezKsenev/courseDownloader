@@ -1,6 +1,10 @@
 /**
- * PUERTO DE SITIO (V1.8.0)
+ * PUERTO DE SITIO (V1.9.0)
  * ==========================================================================
+ * CHANGELOG v1.9.0:
+ * - [DESTINO CORTE 2b-4] Campos opcionales en `EnlaceListado`: `cursoId`, `cursoNombre` y `tema`.
+ *   Permiten al popup consultar el estado de cada curso al backend sin desarmar `modulo` (RN-2, D-1).
+ *
  * CHANGELOG v1.8.0:
  * - [DESTINO CORTE 2b-3] Miembro nuevo `destinoPorIndice?: boolean` (opcional, default false):
  *   indica si el portal delega la ubicación y nombre en el índice de destino (.course-downloader.json).
@@ -124,6 +128,18 @@ export interface EnlaceListado {
    * nombra el archivo cuando choca (RN-16a).
    */
   anuncio?: string;
+
+  /**
+   * [CORTE 2b-4] Id del curso en el portal (Classroom). Permite consultar el
+   * estado del curso al backend sin desarmar `modulo` (D-1, RN-2).
+   */
+  cursoId?: string;
+
+  /** [CORTE 2b-4] Nombre crudo del curso en el portal (Classroom). */
+  cursoNombre?: string;
+
+  /** [CORTE 2b-4] Tema o sección dentro del curso (Classroom). */
+  tema?: string;
 }
 
 /** Lo que devuelve el escaneo del listado de clases de una pestaña. */

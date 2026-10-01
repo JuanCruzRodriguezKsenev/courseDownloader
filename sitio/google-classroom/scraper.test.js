@@ -192,6 +192,26 @@ describe("ScraperClassroom.escanearListado", () => {
     expect(tp1?.anuncio).toBeUndefined();
   });
 
+  it("5d. los enlaces conservan cursoId, cursoNombre y tema (D-1)", async () => {
+    const res = await ScraperClassroom.escanearListado({ tiempos: TIEMPOS_TEST });
+
+    // Trabajo en clase
+    const tp1 = res.enlaces.find((e) => e.texto === "TP1.pdf");
+    expect(tp1).toBeDefined();
+    expect(tp1?.cursoId).toBe("CURSO123");
+    expect(tp1?.cursoNombre).toBe("Física II");
+    expect(tp1?.tema).toBe("Trabajos Practicos");
+    expect(tp1?.modulo).toBe("Física II › Trabajos Practicos");
+
+    // Novedades
+    const cronograma = res.enlaces.find((e) => e.texto === "Cronograma.pdf");
+    expect(cronograma).toBeDefined();
+    expect(cronograma?.cursoId).toBe("CURSO123");
+    expect(cronograma?.cursoNombre).toBe("Física II");
+    expect(cronograma?.tema).toBe("Novedades");
+    expect(cronograma?.modulo).toBe("Física II › Novedades");
+  });
+
   it("6. el choque de nombres le agrega el material a los dos", async () => {
     const res = await ScraperClassroom.escanearListado({ tiempos: TIEMPOS_TEST });
     const notasClase1 = res.enlaces.find((e) => e.idArchivo === "drive-dup-a");
@@ -630,10 +650,13 @@ describe("ScraperClassroom.escanearListado", () => {
       expect(cursosOk).toHaveLength(3);
       expect(cursosOk[0].resultado).toBe("ok");
       expect(cursosOk[0].enlaces[0].modulo).toContain("Física II ›");
+      expect(cursosOk[0].enlaces[0].cursoId).toBe(evInicio.cursos[0].id);
       expect(cursosOk[1].resultado).toBe("ok");
       expect(cursosOk[1].enlaces[0].modulo).toContain("Química I ›");
+      expect(cursosOk[1].enlaces[0].cursoId).toBe(evInicio.cursos[1].id);
       expect(cursosOk[2].resultado).toBe("ok");
       expect(cursosOk[2].enlaces[0].modulo).toContain("Matemática Discreta ›");
+      expect(cursosOk[2].enlaces[0].cursoId).toBe(evInicio.cursos[2].id);
 
       const evFin = mensajesEnviados.at(-1);
       expect(evFin.estado).toBe("terminado");

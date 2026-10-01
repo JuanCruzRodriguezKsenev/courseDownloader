@@ -165,6 +165,7 @@ historia de qué se migró en qué fase no está acá: vive en `docs/rearquitect
   | `orden.js` (`OrdenFeature`) | Criterio de orden (llegada/nombre/faceta/portal) + sentido ↑↓ y su popover | Entró con el corte 6b del multi-sitio. En la Cola el orden que se ve **es** el orden en que se baja. |
   | `bloqueo.js` (`Bloqueo`) | El contrato de "este control no se puede usar ahora", en un solo lugar | Estaba copiado en tres funciones de `popup.js`. `pointer-events` **no** es un bloqueo: deja pasar el teclado. Las cuatro reglas → `docs/alertas-y-bloqueo-diseno.md` §2. |
   | `pisoVisible.js` (`crearPisoVisible`) | El mínimo de tiempo que un cartel de "estoy trabajando" se queda en pantalla | **No es dueño de ningún nodo**: resuelve el *cuándo*, no el *quién* — escribir el nodo por atrás lo saltea en silencio. La mitad que falta (la demora para aparecer) sigue en `docs/TECHNICAL_DEBT.md`. |
+  | `destino.js` | Consulta de estado y destino resuelto al backend por índice | Módulo puro de Capa 2: agrupa por curso, consulta POST `/api/destino/estado` en paralelo (D-6) y gestiona bloqueos ("sin-asociar", "omitido", "indice-ilegible") y `sinAsignar` (D-5). Expone `bloquearSeleccion` (embudo, D-4) y `puedeBajar` (cola, D-4). |
 
   No son features, pero viven en la misma carpeta y conviene no confundirlas: `capa.preact.js`
   (la superficie flotante compartida — un **componente**, no una isla) y los seis `*.preact.js`
@@ -348,7 +349,8 @@ tests pasan una URL de fantasía.
 
 También viven acá `core/backend/bunClient.ts` (wrapper fino de todos los endpoints del backend
 Bun: `/api/escanear-disco`, `/api/bypass-stream`, `/api/actualizar-consola`,
-`/api/seleccionar-carpeta`, `/api/health`, `/api/cancelar-descarga`; desde el Corte 2b-3
+`/api/seleccionar-carpeta` —con `{ portal }` opcional—, `/api/health`, `/api/cancelar-descarga`,
+`/api/destino/indice` y `/api/destino/estado`; desde el Corte 2b-3
 envía cabeceras `x-destino-*` y parsea `{ error, codigo }` en respuestas fallidas) y
 `core/historial/historialFallos.ts` (factory `crearHistorialFallos(puerto)`, no singleton:
 historial acotado —últimos 50, más nuevo primero— de fallos terminales de la cola bajo la

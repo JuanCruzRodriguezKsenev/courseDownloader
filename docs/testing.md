@@ -30,10 +30,16 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **60 archivos, 945 tests**, todo en verde |
+| `pnpm test` | **61 archivos, 968 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 968** (2026-10-01, plan `04 - 2b-4 El curso viaja con cada adjunto y el popup pide el estado al backend`). Son los 945 de abajo más **+23** tests y **+1** archivo nuevo:
+**+1** en `sitio/google-classroom/scraper.test.js` (test 5d: los enlaces conservan cursoId, cursoNombre y tema, D-1; 41 → 42 tests),
+**+8** en `core/backend/bunClient.test.ts` (suite de destino por índice: seleccionarCarpeta con y sin query portal, indiceDestino con resultado, índice ilegible y fallo de red, estadoDestino con respuesta, índice ilegible y fallo de red; 26 → 34 tests),
+**+2** en `popup/features/queue.test.js` (filtrado con puedeBajar en encolarItemsEnCaliente: ítems todos bloqueados no encolan ni cambian estado, y mixtos sólo encolan los permitidos, D-4; 23 → 25 tests),
+y **+12** en el archivo nuevo `popup/features/destino.test.js` (suite de aplicarEstadoDestino: portal sin destinoPorIndice sin pedidos D-2, curso asociado con descargados y pendientes, curso sin asociar RN-2, ítem omitido, tema nuevo con sinAsignar AC-9, índice ilegible AC-7, clase en process no se pisa, clase sin cursoId, error de red relanzado, dos cursos en paralelo D-6; bloquearSeleccion D-4; puedeBajar D-4).
 
 **De dónde sale el 945** (2026-10-01, plan `03 - 2b-3 Cola de la extensión baja a destino`). Son los 931 de abajo más **+14** tests:
 **+1** en `core/cola/identidadClase.test.ts` (dos ítems que sólo difieren en `destino` son la misma clase, D-1; 21 → 22 tests),

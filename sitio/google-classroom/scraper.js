@@ -1,6 +1,9 @@
 /**
- * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.5.1)
+ * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.6.0)
  * ==========================================================================
+ * CHANGELOG v1.6.0:
+ * - [DESTINO CORTE 2b-4] Cada enlace emitido incluye cursoId, cursoNombre y tema (D-1).
+ *
  * CHANGELOG v1.5.1:
  * - [CLASSROOM NOVEDADES SCROLL] buscarContenedorScroll exige que el contenedor scrollee de verdad; la <nav> lateral tapaba la paginación de Novedades.
  *
@@ -966,6 +969,9 @@ const ScraperClassroom = {
       texto: item.nombreFinal,
       href: item.url,
       modulo: `${nombreCurso} › ${item.tema}`,
+      cursoId: idCurso,
+      cursoNombre: nombreCurso,
+      tema: item.tema,
       publicacion: item.material,
       anuncio: item.anuncio,
       tipo: "adjunto",

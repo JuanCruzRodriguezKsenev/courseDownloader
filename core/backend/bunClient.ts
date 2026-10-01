@@ -1,6 +1,11 @@
 /**
- * NÚCLEO — CLIENTE DEL BACKEND BUN (V2.2.0)
+ * NÚCLEO — CLIENTE DEL BACKEND BUN (V2.3.0)
  * ==========================================================================
+ * CHANGELOG v2.3.0:
+ * - [DESTINO CORTE 2b-4] Métodos `estadoDestino` (POST /api/destino/estado, 15s) e `indiceDestino`
+ *   (GET /api/destino/indice, 4s). Errores de red/timeout se lanzan; `indiceIlegible` se devuelve.
+ * - [DESTINO CORTE 2b-4] `seleccionarCarpeta` acepta `{ portal }` opcional y agrega `?portal=`.
+ *
  * CHANGELOG v2.2.0:
  * - [DESTINO CORTE 2b-3] `HeadersFragmento.destino` opcional: cuando está presente,
  *   `enviarFragmentoStream` envía los 5 headers `x-destino-*` con `encodeURIComponent`.
@@ -91,6 +96,37 @@ export interface DatosConsola {
   velocidad: number;
   /** [MULTIPORTAL E] El backend lo necesita para saber de qué descarga es este progreso. */
   sitioId?: string;
+}
+
+export interface RespuestaIndiceDestino {
+  ok: boolean;
+  indiceIlegible?: boolean;
+  error?: string;
+  raiz?: string;
+  indice?: unknown;
+}
+
+export interface ItemEstadoDestino {
+  idArchivo: string;
+  estado: "descargado" | "pendiente";
+  fila?: string;
+  rutaDestino?: string | null;
+  nombre?: string | null;
+  sinAsignar?: boolean;
+  omitido?: boolean;
+}
+
+export interface RespuestaEstadoDestino {
+  ok: boolean;
+  indiceIlegible?: boolean;
+  error?: string;
+  raiz?: string;
+  curso?: {
+    asociado: boolean;
+    materia?: string;
+    docente?: string;
+  };
+  items?: ItemEstadoDestino[];
 }
 
 /**
@@ -294,16 +330,75 @@ export const BunClient = {
    * queda girando para siempre. 3 min es "nadie está eligiendo una carpeta hace tres minutos".
    */
   async seleccionarCarpeta(
-    { timeoutMs = 180000 }: { timeoutMs?: number } = {}
+    { portal, timeoutMs = 180000 }: { portal?: string; timeoutMs?: number } = {}
   ): Promise<{ success?: boolean; ruta?: string }> {
+    const sufijoPortal = portal ? `?portal=${encodeURIComponent(portal)}` : "";
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetch(`${this.baseUrl}/api/seleccionar-carpeta`, { signal: controller.signal });
+      const res = await fetch(`${this.baseUrl}/api/seleccionar-carpeta${sufijoPortal}`, { signal: controller.signal });
       if (!res.ok) {
         throw new Error("El servidor local Bun no respondió correctamente.");
       }
       return await res.json();
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  },
+
+  /**
+   * Obtiene el índice de destino y la raíz resuelta para un portal.
+   * [DESTINO CORTE 2b-4] GET /api/destino/indice?portal=
+   */
+  async indiceDestino(
+    portal?: string,
+    { timeoutMs = 4000 }: { timeoutMs?: number } = {}
+  ): Promise<RespuestaIndiceDestino> {
+    const sufijoPortal = portal ? `?portal=${encodeURIComponent(portal)}` : "";
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(`${this.baseUrl}/api/destino/indice${sufijoPortal}`, {
+        signal: controller.signal,
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        if (data && typeof data === "object" && (data as RespuestaIndiceDestino).indiceIlegible) {
+          return data as RespuestaIndiceDestino;
+        }
+        throw new Error("El servidor local Bun no respondió correctamente.");
+      }
+      return data as RespuestaIndiceDestino;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  },
+
+  /**
+   * Consulta al backend el estado de los ítems de un curso contra el índice y disco.
+   * [DESTINO CORTE 2b-4] POST /api/destino/estado (RN-2, D-2).
+   */
+  async estadoDestino(
+    payload: unknown,
+    { timeoutMs = 15000 }: { timeoutMs?: number } = {}
+  ): Promise<RespuestaEstadoDestino> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(`${this.baseUrl}/api/destino/estado`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        if (data && typeof data === "object" && (data as RespuestaEstadoDestino).indiceIlegible) {
+          return data as RespuestaEstadoDestino;
+        }
+        throw new Error("El servidor local Bun no respondió correctamente.");
+      }
+      return data as RespuestaEstadoDestino;
     } finally {
       clearTimeout(timeoutId);
     }

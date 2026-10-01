@@ -1,7 +1,14 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.30.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.31.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.31.0:
+ * - [DESTINO CORTE 2b-4] Sincronización de disco particionada: portales con destinoPorIndice
+ *   consultan estado al backend vía aplicarEstadoDestino (D-2).
+ * - [DESTINO CORTE 2b-4] Extraído cerrarSincronizacionDeDisco compartido entre ambos caminos.
+ * - [DESTINO CORTE 2b-4] Embudo calcularContadoresBoton bloquea selección de clases bloqueadas (D-4).
+ * - [DESTINO CORTE 2b-4] Seleccionar carpeta pasa { portal } si el portal activo usa destino por índice.
+ *
  * CHANGELOG v5.30.0:
  * - [DESTINO CORTE 2b-3] Declaración de `destino: item.destino` en el mapeo de clases
  *   al escanear para preservar la propiedad en el ciclo de vida de la clase.
@@ -368,6 +375,7 @@ import { html } from './popup/vendor/htm-preact-standalone.module.js';
 import { abrirCapa } from './popup/features/capa.preact.js';
 import Bloqueo from './popup/features/bloqueo.js';
 import { crearPisoVisible } from './popup/features/pisoVisible.js';
+import { aplicarEstadoDestino, bloquearSeleccion } from './popup/features/destino.js';
 import FacetaFeature from './popup/features/faceta.js';
 import FilterFeature from './popup/features/filters.js';
 import OrdenFeature from './popup/features/orden.js';
@@ -1032,7 +1040,8 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // decir explícitamente que la pelota está del lado del usuario.
       mostrarLoader("Elegí la carpeta en la ventana que se abrió...");
 
-      backend.seleccionarCarpeta().then(res => {
+      const opcionesSeleccionar = (sitioActivo && sitioActivo.destinoPorIndice) ? { portal: sitioActivo.id } : undefined;
+      backend.seleccionarCarpeta(opcionesSeleccionar).then(res => {
         if (res.success) {
           RutaDisco.mostrar(res.ruta);
           nodos.btnExplore.title = `Carpeta raíz actual: ${res.ruta} (Click para cambiar)`;
@@ -1305,8 +1314,14 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           publicacion: item.publicacion,
           // [CORTE 2a] Texto del anuncio (Novedades de Classroom): nombra el archivo si choca, RN-16a.
           anuncio: item.anuncio,
-          // [CORTE 2b-3] Destino en el árbol del dueño (calculado luego en plan 04).
-          destino: item.destino,
+          // [CORTE 2b-4] Datos del curso y tema (Classroom, D-1).
+          cursoId: item.cursoId,
+          cursoNombre: item.cursoNombre,
+          tema: item.tema,
+          // [CORTE 2b-4] Destino, bloqueo de selección y marca de sin asignar (los llena popup/features/destino.js).
+          destino: undefined,
+          bloqueo: undefined,
+          sinAsignar: undefined,
           // ADR-0010: de qué portal salió. Se estampa ACÁ, que es el único momento en
           // que se sabe con certeza — el escaneo corre sobre una pestaña concreta.
           // Después la cola es independiente de la pestaña y ya no habría cómo deducirlo.
@@ -1899,16 +1914,42 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         return `${idPortal}|${clase.carpeta || subcarpetaFiltro}`;
       };
 
-      // Inyectores lógicos del resolvedor final de nombres
-      //
-      // [ESCANEO-API CORTE 1] Recibe un MAPA `par → archivos`, no una lista aplanada. Antes se
-      // volcaban en un solo Set los archivos de todas las carpetas, así que un `Miologia 1.mp4`
-      // bajado en `miembro_superior/` marcaba como descargada también a la de `miembro_inferior/`
-      // — que nunca se bajaba (riesgo R5). Con un módulo por portal el aplanado era inocuo;
-      // con once, no.
-      const resolverMapeoEnUI = (archivosPorPar) => {
+      // [DESTINO CORTE 2b-4] Cierre unificado de la sincronización de disco (ambos caminos)
+      const cerrarSincronizacionDeDisco = () => {
+        appState.sincronizacionDiscoCompletada = true;
+        desbanearFiltros();
+        appState.respaldar(); 
+      
+        nodos.queueBadge.textContent = appState.listadoClasesGlobal.filter(c => c.estado === 'process').length;
+        nodos.masterCheck.checked = appState.listadoClasesGlobal.filter(i => i.visible && i.estado === 'pending').every(i => i.seleccionado);
+
+        configurarBotonesUX("descargar", "Agregar seleccionados a la cola 📥", false);
+        aplicarFiltrosCruzados();
+        actualizarContadoresBoton();
+      };
+
+      // [DESTINO CORTE 2b-4] Particionar clases entre destino por índice (Classroom) y disco tradicional (Ramón Net / Anatomy)
+      const clasesDestinoPorPortal = new Map();
+      const clasesDisco = [];
+
+      appState.listadoClasesGlobal.forEach(c => {
+        const portal = sitios.obtener(c.sitioId);
+        if (portal && portal.destinoPorIndice) {
+          let lista = clasesDestinoPorPortal.get(portal);
+          if (!lista) {
+            lista = [];
+            clasesDestinoPorPortal.set(portal, lista);
+          }
+          lista.push(c);
+        } else {
+          clasesDisco.push(c);
+        }
+      });
+
+      // Resolvedor de nombres del camino tradicional
+      const resolverMapeoTradicionalEnUI = (archivosPorPar) => {
         try {
-          appState.listadoClasesGlobal.forEach(clase => {
+          clasesDisco.forEach(clase => {
             if (clase.estado === 'process') return;
 
             const setArchivosNormalizados = archivosPorPar.get(clavePar(clase));
@@ -1922,9 +1963,6 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
             let yaExiste = false;
             if (clase.tipo === 'adjunto') {
-              // [CLASSROOM CORTE 1 - Paso 4] Con un adjunto se compara por nombre exacto saneado en disco
-              // (docs/plan-classroom-corte-1.md). Evita que a.pdf se dé por descargado si existe tabla.pdf
-              // y alinea el título con el nombre en disco calculado por utils.nombreEnDisco.
               yaExiste = setArchivosNormalizados.has(utils.nombreEnDisco(clase.titulo).toLowerCase());
             } else {
               const tituloNormalizado = clase.titulo.toLowerCase().trim();
@@ -1941,76 +1979,64 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             }
 
             clase.estado = yaExiste ? 'downloaded' : 'pending';
-          
             clase.seleccionado = !yaExiste && perteneceASeleccionFaceta(clase);
           });
-
-          appState.sincronizacionDiscoCompletada = true;
-          desbanearFiltros();
-          appState.respaldar(); 
-        
-          nodos.queueBadge.textContent = appState.listadoClasesGlobal.filter(c => c.estado === 'process').length;
-          nodos.masterCheck.checked = appState.listadoClasesGlobal.filter(i => i.visible && i.estado === 'pending').every(i => i.seleccionado);
-
-          configurarBotonesUX("descargar", "Agregar seleccionados a la cola 📥", false);
-          aplicarFiltrosCruzados();
-          actualizarContadoresBoton();
         } catch (err) {
-          console.error("❌ Error en empaquetado de sincronización:", err);
+          console.error("❌ Error en empaquetado de sincronización tradicional:", err);
         }
-        // [LOADERS — ítem 3] Acá vivía el `finally` que apagaba la atenuación, y ése era el
-        // bug: es el ÚNICO camino que pasaba por este punto. Si `escanearDisco` fallaba por
-        // red, el `catch` externo se iba a `activarEstadoOfflineUI()` y esta función nunca
-        // corría, así que la lista quedaba al 50% para siempre. La apaga ahora quien la
-        // prendió — una región, un dueño (`docs/alertas-y-bloqueo-diseno.md`).
       };
 
       // ─── PIPELINE DE LECTURA DE DATOS (MULTIPLE O BUN SERVER DIRECTO) ────────
-      // [MULTIPORTAL E] Se escanea por PAR (portal, materia), no por materia sola: en disco la
-      // ruta es `raíz/<portal>/<materia>/`, así que pedir sólo la materia miraría la carpeta
-      // equivocada — y la extensión daría por no descargado todo lo que sí está.
-      //
-      // El portal sale del descriptor de cada clase (con la migración aplicada) y no del campo
-      // crudo, así que una clase anterior al multi-sitio se busca en la carpeta del legado.
       const paresUnicos = new Map();
-      appState.listadoClasesGlobal.forEach(c => {
+      clasesDisco.forEach(c => {
         const clave = clavePar(c);
         if (!clave) return; // huérfano
         paresUnicos.set(clave, { idPortal: sitios.obtener(c.sitioId).id, carpeta: c.carpeta || subcarpetaFiltro });
       });
-      if (paresUnicos.size === 0) {
+      // Sólo caer al default del sitio activo si el sitio activo NO es de destino por índice (P-6.2)
+      if (paresUnicos.size === 0 && (!sitioActivo || !sitioActivo.destinoPorIndice)) {
         const idPortal = sitioActivo.id;
         paresUnicos.set(`${idPortal}|${subcarpetaFiltro}`, { idPortal, carpeta: subcarpetaFiltro });
       }
 
       try {
-        // El resultado de cada par se queda ATADO a su par (antes se aplanaba). El `.catch`
-        // devuelve el par con lista vacía en vez de nada, para que una carpeta que no se pudo
-        // leer se distinga de una carpeta vacía... y para que las demás igual se crucen.
-        const promesas = Array.from(paresUnicos.entries()).map(([clave, { idPortal, carpeta: carp }]) =>
-          backend.escanearDisco(carp, idPortal)
-            .then(data => [clave, data?.archivos || []])
-            .catch(e => {
-              if (e instanceof TypeError || e.message?.includes("fetch") || e.message?.includes("connect")) {
-                throw e;
-              }
-              console.warn(`⚠️ No se pudo escanear la carpeta ${idPortal}/${carp}:`, e.message);
-              return [clave, []];
-            })
+        // [DESTINO CORTE 2b-4] 1. Consulta de estado al backend por índice en paralelo (Classroom)
+        const promesasDestino = Array.from(clasesDestinoPorPortal.entries()).map(([portal, clases]) =>
+          aplicarEstadoDestino({ backend, sitio: portal, clases })
         );
-        const resultados = await Promise.all(promesas);
-        const archivosPorPar = new Map(
-          resultados.map(([clave, archivos]) => [
-            clave,
-            new Set(archivos.map(nom => String(nom).toLowerCase().trim())),
-          ])
-        );
+
+        // 2. Consulta de disco tradicional (Ramón Net / Anatomy)
+        let promesaDisco = Promise.resolve();
+        if (paresUnicos.size > 0) {
+          const promesas = Array.from(paresUnicos.entries()).map(([clave, { idPortal, carpeta: carp }]) =>
+            backend.escanearDisco(carp, idPortal)
+              .then(data => [clave, data?.archivos || []])
+              .catch(e => {
+                if (e instanceof TypeError || e.message?.includes("fetch") || e.message?.includes("connect")) {
+                  throw e;
+                }
+                console.warn(`⚠️ No se pudo escanear la carpeta ${idPortal}/${carp}:`, e.message);
+                return [clave, []];
+              })
+          );
+          promesaDisco = Promise.all(promesas).then(resultados => {
+            const archivosPorPar = new Map(
+              resultados.map(([clave, archivos]) => [
+                clave,
+                new Set(archivos.map(nom => String(nom).toLowerCase().trim())),
+              ])
+            );
+            resolverMapeoTradicionalEnUI(archivosPorPar);
+          });
+        }
+
+        await Promise.all([...promesasDestino, promesaDisco]);
 
         // (el puntito de estado lo maneja la isla Preact features/conexionHeader.preact.js)
         const tabsBar = document.querySelector(".tabs-bar");
         if (tabsBar) tabsBar.style.display = "flex";
 
-        resolverMapeoEnUI(archivosPorPar);
+        cerrarSincronizacionDeDisco();
       } catch (errFetch) {
         console.error("❌ [UI-ERROR] Imposible conectar con el escáner de Bun:", errFetch.message);
         activarEstadoOfflineUI();
@@ -2752,6 +2778,8 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     }
 
     function calcularContadoresBoton() {
+      // [DESTINO CORTE 2b-4] Embudo de selección: clases bloqueadas nunca pueden quedar seleccionadas (D-4)
+      bloquearSeleccion(appState.listadoClasesGlobal);
       actualizarMasterCheckState();
       actualizarModoSeleccion();
 

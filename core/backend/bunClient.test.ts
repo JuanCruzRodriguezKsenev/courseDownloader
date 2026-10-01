@@ -368,3 +368,74 @@ describe('el portal viaja al backend (multiportal E)', () => {
     expect(url).toContain('sitio=ramonnet');
   });
 });
+
+describe('destino por índice (corte 2b-4)', () => {
+  const urlDe = (espia: { mock: { calls: unknown[][] } }) => String(espia.mock.calls[0]?.[0]);
+  const opcionesDe = (espia: { mock: { calls: unknown[][] } }) => (espia.mock.calls[0]?.[1] as RequestInit);
+
+  it('seleccionarCarpeta() sin argumento no agrega query', async () => {
+    const espia = vi.fn(async () => new Response(JSON.stringify({ success: true }), { status: 200 }));
+    globalThis.fetch = espia as unknown as typeof fetch;
+
+    await BunClient.seleccionarCarpeta();
+    expect(urlDe(espia)).toBe('http://localhost:3001/api/seleccionar-carpeta');
+  });
+
+  it('seleccionarCarpeta({ portal }) agrega ?portal=', async () => {
+    const espia = vi.fn(async () => new Response(JSON.stringify({ success: true }), { status: 200 }));
+    globalThis.fetch = espia as unknown as typeof fetch;
+
+    await BunClient.seleccionarCarpeta({ portal: 'google-classroom' });
+    expect(urlDe(espia)).toBe('http://localhost:3001/api/seleccionar-carpeta?portal=google-classroom');
+  });
+
+  it('indiceDestino() consulta GET /api/destino/indice con query portal', async () => {
+    const espia = vi.fn(async () => new Response(JSON.stringify({ ok: true, raiz: '/raiz', indice: {} }), { status: 200 }));
+    globalThis.fetch = espia as unknown as typeof fetch;
+
+    const res = await BunClient.indiceDestino('google-classroom');
+    expect(res).toEqual({ ok: true, raiz: '/raiz', indice: {} });
+    expect(urlDe(espia)).toBe('http://localhost:3001/api/destino/indice?portal=google-classroom');
+  });
+
+  it('indiceDestino() devuelve { ok: false, indiceIlegible: true } si el backend responde índice ilegible', async () => {
+    const espia = vi.fn(async () => new Response(JSON.stringify({ ok: false, indiceIlegible: true, error: 'JSON roto' }), { status: 200 }));
+    globalThis.fetch = espia as unknown as typeof fetch;
+
+    const res = await BunClient.indiceDestino('google-classroom');
+    expect(res).toEqual({ ok: false, indiceIlegible: true, error: 'JSON roto' });
+  });
+
+  it('indiceDestino() lanza error de red si fetch falla', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    await expect(BunClient.indiceDestino('google-classroom')).rejects.toThrow('Failed to fetch');
+  });
+
+  it('estadoDestino() envía POST /api/destino/estado con body y devuelve resultado', async () => {
+    const mockRes = { ok: true, items: [{ idArchivo: '1', estado: 'descargado' }] };
+    const espia = vi.fn(async () => new Response(JSON.stringify(mockRes), { status: 200 }));
+    globalThis.fetch = espia as unknown as typeof fetch;
+
+    const payload = { sitio: 'google-classroom', curso: { id: 'c1' }, items: [] };
+    const res = await BunClient.estadoDestino(payload);
+
+    expect(res).toEqual(mockRes);
+    expect(urlDe(espia)).toBe('http://localhost:3001/api/destino/estado');
+    const opts = opcionesDe(espia);
+    expect(opts.method).toBe('POST');
+    expect(JSON.parse(opts.body as string)).toEqual(payload);
+  });
+
+  it('estadoDestino() devuelve { ok: false, indiceIlegible: true } si el índice está roto', async () => {
+    const espia = vi.fn(async () => new Response(JSON.stringify({ ok: false, indiceIlegible: true, error: 'corrupto' }), { status: 200 }));
+    globalThis.fetch = espia as unknown as typeof fetch;
+
+    const res = await BunClient.estadoDestino({ sitio: 'google-classroom' });
+    expect(res).toEqual({ ok: false, indiceIlegible: true, error: 'corrupto' });
+  });
+
+  it('estadoDestino() lanza error ante fallo de red o servidor caído', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    await expect(BunClient.estadoDestino({ sitio: 'google-classroom' })).rejects.toThrow('Failed to fetch');
+  });
+});

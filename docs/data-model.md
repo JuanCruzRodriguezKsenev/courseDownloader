@@ -99,8 +99,21 @@ adopta la vieja, la borra al adoptarla, y con las dos presentes gana la nueva.
                                   // portal entrega la URL firmada, o `acceso:<url>:<título>` en Classroom.
                                   // Se resuelve al BAJAR, no al escanear
   bytes?: number,                 // sólo en adjuntos: peso declarado por el portal, para la UI
+  cursoId?: string,               // [Corte 2b-4] id del curso en el portal (Classroom, D-1)
+  cursoNombre?: string,           // [Corte 2b-4] nombre del curso en el portal (Classroom, D-1)
+  tema?: string,                  // [Corte 2b-4] tema del ítem dentro del curso (Classroom, D-1)
+  publicacion?: string,           // [Corte 2a] título de la publicación donde salió el adjunto (Classroom, RN-7a)
+  anuncio?: string,               // [Corte 2a] texto del anuncio en Novedades (Classroom, RN-16a)
   catedra?: "A"|"B"|"C"|"D"|"COMUN",
   estado: "pending" | "process" | "downloaded",
+  destino?: {                     // [Corte 2b-4] destino resuelto en el árbol del dueño
+    ruta: string | null,
+    nombre: string | null,
+    claveCurso: string,
+    original: string
+  },
+  bloqueo?: "sin-asociar" | "indice-ilegible" | "omitido", // [Corte 2b-4] impide selección y encolado (D-4, D-5)
+  sinAsignar?: boolean,           // [Corte 2b-4] true si el tema no tiene carpeta asignada en el índice (AC-9)
   resultadoDestino?: "escrito" | "descartado" | "existente", // [Corte 2b-3] resultado del backend al guardar en destino (D-4)
   seleccionado: boolean,          // checkbox en la UI
   visible: boolean                // resultado del filtro activo (computado, no persistente en la práctica)
