@@ -210,6 +210,34 @@ Eventos de ciclo de vida (`EventoRecorrido` vía mensaje IPC `recorrido_evento` 
 Mensajes IPC directos al popup:
 - `escaneo_progreso`: enviado por el scraper en modo un curso directamente al popup vía `chrome.runtime.sendMessage({ action: "escaneo_progreso", idEscaneo, fase, verMas, publicaciones, archivos, nombre? })` para actualizar el loader en vivo sin pasar por `storage`.
 
+### Índice de destino (`.course-downloader.json`)
+
+Persistido en disco en la raíz de cada portal que soporte destino por índice (Google Classroom: `~/Boveda/Areas/Facultad/.course-downloader.json`, ADR-0017, ADR-0018). Gestionado por el backend Bun (`backend/destino/`) y consumido por la extensión vía `/api/destino/*`.
+
+```ts
+interface Indice {
+  version: 1;
+  cursos: Record<string, CursoIndice>;
+  archivos: Record<string, ArchivoIndice>;
+}
+
+interface CursoIndice {
+  nombre: string;
+  materia: string;
+  docente: string;
+  temas: Record<string, string>; // tema -> carpeta relativa a materia. "." es raíz; "-" indica tema omitido (RN-31)
+  omitidos?: string[];           // array de claves de archivo (<portal>:<id>) que no se descargan (RN-31)
+}
+
+interface ArchivoIndice {
+  curso: string;
+  nombre: string;
+  ruta: string;
+  md5: string;                   // 32 caracteres hex
+  original: string;
+}
+```
+
 ## `chrome.storage.session` — volátil, sobrevive a la suspensión del Service Worker pero no a un reinicio del navegador
 
 Encapsulado por `SessionState` (`core/cola/estadoSesion.ts`, tipado y con sus defaults; estuvo inline en `background.js` hasta la Fase 6b). Es la fuente de verdad del **progreso de la descarga activa** — nunca se lee/escribe desde el popup directamente, solo vía el mensaje IPC `obtener_estados_en_progreso`.

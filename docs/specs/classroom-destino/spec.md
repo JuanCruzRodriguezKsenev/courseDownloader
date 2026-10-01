@@ -88,7 +88,7 @@ transformación de texto.
 - **RN-9** — Un tema que aparece después de asociar el curso va a la raíz de la materia y queda
   marcado como sin asignar hasta que el dueño le fije carpeta.
 - **RN-10** — Del tema de cronogramas se baja sólo el del cuatrimestre en curso, a la raíz de la
-  materia, como `cronograma_AAAA_Nc.<ext>`. Los semanales no se bajan.
+  materia, como `cronograma_AAAA_Nc.<ext>`. Los semanales no se bajan. *(2b implementa sólo lo ya decidido: ver RN-31 y PA-5)*.
 
 ### Nombres
 
@@ -158,6 +158,10 @@ transformación de texto.
   vuelve a crear aunque no esté en la ruta anotada ni su md5 aparezca en la raíz. Editarlo,
   moverlo o borrarlo es decisión del dueño. Para que vuelva a crearse, se borra su entrada del
   índice. *(Dueño, 2026-09-28; cierra PA-4.)*
+
+### Omisiones
+
+- **RN-31** — Lo que el dueño marcó para no bajar (un tema con `-` o un archivo en `omitidos`) no se ofrece; la extensión lo lista marcado como omitido. *(Dueño, A-2, 2026-09-28; guardado en el índice por el corte 2b.)*
 
 ---
 
@@ -233,8 +237,12 @@ La fila 0b va antes que la 2 y la 3 porque un acceso editado tiene otro md5: sin
         "Guía de TP Nº 3": "Practicas",
         "Laboratorios": "Laboratorios",
         "Bibliografía": "Bibliografia",
-        "Cronogramas": "."
-      }
+        "Cronogramas": ".",
+        "Cuestiones administrativas": "-"
+      },
+      "omitidos": [
+        "google-classroom:1WxLl0KPy7o4OxC_yV9nV6-GF0MUazG5c"
+      ]
     }
   },
   "archivos": {
@@ -242,14 +250,14 @@ La fila 0b va antes que la 2 y la 3 porque un acceso editado tiene otro md5: sin
       "curso": "google-classroom:ODc0ODk1NDcwNTMw",
       "nombre": "05_capacitores.pdf",
       "ruta": "Ingenieria/Fisica 2/Teorias/Palacio",
-      "md5": "3f2a9c1b8e4d7a6f",
+      "md5": "3f2a9c1b8e4d7a6f3f2a9c1b8e4d7a6f",
       "original": "Palacio - Clase 5 - Capacitores.pdf"
     },
     "google-classroom:acceso:https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DAbC:Campo%20el%C3%A9ctrico": {
       "curso": "google-classroom:ODc0ODk1NDcwNTMw",
       "nombre": "campo_electrico.md",
       "ruta": "Ingenieria/Fisica 2/Teorias/Palacio",
-      "md5": "9b1c3d5e7f0a2b4c",
+      "md5": "9b1c3d5e7f0a2b4c9b1c3d5e7f0a2b4c",
       "original": "Campo eléctrico"
     }
   }
@@ -261,11 +269,12 @@ La fila 0b va antes que la 2 y la 3 porque un acceso editado tiene otro md5: sin
 | `version` | Entero. Permite migrar el formato sin adivinar. |
 | `cursos.<portal>:<id>` | El id del portal (`google-classroom`) y el id de curso de su URL. El prefijo existe porque la raíz es de la UNLP, no de Classroom: los Moodle de la UNLP van a escribir en el mismo índice (dueño, 2026-09-27). |
 | `cursos.<clave>.materia` | Ruta relativa a la raíz. Tiene que existir (RN-1). |
-| `cursos.<clave>.temas.<tema>` | Ruta relativa a la materia. `"."` es la raíz de la materia. |
+| `cursos.<clave>.temas.<tema>` | Ruta relativa a la materia. `"."` es la raíz de la materia. `"-"` indica tema omitido que no se ofrece para descargar (RN-31). |
+| `cursos.<clave>.omitidos` | Array de claves de archivo (`<portal>:<id>`). Archivos que el dueño omitió; la extensión los lista marcados como omitidos y deshabilitados (RN-31). |
 | `archivos.<portal>:<id>` | El portal, `:`, y el id de archivo: id de Drive para los adjuntos, `acceso:<url>:<título>` para los accesos (RN-29). Es la identidad estable, y la misma que viaja por el pipeline — no se inventa un eje nuevo (ADR-0014). |
 | `archivos.<clave>.nombre` | El nombre final, editado o propuesto. |
 | `archivos.<clave>.ruta` | Ruta relativa a la raíz. La corrige RN-19. |
-| `archivos.<clave>.md5` | Se calcula una vez al bajar y no se recalcula. En un `.md` es informativo: no decide nada, porque manda RN-30. |
+| `archivos.<clave>.md5` | Se calcula una vez al bajar y no se recalcula (32 caracteres hexadecimales). En un `.md` es informativo: no decide nada, porque manda RN-30. |
 | `archivos.<clave>.original` | El nombre de Classroom. Sólo para que el dueño se ubique. |
 
 **Retención**: nada se borra automáticamente. Un curso que desaparece de Classroom conserva su
@@ -573,7 +582,7 @@ Decididos por el dueño el 2026-09-27. Cada uno es una rama y un plan.
 | Corte | Qué entrega | Reglas |
 |---|---|---|
 | **2a — Adopción** | Script de una sola corrida: lleva `verificacion-b` a la raíz (se aplicó en la bóveda, `32136ca`) con los nombres que el dueño eligió y hace nacer el índice. No toca la extensión. Plan: `docs/plan-classroom-destino-2a-adopcion.md` | RN-1, 3–8, 11, 12, 15–17, 20, 21, 23–26, 28, 30 (en su forma de adopción); PA-2, PA-3 |
-| **2b — La extensión usa el índice** | Raíz por portal; "ya descargado" y descarga a la carpeta del tema según la tabla de decisión; tema nuevo sin asignar; índice ilegible | RN-2, 3a, 9, 10, 17, 18–22, 25, 27, 29, 29a, 30 |
+| **2b — La extensión usa el índice** ✅ 2026-10-01 | Raíz por portal; "ya descargado" y descarga a la carpeta del tema según la tabla de decisión; tema nuevo sin asignar; índice ilegible; omisiones migradas. Planes: 01 a 06 en `~/Boveda/Proyectos/courseDownloader/Planes/` | RN-2, 3a, 9, 10, 17, 18–22, 25, 27, 29, 29a, 30, 31 |
 | **2c — Pantallas** | Asociar un curso nuevo; editar el nombre en la lista y recordarlo | RN-1, 4, 7, 13, 14 |
 
 ## Medición de respaldo — cruce del árbol contra lo descargado (2026-09-16)
@@ -605,6 +614,11 @@ ya poblado.
   quedan dos notas. RN-30 sólo lo protege si sigue en su lugar. **Recomendación** (tanda): para los
   `.md` de acceso, si el id está en el índice no se vuelve a crear nunca, esté donde esté. Costo: un
   acceso movido y después borrado no vuelve. El dueño todavía no la decidió.
+- **PA-5** *(abierta 2026-10-01, para el corte 2b/2c)* — **RN-10 se parte en dos.** Se cumple para lo
+  ya decidido (omisiones migradas en el corte 2b por RN-31). La regla mecánica para cronogramas
+  **nuevos** queda abierta con la medición en su texto: un solo cronograma en todo el índice real
+  y tres nombres de tema. No se puede derivar de los nombres; implementarla sería adivinar. El editor
+  (plan 07) dejará marcar un archivo como omitido a mano.
 
 ## Mediciones pendientes
 

@@ -30,10 +30,12 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **61 archivos, 981 tests**, todo en verde |
+| `pnpm test` | **62 archivos, 987 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 987** (2026-10-01, plan `06 - 2b-6 Cierre del corte 2b`). Son los 981 de abajo más **+6** tests y **+1** archivo nuevo en `backend/adopcion/migrar-omitidos.test.js` (suite de migrar-omitidos: agrega el tema '-' y los omitidos; idempotente con 0 cambios y archivo byte-idéntico; clave_curso desconocido aborta sin escribir; tema que ya tiene carpeta no se pisa; --ensayo no escribe; campos y entradas existentes quedan intactos; 0 → 6 tests).
 
 **De dónde sale el 981** (2026-10-01, plan `05 - 2b-5 Lo que ve el dueño en la lista`). Son los 968 de abajo más **+13** tests:
 **+6** en `popup/features/listaClases.preact.test.js` (suite de FilaClase con destino y bloqueos: render sin destino ni bloqueo idéntico al previo, fila con destino mostrando nombre, title con original/ruta y pastilla con dos segmentos D-1, sinAsignar con prefijo ⚠ y clase chip-sin-asignar D-2/AC-9, bloqueo omitido con checkbox disabled y pastilla omitido D-3, bloqueo sin-asociar con checkbox disabled y click inerte RN-2, y resultadoDestino descartado con title «Ya lo tenías» D-6/A3; 39 → 45 tests),
