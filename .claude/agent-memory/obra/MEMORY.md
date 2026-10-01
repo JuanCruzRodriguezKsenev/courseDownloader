@@ -19,6 +19,7 @@
 - [Classroom: Sub-corte 2b-1 backend y propuesta](project_classroom_destino_2b1_backend.md) — raíz por portal, servicio atómico del índice, propuesta pura de destino y cálculo de estado
 - [Classroom: Sub-corte 2b-2 backend escritura y decisión](project_classroom_destino_2b2_backend_escritura.md) — escritura en árbol de destino, preservación de destino, decisión al finalizar y rechazo por ocupado
 - [Classroom: Sub-corte 2b-3 cola baja a destino](project_classroom_destino_2b3_cola_extension.md) — ItemCola.destino (RN-20, D-1), cabeceras x-destino-*, resultadoDestino (D-4), errores D-3 y accesos .md con frontmatter D-5
+- [Classroom: Sub-corte 2b-4 curso viaja con adjunto y estado al backend](project_classroom_destino_2b4_curso_y_estado.md) — EnlaceListado con cursoId/tema, BunClient estadoDestino/indiceDestino, feature destino.js, bloqueo D-4 y cableado en popup.js
 
 
 
