@@ -87,8 +87,8 @@ transformación de texto.
 - **RN-8** — Los adjuntos de Novedades y los de "Sin tema" van a la raíz de la materia.
 - **RN-9** — Un tema que aparece después de asociar el curso va a la raíz de la materia y queda
   marcado como sin asignar hasta que el dueño le fije carpeta.
-- **RN-10** — Del tema de cronogramas se baja sólo el del cuatrimestre en curso, a la raíz de la
-  materia, como `cronograma_AAAA_Nc.<ext>`. Los semanales no se bajan. *(2b implementa sólo lo ya decidido: ver RN-31 y PA-5)*.
+- **RN-10** — Los cronogramas (tanto cuatrimestrales como semanales) se descargan a la raíz de la
+  materia (`.`), porque aportan fechas relevantes para el calendario de estudio del alumno (dueño, 2026-10-01).
 
 ### Nombres
 
