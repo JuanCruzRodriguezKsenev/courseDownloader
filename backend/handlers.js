@@ -7,6 +7,7 @@ import { sanitizarNombreArchivo, esRutaSegura } from "./utils.js";
 import { leerIndice, ErrorIndiceIlegible } from "./destino/indiceServicio.js";
 import { calcularEstado } from "./destino/estado.js";
 import { validarDestino, finalizarEnDestino, PORTALES_CON_DESTINO_INDICE } from "./destino/escritura.js";
+import { guardarVisto } from "./destino/vistos.js";
 
 export const PORTALES_VALIDOS = new Set(["ramonnet", "anatomy-by-chris", "google-classroom"]);
 
@@ -552,6 +553,32 @@ export async function handleDestinoEstado(request, corsHeaders) {
       });
     }
     return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: corsHeaders,
+    });
+  }
+}
+
+/**
+ * POST /api/destino/curso-visto
+ */
+export async function handleDestinoCursoVisto(request, corsHeaders) {
+  try {
+    const body = await request.json();
+    const { sitio, curso, items } = body || {};
+    if (!curso || (!curso.id && !curso.idCurso && !curso.clave)) {
+      return new Response(JSON.stringify({ ok: false, error: "Falta identificar el curso." }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    guardarVisto({ sitio, curso, items });
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    return new Response(JSON.stringify({ ok: false, error: err.message }), {
       status: 500,
       headers: corsHeaders,
     });

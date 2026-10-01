@@ -30,10 +30,15 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **62 archivos, 988 tests**, todo en verde |
+| `pnpm test` | **64 archivos, 1010 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 1010** (2026-10-01, plan `07 - 2c-1 Editor web sobre el índice real`). Son los 988 de abajo más **+22** tests repartidos en **+2** archivos nuevos:
+- **+3** en `core/destino/propuesta.test.ts` (suite de `curso.nombres` en D-3: prefiere `curso.nombres?.[clave]` sobre propuesta si no está descargado, no altera nombre con `renombrarChoques`, y no pisa archivo ya descargado en disco; 8 → 11 tests),
+- **+11** en el archivo nuevo `core/destino/vistas.test.ts` (funciones puras para el editor web: `invertirCarpeta` pura y simétrica D-6, `indiceAFilasEditor` con orden y formato, `filasEditorAIndice` con ida y vuelta byte-idéntica D-6, rechazo de cambio de materia en curso ya asociado D-4, preservación de carpetas manuales no editables, omitidos y `curso.nombres`),
+- y **+8** en el archivo nuevo `backend/adopcion/editor.test.js` (suite de adopción y modo índice: `GET /api/datos` con y sin `modo=indice`, `vacio: true` sin vistos D-2, `POST /api/guardar` con modificación atómica de índice, 409 con índice ilegible, `POST /api/ensayo` con filas resultantes D-8, y compatibilidad con TSV tradicional).
 
 **De dónde sale el 988** (2026-10-01). Son los 987 de abajo más **+1** test en `sitio/google-classroom/scraper.test.js` (test 5e: ignora enlaces a meet.google.com porque son reuniones efímeras; 42 → 43 tests).
 

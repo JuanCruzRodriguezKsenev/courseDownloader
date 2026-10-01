@@ -227,6 +227,7 @@ interface CursoIndice {
   docente: string;
   temas: Record<string, string>; // tema -> carpeta relativa a materia. "." es raíz; "-" indica tema omitido (RN-31)
   omitidos?: string[];           // array de claves de archivo (<portal>:<id>) que no se descargan (RN-31)
+  nombres?: Record<string, string>; // mapa clave de archivo -> nombre personalizado antes de bajar (RN-14, D-3)
 }
 
 interface ArchivoIndice {

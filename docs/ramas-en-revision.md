@@ -16,6 +16,12 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## 🚧 En revisión
 
+Corte 2c en curso en la rama `classroom-destino-2c`:
+- **Plan 07 completado** (`07 - 2c-1 Editor web sobre el índice real.md`): editor web de adopción reutilizado con `?modo=indice`, `POST /api/destino/curso-visto` en memoria, `cursos.<clave>.nombres` en índice, preservación de materias/carpetas no editables, e inversión simétrica con `invertirCarpeta`.
+- **Compuerta**: 64 archivos / 1010 tests (ver `docs/testing.md` §Baseline).
+- **Humo jsdom**: `humo-editor.js` y `humo-editor-indice.js` en verde (errores: 0).
+- Pendiente: planes restantes del corte 2c (08 y 09).
+
 Corte 2b en curso en la rama `classroom-destino-2b`: construcción finalizada (planes 01 a 06). Pendiente verificación en navegador (V-0..V-9).
 
 `classroom-destino-2b`: Corte 2b del destino de Google Classroom.

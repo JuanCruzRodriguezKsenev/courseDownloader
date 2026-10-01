@@ -6,7 +6,7 @@
 
 import { PORT, HOST, VERSION, CARPETA_RAIZ_VIDEOS, EXTENSION_ID_ORIGEN } from "./config.js";
 import { acumuladorChunks, abortarDescargaYLimpiar } from "./accumulator.js";
-import { handleHealth, handleEscanearDisco, handleActualizarConsola, handleBypassStream, handleSeleccionarCarpeta, handleCancelarDescarga, handleDestinoIndice, handleDestinoEstado } from "./handlers.js";
+import { handleHealth, handleEscanearDisco, handleActualizarConsola, handleBypassStream, handleSeleccionarCarpeta, handleCancelarDescarga, handleDestinoIndice, handleDestinoEstado, handleDestinoCursoVisto } from "./handlers.js";
 import { crearManejadorEditor, opcionesPorDefecto } from "./adopcion/editor.js";
 
 const manejarAdopcion = crearManejadorEditor(opcionesPorDefecto(), "/adopcion");
@@ -88,6 +88,9 @@ Bun.serve({
     }
     if (url.pathname === "/api/destino/estado" && request.method === "POST") {
       return handleDestinoEstado(request, corsHeaders);
+    }
+    if (url.pathname === "/api/destino/curso-visto" && request.method === "POST") {
+      return handleDestinoCursoVisto(request, corsHeaders);
     }
 
     if (url.pathname === "/adopcion" || url.pathname.startsWith("/adopcion/")) {

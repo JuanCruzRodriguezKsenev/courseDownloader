@@ -131,6 +131,72 @@ describe("core/destino/propuesta.ts", () => {
     expect(props[1]!.nombre).toContain("distribucion_de_aulas");
   });
 
+  it("nombre del dueño en curso.nombres gana sobre la propuesta (D-3, RN-14)", () => {
+    const cursoConNombres: CursoIndice = {
+      ...cursoBase,
+      nombres: {
+        "google-classroom:a1": "05_capacitores_editado_por_duenio.pdf",
+      },
+    };
+    const items = [
+      { idArchivo: "a1", original: "05_capacitores.pdf", tema: "Clases Teóricas" },
+    ];
+    const props = proponerParaCurso({ curso: cursoConNombres, items });
+
+    expect(props[0]!.nombre).toBe("05_capacitores_editado_por_duenio.pdf");
+  });
+
+  it("archivo ya bajado gana sobre curso.nombres y sobre la propuesta (D-3)", () => {
+    const cursoConNombres: CursoIndice = {
+      ...cursoBase,
+      nombres: {
+        "google-classroom:a1": "nombre_en_nombres.pdf",
+      },
+    };
+    const archivos: Record<string, ArchivoIndice> = {
+      "google-classroom:a1": {
+        curso: "google-classroom:c1",
+        nombre: "nombre_ya_bajado.pdf",
+        ruta: "Teorias/Palacio/nombre_ya_bajado.pdf",
+        md5: "abc",
+        original: "05_capacitores.pdf",
+      },
+    };
+    const items = [
+      { idArchivo: "a1", original: "05_capacitores.pdf", tema: "Clases Teóricas" },
+    ];
+    const props = proponerParaCurso({ curso: cursoConNombres, items, archivos });
+
+    expect(props[0]!.nombre).toBe("nombre_ya_bajado.pdf");
+  });
+
+  it("nombre del dueño no se renombra ante choques (el nombre es final)", () => {
+    const cursoConNombres: CursoIndice = {
+      ...cursoBase,
+      nombres: {
+        "google-classroom:doc1": "plantilla.docx",
+      },
+    };
+    const items = [
+      {
+        idArchivo: "doc1",
+        original: "plantilla.docx",
+        tema: "Guías de TP",
+        publicacion: "Laboratorio 1",
+      },
+      {
+        idArchivo: "doc2",
+        original: "plantilla.docx",
+        tema: "Guías de TP",
+        publicacion: "Laboratorio 2",
+      },
+    ];
+    const props = proponerParaCurso({ curso: cursoConNombres, items });
+
+    expect(props[0]!.nombre).toBe("plantilla.docx");
+    expect(props[1]!.nombre).toBe("plantilla_laboratorio_2.docx");
+  });
+
   it("curso sin asociar devuelve carpeta: null (RN-2)", () => {
     const items = [{ idArchivo: "x1", original: "clase.pdf", tema: "Tema 1" }];
     const props = proponerParaCurso({ curso: null, items });

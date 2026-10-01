@@ -40,8 +40,13 @@ Lo que la extensión **espera** del backend, derivado de `core/backend/bunClient
 | `POST /api/actualizar-consola` | JSON `{ titulo, porcentaje, terminados, totales, velocidad }` | Sólo el status; los fallos se tragan (telemetría a la consola gráfica del server). |
 | `GET /api/destino/indice?portal=<id>` | query opcional `portal` | JSON `{ ok: true, raiz: string, indice: Indice }`. Si el archivo `.course-downloader.json` no parsea (RN-25): status 200 `{ ok: false, indiceIlegible: true, error: string }`. |
 | `POST /api/destino/estado` | JSON `{ sitio: string, curso: { id: string, nombre: string }, items: [...] }` | JSON `{ ok: true, raiz: string, curso: { asociado: boolean, materia?: string, docente?: string }, items: [{ idArchivo, estado, fila, rutaDestino, nombre, sinAsignar, omitido }] }`. Si el índice no parsea: status 200 `{ ok: false, indiceIlegible: true, error: string }`. |
+| `POST /api/destino/curso-visto` | JSON `{ sitio: string, curso: { id: string, nombre: string }, items: [...] }` | JSON `{ ok: true }`. Guarda el escaneo en memoria para el editor web (D-2). Mismos corsHeaders que `/api/destino/estado`. |
 
-Fuera de la tabla anterior —porque no lo consume la extensión vía `BunClient` sino el usuario en el navegador—, el servidor monta en `/adopcion/` el editor web de los TSV de adopción de Classroom (`backend/adopcion/editor.js`). Es un endpoint temporal del corte 2a; lee `~/Descargas/adopcion-classroom` y `~/Boveda/Areas/Facultad` (`RAIZ_FACULTAD`, `backend/adopcion/raiz.js`) fijos (no usa `config_usuario.json`), y sus rutas `POST` rechazan cualquier pedido cuyo `Origin` difiera del propio servidor.
+Fuera de la tabla anterior —porque no lo consume la extensión vía `BunClient` sino el usuario en el navegador—, el servidor monta en `/adopcion/` el editor web (`backend/adopcion/editor.js`). Tiene dos modos por query (D-1):
+- **Sin query (modo TSV)**: el editor de adopción de Classroom del corte 2a; lee `~/Descargas/adopcion-classroom` y `~/Boveda/Areas/Facultad` (`RAIZ_FACULTAD`, `backend/adopcion/raiz.js`) fijos y edita los TSV.
+- **`?modo=indice[&curso=<clave>]` (modo índice, corte 2c)**: opera directamente sobre el índice real `.course-downloader.json` y los cursos en memoria de `/api/destino/curso-visto` (D-2). `GET api/datos` traduce el índice y los vistos a filas con `indiceAFilasEditor` (D-6); `POST api/guardar` valida y escribe el índice atómicamente con `filasEditorAIndice` y `modificarIndice`; `POST api/ensayo` responde texto informativo (D-8). Si el índice es ilegible responde status 409 (`indiceIlegible: true`).
+
+En ambos modos sus rutas `POST` rechazan cualquier pedido cuyo `Origin` difiera del propio servidor (403).
 
 ### El layout en disco lleva el portal
 

@@ -572,9 +572,19 @@
 
     async function cargarDatos() {
       try {
-        const res = await fetch("api/datos");
-        if (!res.ok) throw new Error("Error HTTP " + res.status);
+        const res = await fetch("api/datos" + location.search);
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || ("Error HTTP " + res.status));
+        }
         DATOS = await res.json();
+        if (DATOS.vacio) {
+          const main = document.querySelector("main.contenedor");
+          if (main) {
+            main.innerHTML = `<div id="editor-vacio" style="padding: 40px; text-align: center; color: var(--text-muted); font-size: 14px;">${DATOS.error || "No hay cursos escaneados en memoria. Volvé a abrir esto desde el popup."}</div>`;
+          }
+          return;
+        }
         ESTADO_INICIAL_JSON = JSON.stringify({
           cursos: DATOS.cursos,
           temas: DATOS.temas,
@@ -677,6 +687,10 @@
 
     function elegirCursoInicial() {
       if (CURSO_ACTIVO && DATOS.cursos.some((c) => c.clave_curso === CURSO_ACTIVO)) {
+        return;
+      }
+      if (DATOS.claveCursoActivo && DATOS.cursos.some((c) => c.clave_curso === DATOS.claveCursoActivo)) {
+        CURSO_ACTIVO = DATOS.claveCursoActivo;
         return;
       }
 
@@ -791,11 +805,22 @@
       const contCabecera = document.getElementById("cabecera-curso");
       contCabecera.innerHTML = "";
 
+      const esModoIndice = new URLSearchParams(location.search).get("modo") === "indice";
       const divTitulo = document.createElement("div");
       divTitulo.className = "curso-titulo-cabecera";
       const h2 = document.createElement("h2");
-      h2.textContent = curso.nombre;
-      divTitulo.appendChild(h2);
+      if (esModoIndice && (!curso.materia || curso.materia.trim().length === 0)) {
+        h2.textContent = "Asociar curso";
+        const divSub = document.createElement("div");
+        divSub.style.color = "var(--text-muted)";
+        divSub.style.fontSize = "14px";
+        divSub.textContent = curso.nombre;
+        divTitulo.appendChild(h2);
+        divTitulo.appendChild(divSub);
+      } else {
+        h2.textContent = curso.nombre;
+        divTitulo.appendChild(h2);
+      }
       contCabecera.appendChild(divTitulo);
 
       const tablaScroll = document.createElement("div");
@@ -835,6 +860,9 @@
         selectMateria.appendChild(opt);
       }
       selectMateria.value = curso.materia || "";
+      if (esModoIndice && curso.materia && curso.materia.trim().length > 0) {
+        selectMateria.disabled = true;
+      }
       tdMateria.appendChild(selectMateria);
       tr.appendChild(tdMateria);
 
@@ -1373,7 +1401,7 @@
       const btnGuardar = document.getElementById("btn-guardar");
       btnGuardar.disabled = true;
       try {
-        const res = await fetch("api/guardar", {
+        const res = await fetch("api/guardar" + location.search, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1391,7 +1419,11 @@
           });
           HAY_CAMBIOS = false;
           document.getElementById("aviso-cambios").classList.remove("visible");
-          mostrarResultado("Guardado", "Los cambios se guardaron correctamente en los archivos TSV.");
+          const esModoIndice = new URLSearchParams(location.search).get("modo") === "indice";
+          const mensajeExito = esModoIndice
+            ? "Los cambios se guardaron correctamente en el índice."
+            : "Los cambios se guardaron correctamente en los archivos TSV.";
+          mostrarResultado("Guardado", mensajeExito);
           return true;
         } else {
           const erroresTexto = (data.errores || []).join("\n");
@@ -1419,7 +1451,7 @@
         if (!guardoOk) return;
 
         mostrarResultado("Ejecutando ensayo...", "Corriendo aplicar.js...");
-        const res = await fetch("api/ensayo", { method: "POST" });
+        const res = await fetch("api/ensayo" + location.search, { method: "POST" });
         const data = await res.json();
 
         let salidaHtml = data.salida

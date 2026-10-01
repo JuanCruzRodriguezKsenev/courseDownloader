@@ -96,9 +96,9 @@ transformación de texto.
   separador, `NN_` si hay número de orden, `modN_` si hay módulo, extensión en minúscula.
 - **RN-12** — `modN_` sale del **nombre del tema** (`Clases teóricas - Módulo I` → `mod1_`), nunca
   del nombre del archivo.
-- **RN-13** — El dueño puede editar el nombre propuesto en la lista, antes de bajar.
+- **RN-13** — El dueño puede editar el nombre propuesto en la lista, antes de bajar. *(2c: el nombre editado antes de bajar vive en `cursos.<clave>.nombres`)*.
 - **RN-14** — El nombre editado se guarda en el índice **por id de Drive** y se reusa en todos los
-  escaneos siguientes. Un archivo se nombra una sola vez.
+  escaneos siguientes. Un archivo se nombra una sola vez. *(2c: el nombre editado antes de bajar vive en `cursos.<clave>.nombres`)*.
 - **RN-15** — En Parciales la extensión no infiere la fecha: propone `modN_<nombre>` y el dueño la
   escribe.
 - **RN-16** — Si dos archivos distintos quedan con el mismo nombre en la misma carpeta, **todos los
@@ -251,7 +251,10 @@ La fila 0b va antes que la 2 y la 3 porque un acceso editado tiene otro md5: sin
       },
       "omitidos": [
         "google-classroom:1WxLl0KPy7o4OxC_yV9nV6-GF0MUazG5c"
-      ]
+      ],
+      "nombres": {
+        "google-classroom:1a2b3c4d5e6f": "05_capacitores_editado.pdf"
+      }
     }
   },
   "archivos": {
@@ -280,6 +283,7 @@ La fila 0b va antes que la 2 y la 3 porque un acceso editado tiene otro md5: sin
 | `cursos.<clave>.materia` | Ruta relativa a la raíz. Tiene que existir (RN-1). |
 | `cursos.<clave>.temas.<tema>` | Ruta relativa a la materia. `"."` es la raíz de la materia. `"-"` indica tema omitido que no se ofrece para descargar (RN-31). |
 | `cursos.<clave>.omitidos` | Array de claves de archivo (`<portal>:<id>`). Archivos que el dueño omitió; la extensión los lista marcados como omitidos y deshabilitados (RN-31). |
+| `cursos.<clave>.nombres` | Diccionario de clave de archivo a nombre personalizado por el dueño antes de descargar (RN-14, D-3). |
 | `archivos.<portal>:<id>` | El portal, `:`, y el id de archivo: id de Drive para los adjuntos, `acceso:<url>:<título>` para los accesos (RN-29). Es la identidad estable, y la misma que viaja por el pipeline — no se inventa un eje nuevo (ADR-0014). |
 | `archivos.<clave>.nombre` | El nombre final, editado o propuesto. |
 | `archivos.<clave>.ruta` | Ruta relativa a la raíz. La corrige RN-19. |
@@ -297,6 +301,8 @@ entrada (RN-27).
 ## Wireframes
 
 ### Pantalla de asociación — estado base
+
+*(se implementa como el editor web del 3001, no como pantalla del popup — dueño, 2026-09-30)*
 
 ```
 ┌────────────────────────────────────────────────────────┐

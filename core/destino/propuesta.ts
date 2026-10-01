@@ -142,6 +142,9 @@ export function proponerParaCurso({
     if (archivos[clave]?.nombre) {
       nombreInicial = archivos[clave].nombre;
       fijoEnIndice = true;
+    } else if (curso.nombres?.[clave]) {
+      nombreInicial = curso.nombres[clave];
+      fijoEnIndice = true;
     } else {
       nombreInicial = proponerNombre({
         original: item.original,
