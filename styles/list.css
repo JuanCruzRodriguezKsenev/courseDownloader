@@ -280,6 +280,20 @@
     opacity: 1;
     font-weight: var(--font-bold);
   }
+
+  &.chip-sin-asignar {
+    --color-portal: var(--accent-warning-visible);
+    opacity: 1;
+    font-weight: var(--font-bold);
+    max-width: 14ch;
+  }
+
+  &.bloqueado {
+    --color-portal: var(--text-muted);
+    border-style: dashed;
+    opacity: 0.7;
+    max-width: 14ch;
+  }
 }
 
 /* Tarjeta de Error de Servidor Desconectado */

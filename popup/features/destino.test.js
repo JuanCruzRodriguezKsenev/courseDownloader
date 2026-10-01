@@ -3,6 +3,8 @@ import {
   aplicarEstadoDestino,
   bloquearSeleccion,
   puedeBajar,
+  notasDeDestino,
+  cardIndiceIlegible,
 } from "./destino.js";
 
 describe("popup/features/destino.js", () => {
@@ -453,6 +455,93 @@ describe("popup/features/destino.js", () => {
       expect(puedeBajar({ bloqueo: undefined })).toBe(true);
       expect(puedeBajar({})).toBe(true);
       expect(puedeBajar(null)).toBe(true);
+    });
+  });
+
+  describe("notasDeDestino()", () => {
+    it("sin cursos sin asociar y sin temas sin asignar devuelve cadena vacía (D-4)", () => {
+      expect(notasDeDestino([])).toBe("");
+      expect(notasDeDestino(null)).toBe("");
+      expect(notasDeDestino([
+        { id: 1, bloqueo: undefined, sinAsignar: false },
+        { id: 2, bloqueo: "omitido", sinAsignar: false },
+      ])).toBe("");
+    });
+
+    it("uno de cada: une las dos frases en una sola línea con ' · ' (D-4)", () => {
+      const clases = [
+        { id: 1, bloqueo: "sin-asociar", cursoNombre: "Física II" },
+        { id: 2, bloqueo: undefined, sinAsignar: true },
+      ];
+
+      const nota = notasDeDestino(clases);
+      expect(nota).toBe(
+        "1 curso sin asociar: Física II. Asocialo para poder bajar sus archivos. · 1 archivo en temas sin asignar va a la raíz de la materia."
+      );
+    });
+
+    it("maneja singular y plural correctamente para cursos y temas sin asignar", () => {
+      // 1 curso sin asociar (singular)
+      expect(notasDeDestino([
+        { id: 1, bloqueo: "sin-asociar", cursoNombre: "Álgebra" },
+        { id: 2, bloqueo: "sin-asociar", cursoNombre: "Álgebra" }, // mismo curso, no duplica
+      ])).toBe("1 curso sin asociar: Álgebra. Asocialo para poder bajar sus archivos.");
+
+      // N cursos sin asociar (plural)
+      expect(notasDeDestino([
+        { id: 1, bloqueo: "sin-asociar", cursoNombre: "Álgebra" },
+        { id: 2, bloqueo: "sin-asociar", cursoNombre: "Análisis II" },
+      ])).toBe("2 cursos sin asociar: Álgebra, Análisis II. Asocialos para poder bajar sus archivos.");
+
+      // 1 archivo en tema sin asignar (singular)
+      expect(notasDeDestino([
+        { id: 1, sinAsignar: true },
+      ])).toBe("1 archivo en temas sin asignar va a la raíz de la materia.");
+
+      // M archivos en temas sin asignar (plural)
+      expect(notasDeDestino([
+        { id: 1, sinAsignar: true },
+        { id: 2, sinAsignar: true },
+        { id: 3, sinAsignar: true },
+      ])).toBe("3 archivos en temas sin asignar van a la raíz de la materia.");
+    });
+
+    it("un nombre de curso con <b> queda como texto literal", () => {
+      const clases = [
+        { id: 1, bloqueo: "sin-asociar", cursoNombre: "<b>Curso Inyectado</b>" },
+      ];
+
+      const nota = notasDeDestino(clases);
+      expect(nota).toBe(
+        "1 curso sin asociar: <b>Curso Inyectado</b>. Asocialo para poder bajar sus archivos."
+      );
+    });
+  });
+
+  describe("cardIndiceIlegible()", () => {
+    it("genera la card de error con icono, título y texto «El archivo no se tocó» (D-5)", () => {
+      const card = cardIndiceIlegible("Línea 47: falta una coma.");
+      expect(card.tipo).toBe("error");
+      expect(card.icono).toBe("⛔");
+      expect(card.titulo).toBe("No se pudo leer .course-downloader.json");
+      expect(card.descripcion).toContain("Línea 47: falta una coma.");
+      expect(card.descripcion).toContain("El archivo no se tocó.");
+      expect(card.descripcion).toContain("No se va a bajar nada hasta que se arregle.");
+    });
+
+    it("la descripción escapa <script> y & preservando la seguridad ante contenido de disco (D-5, U-4)", () => {
+      const mensajeMalicioso = '<script>alert("xss")</script> & syntax error en "clave"';
+      const card = cardIndiceIlegible(mensajeMalicioso);
+
+      expect(card.descripcion).not.toContain("<script>");
+      expect(card.descripcion).toContain("&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;");
+      expect(card.descripcion).toContain("&amp; syntax error");
+      expect(card.descripcion).toContain("El archivo no se tocó.");
+    });
+
+    it("convierte saltos de línea en <br>", () => {
+      const card = cardIndiceIlegible("Error línea 1\nError línea 2");
+      expect(card.descripcion).toContain("Error línea 1<br>Error línea 2");
     });
   });
 });

@@ -375,7 +375,7 @@ import { html } from './popup/vendor/htm-preact-standalone.module.js';
 import { abrirCapa } from './popup/features/capa.preact.js';
 import Bloqueo from './popup/features/bloqueo.js';
 import { crearPisoVisible } from './popup/features/pisoVisible.js';
-import { aplicarEstadoDestino, bloquearSeleccion } from './popup/features/destino.js';
+import { aplicarEstadoDestino, bloquearSeleccion, notasDeDestino, cardIndiceIlegible } from './popup/features/destino.js';
 import FacetaFeature from './popup/features/faceta.js';
 import FilterFeature from './popup/features/filters.js';
 import OrdenFeature from './popup/features/orden.js';
@@ -552,6 +552,8 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     // no lo estuviera, ese destino ya se había descartado para el watchdog por quedar pisado
     // por el diagnóstico de conexión, que es de otro dueño.
     let escaneoMuerto = null;
+    // [CLASSROOM CORTE 2b-5] Error del backend cuando .course-downloader.json es inválido (D-5).
+    let errorIndiceIlegible = null;
     // [CLASSROOM CORTE 1] De la corrida, no del listado persistido (no va a appState).
     let adjuntosSinResolverUltimoEscaneo = 0;
     // [CLASSROOM ESCANEAR TODAS] Recorrido multi-curso
@@ -943,7 +945,17 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       try {
         mostrarLoader("Conectando con el servidor Bun...");
 
-        const ruta = await backend.obtenerRutaServidor();
+        let ruta = await backend.obtenerRutaServidor();
+        if (sitioActivo && sitioActivo.destinoPorIndice) {
+          try {
+            const resIndice = await backend.indiceDestino(sitioActivo.id);
+            if (resIndice && resIndice.raiz) {
+              ruta = resIndice.raiz;
+            }
+          } catch {
+            // si falla, conserva la ruta general
+          }
+        }
         if (ruta) {
           const tabsBar = document.querySelector(".tabs-bar");
           if (tabsBar) { tabsBar.style.display = "flex"; tabsBar.classList.remove('bloqueada'); }
@@ -1362,6 +1374,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     // menos armar la lista: ya está en appState desde inicializarSincronizacionStorage.
     function mostrarListaGuardada() {
       escaneoMuerto = null;
+      errorIndiceIlegible = null;
       const hayModulos = appState.listadoClasesGlobal.some(c => c && c.sitioId === sitioActivo.id && c.modulo);
       nodos.folder.placeholder = hayModulos ? "cada clase va a su módulo" : "carpeta de destino";
       appState.sincronizacionDiscoCompletada = false;
@@ -1593,6 +1606,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // hace el `finally` del payload cuando el escaneo TERMINA—, porque desbloquear ahora
       // habilitaría la toolbar sobre la tarjeta de error que sigue en pantalla.
       escaneoMuerto = null;
+      errorIndiceIlegible = null;
       adjuntosSinResolverUltimoEscaneo = 0;
 
       // [LOADERS — ítem 1b] ABANDONO EXPLÍCITO. Cada corrida se lleva su número; el watchdog lo
@@ -1894,6 +1908,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         nodos.btnAction.style.display = 'block';
       });
       ListaClases.setAtenuada(true); // atenúa la lista durante la sincronización (isla dueña de #ui-list)
+      errorIndiceIlegible = null;
 
       const subcarpetaFiltro = nodos.folder.value.trim().toLowerCase();
 
@@ -2030,7 +2045,23 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           });
         }
 
-        await Promise.all([...promesasDestino, promesaDisco]);
+        const [resultadosDestino] = await Promise.all([
+          Promise.all(promesasDestino),
+          promesaDisco,
+        ]);
+
+        const falloIndice = (resultadosDestino || []).find(r => r && r.indiceIlegible);
+        if (falloIndice) {
+          errorIndiceIlegible = falloIndice.indiceIlegible || "El archivo del índice está dañado.";
+        }
+
+        const raizDestino = (resultadosDestino || []).find(r => r && r.raiz)?.raiz;
+        if (raizDestino) {
+          RutaDisco.mostrar(raizDestino);
+          if (nodos.btnExplore) {
+            nodos.btnExplore.title = `Carpeta raíz actual: ${raizDestino} (Click para cambiar)`;
+          }
+        }
 
         // (el puntito de estado lo maneja la isla Preact features/conexionHeader.preact.js)
         const tabsBar = document.querySelector(".tabs-bar");
@@ -2059,7 +2090,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         reescanearSegunPestaña();
       } else if (modo === 'escanear-todos') {
         lanzarRecorridoTodos();
-      } else if (modo === 'sincronizar-disco') {
+      } else if (modo === 'sincronizar-disco' || modo === 'reintentar-indice') {
         ejecutarPaso2SincronizarDiscoVeloz();
       } else if (modo === 'descargar') {
         const elegidos = appState.listadoClasesGlobal.filter(c => c.seleccionado && c.estado === 'pending');
@@ -2155,6 +2186,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             icono: '⚠️'
           }});
         }
+        return;
+      }
+
+      if (errorIndiceIlegible) {
+        ListaClases.render({ modo: 'card', card: cardIndiceIlegible(errorIndiceIlegible) });
         return;
       }
 
@@ -2415,6 +2451,10 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             }
             if (adjuntosSinResolverUltimoEscaneo > 0) {
               partes.push(`⚠️ ${adjuntosSinResolverUltimoEscaneo} ${adjuntosSinResolverUltimoEscaneo === 1 ? "adjunto no terminó" : "adjuntos no terminaron"} de cargar y ${adjuntosSinResolverUltimoEscaneo === 1 ? "quedó" : "quedaron"} afuera. Probá Re-escanear 🔄.`);
+            }
+            const notaDestino = notasDeDestino(appState.listadoClasesGlobal);
+            if (notaDestino) {
+              partes.push(notaDestino);
             }
             return partes.length > 0 ? partes.join("\n") : null;
           })(),
@@ -2828,6 +2868,14 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         // el diagnóstico y el qué-hacer viven en la card (renderizarListadoInterfaz), el
         // botón sólo ofrece la acción.
         configurarBotonesUX("reintentar-cola", "Reintentar 🔄", reintentandoColaActivo);
+        nodos.btnAction.style.display = 'block';
+        nodos.btnStartQueue.style.display = 'none';
+        nodos.masterCheck.disabled = true;
+        return;
+      }
+
+      if (errorIndiceIlegible) {
+        configurarBotonesUX("reintentar-indice", "Reintentar 🔄", false);
         nodos.btnAction.style.display = 'block';
         nodos.btnStartQueue.style.display = 'none';
         nodos.masterCheck.disabled = true;

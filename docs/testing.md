@@ -30,10 +30,14 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **61 archivos, 968 tests**, todo en verde |
+| `pnpm test` | **61 archivos, 981 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 981** (2026-10-01, plan `05 - 2b-5 Lo que ve el dueño en la lista`). Son los 968 de abajo más **+13** tests:
+**+6** en `popup/features/listaClases.preact.test.js` (suite de FilaClase con destino y bloqueos: render sin destino ni bloqueo idéntico al previo, fila con destino mostrando nombre, title con original/ruta y pastilla con dos segmentos D-1, sinAsignar con prefijo ⚠ y clase chip-sin-asignar D-2/AC-9, bloqueo omitido con checkbox disabled y pastilla omitido D-3, bloqueo sin-asociar con checkbox disabled y click inerte RN-2, y resultadoDestino descartado con title «Ya lo tenías» D-6/A3; 39 → 45 tests),
+y **+7** en `popup/features/destino.test.js` (suite de notasDeDestino: vacío sin cursos sin asociar ni temas sin asignar, combinación en una línea con ' · ' D-4, plural y singular en cursos y temas, y curso con <b> literal; suite de cardIndiceIlegible: tipo error con icono ⛔ y texto «El archivo no se tocó» D-5, escape seguro de <script> y & U-4, y saltos de línea convertidos a <br>; 12 → 19 tests).
 
 **De dónde sale el 968** (2026-10-01, plan `04 - 2b-4 El curso viaja con cada adjunto y el popup pide el estado al backend`). Son los 945 de abajo más **+23** tests y **+1** archivo nuevo:
 **+1** en `sitio/google-classroom/scraper.test.js` (test 5d: los enlaces conservan cursoId, cursoNombre y tema, D-1; 41 → 42 tests),

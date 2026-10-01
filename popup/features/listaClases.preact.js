@@ -109,6 +109,14 @@ export function TarjetaEstado({ tipo, titulo, descripcion, icono }) {
     </div>`;
 }
 
+export function dosUltimosSegmentos(ruta) {
+  if (!ruta || typeof ruta !== 'string') return '';
+  const partes = ruta.split('/').filter(Boolean);
+  if (partes.length === 0) return ruta;
+  if (partes.length <= 2) return partes.join('/');
+  return partes.slice(-2).join('/');
+}
+
 // Port 1:1 del antiguo renderers.js construirFilaClaseDOM (ramas disponibles/cola).
 export function FilaClase({ clase, ctx }) {
   const { pestaña, sincronizado, enCurso, videoActivo, selectionMode, onCheckChange, onRemoverClick, overrideCarpeta, portalDe } = ctx;
@@ -124,35 +132,95 @@ export function FilaClase({ clase, ctx }) {
   const chipTipo = html`<span class="chip-tipo" title=${esAdjunto ? 'Material adjunto (PDF)' : 'Video'}
     >${esAdjunto ? '📄' : '🎬'}</span>`;
 
-  // ── Pastilla de MATERIA, pintada con el color del PORTAL ──────────────────────────────────
-  // Dos datos en un solo elemento, y a propósito: en la Cola —que mezcla portales— la fila no
-  // tenía CÓMO decir de dónde salía ni a qué carpeta iba. Sumar dos pastillas por fila en una
-  // lista de 28 px de alto es peor que resolverlo con el color de la que ya hacía falta.
-  //
-  // En Disponibles muestra el destino con el override aplicado (corte 2); en la Cola, la carpeta
-  // ya estampada. `portalDe` lo resuelve popup.js: la isla no conoce el registro de sitios.
+  // ── Pastilla de MATERIA / DESTINO / BLOQUEO ──────────────────────────────────────────────
+  // En Classroom con destino por índice:
+  // - Si está bloqueada (D-3): pastilla con el motivo ('sin asociar', 'omitido', 'índice ilegible').
+  // - Si tiene destino (D-1): muestra los dos últimos segmentos de `destino.ruta`.
+  // - Si el tema no está asignado (D-2): prefijo ⚠ y clase `chip-sin-asignar`.
+  // Sin destino ni bloqueo (Ramón Net / Anatomy): comportamiento previo intacto.
   const portal = portalDe ? portalDe(clase) : null;
-  const materia = disponibles
-    ? (overrideCarpeta || clase.modulo || clase.carpeta)
-    : clase.carpeta;
-  const conOverride = disponibles && !!overrideCarpeta && !!clase.modulo;
-  const chipMateria = materia
-    ? html`<span class="chip-materia ${conOverride ? 'override' : ''}"
+  const conBloqueo = Boolean(clase.bloqueo);
+  const conDestino = Boolean(clase.destino && clase.destino.ruta);
+
+  let textoMateria = null;
+  let titleMateria = null;
+  let clasesChipExtra = '';
+
+  if (conBloqueo) {
+    if (clase.bloqueo === 'omitido') {
+      textoMateria = 'omitido';
+      titleMateria = 'Marcado para no bajarse';
+    } else if (clase.bloqueo === 'sin-asociar') {
+      textoMateria = 'sin asociar';
+      titleMateria = portal ? `${portal.nombre} · sin asociar` : 'sin asociar';
+    } else if (clase.bloqueo === 'indice-ilegible') {
+      textoMateria = 'índice ilegible';
+      titleMateria = 'No se pudo leer .course-downloader.json';
+    } else {
+      textoMateria = clase.bloqueo;
+      titleMateria = clase.bloqueo;
+    }
+    clasesChipExtra = 'bloqueado';
+  } else if (conDestino) {
+    const segmentos = dosUltimosSegmentos(clase.destino.ruta);
+    if (clase.sinAsignar) {
+      textoMateria = `⚠ ${segmentos}`;
+      titleMateria = 'Este tema es nuevo: va a la raíz de la materia hasta que le asignes carpeta';
+      clasesChipExtra = 'chip-sin-asignar';
+    } else {
+      textoMateria = segmentos;
+      titleMateria = `${portal ? portal.nombre + ' · ' : ''}${clase.destino.ruta}`;
+    }
+  } else {
+    const materiaBase = disponibles
+      ? (overrideCarpeta || clase.modulo || clase.carpeta)
+      : clase.carpeta;
+    const conOverride = disponibles && !!overrideCarpeta && !!clase.modulo;
+    if (materiaBase) {
+      textoMateria = conOverride ? `→ ${materiaBase}` : materiaBase;
+      titleMateria = `${portal ? portal.nombre + ' · ' : ''}${conOverride ? 'va a ' : ''}${materiaBase}`;
+      if (conOverride) clasesChipExtra = 'override';
+    }
+  }
+
+  const chipMateria = textoMateria
+    ? html`<span class="chip-materia ${clasesChipExtra}"
              style=${portal && portal.color ? `--color-portal:${portal.color}` : ''}
-             title=${`${portal ? portal.nombre + ' · ' : ''}${conOverride ? 'va a ' : ''}${materia}`}
-           >${conOverride ? `→ ${materia}` : materia}</span>`
+             title=${titleMateria}
+           >${textoMateria}</span>`
     : null;
 
+  // ── Etiqueta y Título de la fila ──────────────────────────────────────────────────────────
+  // Con destino (D-1): la etiqueta muestra destino.nombre y el title el nombre original y ruta.
+  // Descartado / existente (D-6): el title incluye «Ya lo tenías: no se escribió nada».
+  const etiquetaTexto = (clase.destino && clase.destino.nombre)
+    ? clase.destino.nombre
+    : clase.titulo;
+
+  let titleFila = clase.titulo;
+  if (clase.destino) {
+    const orig = clase.destino.original || clase.titulo;
+    const rutaCompleta = [clase.destino.ruta, clase.destino.nombre].filter(Boolean).join('/');
+    titleFila = rutaCompleta ? `${orig} · ${rutaCompleta}` : orig;
+  }
+  if (clase.estado === 'downloaded' && (clase.resultadoDestino === 'descartado' || clase.resultadoDestino === 'existente')) {
+    titleFila = titleFila
+      ? `${titleFila} · Ya lo tenías: no se escribió nada`
+      : 'Ya lo tenías: no se escribió nada';
+  }
+
   const esActivo = clase.titulo === videoActivo && enCurso;
+  const estaBloqueado = conBloqueo;
   // En Disponibles no hay checkbox si no está sincronizado o ya está descargado/en fila.
+  // Si está bloqueado (omitido, sin-asociar, etc.), sí se muestra con disabled (D-3).
   const sinCheckbox = disponibles
-    ? (!sincronizado || clase.estado === 'downloaded' || clase.estado === 'process')
+    ? (!sincronizado || ((clase.estado === 'downloaded' || clase.estado === 'process') && !estaBloqueado))
     : esActivo;
   const tieneCheckbox = !sinCheckbox;
 
-  // Toda la fila alterna la selección, sólo en modo selección y sólo si hay checkbox.
+  // Toda la fila alterna la selección, sólo en modo selección y sólo si hay checkbox y no está bloqueada.
   const onRowClick = (e) => {
-    if (!tieneCheckbox) return;
+    if (!tieneCheckbox || estaBloqueado) return;
     if (e.target && e.target.matches && e.target.matches('input[type="checkbox"]')) return;
     if (!selectionMode) return;
     onCheckChange(clase, !clase.seleccionado);
@@ -160,8 +228,8 @@ export function FilaClase({ clase, ctx }) {
 
   const checkboxId = disponibles ? `chk-${clase.id}` : `chk-cola-${clase.id}`;
   const checkbox = tieneCheckbox
-    ? html`<input type="checkbox" id=${checkboxId} checked=${sel}
-             onChange=${(e) => onCheckChange(clase, e.target.checked)} />`
+    ? html`<input type="checkbox" id=${checkboxId} checked=${sel} disabled=${estaBloqueado}
+             onChange=${(e) => { if (!estaBloqueado) onCheckChange(clase, e.target.checked); }} />`
     : html`<div class="checkbox-placeholder"></div>`;
 
   if (disponibles) {
@@ -176,10 +244,10 @@ export function FilaClase({ clase, ctx }) {
     // Sin sincronizar: fila atenuada (equivale al viejo fila.style.opacity=0.65 de popup.js).
     const estilo = !sincronizado ? 'opacity:0.65' : '';
     return html`
-      <div class="video-item ${sel ? 'selected' : ''}" title=${clase.titulo} style=${estilo} onClick=${onRowClick}>
+      <div class="video-item ${sel ? 'selected' : ''}" title=${titleFila} style=${estilo} onClick=${onRowClick}>
         ${checkbox}
         ${chipTipo}
-        <span class="video-label">${clase.titulo}</span>
+        <span class="video-label">${etiquetaTexto}</span>
         ${chipMateria}
         <span class="badge ${badgeCls}">${badgeTxt}</span>
       </div>`;
@@ -188,10 +256,10 @@ export function FilaClase({ clase, ctx }) {
   // Vista Cola. `bajando` (corte 6a) es la fila anclada arriba de la divisoria: la marca con el
   // mismo acento naranja que la fila seleccionada, para no sumar vocabulario visual.
   return html`
-    <div class="video-item ${sel ? 'selected' : ''} ${esActivo ? 'bajando' : ''}" title=${clase.titulo} onClick=${onRowClick}>
+    <div class="video-item ${sel ? 'selected' : ''} ${esActivo ? 'bajando' : ''}" title=${titleFila} onClick=${onRowClick}>
       ${checkbox}
       ${chipTipo}
-      <span class="video-label" style=${`cursor:${tieneCheckbox ? 'pointer' : 'default'}`}>${clase.titulo}</span>
+      <span class="video-label" style=${`cursor:${(tieneCheckbox && !estaBloqueado) ? 'pointer' : 'default'}`}>${etiquetaTexto}</span>
       ${chipMateria}
       ${esActivo
         ? html`<span class="badge process">Bajando</span>`

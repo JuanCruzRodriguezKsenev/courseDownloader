@@ -78,15 +78,18 @@ export async function aplicarEstadoDestino({ backend, sitio, clases }) {
 
   const resultados = await Promise.all(pedidos);
 
+  const resConRaiz = resultados.find((r) => r.res && r.res.raiz);
+  const raiz = resConRaiz?.res?.raiz;
+
   // Si algún curso reportó que el índice está ilegible, se bloquean TODAS las clases del portal
-  // y se devuelve { indiceIlegible: error } sin alterar los estados previos de descarga (AC-7).
+  // y se devuelve { indiceIlegible: error, raiz } sin alterar los estados previos de descarga (AC-7).
   const falloIndice = resultados.find((r) => r.res && r.res.indiceIlegible);
   if (falloIndice) {
     for (const c of clasesPortal) {
       c.bloqueo = "indice-ilegible";
       c.seleccionado = false;
     }
-    return { indiceIlegible: falloIndice.res.error };
+    return { indiceIlegible: falloIndice.res.error, raiz };
   }
 
   // Aplicar resultados curso por curso
@@ -145,7 +148,7 @@ export async function aplicarEstadoDestino({ backend, sitio, clases }) {
     }
   }
 
-  return { ok: true };
+  return { ok: true, raiz };
 }
 
 /**
@@ -172,8 +175,80 @@ export function puedeBajar(clase) {
   return !clase?.bloqueo;
 }
 
+/**
+ * Compone la nota informativa sobre cursos sin asociar y temas sin asignar (D-4).
+ *
+ * @param {Array<object>} clases
+ * @returns {string} Texto de la nota o cadena vacía si no aplica
+ */
+export function notasDeDestino(clases) {
+  if (!Array.isArray(clases) || clases.length === 0) return '';
+
+  const notas = [];
+
+  // Cursos sin asociar (D-4, RN-2)
+  const cursosSinAsociarSet = new Set();
+  for (const c of clases) {
+    if (c.bloqueo === 'sin-asociar') {
+      const nombre = c.cursoNombre || c.cursoId;
+      if (nombre) cursosSinAsociarSet.add(nombre);
+    }
+  }
+
+  const cursos = Array.from(cursosSinAsociarSet);
+  if (cursos.length > 0) {
+    const nombres = cursos.join(', ');
+    if (cursos.length === 1) {
+      notas.push(`1 curso sin asociar: ${nombres}. Asocialo para poder bajar sus archivos.`);
+    } else {
+      notas.push(`${cursos.length} cursos sin asociar: ${nombres}. Asocialos para poder bajar sus archivos.`);
+    }
+  }
+
+  // Temas sin asignar (D-4, RN-9, AC-9)
+  const countSinAsignar = clases.filter((c) => c.sinAsignar).length;
+  if (countSinAsignar > 0) {
+    if (countSinAsignar === 1) {
+      notas.push('1 archivo en temas sin asignar va a la raíz de la materia.');
+    } else {
+      notas.push(`${countSinAsignar} archivos en temas sin asignar van a la raíz de la materia.`);
+    }
+  }
+
+  return notas.join(' · ');
+}
+
+/**
+ * Genera el view-model de la card de error por índice ilegible (D-5, U-4).
+ * Escapa el mensaje recibido del backend/disco para inserción HTML segura.
+ *
+ * @param {string} mensajeError
+ * @returns {object} Descriptor de la tarjeta para ListaClases
+ */
+export function cardIndiceIlegible(mensajeError) {
+  const texto = String(mensajeError || 'Error al leer el archivo');
+  const escapado = texto
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+    .replace(/\n/g, '<br>');
+
+  return {
+    tipo: 'error',
+    icono: '⛔',
+    titulo: 'No se pudo leer .course-downloader.json',
+    descripcion: `${escapado}<br><br>No se va a bajar nada hasta que se arregle. El archivo no se tocó.`,
+  };
+}
+
 export default {
   aplicarEstadoDestino,
   bloquearSeleccion,
   puedeBajar,
+  notasDeDestino,
+  cardIndiceIlegible,
 };
+
+

@@ -322,6 +322,16 @@ instrumento y no el ojo. La lección práctica: **para lo que dura milisegundos,
 y el banco tiene que estar apagado al verificar el arreglo, porque demora el escaneo a propósito y
 haría pasar un piso que no funciona.
 
+### 5.3 Estados de destino en Classroom (Corte 2b-5)
+
+Checklist de verificación en navegador para los tres estados informativos de destino y bloqueo en la lista:
+
+| Estado | Qué se ve en la UI | Qué se mira en navegador |
+|---|---|---|
+| **Índice ilegible** | Card de error `⛔` («No se pudo leer .course-downloader.json») reemplazando la lista completa, mensaje de error del backend escapado y texto «No se va a bajar nada hasta que se arregle. El archivo no se tocó.». Botón del pie en «Reintentar 🔄». | La card ocupa la región sin desbordar el contenedor; el botón «Reintentar 🔄» vuelve a consultar el estado al backend **sin** re-escanear el portal; al reparar el JSON en disco y reintentar, la card desaparece y la lista se muestra conservando pestaña y selecciones previas. |
+| **Curso sin asociar** | Nota en cabecera de la lista: «N curso(s) sin asociar: <nombres>. Asocialos para poder bajar sus archivos.». Filas del curso con checkbox con atributo `disabled`, pastilla con texto `sin asociar` (estilo `.chip-materia.bloqueado`), `onClick` de la fila inerte (no conmuta selección). | La nota no bloquea la navegación; los checkboxes bloqueados no admiten interacción de mouse ni teclado; el botón del footer no cuenta ni encola clases bloqueadas. |
+| **Tema sin asignar** | Nota en cabecera de la lista: «M archivo(s) en temas sin asignar van a la raíz de la materia.». Pastilla de materia con prefijo `⚠`, clase `.chip-sin-asignar` (acento warning) y tooltip explicativo. | La nota se une con ` · ` en la misma línea si coexiste con cursos sin asociar; las clases con tema sin asignar se pueden seleccionar y descargar normalmente a la raíz de la materia resuelta. |
+
 ---
 
 ## 6. El informe de la auditoría — **los cinco, ya cerrados**
