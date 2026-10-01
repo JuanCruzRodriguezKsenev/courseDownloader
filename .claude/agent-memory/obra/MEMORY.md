@@ -18,6 +18,7 @@
 - [Classroom: Cierre del corte 2a](project_classroom_cierre_corte_2a.md) — baseline DRY referenciando testing.md, recuento de deuda técnica (20) y nota de Estado en la bóveda
 - [Classroom: Sub-corte 2b-1 backend y propuesta](project_classroom_destino_2b1_backend.md) — raíz por portal, servicio atómico del índice, propuesta pura de destino y cálculo de estado
 - [Classroom: Sub-corte 2b-2 backend escritura y decisión](project_classroom_destino_2b2_backend_escritura.md) — escritura en árbol de destino, preservación de destino, decisión al finalizar y rechazo por ocupado
+- [Classroom: Sub-corte 2b-3 cola baja a destino](project_classroom_destino_2b3_cola_extension.md) — ItemCola.destino (RN-20, D-1), cabeceras x-destino-*, resultadoDestino (D-4), errores D-3 y accesos .md con frontmatter D-5
 
 
 
