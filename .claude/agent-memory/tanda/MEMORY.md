@@ -1,6 +1,10 @@
 - [Ficha en AGENTS.md](project_ficha_en_agents.md) — sin ficha en CLAUDE.md; qué docs de estado leer al arrancar y estado al 2026-09-25
 - [Organización del material](user_organizacion_material.md) — ~/U.N.L.P: árbol git+Obsidian por facultad/materia/docente; mirar antes de proponer layouts
-- [Google Classroom](project_google_classroom.md) — 2a aplicado en ~/Boveda (32136ca); plan 2a-boveda para obra; después merge y plan 2b
+- [Google Classroom](project_google_classroom.md) — historia hasta el corte 2a; lo siguiente (2b, 2c) está en planes-2b-2c-moodle
 - [Edición por UI](feedback_edicion_por_ui.md) — el dueño no edita TSV/JSON crudos: pantalla o preguntas
 - [Flota de agentes](reference_flota_antigravity.md) — generada desde ~/Dev/agentes a Claude y agy; `generar --check`; qué quedó derivado a forja
+- [Orquestar agentes](feedback_orquestar_agentes.md) — repartir a pares por SendMessage; al dueño sólo decisiones; obra la pasa él
 - [jq en verificaciones](feedback_jq_precedencia.md) — `|` es lo de menor precedencia: parentizar cada término; probar los jq antes de entregar
+- [Revisión Mate C](project_revision_mate_c.md) — hallazgos doc a doc de conversiones y wiki; informe escrito en ~/Boveda/Sistema; decidido + regla 2 verificaciones; forja etapa 1 en curso
+- [Planes 2b/2c y Moodle](project_planes_2b_2c_moodle.md) — planes 00-08 en la bóveda (2026-09-30), hallazgos que los moldearon, puntos de parada humanos
+- [Leer la doc antes de preguntar](feedback_leer_doc_antes_de_preguntar.md) — no preguntar sesión/carpetas de un portal nuevo: está en multisitio-diseno y en Classroom

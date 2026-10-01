@@ -256,3 +256,18 @@ plan de cambio de destino de la extensión a la bóveda (raíz + índice trackea
 `prueba-combinada`): RAIZ_FACULTAD=~/Boveda/Areas/Facultad en `backend/adopcion/raiz.js`, aplicar sin .gitignore, destino
 `Notas` (regla ^notas|resultados antes de Parciales), spec RN-3a/17/19/24/29a (PA-4 decidido: acceso con id no se recrea),
 ADR-0018 supera 0017 pts 1-2. Esperado 50/862. Después: merge 2a → plan 2b (la extensión baja a la bóveda).
+**2026-09-28 tarde**: obra ejecutó el plan bóveda (`acbdf36`), FALTA re-verificarlo yo. Plan aparte
+`~/Boveda/Sistema/Plan - bóveda al 100 y Matemática C.md` (bóveda `0541eb4`): F0 Juan deny, F1 forja (trailer
+Reconversion + apuntes fuentes/rango), F2 bibliotecario (hook, AGENTS.md, Lucila), F3 convertir 22 PDF, F4 wiki
+sólo Teorias. Dueño: wiki SÓLO teoría+bibliografía de cátedra; prácticas/parciales = repaso. Hallazgo 2b: `.md` de
+acceso titulados "Publicación de <autor>" y sin `tipo: acceso`. Nombres de sesión de pares cambian: ListAgents.
+F0 ✅ (deny en settings, probado por mí: Write en Mis notas rechazado). F2 ✅ verificado por mí (bóveda 25de8b0 hook
+`.githooks`, 0736cc7 Lucila, fad8ede resúmenes, f1b9b67 AGENTS.md). F1 verificado pero sin commit (forja). **Clases/ NO
+es fuente** (Juan, en sesión de bibliotecario). Auto mode no deja a un agente editar ~/.claude/settings.json
+(Self-Modification): lo hace Juan. Sigue: F3+F4 por obra (lo pasa Juan).
+**F3+F4 re-verificados por mí 2026-09-28** (bóveda 105d918..6d5ad27): 22/22 convertidos (8 ok, 14 con-errores: Bibliografía
+casi entera, esperable con LaTeX), Wiki 3 Fuentes + 14 Conceptos, todo sin-verificar, sin citas a conversiones.
+unresolved 105→119: +13 números de ecuación de mod2 como enlace `[…](1.74)` (ver [[revision-mate-c]]) y +1 `[[Matematica C]]`
+del frontmatter `materia:` de apuntes (no hay nota hub). 12 pruebas en pruebas.csv sin commitear (normal: la skill no commitea).
+Falta: punto de control de Juan (§8, 4 preguntas). Sigue pendiente re-verificar `acbdf36` (2a-bóveda) → merge → 2b.
+**2026-09-28 11:48**: el "ok" de F3 era falso y la wiki viola reglas de apuntes → revisión en [[revision-mate-c]]; falta el informe.
