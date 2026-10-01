@@ -17,15 +17,15 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 ## 🚧 En revisión
 
 Corte 2a verificado (A-1b, A-1c, A-2, A-3, A-4 ✅). Listo para mergear a main.
-Corte 2b en curso en la rama `classroom-destino-2b`: sub-corte 2b-1 implementado (backend raíz por portal, servicio del índice y propuesta de destino).
+Corte 2b en curso en la rama `classroom-destino-2b`: sub-corte 2b-2 implementado (backend escritura a destino y decisión al guardar).
 
 `classroom-destino-2b`: Corte 2b del destino de Google Classroom.
-- **Plan**: `~/Boveda/Proyectos/courseDownloader/Planes/01 - 2b-1 Backend raíz por portal y servicio del índice.md`.
+- **Planes**: `~/Boveda/Proyectos/courseDownloader/Planes/01 - 2b-1 Backend raíz por portal y servicio del índice.md`, `02 - 2b-2 Backend escritura a destino y decisión al guardar.md`.
 - **Spec**: `docs/specs/classroom-destino/spec.md`.
 - **ADR**: `docs/adr/0019-raiz-por-portal-y-backend-decide-lo-descargado.md`.
-- **Compuerta**: 57 archivos / 910 tests (ver `docs/testing.md` §Baseline).
+- **Compuerta**: 60 archivos / 931 tests (ver `docs/testing.md` §Baseline).
 - **Medición M-1**: Recorrido en frío de 1615 archivos en `~/Boveda/Areas/Facultad` en 4,29 s (tope 10 s).
-- **Smoke test**: GET `/api/destino/indice` y POST `/api/destino/estado` responden con el contrato de `deployment.md` sin escrituras colaterales en la bóveda.
+- **Smoke test**: GET `/api/destino/indice`, POST `/api/destino/estado` y POST `/api/bypass-stream` en modo destino responden con el contrato de `deployment.md` sin escrituras colaterales en la bóveda.
 
 `classroom-destino-adopcion`: Corte 2a del destino de Google Classroom. La raíz es `~/Boveda/Areas/Facultad` (ADR-0018); la adopción se aplicó ahí (`32136ca` de la bóveda).
 

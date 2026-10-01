@@ -30,10 +30,15 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **57 archivos, 910 tests**, todo en verde |
+| `pnpm test` | **60 archivos, 931 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 931** (2026-10-01, plan `02 - 2b-2 Backend escritura a destino y decisión al guardar`). Son los 910 de abajo más **+21** tests repartidos en **+3** archivos nuevos:
+**+5** en `backend/accumulator.test.js` (preservarDestino NFR-4, gancho alFinalizar con stream cerrado, manejo de fallos y borrado seguro de .part sin tocar archivo final),
+**+11** en `backend/destino/escritura.test.js` (validación de destino con saneo de nombres, comprobación de materia en disco D-3 y decisiones de finalización AC-1, AC-2, AC-3, AC-6, AC-12, AC-13, rechazo por DESTINO_OCUPADO D-7 y filtro de hashes por tamaño D-8),
+y **+5** en `backend/handlersBypass.test.js` (comportamiento tradicional para ramonnet, 400 DESTINO_REQUERIDO en Classroom D-9, guardado en ruta con mayúsculas y espacios, 409 INDICE_ILEGIBLE sin tocar disco y cancelación en modo destino E-5).
 
 **De dónde sale el 910** (2026-09-30, plan `01 - 2b-1 Backend raíz por portal y servicio del índice`). Son los 862 de abajo más **+48** tests repartidos en **+7** archivos nuevos:
 **+7** en `backend/destino/rutas.test.js` (validación pura de rutas bajo la raíz, traversal, hermanos y disco pelado D:\ en Windows),

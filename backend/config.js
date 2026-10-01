@@ -14,7 +14,8 @@ const DEFAULT_RAIZ = path.join(RUTA_BASE_HOME, "Downloads", "RamonNet_Turbo");
 // Cargar la ruta guardada por el usuario o usar la por defecto
 export let CARPETA_RAIZ_VIDEOS = DEFAULT_RAIZ;
 export const raicesPorPortal = {};
-export const CONFIG_USER_FILE = path.join(import.meta.dir, "config_usuario.json");
+const dirActual = import.meta.dir || import.meta.dirname || ".";
+export const CONFIG_USER_FILE = path.join(dirActual, "config_usuario.json");
 
 if (existsSync(CONFIG_USER_FILE)) {
   try {

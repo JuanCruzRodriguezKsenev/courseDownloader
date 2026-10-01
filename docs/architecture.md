@@ -583,6 +583,7 @@ El servidor complementario Bun aloja en `backend/destino/` los servicios puros d
 - **`backend/destino/recorrido.js`**: `recorrerRaiz(raiz)` y `buscarPorMd5(raiz, md5)`, recorrido del árbol ignorando notas (`Wiki/`, `Mis notas/`, `Clases/`), carpetas ocultas y symlinks.
 - **`backend/destino/indiceServicio.js`**: `leerIndice(raiz)` y `modificarIndice(raiz, fn)`, lectura no destructiva y modificación atómica con candado por raíz sobre `.course-downloader.json`.
 - **`backend/destino/estado.js`**: `calcularEstado({ raiz, sitio, curso, items })`, cálculo de estado contra disco e índice corrigiendo rutas movidas (RN-19).
+- **`backend/destino/escritura.js`**: `validarDestino({ raiz, ruta, nombre, materia })` y `finalizarEnDestino(...)`, gancho `alFinalizar` del acumulador que ejecuta la tabla de decisión (`decidirDespues`) al completar la descarga para escribir, descartar o rechazar por ocupado (D-6, D-7).
 
 ## Flujo de una descarga, de punta a punta
 

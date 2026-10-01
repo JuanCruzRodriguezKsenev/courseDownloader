@@ -25,8 +25,11 @@ El corte 2b de Google Classroom hace que la extensión descargue directamente al
 3. **El backend sirve el estado del índice mediante endpoints dedicados**:
    - `GET /api/destino/indice?portal=` lee y sirve el `.course-downloader.json` de la raíz del portal.
    - `POST /api/destino/estado` evalúa la tabla de decisión contra el disco y el índice para cada ítem escaneado, corrigiendo rutas automáticamente si un archivo fue movido (RN-19, AC-5, AC-5b) y reportando el estado (`descargado` o `pendiente`) sin que la extensión tenga que inventar o adivinar rutas en disco.
+4. **Escritura protegida y decisión al finalizar descarga (D-6, D-7)**:
+   - `accumulator.js` añade soporte para `preservarDestino` (omite borrado preliminar) y un gancho `alFinalizar` donde el backend ejecuta la decisión `decidirDespues` al completarse los fragmentos.
+   - Si el archivo destino existe con contenido diferente y no es `.md`, se protege intacto el archivo del dueño rechazando con 409 `DESTINO_OCUPADO` (D-7, NFR-4).
 
 ## Consecuencias
 
-- **A favor**: Desacoplamiento de raíces entre portales independientes; lógica de decisión unificada y testeable en Vitest; eliminación del riesgo de sobrescribir archivos ajenos o desconfigurar portales existentes; soporte nativo para archivos movidos o renombrados en la bóveda.
+- **A favor**: Desacoplamiento de raíces entre portales independientes; lógica de decisión unificada y testeable en Vitest; eliminación del riesgo de sobrescribir archivos ajenos o desconfigurar portales existentes; soporte nativo para archivos movidos o renombrados en la bóveda; acumulación segura sin pisar archivos preexistentes del dueño.
 - **En contra**: El backend asume la responsabilidad de responder consultas de estado por lote antes de descargar, requiriendo que esté en ejecución para resolver si un ítem de Classroom ya está descargado.

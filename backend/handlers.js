@@ -6,6 +6,7 @@ import { log } from "./logger.js";
 import { sanitizarNombreArchivo, esRutaSegura } from "./utils.js";
 import { leerIndice, ErrorIndiceIlegible } from "./destino/indiceServicio.js";
 import { calcularEstado } from "./destino/estado.js";
+import { validarDestino, finalizarEnDestino, PORTALES_CON_DESTINO_INDICE } from "./destino/escritura.js";
 
 export const PORTALES_VALIDOS = new Set(["ramonnet", "anatomy-by-chris", "google-classroom"]);
 
@@ -202,9 +203,25 @@ export async function handleBypassStream(request, corsHeaders) {
       return new Response(JSON.stringify({ error: "Sesión cancelada." }), { status: 400, headers: corsHeaders });
     }
 
+    const destinoRutaHeader = request.headers.get("x-destino-ruta");
+    const destinoRuta = destinoRutaHeader ? decodeURIComponent(destinoRutaHeader) : null;
+    const destinoPortal = request.headers.get("x-destino-portal") ? decodeURIComponent(request.headers.get("x-destino-portal")) : null;
+    const claveArchivo = request.headers.get("x-clave-archivo") ? decodeURIComponent(request.headers.get("x-clave-archivo")) : null;
+    const claveCurso = request.headers.get("x-clave-curso") ? decodeURIComponent(request.headers.get("x-clave-curso")) : null;
+    const original = request.headers.get("x-original") ? decodeURIComponent(request.headers.get("x-original")) : "";
+
+    // D-9: Portales con destino por índice requieren x-destino-ruta obligatoriamente
+    if (!destinoRuta && PORTALES_CON_DESTINO_INDICE.has(carpetaSitio)) {
+      return new Response(JSON.stringify({ error: "Destino requerido para este portal.", codigo: "DESTINO_REQUERIDO" }), {
+        status: 400,
+        headers: corsHeaders,
+      });
+    }
+
     let subCarpetaFinal = subCarpeta.toLowerCase();
 
-    if (indiceChunk === 0) {
+    // Solo corre el chequeo de cátedras si no estamos en modo destino
+    if (!destinoRuta && indiceChunk === 0) {
       // Chequeo de protección contra incompatibilidad de cátedras
       try {
         const carpetaDestinoBase = rutaDeDestino(carpetaSitio, subCarpetaFinal);
@@ -261,6 +278,8 @@ export async function handleBypassStream(request, corsHeaders) {
       }
     }
 
+    let opcionesAlimentar = {};
+
     if (acumuladorChunks.has(claveVideo)) {
       rutaArchivoFinal = acumuladorChunks.get(claveVideo).targetFile;
     } else {
@@ -270,25 +289,74 @@ export async function handleBypassStream(request, corsHeaders) {
         return new Response(JSON.stringify({ error: "Descarga cancelada o inexistente." }), { status: 400, headers: corsHeaders });
       }
 
-      const carpetaDestino = rutaDeDestino(carpetaSitio, subCarpetaFinal);
-      // [ADJUNTOS] El `.mp4` era correcto mientras lo único que llegaba acá eran videos. Con los
-      // materiales de Hotmart adentro producía `Atlas.pdf.mp4`: un PDF válido con un nombre que
-      // ningún visor abre.
-      //
-      // El contrato es "si viene `x-file-name`, mandá; si no, hacé lo de siempre" — un `if`, y
-      // los videos no cambian en nada. Se sanitiza igual que todo lo demás: `path.basename()` +
-      // lista blanca, que **incluye el punto**, así que la extensión sobrevive.
-      rutaArchivoFinal = path.join(
-        carpetaDestino,
-        nombrePedido ? sanitizarNombreArchivo(nombrePedido) : `${tituloVideo}.mp4`
-      );
+      if (destinoRuta) {
+        const portalEfectivo = destinoPortal || carpetaSitio;
+        const raiz = raizDeDestino(portalEfectivo);
 
-      if (!esRutaSegura(carpetaDestino) || !esRutaSegura(rutaArchivoFinal)) {
-        log("ERROR", "SEGURIDAD", `Path traversal detectado`, { tituloVideo, rutaArchivoFinal });
-        return new Response(JSON.stringify({ error: "Ruta de archivo no segura." }), { status: 400, headers: corsHeaders });
+        let indice;
+        try {
+          indice = await leerIndice(raiz);
+        } catch (err) {
+          return new Response(JSON.stringify({ error: err.mensaje || err.message, codigo: "INDICE_ILEGIBLE" }), {
+            status: 409,
+            headers: corsHeaders,
+          });
+        }
+
+        const curso = indice?.cursos?.[claveCurso];
+        const materia = curso?.materia;
+        if (!materia) {
+          return new Response(JSON.stringify({ error: "La materia del curso no está asociada en el índice.", codigo: "MATERIA_INEXISTENTE" }), {
+            status: 409,
+            headers: corsHeaders,
+          });
+        }
+
+        const nombreAValidar = nombrePedido || `${tituloVideo}.mp4`;
+        const resVal = await validarDestino({ raiz, ruta: destinoRuta, nombre: nombreAValidar, materia });
+        if (!resVal.ok) {
+          const status = resVal.codigo === "MATERIA_INEXISTENTE" ? 409 : 400;
+          return new Response(JSON.stringify({ error: `Destino inválido: ${resVal.codigo}`, codigo: resVal.codigo }), {
+            status,
+            headers: corsHeaders,
+          });
+        }
+
+        rutaArchivoFinal = resVal.archivoAbs;
+        await mkdir(resVal.carpetaAbs, { recursive: true });
+
+        const alFinalizar = async (sesion) => {
+          return await finalizarEnDestino({
+            raiz,
+            parcial: sesion.targetFile + ".part",
+            carpetaAbs: resVal.carpetaAbs,
+            archivoAbs: resVal.archivoAbs,
+            nombreFinal: resVal.nombreFinal,
+            claveArchivo,
+            claveCurso,
+            original,
+            rutaRelativa: destinoRuta,
+          });
+        };
+
+        opcionesAlimentar = {
+          preservarDestino: true,
+          alFinalizar,
+        };
+      } else {
+        const carpetaDestino = rutaDeDestino(carpetaSitio, subCarpetaFinal);
+        rutaArchivoFinal = path.join(
+          carpetaDestino,
+          nombrePedido ? sanitizarNombreArchivo(nombrePedido) : `${tituloVideo}.mp4`
+        );
+
+        if (!esRutaSegura(carpetaDestino) || !esRutaSegura(rutaArchivoFinal)) {
+          log("ERROR", "SEGURIDAD", `Path traversal detectado`, { tituloVideo, rutaArchivoFinal });
+          return new Response(JSON.stringify({ error: "Ruta de archivo no segura." }), { status: 400, headers: corsHeaders });
+        }
+
+        await mkdir(carpetaDestino, { recursive: true });
       }
-
-      await mkdir(carpetaDestino, { recursive: true });
     }
 
     if (indiceChunk === 0) {
@@ -309,16 +377,24 @@ export async function handleBypassStream(request, corsHeaders) {
     }
 
     // Alimentar la Ventana Deslizable progresiva
-    const sesion = await alimentarSlidingWindow(claveVideo, indiceChunk, totalChunks, bufferChunk, rutaArchivoFinal, sessionId, tituloVideo);
+    const sesion = await alimentarSlidingWindow(claveVideo, indiceChunk, totalChunks, bufferChunk, rutaArchivoFinal, sessionId, tituloVideo, opcionesAlimentar);
+
+    const respuestaJson = { success: true, chunk: indiceChunk, recibidos: sesion.nextExpectedIndex, total: totalChunks };
+    if (sesion.resultado !== undefined) {
+      respuestaJson.resultado = sesion.resultado;
+    }
 
     return new Response(
-      JSON.stringify({ success: true, chunk: indiceChunk, recibidos: sesion.nextExpectedIndex, total: totalChunks }),
+      JSON.stringify(respuestaJson),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (err) {
     log("ERROR", "CHUNK", `Error procesando chunk: ${err.message}`);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
+    const status = err.codigo === "DESTINO_OCUPADO" ? 409 : 500;
+    const body = { error: err.message };
+    if (err.codigo) body.codigo = err.codigo;
+    return new Response(JSON.stringify(body), { status, headers: corsHeaders });
   }
 }
 
