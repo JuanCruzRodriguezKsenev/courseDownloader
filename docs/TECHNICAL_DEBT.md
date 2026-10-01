@@ -14,7 +14,7 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 ## 🔴 Abierto
 
-> ## Estado al 2026-09-27: **VEINTE** entradas abiertas
+> ## Estado al 2026-09-30: **VEINTE** entradas abiertas
 >
 > Re-contadas, no sumadas al número anterior (3 🔴, 3 🟠, 14 ⚪):
 >
