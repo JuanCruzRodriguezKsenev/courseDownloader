@@ -14,7 +14,7 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 ## 🔴 Abierto
 
-> ## Estado al 2026-09-30: **VEINTE** entradas abiertas
+> ## Estado al 2026-10-01: **VEINTIUNA** entradas abiertas
 >
 > Re-contadas, no sumadas al número anterior (3 🔴, 3 🟠, 14 ⚪):
 >
@@ -38,6 +38,7 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 > 18. ⚪ **Classroom recorrido: dos carreras de navegación que cortarían el recorrido — NO APARECIERON** (hallado 2026-09-27).
 > 19. ⚪ **`loaderEsDelRecorrido`: un segundo dueño del loader coordinado a mano** (hallado 2026-09-27; agrava el 🔴 del loader).
 > 20. ⚪ **Classroom recorrido: AC-9 sin verificar, ningún archivo está en dos cursos** (2026-09-27).
+> 21. ⚪ **`claveSesion` del backend no incluye el módulo ni el tipo: dos adjuntos con igual título en un portal comparten sesión** (hallado 2026-10-01, en 2b-2).
 >
 > ### Lo que se cerró el 2026-09-27
 >
@@ -655,6 +656,13 @@ Llegaron acá al mergear la tanda del toolbar (2026-08-13): vivían en
 - **Dónde**: `docs/specs/classroom-escanear-todas/spec.md`, AC-9 (un archivo de Drive en dos cursos aparece en los dos grupos y bajarlo desde uno no marca el otro).
 - **Qué pasa**: en la lista del 2026-09-27 (337 ítems, 5 carpetas) ningún `idArchivo` está en dos cursos, así que no se puede probar con los datos reales. Hace falta un test con fixture o esperar a que Classroom lo traiga.
 - **Estado**: ⚪ abierto (2026-09-27).
+
+### ⚪ `claveSesion` del backend no incluye módulo ni tipo
+
+- **Dónde**: `backend/handlers.js:49` (`claveSesion(carpetaSitio, tituloVideo)`), usada en `:140`, `:196` y `:493`.
+- **Qué pasa**: la identidad de clase en la extensión es (portal, módulo, tipo, título) (ADR-0014), pero el acumulador del backend sigue indexando por (portal, título). Dos adjuntos con el mismo título en el mismo portal, **si sus subidas se solapan**, comparten sesión, stream y `.part`. La cola baja de a uno, así que hoy no hay síntoma conocido.
+- **Fix propuesto**: que `claveSesion` use `x-session-id` cuando viene (ya llega en `:189`) y mantenga la clave actual como respaldo; tocar los tres sitios y el camino de cancelación a la vez.
+- **Estado**: ⚪ abierto (hallado 2026-10-01 por obra en el sub-corte 2b-2; ningún plan 03-06 lo toca).
 
 ### ✅ Ningún test serializa las funciones que se inyectan en la pestaña
 
