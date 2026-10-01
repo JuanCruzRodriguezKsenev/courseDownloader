@@ -205,4 +205,12 @@ describe("topeEscaneoMs: el techo del escaneo es una medición, no un default", 
     expect(SitioRamonNet.esPortada).toBeUndefined();
     expect(SitioAnatomyByChris.esPortada).toBeUndefined();
   });
+
+  it("destinoPorIndice: Classroom declara true y Ramón Net y Anatomy no lo declaran", () => {
+    // [DESTINO CORTE 2b-3] Classroom baja al índice (.course-downloader.json) de la bóveda;
+    // los otros portales no delegan en índice (D-2).
+    expect(SitioGoogleClassroom.destinoPorIndice).toBe(true);
+    expect(SitioRamonNet.destinoPorIndice).toBeUndefined();
+    expect(SitioAnatomyByChris.destinoPorIndice).toBeUndefined();
+  });
 });

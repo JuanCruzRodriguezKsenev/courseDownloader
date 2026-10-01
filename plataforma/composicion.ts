@@ -276,8 +276,14 @@ export const Cola = crearProcesadorCola({
   actualizarConsolaBackend: (datos) => void BunClient.actualizarConsola(datos),
   // [ESCANEO-API CORTE 5] Un archivo suelto viaja por el MISMO endpoint que un fragmento de
   // video (`/api/bypass-stream`): es el chunk 0 de N. Por eso no hay un cliente nuevo acá.
-  enviarBloqueAdjunto: (bloque, headers, signal) =>
-    BunClient.enviarFragmentoStream(bloque, headers, signal),
+  enviarBloqueAdjunto: async (bloque, headers, signal) => {
+    const res = await BunClient.enviarFragmentoStream(bloque, headers, signal);
+    try {
+      return (await res.json()) as { resultado?: string };
+    } catch {
+      return {};
+    }
+  },
   guardarBlobLegacy: crearVolcadoLegacy(mensajeria),
   persistirEstados: (estados) => EstadosProgreso.persistir(estados),
   recuperarEstados: () => EstadosProgreso.recuperar(),

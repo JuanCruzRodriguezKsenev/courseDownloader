@@ -101,6 +101,7 @@ adopta la vieja, la borra al adoptarla, y con las dos presentes gana la nueva.
   bytes?: number,                 // sólo en adjuntos: peso declarado por el portal, para la UI
   catedra?: "A"|"B"|"C"|"D"|"COMUN",
   estado: "pending" | "process" | "downloaded",
+  resultadoDestino?: "escrito" | "descartado" | "existente", // [Corte 2b-3] resultado del backend al guardar en destino (D-4)
   seleccionado: boolean,          // checkbox en la UI
   visible: boolean                // resultado del filtro activo (computado, no persistente en la práctica)
 }
@@ -121,6 +122,15 @@ adopta la vieja, la borra al adoptarla, y con las dos presentes gana la nueva.
   tipo?: "video" | "adjunto",     // [ADR-0014] ausente = "video"
   idArchivo?: string,             // sólo en adjuntos: id de Drive, membershipId, o `acceso:<url>:<título>`
   bytes?: number,                 // sólo en adjuntos
+  destino?: {                     // [Corte 2b-3] destino en el árbol del dueño (RN-20, D-1).
+                                  // NOTA: `destino` NO forma parte de la clave de identidad
+                                  // (ver ADR-0014): dos ítems que sólo difieren en destino son la misma clase.
+    portal: string,
+    ruta: string,                 // materia + subcarpeta
+    nombre: string,               // nombre final en disco
+    claveCurso: string,
+    original: string
+  },
   fechaEncolado: number,          // Date.now() al encolar. Desde ADR-0011 NO es la fuente del
                                   // orden: es el dato del criterio "de llegada" y el que
                                   // normaliza las colas anteriores al corte 6d.

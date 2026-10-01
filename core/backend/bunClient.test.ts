@@ -217,6 +217,88 @@ describe('enviarFragmentoStream()', () => {
     expect(err.tipoBackend).toBeUndefined();
     expect(err.httpStatus).toBe(503);
   });
+
+  it('409 con cuerpo { error, codigo } produce codigoBackend y el mensaje del cuerpo', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => ({ error: 'Ya existe un archivo en destino', codigo: 'DESTINO_OCUPADO' }),
+    });
+    const err = await BunClient
+      .enviarFragmentoStream(new Uint8Array([1, 2]), headers, undefined, 10000)
+      .catch(e => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.message).toBe('Ya existe un archivo en destino');
+    expect(err.codigoBackend).toBe('DESTINO_OCUPADO');
+    expect(err.httpStatus).toBe(409);
+    expect(err.tipoBackend).toBe('rechazo');
+  });
+
+  it('4xx sin cuerpo JSON sigue dando el mensaje de hoy', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => { throw new Error('Not JSON'); },
+    });
+    const err = await BunClient
+      .enviarFragmentoStream(new Uint8Array([1, 2]), headers, undefined, 10000)
+      .catch(e => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.message).toBe('El backend de Bun rechazó el fragmento con código: 400');
+    expect(err.codigoBackend).toBeUndefined();
+    expect(err.httpStatus).toBe(400);
+    expect(err.tipoBackend).toBe('rechazo');
+  });
+});
+
+describe('headers de destino (corte 2b-3)', () => {
+  const cabecerasDe = (espia: { mock: { calls: unknown[][] } }) =>
+    (espia.mock.calls[0]?.[1] as { headers: Record<string, string> }).headers;
+
+  it('con destino salen los cinco headers codificados', async () => {
+    const espia = vi.fn(async () => new Response('{}', { status: 200 }));
+    globalThis.fetch = espia as unknown as typeof fetch;
+
+    await BunClient.enviarFragmentoStream(new Uint8Array([1]), {
+      videoTitle: 'TP 1',
+      chunkIndex: 0,
+      totalChunks: 1,
+      targetFolder: 'fisica',
+      destino: {
+        portal: 'google-classroom',
+        ruta: 'Física I/Prácticas',
+        claveArchivo: 'google-classroom:drv-123',
+        claveCurso: 'CURSO 1',
+        original: 'TP 1 & Guía.pdf',
+      },
+    });
+
+    const opts = cabecerasDe(espia);
+    expect(opts['x-destino-portal']).toBe(encodeURIComponent('google-classroom'));
+    expect(opts['x-destino-ruta']).toBe(encodeURIComponent('Física I/Prácticas'));
+    expect(opts['x-clave-archivo']).toBe(encodeURIComponent('google-classroom:drv-123'));
+    expect(opts['x-clave-curso']).toBe(encodeURIComponent('CURSO 1'));
+    expect(opts['x-original']).toBe(encodeURIComponent('TP 1 & Guía.pdf'));
+  });
+
+  it('sin destino no sale ninguno de los cinco headers', async () => {
+    const espia = vi.fn(async () => new Response('{}', { status: 200 }));
+    globalThis.fetch = espia as unknown as typeof fetch;
+
+    await BunClient.enviarFragmentoStream(new Uint8Array([1]), {
+      videoTitle: 'TP 1',
+      chunkIndex: 0,
+      totalChunks: 1,
+      targetFolder: 'fisica',
+    });
+
+    const keys = Object.keys(cabecerasDe(espia));
+    expect(keys).not.toContain('x-destino-portal');
+    expect(keys).not.toContain('x-destino-ruta');
+    expect(keys).not.toContain('x-clave-archivo');
+    expect(keys).not.toContain('x-clave-curso');
+    expect(keys).not.toContain('x-original');
+  });
 });
 
 // [MULTIPORTAL E] El portal viaja al backend para que el archivo caiga en

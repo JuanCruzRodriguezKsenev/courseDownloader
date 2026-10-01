@@ -1,6 +1,12 @@
 /**
- * NÚCLEO — CLIENTE DEL BACKEND BUN (V2.1.0)
+ * NÚCLEO — CLIENTE DEL BACKEND BUN (V2.2.0)
  * ==========================================================================
+ * CHANGELOG v2.2.0:
+ * - [DESTINO CORTE 2b-3] `HeadersFragmento.destino` opcional: cuando está presente,
+ *   `enviarFragmentoStream` envía los 5 headers `x-destino-*` con `encodeURIComponent`.
+ * - [DESTINO CORTE 2b-3] Ante `!res.ok`, lee `{ error, codigo }` de la respuesta JSON si está
+ *   presente y asigna `ErrorBackend.codigoBackend = codigo` y `message = error`.
+ *
  * CHANGELOG v2.1.0:
  * - [LOADERS — ítem 4] `escanearDisco` y `seleccionarCarpeta` ganaron timeout. Eran los dos
  *   únicos `fetch` del cliente sin techo, y la asimetría no era de diseño: sus vecinos lo
@@ -63,6 +69,17 @@ export interface HeadersFragmento {
    * Va URL-encodeado como `videoTitle`, por la misma razón: un header HTTP no lleva no-ASCII.
    */
   fileName?: string;
+  /**
+   * [DESTINO CORTE 2b-3] Metadatos de destino para el índice del portal en el backend.
+   * Cuando está presente, `enviarFragmentoStream` envía los 5 headers `x-destino-*` codificados.
+   */
+  destino?: {
+    portal: string;
+    ruta: string;
+    claveArchivo: string;
+    claveCurso: string;
+    original: string;
+  };
 }
 
 /** Telemetría que se empuja a la consola gráfica del servidor. */
@@ -89,6 +106,7 @@ export interface DatosConsola {
 export interface ErrorBackend extends Error {
   httpStatus?: number;
   tipoBackend?: "rechazo";
+  codigoBackend?: string;
 }
 
 // Default de fábrica del backend Bun. Sobreescribible SIN editar código:
@@ -197,28 +215,49 @@ export const BunClient = {
     }
 
     try {
+      const reqHeaders: Record<string, string> = {
+        "Content-Type": "application/octet-stream",
+        "x-video-title":   encodeURIComponent(headers.videoTitle),
+        "x-chunk-index":   headers.chunkIndex.toString(),
+        "x-total-chunks":  headers.totalChunks.toString(),
+        "x-target-folder": headers.targetFolder,
+        "x-site-folder":   headers.siteFolder || "",
+        "x-session-id":    headers.sessionId || "",
+        // Vacío = "usá tu lógica de siempre" (`.mp4`). Ver `HeadersFragmento.fileName`.
+        "x-file-name":     headers.fileName ? encodeURIComponent(headers.fileName) : ""
+      };
+
+      if (headers.destino) {
+        reqHeaders["x-destino-portal"] = encodeURIComponent(headers.destino.portal);
+        reqHeaders["x-destino-ruta"] = encodeURIComponent(headers.destino.ruta);
+        reqHeaders["x-clave-archivo"] = encodeURIComponent(headers.destino.claveArchivo);
+        reqHeaders["x-clave-curso"] = encodeURIComponent(headers.destino.claveCurso);
+        reqHeaders["x-original"] = encodeURIComponent(headers.destino.original);
+      }
+
       const res = await fetch(`${this.baseUrl}/api/bypass-stream`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/octet-stream",
-          "x-video-title":   encodeURIComponent(headers.videoTitle),
-          "x-chunk-index":   headers.chunkIndex.toString(),
-          "x-total-chunks":  headers.totalChunks.toString(),
-          "x-target-folder": headers.targetFolder,
-          "x-site-folder":   headers.siteFolder || "",
-          "x-session-id":    headers.sessionId || "",
-          // Vacío = "usá tu lógica de siempre" (`.mp4`). Ver `HeadersFragmento.fileName`.
-          "x-file-name":     headers.fileName ? encodeURIComponent(headers.fileName) : ""
-        },
+        headers: reqHeaders,
         body: bloqueBinario,
         signal: timeoutController.signal
       });
 
       if (!res.ok) {
-        const err: ErrorBackend = new Error(
-          `El backend de Bun rechazó el fragmento con código: ${res.status}`
-        );
+        let mensajeError = `El backend de Bun rechazó el fragmento con código: ${res.status}`;
+        let codigoBackend: string | undefined;
+        try {
+          const cuerpo = (await res.json()) as { error?: string; codigo?: string };
+          if (cuerpo && typeof cuerpo === "object") {
+            if (cuerpo.error) mensajeError = cuerpo.error;
+            if (cuerpo.codigo) codigoBackend = cuerpo.codigo;
+          }
+        } catch {
+          // Si no es JSON o falla el parseo, mantiene el mensaje por omisión.
+        }
+
+        const err: ErrorBackend = new Error(mensajeError);
         err.httpStatus = res.status;
+        if (codigoBackend) err.codigoBackend = codigoBackend;
         // Un 4xx es un rechazo APLICATIVO determinístico con el server VIVO (/api/health
         // daría 200): reintentar el mismo fragmento no lo cura. Lo tipamos (mismo criterio
         // que err.tipoConexion="sesion") para que aguas arriba se salte SOLO esa clase sin

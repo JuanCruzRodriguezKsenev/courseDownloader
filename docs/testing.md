@@ -30,10 +30,18 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **60 archivos, 931 tests**, todo en verde |
+| `pnpm test` | **60 archivos, 945 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 945** (2026-10-01, plan `03 - 2b-3 Cola de la extensión baja a destino`). Son los 931 de abajo más **+14** tests:
+**+1** en `core/cola/identidadClase.test.ts` (dos ítems que sólo difieren en `destino` son la misma clase, D-1; 21 → 22 tests),
+**+1** en `sitio/registro.test.ts` (`destinoPorIndice === true` en Classroom y `undefined` en Ramón Net y Anatomy, D-2; 21 → 22 tests),
+**+4** en `core/backend/bunClient.test.ts` (cabeceras `x-destino-*` con y sin destino, 409 con `{ error, codigo }` fijando `codigoBackend`, y fallback 4xx sin cuerpo JSON; 22 → 26 tests),
+**+6** en `core/cola/procesadorCola.test.ts` (adjunto con destino con cabeceras y `fileName` de destino, resultado "descartado" persistiendo `resultadoDestino`, rechazo temprano por ítem sin destino en portal con `destinoPorIndice`, `INDICE_ILEGIBLE` pausando sin alarma, `DESTINO_OCUPADO` salteando el ítem, y no regresión en Anatomy sin cabeceras de destino; 42 → 48 tests),
+**+1** en `popup/features/queue.test.js` (propagación de `destino` al ítem encolado y `undefined` sin destino, RN-20; 22 → 23 tests),
+y **+1** en `sitio/google-classroom/descargarAdjunto.test.js` (fecha del frontmatter en día local a las 23:30 sin saltar a UTC, D-5; 4 → 5 tests).
 
 **De dónde sale el 931** (2026-10-01, plan `02 - 2b-2 Backend escritura a destino y decisión al guardar`). Son los 910 de abajo más **+21** tests repartidos en **+3** archivos nuevos:
 **+5** en `backend/accumulator.test.js` (preservarDestino NFR-4, gancho alFinalizar con stream cerrado, manejo de fallos y borrado seguro de .part sin tocar archivo final),

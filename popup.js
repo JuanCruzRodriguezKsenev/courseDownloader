@@ -1,7 +1,11 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.29.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.30.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.30.0:
+ * - [DESTINO CORTE 2b-3] Declaración de `destino: item.destino` en el mapeo de clases
+ *   al escanear para preservar la propiedad en el ciclo de vida de la clase.
+ *
  * CHANGELOG v5.29.0:
  * - [LOADER CON PROGRESO] Integración con la isla `loaderDetalle` (#ui-loader-detalle):
  *   - Montaje de `loaderDetalle` al iniciar el popup.
@@ -1301,6 +1305,8 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           publicacion: item.publicacion,
           // [CORTE 2a] Texto del anuncio (Novedades de Classroom): nombra el archivo si choca, RN-16a.
           anuncio: item.anuncio,
+          // [CORTE 2b-3] Destino en el árbol del dueño (calculado luego en plan 04).
+          destino: item.destino,
           // ADR-0010: de qué portal salió. Se estampa ACÁ, que es el único momento en
           // que se sabe con certeza — el escaneo corre sobre una pestaña concreta.
           // Después la cola es independiente de la pestaña y ya no habría cómo deducirlo.

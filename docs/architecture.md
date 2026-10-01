@@ -266,7 +266,10 @@ caminos y cada uno existe por un bug real**: (1) cancelación del usuario, que n
 (2) `tipoConexion: "sesion"`, que pausa SIN alarma porque el daemon vería la red OK y el
 auto-heal reintentaría contra el login; (3) `tipoBackend: "rechazo"` (4xx), que **saltea sólo
 esa clase** — es el fix del bug 400; y (4) cualquier otro, que pausa CON alarma. **El orden
-importa**: los tres primeros se clasifican antes de consultar al daemon.
+importa**: los tres primeros se clasifican antes de consultar al daemon. Desde el Corte 2b-3,
+los errores con `codigo` del backend se mapean directamente (`INDICE_ILEGIBLE` a bloqueo sin alarma,
+`DESTINO_OCUPADO` / `MATERIA_INEXISTENTE` / `RUTA_INSEGURA` / `DESTINO_REQUERIDO` a rechazo), y los
+adjuntos con `destino` propagan cabeceras `x-destino-*`, usan `destino.nombre` y guardan `resultadoDestino`.
 
 `loopActivo` y el `AbortController` de la ráfaga eran variables de módulo compartidas entre el
 bucle y los handlers IPC; ahora son **estado privado** y se tocan por la API
@@ -345,7 +348,8 @@ tests pasan una URL de fantasía.
 
 También viven acá `core/backend/bunClient.ts` (wrapper fino de todos los endpoints del backend
 Bun: `/api/escanear-disco`, `/api/bypass-stream`, `/api/actualizar-consola`,
-`/api/seleccionar-carpeta`, `/api/health`, `/api/cancelar-descarga`) y
+`/api/seleccionar-carpeta`, `/api/health`, `/api/cancelar-descarga`; desde el Corte 2b-3
+envía cabeceras `x-destino-*` y parsea `{ error, codigo }` en respuestas fallidas) y
 `core/historial/historialFallos.ts` (factory `crearHistorialFallos(puerto)`, no singleton:
 historial acotado —últimos 50, más nuevo primero— de fallos terminales de la cola bajo la
 clave local `historialFallos`, que respalda la campanita; lo escribe el SW en `registrarFallo`
@@ -494,7 +498,7 @@ devolviendo sincrónicamente y no se enteró.
 que escanea Trabajo en clase y Novedades e inyecta la lectura del DOM), `parserTitulos.js`
 (`ParserTitulosClassroom.clasificarCarpeta`, que clasifica por curso saneado) y `descargarAdjunto.js`
 (`DescargarAdjuntoClassroom.resolver`, que genera la URL con `authuser` para Drive o un data URI en
-base64 para accesos `.md`). No implementa `resolverManifiesto.js` porque no tiene videos HLS (su
+base64 para accesos `.md` con frontmatter de fecha local). No implementa `resolverManifiesto.js` porque no tiene videos HLS (su
 descriptor rechaza esa llamada como red de seguridad).
 
 **Cómo resuelve `ResolverManifiesto.resolver`, y por qué es el primer sospechoso cuando una

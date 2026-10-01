@@ -1,6 +1,10 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: COLA DE DESCARGA (V1.4.0)
+ * CLON DOWNLOADHELPER - FEATURE: COLA DE DESCARGA (V1.5.0)
  * ==========================================================================
+ * CHANGELOG v1.5.0:
+ * - [DESTINO CORTE 2b-3] Copia `destino: c.destino` en `nuevosEncolados` para
+ *   propagar el destino resuelto de la clase al ítem de la cola (RN-20).
+ *
  * CHANGELOG v1.4.0:
  * - [FASE 5C] Los 9 usos de chrome.runtime pasan al PuertoMensajeria, que llega por
  *   ctx.mensajeria. Cada call-site declara ahora su intención: `enviar()` donde la
@@ -149,6 +153,7 @@ const QueueFeature = {
         tipo: c.tipo,
         idArchivo: c.idArchivo,
         bytes: c.bytes,
+        destino: c.destino,
         fechaEncolado: Date.now() + idx,
         // ADR-0010: viaja con el ítem. Sale de la clase y NO del sitio activo a propósito —
         // la cola sobrevive a que el usuario cambie de pestaña, así que "el sitio de ahora"

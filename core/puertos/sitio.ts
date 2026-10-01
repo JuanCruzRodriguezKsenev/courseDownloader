@@ -1,6 +1,10 @@
 /**
- * PUERTO DE SITIO (V1.7.0)
+ * PUERTO DE SITIO (V1.8.0)
  * ==========================================================================
+ * CHANGELOG v1.8.0:
+ * - [DESTINO CORTE 2b-3] Miembro nuevo `destinoPorIndice?: boolean` (opcional, default false):
+ *   indica si el portal delega la ubicación y nombre en el índice de destino (.course-downloader.json).
+ *
  * CHANGELOG v1.7.0:
  * - [CLASSROOM ESCANEAR TODAS] Miembro nuevo `esPortada?(url)` (opcional):
  *   predicado que identifica la portada desde donde se puede escanear todos los listados.
@@ -377,6 +381,12 @@ export interface PuertoSitio {
    *   navegador junto con `authuser` para autorizar la descarga (diseño D1 y M0).
    */
   readonly credencialesAdjunto?: "omit" | "include";
+
+  /**
+   * Si el portal delega la ubicación y nombre en el índice de destino (.course-downloader.json).
+   * Cuando es true, la cola exige que el ítem traiga `destino` y envía los headers `x-destino-*`.
+   */
+  readonly destinoPorIndice?: boolean;
 
   /**
    * Función que se INYECTA en la pestaña del portal (`chrome.scripting.executeScript`)

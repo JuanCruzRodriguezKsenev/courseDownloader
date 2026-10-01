@@ -1,6 +1,10 @@
 /**
- * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: CONFIGURACIÓN (V1.3.0)
+ * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: CONFIGURACIÓN (V1.4.0)
  * ==========================================================================
+ * CHANGELOG v1.4.0:
+ * - [DESTINO CORTE 2b-3] Declara `destinoPorIndice: true`: la descarga delega en el índice
+ *   de destino del portal (`.course-downloader.json`) y exige que el ítem traiga `destino`.
+ *
  * CHANGELOG v1.3.0:
  * - [CLASSROOM ESCANEAR TODAS] Portada y escaneo de todos los cursos:
  *   - `esPaginaDelSitio` reclama también `/h`, `/h/st`, `/h/archived`.
@@ -88,6 +92,8 @@ const SitioGoogleClassroom: PuertoSitio = {
   topeEscaneoMs: 180000,
 
   credencialesAdjunto: "include",
+
+  destinoPorIndice: true,
 
   resolverManifiesto(_urlClase, _signal, _credenciales) {
     const error: Error & { tipoPortal?: string } = new Error(

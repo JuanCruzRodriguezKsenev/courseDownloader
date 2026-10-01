@@ -290,6 +290,40 @@ describe('QueueFeature.encolarItemsEnCaliente', () => {
     expect(AppState.colaDescargas).toHaveLength(0);
     expect(console.warn).toHaveBeenCalled();
   });
+
+  it('propaga destino al ítem encolado; sin destino queda undefined (RN-20)', () => {
+    responderCon({ status: 'encolados_ok' });
+    const { feature } = crearFeature();
+
+    const destinoEjemplo = {
+      portal: 'google-classroom',
+      ruta: 'Biologia/Teorias',
+      nombre: 'Clase 01.pdf',
+      claveCurso: 'c1',
+      original: 'clase.pdf',
+    };
+
+    const conDestino = {
+      id: 1,
+      titulo: 'Con Destino',
+      urlInterna: 'u1',
+      estado: 'pending',
+      destino: destinoEjemplo,
+    };
+    const sinDestino = {
+      id: 2,
+      titulo: 'Sin Destino',
+      urlInterna: 'u2',
+      estado: 'pending',
+    };
+
+    feature.encolarItemsEnCaliente([conDestino, sinDestino]);
+
+    expect(AppState.colaDescargas[0].destino).toEqual(destinoEjemplo);
+    expect(AppState.colaDescargas[1].destino).toBeUndefined();
+    expect(AppState.colaDescargas[1].destino).not.toBeNull();
+    expect(AppState.colaDescargas[1].destino).not.toEqual({});
+  });
 });
 
 describe('QueueFeature.quitarItemsDeColaEnLote', () => {
