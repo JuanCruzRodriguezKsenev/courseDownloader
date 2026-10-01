@@ -163,6 +163,15 @@ transformación de texto.
 
 - **RN-31** — Lo que el dueño marcó para no bajar (un tema con `-` o un archivo en `omitidos`) no se ofrece; la extensión lo lista marcado como omitido. *(Dueño, A-2, 2026-09-28; guardado en el índice por el corte 2b.)*
 
+### Enlaces de videollamada
+
+- **RN-32** — **Enlaces de videollamada**: los enlaces a salas sincrónicas (`meet.google.com`, `zoom.us` y subdominios, `teams.microsoft.com` y `teams.live.com`, `webex.com` y subdominios, `meet.jit.si` y `*.jitsi.net`) no se descartan en el escaneo; se clasifican como accesos directos (`tipo: "acceso"` con `esVideollamada: true`).
+  - **Ubicación**: en el listado del popup, dentro de cada curso, las videollamadas se listan fijadas arriba de todo (primeras filas del curso).
+  - **Indicador visual**: se renderizan con un chip distintivo "Videollamada" (o icono 📹) que advierte su naturaleza sincrónica/potencialmente inactiva.
+  - **Selección**: vienen marcadas por defecto para descarga (igual que el resto de los elementos).
+  - **Gestor de adopción**: en el editor web de adopción (`backend/adopcion/editor.html`), se listan entre los archivos del curso y pueden marcarse con acción `omitir` para no descargarlas, guardándose en `cursos.<clave>.omitidos` (RN-31).
+  *(Dueño, 2026-10-01; firmado: tanda agy 3.8 flash high).*
+
 ---
 
 ## Tabla de decisión — ¿hay que bajar este adjunto?
@@ -500,6 +509,15 @@ Esquema del escenario: AC-11 — Nombres que la regla no acierta
     | P10.- Circuitos de CC en estado transitorio   | 10_circuitos_de_cc_en_estado_transitorio   | 10_circuitos_transitorios    |
     | Documento_completo.pdf-PDFA.pdf               | documento_completo_pdfa.pdf                | libro_de_catedra.pdf         |
     | Teoria Grupo G-MAS.pdf                        | teoria_grupo_g_mas.pdf                     | mod1_08_mas.pdf              |
+```gherkin
+AC-14 — Enlaces de videollamada al tope, con chip y descartables en adopción (RN-32)
+  Dado un curso con anuncios o materiales que contienen enlaces a salas de videollamada (Meet, Zoom, Teams, Webex o Jitsi)
+  Cuando se escanea el curso
+  Entonces se clasifican como tipo "acceso" con "esVideollamada: true"
+    y en el popup se listan fijados arriba de todo dentro de su curso
+    y se renderizan con un chip distintivo "Videollamada"
+    y vienen seleccionados por defecto para descarga
+    y en el gestor de adopción web figuran con opción de acción "omitir" para excluirlos de la bajada
 ```
 
 ---
