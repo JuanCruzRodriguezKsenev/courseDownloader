@@ -21,6 +21,7 @@
 - [Classroom: Sub-corte 2b-3 cola baja a destino](project_classroom_destino_2b3_cola_extension.md) — ItemCola.destino (RN-20, D-1), cabeceras x-destino-*, resultadoDestino (D-4), errores D-3 y accesos .md con frontmatter D-5
 - [Classroom: Sub-corte 2b-4 curso viaja con adjunto y estado al backend](project_classroom_destino_2b4_curso_y_estado.md) — EnlaceListado con cursoId/tema, BunClient estadoDestino/indiceDestino, feature destino.js, bloqueo D-4 y cableado en popup.js
 - [Classroom: Sub-corte 2b-5 lo que ve el dueño en la lista](project_classroom_destino_2b5_vista_lista.md) — FilaClase con destino.nombre/dosUltimosSegmentos, chip-sin-asignar, bloqueo visual con checkbox disabled, notasDeDestino en ctx.nota, cardIndiceIlegible con botón Reintentar y raíz por portal en 📂
+- [Classroom: Sub-corte 2b-6 cierre del corte 2b](project_classroom_destino_2b6_cierre.md) — migración de omitidos al índice real, spec al día con RN-31/PA-5 y md5 de 32 hex, checklist V-0..V-9 y baseline en 62 archivos / 987 tests
 
 
 
