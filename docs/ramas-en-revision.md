@@ -17,10 +17,26 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 ## 🚧 En revisión
 
 Corte 2c en curso en la rama `classroom-destino-2c`:
-- **Plan 07 completado** (`07 - 2c-1 Editor web sobre el índice real.md`): editor web de adopción reutilizado con `?modo=indice`, `POST /api/destino/curso-visto` en memoria, `cursos.<clave>.nombres` en índice, preservación de materias/carpetas no editables, e inversión simétrica con `invertirCarpeta`.
-- **Compuerta**: 64 archivos / 1010 tests (ver `docs/testing.md` §Baseline).
+- **Planes**: `~/Boveda/Proyectos/courseDownloader/Planes/07 - 2c-1 Editor web sobre el índice real.md` y `08 - 2c-2 Asociar desde el popup y cierre del 2c.md`.
+- **Qué entrega**: editor web de adopción reutilizado con `?modo=indice`, `POST /api/destino/curso-visto` en memoria (soporta `cursos` y `curso`), cableado del 🗂️ en el popup con `BunClient.registrarCursoVisto`, apertura posicionado en el curso correspondiente y recálculo automático al volver.
+- **Spec**: `docs/specs/classroom-destino/spec.md`.
+- **Compuerta**: 64 archivos / 1022 tests (ver `docs/testing.md` §Baseline).
 - **Humo jsdom**: `humo-editor.js` y `humo-editor-indice.js` en verde (errores: 0).
-- Pendiente: planes restantes del corte 2c (08 y 09).
+- **Estado**: construcción finalizada (planes 07 y 08). Pendiente verificación en navegador (W-0..W-7).
+
+### Checklist de verificación W del corte 2c (dueño + tanda)
+- ⬜ **W-0** — Tanda: copia limpia de `~/Boveda/Areas/Facultad` y respaldo del índice. Para simular un curso **nuevo**, **quita del índice de la copia** un curso con pocos archivos (anotar cuál y sus entradas para restaurarlo). `pnpm run build`, recarga de la extensión, servidor reiniciado, y `raices.google-classroom` apuntando a la copia.
+- ⬜ **W-1** — Dueño: escanea el curso quitado (o «todos»). Debe ver la nota «N curso(s) sin asociar … Abrí 🗂️», sus filas con la pastilla `sin asociar` y los checkboxes deshabilitados.
+- ⬜ **W-2** — Dueño: toca 🗂️. Debe abrirse una pestaña con el editor **en ese curso**, con la materia vacía y las carpetas de los temas ya sugeridas. Tanda anota qué sugirió para cada tema y lo contrasta con RN-7a/7b (`Links` → `Teorias`; un tema conceptual con publicaciones «Ejercicios…» → `Practicas`).
+- ⬜ **W-3** — Dueño: elige materia y docente, corrige una carpeta y un nombre, marca un archivo `omitir`, guarda. Tanda: el índice de la copia tiene el curso con `materia`, `docente`, los `temas` resueltos (con `Teorias/<docente>` si hay docente), `nombres` sólo del archivo editado y `omitidos` con el marcado; `archivos` **sin cambios**.
+- ⬜ **W-4** — Dueño: reabre el popup en ese curso. Debe verlo asociado, **sin tocar nada más**: filas con su pastilla de carpeta, el nombre editado en la etiqueta, el omitido marcado `omitido`. Baja **un** archivo. Tanda: está en `<materia>/<carpeta>/<nombre editado>` y su `md5sum` es el del original.
+- ⬜ **W-5** — AC-8: Dueño cambia el docente de un curso **ya asociado** desde el editor. Tanda: ninguna entrada de `archivos` cambió y ningún archivo se movió; el siguiente que se baje va a `Teorias/<docente nuevo>/`.
+- ⬜ **W-6** — AC-9: Tanda agrega un tema nuevo al curso (borra uno del índice de la copia). Dueño: ve `⚠ sin asignar`; abre 🗂️, asigna carpeta, guarda; al reabrir el popup la marca desapareció.
+- ⬜ **W-7** — Servidor reiniciado con el editor abierto: Dueño toca Guardar. Debe ver un error claro (no un guardado a medias); reabriendo 🗂️ desde el popup vuelve a funcionar. Y en un portal **sin** `destinoPorIndice` (Ramón Net o Anatomy), 🗂️ abre el editor de TSV como antes.
+
+Al terminar W-0..W-7: se borra la copia y se restaura el curso que se quitó **en la copia** (la bóveda real nunca se tocó).
+
+---
 
 Corte 2b en curso en la rama `classroom-destino-2b`: construcción finalizada (planes 01 a 06). Pendiente verificación en navegador (V-0..V-9).
 

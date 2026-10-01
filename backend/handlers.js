@@ -565,7 +565,25 @@ export async function handleDestinoEstado(request, corsHeaders) {
 export async function handleDestinoCursoVisto(request, corsHeaders) {
   try {
     const body = await request.json();
-    const { sitio, curso, items } = body || {};
+    const { sitio, curso, items, cursos } = body || {};
+
+    if (Array.isArray(cursos)) {
+      const validos = cursos.filter(c => c && (c.id || c.idCurso || c.clave));
+      if (validos.length === 0) {
+        return new Response(JSON.stringify({ ok: false, error: "Falta identificar los cursos." }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      for (const c of validos) {
+        guardarVisto({ sitio, curso: c, items: c.items });
+      }
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!curso || (!curso.id && !curso.idCurso && !curso.clave)) {
       return new Response(JSON.stringify({ ok: false, error: "Falta identificar el curso." }), {
         status: 400,

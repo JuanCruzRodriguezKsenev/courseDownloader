@@ -24,6 +24,7 @@
 - [Classroom: Sub-corte 2b-6 cierre del corte 2b](project_classroom_destino_2b6_cierre.md) — migración de omitidos al índice real, spec al día con RN-31/PA-5 y md5 de 32 hex, checklist V-0..V-9 y baseline en 62 archivos / 987 tests
 - [Classroom: Descarte de Meet en scraper](project_classroom_descarte_meet.md) — descarte de enlaces efímeros a meet.google.com en clasificarAdjunto sin tocar videos; baseline en 62 archivos / 988 tests
 - [Classroom: Sub-corte 2c-1 editor sobre índice real](project_classroom_destino_2c1_editor_indice.md) — modo ?modo=indice en backend/adopcion, POST /api/destino/curso-visto, nombres en índice, inversión pura y compuerta en 64 archivos / 1010 tests
+- [Classroom: Sub-corte 2c-2 asociar desde el popup](project_classroom_destino_2c2_asociar_popup.md) — cableado de 🗂️, BunClient.registrarCursoVisto, armarVistos, cursoParaEditor, notasDeDestino con Abrí 🗂️ y compuerta en 64 archivos / 1022 tests
 
 
 

@@ -5,6 +5,8 @@ import {
   puedeBajar,
   notasDeDestino,
   cardIndiceIlegible,
+  armarVistos,
+  cursoParaEditor,
 } from "./destino.js";
 
 describe("popup/features/destino.js", () => {
@@ -476,7 +478,7 @@ describe("popup/features/destino.js", () => {
 
       const nota = notasDeDestino(clases);
       expect(nota).toBe(
-        "1 curso sin asociar: Física II. Asocialo para poder bajar sus archivos. · 1 archivo en temas sin asignar va a la raíz de la materia."
+        "1 curso sin asociar: Física II. Abrí 🗂️ para asociarlo. · 1 archivo en temas sin asignar va a la raíz de la materia. Abrí 🗂️ para asignarle carpeta."
       );
     });
 
@@ -485,25 +487,25 @@ describe("popup/features/destino.js", () => {
       expect(notasDeDestino([
         { id: 1, bloqueo: "sin-asociar", cursoNombre: "Álgebra" },
         { id: 2, bloqueo: "sin-asociar", cursoNombre: "Álgebra" }, // mismo curso, no duplica
-      ])).toBe("1 curso sin asociar: Álgebra. Asocialo para poder bajar sus archivos.");
+      ])).toBe("1 curso sin asociar: Álgebra. Abrí 🗂️ para asociarlo.");
 
       // N cursos sin asociar (plural)
       expect(notasDeDestino([
         { id: 1, bloqueo: "sin-asociar", cursoNombre: "Álgebra" },
         { id: 2, bloqueo: "sin-asociar", cursoNombre: "Análisis II" },
-      ])).toBe("2 cursos sin asociar: Álgebra, Análisis II. Asocialos para poder bajar sus archivos.");
+      ])).toBe("2 cursos sin asociar: Álgebra, Análisis II. Abrí 🗂️ para asociarlos.");
 
       // 1 archivo en tema sin asignar (singular)
       expect(notasDeDestino([
         { id: 1, sinAsignar: true },
-      ])).toBe("1 archivo en temas sin asignar va a la raíz de la materia.");
+      ])).toBe("1 archivo en temas sin asignar va a la raíz de la materia. Abrí 🗂️ para asignarle carpeta.");
 
       // M archivos en temas sin asignar (plural)
       expect(notasDeDestino([
         { id: 1, sinAsignar: true },
         { id: 2, sinAsignar: true },
         { id: 3, sinAsignar: true },
-      ])).toBe("3 archivos en temas sin asignar van a la raíz de la materia.");
+      ])).toBe("3 archivos en temas sin asignar van a la raíz de la materia. Abrí 🗂️ para asignarles carpeta.");
     });
 
     it("un nombre de curso con <b> queda como texto literal", () => {
@@ -513,7 +515,7 @@ describe("popup/features/destino.js", () => {
 
       const nota = notasDeDestino(clases);
       expect(nota).toBe(
-        "1 curso sin asociar: <b>Curso Inyectado</b>. Asocialo para poder bajar sus archivos."
+        "1 curso sin asociar: <b>Curso Inyectado</b>. Abrí 🗂️ para asociarlo."
       );
     });
   });
@@ -542,6 +544,116 @@ describe("popup/features/destino.js", () => {
     it("convierte saltos de línea en <br>", () => {
       const card = cardIndiceIlegible("Error línea 1\nError línea 2");
       expect(card.descripcion).toContain("Error línea 1<br>Error línea 2");
+    });
+  });
+
+  describe("armarVistos()", () => {
+    it("un portal sin destinoPorIndice no arma nada y devuelve null (D-1)", () => {
+      expect(armarVistos([{ cursoId: "c1" }], sitioRamonNet)).toBeNull();
+      expect(armarVistos([{ cursoId: "c1" }], null)).toBeNull();
+    });
+
+    it("agrupa clases por cursoId y omite clases sin cursoId contándolas en sinCurso (D-3)", () => {
+      const clases = [
+        {
+          sitioId: "google-classroom",
+          cursoId: "c1",
+          cursoNombre: "Física II",
+          idArchivo: "a1",
+          titulo: "Guía 1",
+          tema: "TP 1",
+          publicacion: "Pub 1",
+          anuncio: "Anuncio 1",
+          bytes: 1024,
+          tipo: "adjunto",
+        },
+        {
+          sitioId: "google-classroom",
+          cursoId: "c1",
+          cursoNombre: "Física II",
+          idArchivo: "a2",
+          titulo: "Guía 2",
+          tema: "TP 1",
+        },
+        {
+          sitioId: "google-classroom",
+          cursoId: "c2",
+          cursoNombre: "Química",
+          idArchivo: "a3",
+          titulo: "Teoría 1",
+        },
+        {
+          sitioId: "google-classroom",
+          cursoId: null,
+          idArchivo: "a4",
+          titulo: "Huérfana",
+        },
+      ];
+
+      const res = armarVistos(clases, sitioClassroom);
+      expect(res.sinCurso).toBe(1);
+      expect(res.cursos).toHaveLength(2);
+      expect(res.cursos[0].id).toBe("c1");
+      expect(res.cursos[0].nombre).toBe("Física II");
+      expect(res.cursos[0].items).toHaveLength(2);
+      expect(res.cursos[0].items[0]).toEqual({
+        idArchivo: "a1",
+        original: "Guía 1",
+        tema: "TP 1",
+        publicacion: "Pub 1",
+        anuncio: "Anuncio 1",
+        bytes: 1024,
+        tipo: "adjunto",
+      });
+      expect(res.cursos[1].id).toBe("c2");
+      expect(res.cursos[1].nombre).toBe("Química");
+      expect(res.cursos[1].items).toHaveLength(1);
+    });
+
+    it("sin clases devuelve cursos vacío y sinCurso 0", () => {
+      expect(armarVistos([], sitioClassroom)).toEqual({ cursos: [], sinCurso: 0 });
+      expect(armarVistos(null, sitioClassroom)).toEqual({ cursos: [], sinCurso: 0 });
+    });
+  });
+
+  describe("cursoParaEditor()", () => {
+    it("un portal sin destinoPorIndice no arma nada y devuelve null (D-1)", () => {
+      expect(cursoParaEditor({ clases: [{ cursoId: "c1" }], claveListado: "todos", sitio: sitioRamonNet })).toBeNull();
+      expect(cursoParaEditor({ clases: [{ cursoId: "c1" }], claveListado: "c1", sitio: null })).toBeNull();
+    });
+
+    it("un solo curso: abre ese curso directamente (D-2)", () => {
+      expect(cursoParaEditor({ clases: [{ cursoId: "c1" }], claveListado: "c1", sitio: sitioClassroom })).toBe("google-classroom:c1");
+      expect(cursoParaEditor({ clases: [{ cursoId: "c1" }], claveListado: "google-classroom:c1", sitio: sitioClassroom })).toBe("google-classroom:c1");
+    });
+
+    it("lista de «todos» con uno sin asociar y otro asociado: abre el sin asociar (D-2)", () => {
+      const clases = [
+        { sitioId: "google-classroom", cursoId: "c1", bloqueo: undefined },
+        { sitioId: "google-classroom", cursoId: "c2", bloqueo: "sin-asociar" },
+      ];
+      expect(cursoParaEditor({ clases, claveListado: "todos", sitio: sitioClassroom })).toBe("google-classroom:c2");
+    });
+
+    it("lista de «todos» con todos asociados: abre el primero (D-2)", () => {
+      const clases = [
+        { sitioId: "google-classroom", cursoId: "c1", bloqueo: undefined },
+        { sitioId: "google-classroom", cursoId: "c2", bloqueo: undefined },
+      ];
+      expect(cursoParaEditor({ clases, claveListado: "todos", sitio: sitioClassroom })).toBe("google-classroom:c1");
+    });
+
+    it("clases sin cursoId se ignoran y no fallan", () => {
+      const clases = [
+        { sitioId: "google-classroom", cursoId: null, bloqueo: "sin-asociar" },
+        { sitioId: "google-classroom", cursoId: "c3", bloqueo: "sin-asociar" },
+      ];
+      expect(cursoParaEditor({ clases, claveListado: "todos", sitio: sitioClassroom })).toBe("google-classroom:c3");
+    });
+
+    it("sin clases con cursoId devuelve null", () => {
+      expect(cursoParaEditor({ clases: [], claveListado: "todos", sitio: sitioClassroom })).toBeNull();
+      expect(cursoParaEditor({ clases: [{ cursoId: null }], claveListado: "todos", sitio: sitioClassroom })).toBeNull();
     });
   });
 });

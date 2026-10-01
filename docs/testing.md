@@ -30,10 +30,14 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **64 archivos, 1010 tests**, todo en verde |
+| `pnpm test` | **64 archivos, 1022 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 1022** (2026-10-01, plan `08 - 2c-2 Asociar desde el popup y cierre del 2c`). Son los 1010 de abajo más **+12** tests:
+- **+3** en `core/backend/bunClient.test.ts` (suite de `registrarCursoVisto`: forma del pedido con payload de cursos D-3, error aplicativo devuelto sin lanzar y error de red lanzado; 34 → 37 tests),
+- y **+9** en `popup/features/destino.test.js` (suite de `armarVistos` en D-3: portal sin `destinoPorIndice` devuelve null D-1, agrupación por cursoId con omisión y conteo de huérfanas en `sinCurso`, sin clases vacío; suite de `cursoParaEditor` en D-2: portal sin `destinoPorIndice` devuelve null D-1, curso único abre ése D-2, lista de «todos» abre primer curso sin asociar, lista de «todos» asociados abre el primero, clases sin `cursoId` ignoradas, y sin cursos devuelve null; 19 → 28 tests).
 
 **De dónde sale el 1010** (2026-10-01, plan `07 - 2c-1 Editor web sobre el índice real`). Son los 988 de abajo más **+22** tests repartidos en **+2** archivos nuevos:
 - **+3** en `core/destino/propuesta.test.ts` (suite de `curso.nombres` en D-3: prefiere `curso.nombres?.[clave]` sobre propuesta si no está descargado, no altera nombre con `renombrarChoques`, y no pisa archivo ya descargado en disco; 8 → 11 tests),

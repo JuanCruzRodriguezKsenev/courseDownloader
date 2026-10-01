@@ -438,4 +438,43 @@ describe('destino por índice (corte 2b-4)', () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
     await expect(BunClient.estadoDestino({ sitio: 'google-classroom' })).rejects.toThrow('Failed to fetch');
   });
+
+  it('registrarCursoVisto() envía POST /api/destino/curso-visto con el payload de cursos (D-3)', async () => {
+    const espia = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    globalThis.fetch = espia as unknown as typeof fetch;
+
+    const payload = {
+      sitio: 'google-classroom',
+      cursos: [
+        {
+          id: 'CURSO_1',
+          nombre: 'Física II',
+          items: [{ idArchivo: 'A1', original: 'Guía 1' }],
+        },
+      ],
+    };
+
+    const res = await BunClient.registrarCursoVisto(payload);
+    expect(res).toEqual({ ok: true });
+    expect(urlDe(espia)).toBe('http://localhost:3001/api/destino/curso-visto');
+    const opts = opcionesDe(espia);
+    expect(opts.method).toBe('POST');
+    expect(opts.headers).toEqual({ 'Content-Type': 'application/json' });
+    expect(JSON.parse(opts.body as string)).toEqual(payload);
+  });
+
+  it('registrarCursoVisto() devuelve { ok: false } sin lanzar si el backend responde error aplicativo', async () => {
+    const espia = vi.fn(async () => new Response(JSON.stringify({ ok: false, error: 'Falta identificar los cursos.' }), { status: 400 }));
+    globalThis.fetch = espia as unknown as typeof fetch;
+
+    const res = await BunClient.registrarCursoVisto({ sitio: 'google-classroom', cursos: [] });
+    expect(res).toEqual({ ok: false, error: 'Falta identificar los cursos.' });
+  });
+
+  it('registrarCursoVisto() lanza error ante fallo de red o servidor caído', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    await expect(
+      BunClient.registrarCursoVisto({ sitio: 'google-classroom', cursos: [] })
+    ).rejects.toThrow('Failed to fetch');
+  });
 });

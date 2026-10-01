@@ -1123,3 +1123,4 @@ los números y líneas que cita no se corrigen hacia atrás. Qué se verificó e
     recorrido entero se corta como "navegaste fuera del recorrido"; las muestras guardan una sola
     `c-wiz`, así que no lo pueden confirmar ni descartar. (b) Para los activos, el script hace
     click en `/h/archived` y, sin esperar, en el link del sidebar: carrera entre dos navegaciones.
+- **Corte 2 (destino por índice, 2a/2b/2c)**: el diseño detallado, reglas y estado de construcción viven en [docs/specs/classroom-destino/spec.md](specs/classroom-destino/spec.md).

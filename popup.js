@@ -1,7 +1,12 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.31.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.32.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.32.0:
+ * - [DESTINO CORTE 2c-2] Cableado de #ui-link-adopcion (🗂️): si el portal usa destino por índice
+ *   y hay clases, previene navegación, envía cursos vistos al backend con registrarCursoVisto
+ *   y abre el editor web en modo índice posicionado en el curso correspondiente (D-1..D-4).
+ *
  * CHANGELOG v5.31.0:
  * - [DESTINO CORTE 2b-4] Sincronización de disco particionada: portales con destinoPorIndice
  *   consultan estado al backend vía aplicarEstadoDestino (D-2).
@@ -375,7 +380,14 @@ import { html } from './popup/vendor/htm-preact-standalone.module.js';
 import { abrirCapa } from './popup/features/capa.preact.js';
 import Bloqueo from './popup/features/bloqueo.js';
 import { crearPisoVisible } from './popup/features/pisoVisible.js';
-import { aplicarEstadoDestino, bloquearSeleccion, notasDeDestino, cardIndiceIlegible } from './popup/features/destino.js';
+import {
+  aplicarEstadoDestino,
+  bloquearSeleccion,
+  notasDeDestino,
+  cardIndiceIlegible,
+  armarVistos,
+  cursoParaEditor,
+} from './popup/features/destino.js';
 import FacetaFeature from './popup/features/faceta.js';
 import FilterFeature from './popup/features/filters.js';
 import OrdenFeature from './popup/features/orden.js';
@@ -460,7 +472,8 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       btnSort:         document.getElementById('ui-btn-sort'),
       btnRescan:       document.getElementById('ui-btn-rescan'),
       btnToggleSelect: document.getElementById('ui-btn-toggle-select'),
-      btnHelp:         document.getElementById('ui-btn-help')
+      btnHelp:         document.getElementById('ui-btn-help'),
+      linkAdopcion:    document.getElementById('ui-link-adopcion')
       // El overlay del onboarding y su DOM interno los posee la isla Preact
       // features/onboarding.preact.js (ver ADR-0006). Ya no hay refs nodos.* a él.
     };
@@ -2104,6 +2117,44 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     });
 
     nodos.btnRescan?.addEventListener('click', () => reescanearSegunPestaña());
+
+    nodos.linkAdopcion?.addEventListener('click', async (e) => {
+      const clases = appState.listadoClasesGlobal || [];
+      if (!sitioActivo?.destinoPorIndice || clases.length === 0) {
+        return;
+      }
+
+      e.preventDefault();
+
+      const vistos = armarVistos(clases, sitioActivo);
+      if (!vistos || vistos.cursos.length === 0) {
+        return;
+      }
+
+      try {
+        await backend.registrarCursoVisto({
+          sitio: sitioActivo.id,
+          cursos: vistos.cursos,
+        });
+
+        const claveListado = appState.origenListado?.clave || sitioActivo.claveDeListado?.(pestañaActivaUrl);
+        const claveCurso = cursoParaEditor({
+          clases,
+          claveListado,
+          sitio: sitioActivo,
+        });
+
+        const paramCurso = claveCurso ? `&curso=${encodeURIComponent(claveCurso)}` : '';
+        const urlBase = (nodos.linkAdopcion && nodos.linkAdopcion.href) ? nodos.linkAdopcion.href : 'http://127.0.0.1:3001/adopcion/';
+        const separador = urlBase.includes('?') ? '&' : '?';
+        const url = `${urlBase}${separador}modo=indice${paramCurso}`;
+
+        window.open(url, '_blank');
+      } catch (err) {
+        console.error('Error al registrar cursos vistos en el backend:', err);
+        activarEstadoOfflineUI();
+      }
+    });
 
     nodos.btnStartQueue.addEventListener('click', () => _queue.iniciarDescargaCola());
 

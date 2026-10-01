@@ -1,6 +1,11 @@
 /**
- * NÚCLEO — CLIENTE DEL BACKEND BUN (V2.3.0)
+ * NÚCLEO — CLIENTE DEL BACKEND BUN (V2.4.0)
  * ==========================================================================
+ * CHANGELOG v2.4.0:
+ * - [DESTINO CORTE 2c-2] Método `registrarCursoVisto` (POST /api/destino/curso-visto, 15s).
+ *   Envía { sitio, cursos: [...] } para el editor web (D-2, D-3).
+ *   Errores de red/timeout se lanzan; respuesta { ok: false } se devuelve sin lanzar.
+ *
  * CHANGELOG v2.3.0:
  * - [DESTINO CORTE 2b-4] Métodos `estadoDestino` (POST /api/destino/estado, 15s) e `indiceDestino`
  *   (GET /api/destino/indice, 4s). Errores de red/timeout se lanzan; `indiceIlegible` se devuelve.
@@ -127,6 +132,35 @@ export interface RespuestaEstadoDestino {
     docente?: string;
   };
   items?: ItemEstadoDestino[];
+}
+
+export interface ItemCursoVisto {
+  idArchivo: string;
+  original: string;
+  tema?: string;
+  publicacion?: string;
+  anuncio?: string;
+  bytes?: number;
+  tipo?: string;
+  [key: string]: unknown;
+}
+
+export interface CursoVistoPayload {
+  id: string;
+  nombre?: string;
+  items?: ItemCursoVisto[];
+  [key: string]: unknown;
+}
+
+export interface PayloadCursoVisto {
+  sitio: string;
+  cursos: CursoVistoPayload[];
+}
+
+export interface RespuestaCursoVisto {
+  ok: boolean;
+  error?: string;
+  [key: string]: unknown;
 }
 
 /**
@@ -399,6 +433,36 @@ export const BunClient = {
         throw new Error("El servidor local Bun no respondió correctamente.");
       }
       return data as RespuestaEstadoDestino;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  },
+
+  /**
+   * Envía al backend los cursos vistos con sus ítems para el editor web (corte 2c-2, D-2, D-3).
+   * POST /api/destino/curso-visto.
+   */
+  async registrarCursoVisto(
+    payload: PayloadCursoVisto,
+    { timeoutMs = 15000 }: { timeoutMs?: number } = {}
+  ): Promise<RespuestaCursoVisto> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(`${this.baseUrl}/api/destino/curso-visto`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        if (data && typeof data === "object" && typeof (data as RespuestaCursoVisto).ok === "boolean") {
+          return data as RespuestaCursoVisto;
+        }
+        throw new Error("El servidor local Bun no respondió correctamente.");
+      }
+      return (data && typeof data === "object") ? (data as RespuestaCursoVisto) : { ok: true };
     } finally {
       clearTimeout(timeoutId);
     }

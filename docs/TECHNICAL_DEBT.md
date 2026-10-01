@@ -14,9 +14,9 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 ## 🔴 Abierto
 
-> ## Estado al 2026-10-01: **VEINTITRÉS** entradas abiertas
+> ## Estado al 2026-10-01: **VEINTICINCO** entradas abiertas
 >
-> Re-contadas, no sumadas al número anterior (3 🔴, 3 🟠, 17 ⚪):
+> Re-contadas, no sumadas al número anterior (3 🔴, 3 🟠, 19 ⚪):
 >
 > 1. 🔴 **El mecanismo de popovers sin tests** (hallado 2026-08-05).
 > 2. 🔴 **El loader del popup no tiene dueño**: tokens y demora pendientes (hallado 2026-08-12).
@@ -41,6 +41,8 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 > 21. ⚪ **`claveSesion` del backend no incluye el módulo ni el tipo: dos adjuntos con igual título en un portal comparten sesión** (hallado 2026-10-01, en 2b-2).
 > 22. ⚪ **RN-10 no se puede derivar mecánicamente (PA-5)** (hallado 2026-09-30).
 > 23. ⚪ **`generar.js` y `core/destino/propuesta.ts` arman la propuesta cada uno por su lado** (hallado 2026-09-30).
+> 24. ⚪ **El editor en modo índice no cambia la materia de un curso ya asociado (D-4 del plan 07)**.
+> 25. ⚪ **Los vistos del editor viven en memoria: un reinicio del backend obliga a reabrir desde el popup (D-2 del plan 07)**.
 >
 > ### Lo que se cerró el 2026-09-27
 >

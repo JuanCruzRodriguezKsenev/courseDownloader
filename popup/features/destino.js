@@ -1,6 +1,9 @@
 /**
- * POPUP — FEATURE: DESTINO POR ÍNDICE (V1.0.0)
+ * POPUP — FEATURE: DESTINO POR ÍNDICE (V1.1.0)
  * ==========================================================================
+ * CHANGELOG v1.1.0:
+ * - [DESTINO CORTE 2c-2] Funciones `armarVistos` (D-3) y `cursoParaEditor` (D-2).
+ *
  * CHANGELOG v1.0.0:
  * - [DESTINO CORTE 2b-4] Módulo desacoplado para consultar al backend el estado
  *   de las clases contra el índice de destino (.course-downloader.json) (RN-2, D-2, D-3).
@@ -199,9 +202,9 @@ export function notasDeDestino(clases) {
   if (cursos.length > 0) {
     const nombres = cursos.join(', ');
     if (cursos.length === 1) {
-      notas.push(`1 curso sin asociar: ${nombres}. Asocialo para poder bajar sus archivos.`);
+      notas.push(`1 curso sin asociar: ${nombres}. Abrí 🗂️ para asociarlo.`);
     } else {
-      notas.push(`${cursos.length} cursos sin asociar: ${nombres}. Asocialos para poder bajar sus archivos.`);
+      notas.push(`${cursos.length} cursos sin asociar: ${nombres}. Abrí 🗂️ para asociarlos.`);
     }
   }
 
@@ -209,9 +212,9 @@ export function notasDeDestino(clases) {
   const countSinAsignar = clases.filter((c) => c.sinAsignar).length;
   if (countSinAsignar > 0) {
     if (countSinAsignar === 1) {
-      notas.push('1 archivo en temas sin asignar va a la raíz de la materia.');
+      notas.push('1 archivo en temas sin asignar va a la raíz de la materia. Abrí 🗂️ para asignarle carpeta.');
     } else {
-      notas.push(`${countSinAsignar} archivos en temas sin asignar van a la raíz de la materia.`);
+      notas.push(`${countSinAsignar} archivos en temas sin asignar van a la raíz de la materia. Abrí 🗂️ para asignarles carpeta.`);
     }
   }
 
@@ -243,12 +246,114 @@ export function cardIndiceIlegible(mensajeError) {
   };
 }
 
+/**
+ * Agrupa los cursos de la lista por cursoId con sus ítems para enviarlos al backend (D-3).
+ * Omite clases sin cursoId y las cuenta en `sinCurso`.
+ * Si el portal no usa destino por índice, devuelve null (D-1).
+ *
+ * @param {Array<object>} clases
+ * @param {object} sitio
+ * @returns {{ cursos: Array<{ id: string, nombre: string, items: Array<object> }>, sinCurso: number } | null}
+ */
+export function armarVistos(clases, sitio) {
+  if (!sitio || !sitio.destinoPorIndice) {
+    return null;
+  }
+  if (!Array.isArray(clases)) {
+    return { cursos: [], sinCurso: 0 };
+  }
+
+  const sitioId = sitio.id;
+  const clasesPortal = clases.filter((c) => c && (!c.sitioId || c.sitioId === sitioId));
+  const porCurso = new Map();
+  let sinCurso = 0;
+
+  for (const c of clasesPortal) {
+    if (!c.cursoId) {
+      sinCurso++;
+      continue;
+    }
+    let grupo = porCurso.get(c.cursoId);
+    if (!grupo) {
+      grupo = {
+        id: c.cursoId,
+        nombre: c.cursoNombre || '',
+        items: [],
+      };
+      porCurso.set(c.cursoId, grupo);
+    }
+    grupo.items.push({
+      idArchivo: c.idArchivo,
+      original: c.titulo,
+      tema: c.tema,
+      publicacion: c.publicacion,
+      anuncio: c.anuncio,
+      bytes: c.bytes,
+      tipo: c.tipo,
+    });
+  }
+
+  return {
+    cursos: Array.from(porCurso.values()),
+    sinCurso,
+  };
+}
+
+/**
+ * Determina qué curso abrir en el editor web (D-2).
+ * - Si viene de un solo curso (claveListado != 'todos'), ése.
+ * - Si viene de «todos», el primer curso sin asociar; si no hay ninguno, el primero de la lista.
+ * Devuelve la clave completa (`sitio:id`) o null si no aplica.
+ *
+ * @param {object} params
+ * @param {Array<object>} params.clases
+ * @param {string} [params.claveListado]
+ * @param {object} params.sitio
+ * @returns {string | null}
+ */
+export function cursoParaEditor({ clases, claveListado, sitio }) {
+  if (!sitio || !sitio.destinoPorIndice) {
+    return null;
+  }
+
+  const sitioId = sitio.id || 'google-classroom';
+  const formatearClave = (id) => (id && id.includes(':') ? id : `${sitioId}:${id}`);
+
+  // Si viene de un solo curso (claveDeListado distinto de "todos"), ése (D-2).
+  if (claveListado && claveListado !== 'todos') {
+    return formatearClave(claveListado);
+  }
+
+  if (!Array.isArray(clases) || clases.length === 0) {
+    return null;
+  }
+
+  const clasesPortal = clases.filter((c) => c && (!c.sitioId || c.sitioId === sitioId));
+
+  // Si viene de "todos", el primer curso sin asociar (D-2).
+  const sinAsociar = clasesPortal.find((c) => c.cursoId && c.bloqueo === 'sin-asociar');
+  if (sinAsociar) {
+    return formatearClave(sinAsociar.cursoId);
+  }
+
+  // Si no hay ninguno sin asociar, el primero de la lista (D-2).
+  const primerCurso = clasesPortal.find((c) => c.cursoId);
+  if (primerCurso) {
+    return formatearClave(primerCurso.cursoId);
+  }
+
+  return null;
+}
+
 export default {
   aplicarEstadoDestino,
   bloquearSeleccion,
   puedeBajar,
   notasDeDestino,
   cardIndiceIlegible,
+  armarVistos,
+  cursoParaEditor,
 };
+
 
 

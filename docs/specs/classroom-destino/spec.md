@@ -607,7 +607,7 @@ Decididos por el dueño el 2026-09-27. Cada uno es una rama y un plan.
 |---|---|---|
 | **2a — Adopción** | Script de una sola corrida: lleva `verificacion-b` a la raíz (se aplicó en la bóveda, `32136ca`) con los nombres que el dueño eligió y hace nacer el índice. No toca la extensión. Plan: `docs/plan-classroom-destino-2a-adopcion.md` | RN-1, 3–8, 11, 12, 15–17, 20, 21, 23–26, 28, 30 (en su forma de adopción); PA-2, PA-3 |
 | **2b — La extensión usa el índice** ✅ 2026-10-01 | Raíz por portal; "ya descargado" y descarga a la carpeta del tema según la tabla de decisión; tema nuevo sin asignar; índice ilegible; omisiones migradas. Planes: 01 a 06 en `~/Boveda/Proyectos/courseDownloader/Planes/` | RN-2, 3a, 9, 10, 17, 18–22, 25, 27, 29, 29a, 30, 31 |
-| **2c — Pantallas** | Asociar un curso nuevo; editar el nombre en la lista y recordarlo | RN-1, 4, 7, 13, 14 |
+| **2c — Pantallas** (construido, sin verificar en navegador) | Asociar un curso nuevo; editar el nombre en la lista y recordarlo. Planes: 07 y 08 en `~/Boveda/Proyectos/courseDownloader/Planes/` | RN-1, 4, 7, 13, 14 |
 
 ## Medición de respaldo — cruce del árbol contra lo descargado (2026-09-16)
 
