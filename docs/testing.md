@@ -30,10 +30,19 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **50 archivos, 862 tests**, todo en verde |
+| `pnpm test` | **57 archivos, 910 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 910** (2026-09-30, plan `01 - 2b-1 Backend raíz por portal y servicio del índice`). Son los 862 de abajo más **+48** tests repartidos en **+7** archivos nuevos:
+**+7** en `backend/destino/rutas.test.js` (validación pura de rutas bajo la raíz, traversal, hermanos y disco pelado D:\ en Windows),
+**+13** en `core/destino/decidir.test.ts` (tabla de decisión decidirAntes filas 0, 0b, 1, 2, 3, 4 y decidirDespues filas 0, 5, 6 y rechazo, más orden estricto RN-29a/RN-30),
+**+2** en `backend/destino/md5.test.js` (cálculo MD5 por stream y cache en memoria por ruta|tamaño|mtime D-4),
+**+5** en `backend/destino/recorrido.test.js` (búsqueda por MD5 ignorando Wiki, Mis notas, Clases, carpetas ocultas y symlinks; detección de archivo movido a otra materia AC-5b),
+**+6** en `backend/destino/indiceServicio.test.js` (lectura sin crear archivo, JSON inválido byte-idéntico, modificación atómica con candado por raíz y reflejo de cambios a mano RN-26),
+**+8** en `core/destino/propuesta.test.ts` (propuesta de carpeta y nombres, omitidos D-7, temas nuevos AC-9, Novedades sin marca y resolución de choques RN-16/RN-16a),
+y **+7** en `backend/destino/estado.test.js` (cálculo de estado contra índice y disco, AC-5, AC-5b, AC-7, AC-10, fila 0 .md editado y fila 1 sin hashear).
 
 **De dónde sale el 862** (2026-09-28, plan `classroom-destino-2a-boveda`). Son los 859 de abajo más **+3** tests en `core/destino/carpetas.test.ts` (dos en temas reales para "Notas de evaluaciones" y "Resultados", y uno en publicaciones para mayoría de notas; 20 → 23 tests; el de DESTINOS se renombra sin sumar).
 

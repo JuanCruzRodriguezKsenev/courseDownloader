@@ -364,6 +364,10 @@ en el adaptador ni releer call-sites buscando cuál quedó en la unidad vieja.
 `tipoBackend: "rechazo"` marca **sólo** 4xx (saltear la clase), nunca 5xx (pausar +
 auto-heal). De esa distinción depende el fix del bug 400.
 
+**`core/destino/` agrupa la lógica pura de indexación y destino del árbol del usuario**:
+- **`core/destino/decidir.ts`**: dos funciones puras (`decidirAntes`, `decidirDespues`) que implementan la tabla de decisión de la spec para determinar si un adjunto se descarga, descarta o escribe.
+- **`core/destino/propuesta.ts`**: `proponerParaCurso`, asignación pura de carpeta destino, resolución de nombres y detección de choques (RN-16/16a).
+
 ### Capa 3 — `plataforma/`
 
 `plataforma/chrome/almacenamiento.ts` implementa `PuertoAlmacenamiento` sobre
@@ -570,6 +574,15 @@ que el bundler no verifica: no llames a `Utils.*` en el top-level de un módulo.
 
 **No volver a meter vocabulario del sitio acá**: el parser de títulos vive en
 `sitio/ramonnet/parserTitulos.js` desde v6.0.0, y ésa es la frontera.
+
+### Backend — `backend/`
+
+El servidor complementario Bun aloja en `backend/destino/` los servicios puros de persistencia e indexación para el corte de destino:
+- **`backend/destino/rutas.js`**: `esRutaBajo(raiz, ruta)`, validación pura de pertenencia estricta a una carpeta raíz soportando discos pelados `D:\` en Windows.
+- **`backend/destino/md5.js`**: `md5Archivo(ruta)`, cálculo de hash MD5 por stream con cache en memoria indexado por `ruta|tamaño|mtime` (D-4).
+- **`backend/destino/recorrido.js`**: `recorrerRaiz(raiz)` y `buscarPorMd5(raiz, md5)`, recorrido del árbol ignorando notas (`Wiki/`, `Mis notas/`, `Clases/`), carpetas ocultas y symlinks.
+- **`backend/destino/indiceServicio.js`**: `leerIndice(raiz)` y `modificarIndice(raiz, fn)`, lectura no destructiva y modificación atómica con candado por raíz sobre `.course-downloader.json`.
+- **`backend/destino/estado.js`**: `calcularEstado({ raiz, sitio, curso, items })`, cálculo de estado contra disco e índice corrigiendo rutas movidas (RN-19).
 
 ## Flujo de una descarga, de punta a punta
 

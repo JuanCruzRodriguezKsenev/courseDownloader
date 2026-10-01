@@ -5,6 +5,7 @@ export interface CursoIndice {
   materia: string;
   docente: string;
   temas: Record<string, string>;
+  omitidos?: string[];
 }
 
 export interface ArchivoIndice {

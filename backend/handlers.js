@@ -1,9 +1,14 @@
 import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { VERSION, CARPETA_RAIZ_VIDEOS, MAX_CHUNK_BYTES, CONFIG_USER_FILE, establecerRutaRaiz } from "./config.js";
+import { VERSION, CARPETA_RAIZ_VIDEOS, MAX_CHUNK_BYTES, CONFIG_USER_FILE, establecerRutaRaiz, establecerRaizDePortal, raizDeDestino } from "./config.js";
 import { log } from "./logger.js";
 import { sanitizarNombreArchivo, esRutaSegura } from "./utils.js";
+import { leerIndice, ErrorIndiceIlegible } from "./destino/indiceServicio.js";
+import { calcularEstado } from "./destino/estado.js";
+
+export const PORTALES_VALIDOS = new Set(["ramonnet", "anatomy-by-chris", "google-classroom"]);
+
 import { acumuladorChunks, alimentarSlidingWindow, abortarDescargaYLimpiar, sessionesCanceladas } from "./accumulator.js";
 
 let extensionConectada = false;
@@ -322,6 +327,14 @@ export async function handleBypassStream(request, corsHeaders) {
  */
 export async function handleSeleccionarCarpeta(request, corsHeaders) {
   try {
+    const url = new URL(request.url);
+    const portal = url.searchParams.get("portal");
+    if (portal !== null && !PORTALES_VALIDOS.has(portal)) {
+      return new Response(JSON.stringify({ error: `Portal desconocido: ${portal}` }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
     let rutaSeleccionada = "";
     if (process.platform === "win32") {
       const comandoPowerShell = "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; $f.Description = 'Selecciona la carpeta de destino para RamonNet Turbo'; $f.ShowNewFolderButton = $true; $c = $f.ShowDialog(); if ($c -eq 'OK') { $f.SelectedPath }";
@@ -344,11 +357,30 @@ export async function handleSeleccionarCarpeta(request, corsHeaders) {
     }
 
     if (rutaSeleccionada) {
-      establecerRutaRaiz(rutaSeleccionada);
       const fs = await import("node:fs/promises");
-      await fs.writeFile(CONFIG_USER_FILE, JSON.stringify({ rutaRaiz: rutaSeleccionada }, null, 2), "utf8");
+      let configActual = {};
+      try {
+        const contenido = await fs.readFile(CONFIG_USER_FILE, "utf8");
+        configActual = JSON.parse(contenido);
+      } catch {
+        // Si no existe o no parsea, se arranca con objeto vacío
+      }
+      if (!configActual || typeof configActual !== "object" || Array.isArray(configActual)) {
+        configActual = {};
+      }
+
+      if (portal) {
+        establecerRaizDePortal(portal, rutaSeleccionada);
+        configActual.raices = configActual.raices || {};
+        configActual.raices[portal] = rutaSeleccionada;
+      } else {
+        establecerRutaRaiz(rutaSeleccionada);
+        configActual.rutaRaiz = rutaSeleccionada;
+      }
+
+      await fs.writeFile(CONFIG_USER_FILE, JSON.stringify(configActual, null, 2), "utf8");
       
-      process.stdout.write(`\r📂 [DISCO]     Nueva carpeta raiz establecida: "${rutaSeleccionada}"\n`);
+      process.stdout.write(`\r📂 [DISCO]     Nueva carpeta raiz establecida${portal ? ` para ${portal}` : ""}: "${rutaSeleccionada}"\n`);
       
       return new Response(JSON.stringify({ success: true, ruta: rutaSeleccionada }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -396,3 +428,57 @@ export async function handleCancelarDescarga(url, corsHeaders) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
   }
 }
+
+/**
+ * GET /api/destino/indice?portal=
+ */
+export async function handleDestinoIndice(url, corsHeaders) {
+  try {
+    const portal = url.searchParams.get("portal") || undefined;
+    const raiz = raizDeDestino(portal);
+    const indice = await leerIndice(raiz);
+    return new Response(JSON.stringify({ ok: true, raiz, indice }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    if (err instanceof ErrorIndiceIlegible) {
+      return new Response(JSON.stringify({ ok: false, indiceIlegible: true, error: err.mensaje }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: corsHeaders,
+    });
+  }
+}
+
+/**
+ * POST /api/destino/estado
+ */
+export async function handleDestinoEstado(request, corsHeaders) {
+  try {
+    const body = await request.json();
+    const { sitio, curso, items } = body || {};
+    const raiz = raizDeDestino(sitio);
+    const resultado = await calcularEstado({ raiz, sitio, curso, items });
+    return new Response(JSON.stringify(resultado), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    if (err instanceof ErrorIndiceIlegible) {
+      return new Response(JSON.stringify({ ok: false, indiceIlegible: true, error: err.mensaje }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: corsHeaders,
+    });
+  }
+}
+
