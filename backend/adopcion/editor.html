@@ -771,6 +771,32 @@ button {
   text-decoration: line-through;
 }
 
+.files-table tr.row-descargado {
+  opacity: 0.55;
+  background: rgba(255, 255, 255, 0.015);
+}
+.files-table tr.row-descargado td,
+.files-table tr.row-descargado .file-rename-input,
+.files-table tr.row-descargado .file-dest-select {
+  cursor: not-allowed;
+  color: var(--text-muted);
+}
+
+.file-badge-en-disco {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(46, 160, 67, 0.15);
+  color: #3fb950;
+  border: 1px solid rgba(46, 160, 67, 0.3);
+  font-weight: 500;
+  cursor: help;
+  user-select: none;
+}
+
 .file-orig {
   color: var(--text-main);
   font-family: var(--font-mono);
@@ -1571,15 +1597,16 @@ button {
                 <tbody>
                   ${archivosTema.map((arch) => {
                     const isClash = FILAS_CON_CHOQUE.has(arch.clave);
-                    const isOmitted = arch.accion === "omitir" || tema.destino === "-";
+                    const isDownloaded = arch.accion === "ya-esta";
+                    const isOmitted = (arch.accion === "omitir" || tema.destino === "-") && !isDownloaded;
                     const livePath = computeLivePath(curso, tema, arch);
                     const isOverridden = Boolean(arch.destinoPropio && arch.destinoPropio !== tema.destino);
 
                     return `
-                      <tr class="${isClash ? "row-clash" : ""} ${isOmitted ? "row-omitted" : ""}" data-clave="${arch.clave}">
+                      <tr class="${isClash ? "row-clash" : ""} ${isOmitted ? "row-omitted" : ""} ${isDownloaded ? "row-descargado" : ""}" data-clave="${arch.clave}">
                         <td style="text-align: center;">
-                          ${arch.accion === "ya-esta" ? `
-                            <span class="file-check-done" title="Ya descargado en disco">✓</span>
+                          ${isDownloaded ? `
+                            <span class="file-badge-en-disco" title="Ya descargado en disco físico: inmutable desde este editor (para renombrarlo o moverlo hacelo en tus carpetas)">🔒 en disco</span>
                           ` : `
                             <label class="file-check-wrapper" title="${arch.accion !== 'omitir' ? 'Desmarcar para omitir' : 'Marcar para copiar'}">
                               <input type="checkbox" class="file-check" 
@@ -1599,14 +1626,16 @@ button {
                                  id="inp-nom-${arch.clave}"
                                  data-clave="${arch.clave}" 
                                  value="${arch.nombre}" 
-                                 ${isOmitted || arch.accion === "ya-esta" ? "disabled" : ""} />
+                                 ${isDownloaded ? 'title="Inmutable desde este editor: el archivo ya fue descargado en disco físico (renombralo o movelo desde tus carpetas si lo deseás)"' : ""}
+                                 ${isOmitted || isDownloaded ? "disabled" : ""} />
                           ${isClash ? `<span class="clash-warning">⚠ Choque: mismo nombre que otro archivo en este destino</span>` : ""}
                           ${arch.accion === "duplicado" ? `<span class="badge neutral" style="margin-top:2px;">duplicado</span>` : ""}
                         </td>
                         <td>
                           <select class="file-dest-select ${isOverridden ? "is-overridden" : ""}" 
                                   data-clave="${arch.clave}"
-                                  ${isOmitted || arch.accion === "ya-esta" ? "disabled" : ""}>
+                                  ${isDownloaded ? 'title="Inmutable desde este editor: el archivo ya fue descargado en disco físico (renombralo o movelo desde tus carpetas si lo deseás)"' : ""}
+                                  ${isOmitted || isDownloaded ? "disabled" : ""}>
                             <option value="" ${!arch.destinoPropio ? "selected" : ""}>
                               (Hereda: ${tema.destino || "."})
                             </option>
