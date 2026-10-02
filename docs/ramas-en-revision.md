@@ -17,12 +17,12 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 ## 🚧 En revisión
 
 Corte 2c en curso en la rama `classroom-destino-2c`:
-- **Planes**: `~/Boveda/Proyectos/courseDownloader/Planes/07 - 2c-1 Editor web sobre el índice real.md`, `08 - 2c-2 Asociar desde el popup y cierre del 2c.md`, `08b - 2c-3 Resaltado, orden y filtro de temas sin asignar.md` y `08c - 2c-4 Nuevo editor web monocromo de alta densidad.md`.
-- **Qué entrega**: editor web de adopción con nuevo diseño monocromo funcional estricto de alta densidad (`05-workspace-monocromo`), sidebar persistente de cursos, contenedor macro de temas + Novedades (RN-31), tick por archivo individual con selector de carpeta destino (`FilaArchivoEditor.carpeta`), filtros chips y recálculo en vivo de choques y rutas manteniendo compatibilidad con `humo-editor-indice.js`.
-- **Spec**: `docs/specs/classroom-destino/spec.md`. Implementa RN-9, RN-10, RN-31, AC-9.
+- **Planes**: `~/Boveda/Proyectos/courseDownloader/Planes/07 - 2c-1 Editor web sobre el índice real.md`, `08 - 2c-2 Asociar desde el popup y cierre del 2c.md`, `08b - 2c-3 Resaltado, orden y filtro de temas sin asignar.md`, `08c - 2c-4 Nuevo editor web monocromo de alta densidad.md` y `08d - 2c-5 Ajustes ergonomicos del editor web (layout, carpetas y sticky).md`.
+- **Qué entrega**: editor web de adopción monocromo con ajustes ergonómicos: tabla de archivos con `table-layout: fixed` y nombres editables legibles, eliminación de duplicación de rutas en vivo, encabezados sticky escalonados (toolbar fija + tarjetas de tema fijas durante el recorrido de sus clases) y soporte completo para creación y persistencia de carpetas personalizadas (tanto en UI como en `editor.js`, `vistas.ts`, `indice.ts` y `propuesta.ts`).
+- **Spec**: `docs/specs/classroom-destino/spec.md`. Implementa RN-3, RN-6, RN-9, RN-10, RN-13, RN-31, AC-9.
 - **Compuerta**: 64 archivos / 1029 tests (ver `docs/testing.md` §Baseline).
 - **Humo jsdom**: `humo-editor.js` y `humo-editor-indice.js` en verde (errores: 0).
-- **Estado**: Plan 08c ejecutado por `obra`. Pendiente verificación en navegador (W-0..W-7).
+- **Estado**: Plan 08d preparado para ejecución por `obra`. Pendiente verificación en navegador (W-0..W-7).
 
 ### Checklist de verificación W del corte 2c (dueño + tanda)
 - ⬜ **W-0** — Tanda: copia limpia de `~/Boveda/Areas/Facultad` y respaldo del índice. Para simular un curso **nuevo**, **quita del índice de la copia** un curso con pocos archivos (anotar cuál y sus entradas para restaurarlo). `pnpm run build`, recarga de la extensión, servidor reiniciado, y `raices.google-classroom` apuntando a la copia.
