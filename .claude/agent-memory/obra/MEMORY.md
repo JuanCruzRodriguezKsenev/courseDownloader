@@ -29,6 +29,7 @@
 - [Classroom: Sub-corte 2c-4 nuevo editor monocromo](project_classroom_destino_2c4_editor_monocromo.md) — workspace monocromo estricto, sidebar persistente, macro/micro drilldown, reubicación y compuerta en 64 archivos / 1029 tests
 - [Classroom: Sub-corte 2c-5 ajustes ergonómicos](project_classroom_destino_2c5_ajustes_ergonomicos.md) — layout fijo, sticky scroll en dos niveles, carpetas personalizadas y compuerta en 64 archivos / 1034 tests
 - [Classroom: Sub-corte 2c-6 detección estricta y selectores](project_classroom_destino_2c6_deteccion_estricta_selectores.md) — detección de carpetas por materia, creación en ambos selectores, tilde verde en descargados y compuerta en 64 archivos / 1034 tests
+- [Classroom: Sub-corte 2c-7 desactivación limpia de carpetas](project_classroom_destino_2c7_desactivacion_limpia_carpetas.md) — desactivación limpia de carpetas por checkbox maestro, eliminación de opción redundante en selector con estado disabled y compuerta en 64 archivos / 1034 tests
 
 
 
