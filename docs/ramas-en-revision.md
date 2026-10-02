@@ -22,7 +22,7 @@ Corte 2c en curso en la rama `classroom-destino-2c`:
 - **Spec**: `docs/specs/classroom-destino/spec.md`. Implementa RN-9, RN-10, RN-31, AC-9.
 - **Compuerta**: 64 archivos / 1029 tests (ver `docs/testing.md` §Baseline).
 - **Humo jsdom**: `humo-editor.js` y `humo-editor-indice.js` en verde (errores: 0).
-- **Estado**: Plan 08c preparado para ejecución por `obra`. Pendiente verificación en navegador (W-0..W-7).
+- **Estado**: Plan 08c ejecutado por `obra`. Pendiente verificación en navegador (W-0..W-7).
 
 ### Checklist de verificación W del corte 2c (dueño + tanda)
 - ⬜ **W-0** — Tanda: copia limpia de `~/Boveda/Areas/Facultad` y respaldo del índice. Para simular un curso **nuevo**, **quita del índice de la copia** un curso con pocos archivos (anotar cuál y sus entradas para restaurarlo). `pnpm run build`, recarga de la extensión, servidor reiniciado, y `raices.google-classroom` apuntando a la copia.
