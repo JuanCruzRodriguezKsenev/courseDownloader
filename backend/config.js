@@ -1,6 +1,7 @@
 import path from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { RAIZ_FACULTAD } from "./adopcion/raiz.js";
+import { resolverRaizDeDestino } from "./destino/portales.js";
 
 export const VERSION = "1.8.0-PRODUCTION";
 export const PORT    = 3001;
@@ -42,13 +43,12 @@ export function establecerRaizDePortal(portalId, ruta) {
 }
 
 export function raizDeDestino(portalId) {
-  if (portalId && raicesPorPortal[portalId]) {
-    return raicesPorPortal[portalId];
-  }
-  if (portalId === "google-classroom") {
-    return RAIZ_FACULTAD;
-  }
-  return CARPETA_RAIZ_VIDEOS;
+  return resolverRaizDeDestino({
+    portalId,
+    raices: raicesPorPortal,
+    raizPorDefecto: CARPETA_RAIZ_VIDEOS,
+    raizFacultad: RAIZ_FACULTAD,
+  });
 }
 
 

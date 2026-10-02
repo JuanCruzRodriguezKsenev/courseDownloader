@@ -321,4 +321,20 @@ describe("backend/destino/estado.js", () => {
     expect(entrada.nombre).toBe("06_video_capacidad_a.md");
     expect(entrada.ruta).toBe("Ingenieria/Fisica 2/Teorias/Palacio");
   });
+
+  it("sitio moodle-linti: devuelve claves moodle-linti:... y marca sin-asociar si el curso no figura", async () => {
+    const curso = { id: "40881", nombre: "Algoritmos y Estructuras de Datos" };
+    const items = [
+      { idArchivo: "40881/Tema 1/clase 1.pdf", tema: "Tema 1", original: "clase 1.pdf" },
+    ];
+
+    const res = await calcularEstado({ raiz, sitio: "moodle-linti", curso, items });
+
+    expect(res.ok).toBe(true);
+    expect(res.curso.asociado).toBe(false);
+    expect(res.items.length).toBe(1);
+    expect(res.items[0].idArchivo).toBe("40881/Tema 1/clase 1.pdf");
+    expect(res.items[0].estado).toBe("pendiente");
+    expect(res.items[0].rutaDestino).toBeNull();
+  });
 });

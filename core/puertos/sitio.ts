@@ -118,27 +118,27 @@ export interface EnlaceListado {
   bytes?: number;
 
   /**
-   * Título de la publicación de donde sale el adjunto (Classroom):
+   * Título de la publicación de donde sale el adjunto (portales con destino por índice (Classroom, Moodle del LINTI)):
    * lo usa la sugerencia de destino (RN-7a).
    */
   publicacion?: string;
 
   /**
-   * Texto del anuncio de Novedades (Classroom), hasta 500 caracteres:
+   * Texto del anuncio de Novedades (portales con destino por índice (Classroom, Moodle del LINTI)), hasta 500 caracteres:
    * nombra el archivo cuando choca (RN-16a).
    */
   anuncio?: string;
 
   /**
-   * [CORTE 2b-4] Id del curso en el portal (Classroom). Permite consultar el
+   * [CORTE 2b-4] Id del curso en el portal (portales con destino por índice (Classroom, Moodle del LINTI)). Permite consultar el
    * estado del curso al backend sin desarmar `modulo` (D-1, RN-2).
    */
   cursoId?: string;
 
-  /** [CORTE 2b-4] Nombre crudo del curso en el portal (Classroom). */
+  /** [CORTE 2b-4] Nombre crudo del curso en el portal (portales con destino por índice (Classroom, Moodle del LINTI)). */
   cursoNombre?: string;
 
-  /** [CORTE 2b-4] Tema o sección dentro del curso (Classroom). */
+  /** [CORTE 2b-4] Tema o sección dentro del curso (portales con destino por índice (Classroom, Moodle del LINTI)). */
   tema?: string;
 }
 

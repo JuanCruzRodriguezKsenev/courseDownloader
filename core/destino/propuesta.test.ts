@@ -224,4 +224,63 @@ describe("core/destino/propuesta.ts", () => {
     expect(props[1]!.carpeta).toBe("Talleres");
     expect(props[1]!.sinAsignar).toBe(false);
   });
+
+  describe("formas de ítem de Moodle (Plan 09 G-4)", () => {
+    it("(a) un tema 'Sin tema' y un ítem sin tema van a la raíz y sinAsignar: false", () => {
+      const items = [
+        { idArchivo: "m1", original: "programa.pdf", tema: "Sin tema" },
+        { idArchivo: "m2", original: "bienvenida.pdf" },
+      ];
+      const props = proponerParaCurso({ curso: cursoBase, items, sitioId: "moodle-linti" });
+
+      expect(props[0]!.carpeta).toBe(".");
+      expect(props[0]!.sinAsignar).toBe(false);
+
+      expect(props[1]!.carpeta).toBe(".");
+      expect(props[1]!.sinAsignar).toBe(false);
+    });
+
+    it("(b) idArchivo con / y espacios produce clave estable moodle-linti:...", () => {
+      const idArchivo = "40881/Tema 1/clase 1.pdf";
+      const items = [{ idArchivo, original: "clase 1.pdf", tema: "Clases Teóricas" }];
+      const props1 = proponerParaCurso({ curso: cursoBase, items, sitioId: "moodle-linti" });
+      const props2 = proponerParaCurso({ curso: cursoBase, items, sitioId: "moodle-linti" });
+
+      expect(props1[0]!.clave).toBe("moodle-linti:40881/Tema 1/clase 1.pdf");
+      expect(props2[0]!.clave).toBe("moodle-linti:40881/Tema 1/clase 1.pdf");
+      expect(props1[0]!.clave).toBe(props2[0]!.clave);
+    });
+
+    it("(c) dos ítems del mismo tema con el mismo original y publicacion distinta reciben sufijos distintos (RN-16)", () => {
+      const items = [
+        {
+          idArchivo: "m1",
+          original: "guia.pdf",
+          tema: "Guías de TP",
+          publicacion: "Semana 1",
+        },
+        {
+          idArchivo: "m2",
+          original: "guia.pdf",
+          tema: "Guías de TP",
+          publicacion: "Semana 2",
+        },
+      ];
+      const props = proponerParaCurso({ curso: cursoBase, items, sitioId: "moodle-linti" });
+
+      expect(props[0]!.nombre).not.toBe(props[1]!.nombre);
+      expect(props[0]!.nombre).toBe("guia_semana_1.pdf");
+      expect(props[1]!.nombre).toBe("guia_semana_2.pdf");
+    });
+
+    it("(d) sitioId: 'moodle-linti' nunca produce claves con google-classroom", () => {
+      const items = [
+        { idArchivo: "40881/a1", original: "archivo.pdf", tema: "Clases Teóricas" },
+      ];
+      const props = proponerParaCurso({ curso: cursoBase, items, sitioId: "moodle-linti" });
+
+      expect(props[0]!.clave).not.toContain("google-classroom");
+      expect(props[0]!.clave.startsWith("moodle-linti:")).toBe(true);
+    });
+  });
 });

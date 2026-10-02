@@ -16,6 +16,13 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## 🚧 En revisión
 
+Corte Moodle 1 en curso en la rama `moodle-linti`:
+- **Plan**: `~/Boveda/Proyectos/courseDownloader/Planes/09 - Moodle-1 Lo genérico del destino que hoy dice Classroom.md`.
+- **Qué entrega**: generalización del destino por índice para soportar Moodle sin tocar Classroom: módulo puro node-free `backend/destino/portales.js` (`PORTALES_VALIDOS`, `PORTALES_CON_DESTINO_INDICE`, `resolverRaizDeDestino`), extracción isomórfica de accesos Markdown a `core/destino/accesoMd.ts`, tolerancia del núcleo a formas de ítems de Moodle (temas vacíos a la raíz con `sinAsignar: false`, `idArchivo` con slashes y espacios, sufijos en choques RN-16 y claves con prefijo estricto).
+- **Spec**: `docs/specs/moodle-linti/spec.md`. Implementa RN-1, RN-5, RN-7, RN-9, RN-13, NFR-1.
+- **Compuerta**: 66 archivos / 1049 tests (ver `docs/testing.md` §Baseline).
+- **Estado**: Plan 09 ejecutado por `obra`.
+
 Corte 2c en curso en la rama `classroom-destino-2c`:
 - **Planes**: `~/Boveda/Proyectos/courseDownloader/Planes/07 - 2c-1 Editor web sobre el índice real.md`, `08 - 2c-2 Asociar desde el popup y cierre del 2c.md`, `08b - 2c-3 Resaltado, orden y filtro de temas sin asignar.md`, `08c - 2c-4 Nuevo editor web monocromo de alta densidad.md`, `08d - 2c-5 Ajustes ergonomicos del editor web (layout, carpetas y sticky).md`, `08f - 2c-6 Deteccion estricta de carpetas por materia y creacion en ambos selectores.md`, `08g - 2c-7 Desactivacion limpia de carpetas y eliminacion de opcion redundante en selector.md` y `08h - 2c-8 Atenuacion e indicador inmutable para archivos en disco.md`.
 - **Qué entrega**: editor web de adopción monocromo con ajustes ergonómicos: tabla de archivos con `table-layout: fixed` y nombres editables legibles, eliminación de duplicación de rutas en vivo, encabezados sticky escalonados (toolbar fija + tarjetas de tema fijas durante el recorrido de sus clases), soporte para creación y persistencia de carpetas personalizadas, detección estricta de subcarpetas por materia activa (sin mezcla global), creación interactiva en ambos selectores (`#selectMateria` y destinos), tilde verde circular para archivos ya descargados y eliminación de pill redundante `"ya está en disco"`, checkboxes de acento verde contrastado, desactivación limpia de carpetas vía checkbox maestro (`tema.destino = "-"` y archivos omitidos), eliminación de la opción redundante `-` en el selector con estado disabled, y atenuación visual neta con badge `🔒 en disco` para archivos descargados inmutables.

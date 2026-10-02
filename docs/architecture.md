@@ -374,6 +374,7 @@ auto-heal). De esa distinción depende el fix del bug 400.
 - **`core/destino/decidir.ts`**: dos funciones puras (`decidirAntes`, `decidirDespues`) que implementan la tabla de decisión de la spec para determinar si un adjunto se descarga, descarta o escribe.
 - **`core/destino/propuesta.ts`**: `proponerParaCurso`, asignación pura de carpeta destino, resolución de nombres y detección de choques (RN-16/16a).
 - **`core/destino/vistas.ts`**: `indiceAFilasEditor` y `filasEditorAIndice`, conversión bidireccional pura entre el índice `.course-downloader.json` y las tres tablas del editor web (`cursos`, `temas`, `archivos`), con inversión de carpetas (D-6) y validaciones de guardado.
+- **`core/destino/accesoMd.ts`**: `accesoADataUri(idArchivo, fecha)`, formateo isomórfico puro de accesos Markdown con frontmatter `tipo: acceso` y `revisado` (D-3, RN-9).
 
 ### Capa 3 — `plataforma/`
 
@@ -592,6 +593,7 @@ El servidor complementario Bun aloja en `backend/destino/` los servicios puros d
 - **`backend/destino/estado.js`**: `calcularEstado({ raiz, sitio, curso, items })`, cálculo de estado contra disco e índice corrigiendo rutas movidas (RN-19).
 - **`backend/destino/escritura.js`**: `validarDestino({ raiz, ruta, nombre, materia })` y `finalizarEnDestino(...)`, gancho `alFinalizar` del acumulador que ejecuta la tabla de decisión (`decidirDespues`) al completar la descarga para escribir, descartar o rechazar por ocupado (D-6, D-7).
 - **`backend/destino/vistos.js`**: `guardarVisto`, `leerVistos` y `limpiarVistos`, almacén volátil en memoria para conservar los escaneos recientes de cursos y alimentar el modo índice del editor web (D-2).
+- **`backend/destino/portales.js`**: módulo puro (node-free) dueño de `PORTALES_VALIDOS`, `PORTALES_CON_DESTINO_INDICE` y `resolverRaizDeDestino({ portalId, raices, raizPorDefecto, raizFacultad })` (D-1, D-2).
 
 ## Flujo de una descarga, de punta a punta
 

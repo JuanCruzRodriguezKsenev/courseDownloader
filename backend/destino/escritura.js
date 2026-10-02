@@ -5,8 +5,9 @@ import { md5Archivo } from "./md5.js";
 import { modificarIndice } from "./indiceServicio.js";
 import { sanitizarNombreArchivo } from "../utils.js";
 import { decidirDespues } from "../../core/destino/decidir.ts";
+import { PORTALES_CON_DESTINO_INDICE } from "./portales.js";
 
-export const PORTALES_CON_DESTINO_INDICE = new Set(["google-classroom"]);
+export { PORTALES_CON_DESTINO_INDICE };
 
 /**
  * Valida la ruta y el nombre propuestos para escribir en la raíz del usuario.

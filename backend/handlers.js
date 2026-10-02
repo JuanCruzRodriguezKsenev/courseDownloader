@@ -8,8 +8,9 @@ import { leerIndice, ErrorIndiceIlegible } from "./destino/indiceServicio.js";
 import { calcularEstado } from "./destino/estado.js";
 import { validarDestino, finalizarEnDestino, PORTALES_CON_DESTINO_INDICE } from "./destino/escritura.js";
 import { guardarVisto } from "./destino/vistos.js";
+import { PORTALES_VALIDOS } from "./destino/portales.js";
 
-export const PORTALES_VALIDOS = new Set(["ramonnet", "anatomy-by-chris", "google-classroom"]);
+export { PORTALES_VALIDOS };
 
 import { acumuladorChunks, alimentarSlidingWindow, abortarDescargaYLimpiar, sessionesCanceladas } from "./accumulator.js";
 

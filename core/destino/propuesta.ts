@@ -135,7 +135,7 @@ export function proponerParaCurso({
       sinAsignar = false;
     } else {
       carpetaPropuesta = ".";
-      const esNovedadesOSinTema = /^(novedades|sin tema)$/i.test(temaStr);
+      const esNovedadesOSinTema = !temaStr || /^(novedades|sin tema)$/i.test(temaStr);
       sinAsignar = !esNovedadesOSinTema;
     }
 

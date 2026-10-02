@@ -30,10 +30,18 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **64 archivos, 1029 tests**, todo en verde |
+| `pnpm test` | **66 archivos, 1049 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 1049** (2026-10-02, plan `09 - Moodle-1 Lo genérico del destino que hoy dice Classroom`). Son los 1034 de abajo más **+15** tests repartidos en **+2** archivos nuevos:
+- **+6** en el archivo nuevo `backend/destino/portales.test.js` (suite de `PORTALES_VALIDOS` y `PORTALES_CON_DESTINO_INDICE`, y resolución pura de `resolverRaizDeDestino` con raíces configuradas y defaults D-1/D-2),
+- **+4** en el archivo nuevo `core/destino/accesoMd.test.ts` (suite de `accesoADataUri` isomórfica pura para accesos Markdown con URLs complejas, títulos con dos puntos, codificación UTF-8 e igualdad byte a byte D-3),
+- **+4** en `core/destino/propuesta.test.ts` (suite de formas de ítem de Moodle en G-4: tema sin tema / ítem sin tema a la raíz con `sinAsignar: false`, id con `/` y espacios con clave estable, resolución de choques con sufijo de publicación RN-16, y prefijo estricto de `sitioId`; 12 → 16 tests),
+- y **+1** en `backend/destino/estado.test.js` (suite de Moodle en G-4: `sitio: "moodle-linti"` devuelve pendientes y marca curso `asociado: false` si no figura en el índice; 7 → 8 tests).
+
+**De dónde sale el 1034** (2026-10-02, planes 08d a 08h corte 2c). Son los 1029 de abajo más **+5** tests en editor web y layout (64 archivos / 1034 tests).
 
 **De dónde sale el 1029** (2026-10-01, plan `08b - 2c-3 Resaltado, orden y filtro de temas sin asignar`). Son los 1022 de abajo más **+7** tests:
 - **+1** en `popup/features/listaClases.preact.test.js` (suite de FilaClase: nota con `onNotaClick` lleva clase clickable y dispara callback al clickear D-4; 45 → 46 tests),
