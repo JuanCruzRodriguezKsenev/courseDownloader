@@ -17,12 +17,12 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 ## 🚧 En revisión
 
 Corte 2c en curso en la rama `classroom-destino-2c`:
-- **Planes**: `~/Boveda/Proyectos/courseDownloader/Planes/07 - 2c-1 Editor web sobre el índice real.md` y `08 - 2c-2 Asociar desde el popup y cierre del 2c.md`.
-- **Qué entrega**: editor web de adopción reutilizado con `?modo=indice`, `POST /api/destino/curso-visto` en memoria (soporta `cursos` y `curso`), cableado del 🗂️ en el popup con `BunClient.registrarCursoVisto`, apertura posicionado en el curso correspondiente y recálculo automático al volver.
+- **Planes**: `~/Boveda/Proyectos/courseDownloader/Planes/07 - 2c-1 Editor web sobre el índice real.md`, `08 - 2c-2 Asociar desde el popup y cierre del 2c.md` y `08b - 2c-3 Resaltado, orden y filtro de temas sin asignar.md`.
+- **Qué entrega**: editor web de adopción reutilizado con `?modo=indice`, `POST /api/destino/curso-visto` en memoria (soporta `cursos` y `curso`), cableado del 🗂️ en el popup con `BunClient.registrarCursoVisto`, apertura posicionado en el curso correspondiente, recálculo automático al volver y visibilidad inmediata de temas sin asignar (resaltado `.sin-asignar`, orden prioritario arriba en su curso y filtro en Estado/click en nota).
 - **Spec**: `docs/specs/classroom-destino/spec.md`.
 - **Compuerta**: 64 archivos / 1022 tests (ver `docs/testing.md` §Baseline).
 - **Humo jsdom**: `humo-editor.js` y `humo-editor-indice.js` en verde (errores: 0).
-- **Estado**: construcción finalizada (planes 07 y 08). Pendiente verificación en navegador (W-0..W-7).
+- **Estado**: Plan 08b listo para ejecución por obra. Pendiente verificación en navegador (W-0..W-7).
 
 ### Checklist de verificación W del corte 2c (dueño + tanda)
 - ⬜ **W-0** — Tanda: copia limpia de `~/Boveda/Areas/Facultad` y respaldo del índice. Para simular un curso **nuevo**, **quita del índice de la copia** un curso con pocos archivos (anotar cuál y sus entradas para restaurarlo). `pnpm run build`, recarga de la extensión, servidor reiniciado, y `raices.google-classroom` apuntando a la copia.

@@ -86,7 +86,10 @@ transformación de texto.
     `Teorias/`, igual que "Videos de experiencias y simulaciones". Caso: Física I, "Links-Módulo I/II".
 - **RN-8** — Los adjuntos de Novedades y los de "Sin tema" van a la raíz de la materia.
 - **RN-9** — Un tema que aparece después de asociar el curso va a la raíz de la materia y queda
-  marcado como sin asignar hasta que el dueño le fije carpeta.
+  marcado como sin asignar hasta que el dueño le fije carpeta. En la UI del popup, los ítems
+  sin asignar se resaltan visualmente con estilo de advertencia, se ordenan prioritarios al inicio
+  de su respectivo curso y son filtrables desde el menú de filtros (Estado: «Sin asignar») o haciendo
+  click en la nota informativa de cabecera.
 - **RN-10** — Los cronogramas (tanto cuatrimestrales como semanales) se descargan a la raíz de la
   materia (`.`), porque aportan fechas relevantes para el calendario de estudio del alumno (dueño, 2026-10-01).
 
@@ -466,12 +469,15 @@ AC-8 — Un docente nuevo no mueve lo que ya estaba
 ```
 
 ```gherkin
-AC-9 — Un tema nuevo no se baja a ciegas
+AC-9 — Un tema nuevo no se baja a ciegas y es visible de inmediato
   Dado el curso "Física II G22" ya asociado
     y un tema "Guía de TP Nº 13" que no estaba al asociarlo
   Cuando se escanea el curso
   Entonces sus adjuntos aparecen con destino la raíz de la materia
     y marcados como tema sin asignar
+    y su fila lleva la clase visual .sin-asignar (borde y fondo de advertencia)
+    y se ordenan al inicio de su curso antes que el resto de los archivos
+    y pueden filtrarse en Disponibles desde el popover de Filtros (Estado: "Sin asignar") o tocando la nota informativa
 ```
 
 ```gherkin
