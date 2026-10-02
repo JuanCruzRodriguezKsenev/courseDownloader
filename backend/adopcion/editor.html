@@ -1506,11 +1506,14 @@ button {
           ? archivosSinTema
           : archivosCurso.filter((a) => a.tema === tema.tema);
 
-        const isSinRegla = tema.regla === "no" || !tema.destino || tema.destino === ".";
+        const isTopicOmitted = tema.destino === "-";
+        const isSinRegla = !isTopicOmitted && (tema.regla === "no" || !tema.destino || tema.destino === ".");
         const choquesEnTema = archivosTema.filter((f) => FILAS_CON_CHOQUE.has(f.clave)).length;
-        const copiedCount = archivosTema.filter((f) => f.accion === "copiar" || f.accion === "ya-esta").length;
-        const isChecked = copiedCount === archivosTema.length && archivosTema.length > 0;
+        const activeFiles = archivosTema.filter((f) => f.accion === "copiar" || f.accion === "ya-esta");
+        const copiedCount = activeFiles.length;
+        const isChecked = !isTopicOmitted && (activeFiles.length > 0 || archivosTema.length === 0);
         const isNovedades = tema.tema.toLowerCase().includes("novedad") || tema.tema.toLowerCase().includes("sin tema");
+        const destinoSeleccionado = isTopicOmitted ? (tema._destinoPrevio || ".") : tema.destino;
 
         return `
           <article class="topic-card ${isSinRegla ? "has-warning" : ""} ${choquesEnTema > 0 ? "has-clash" : ""}" data-tema="${tema.tema}">
@@ -1518,7 +1521,7 @@ button {
               <div class="topic-left">
                 <input type="checkbox" class="topic-check" data-tema="${tema.tema}" 
                        ${isChecked ? "checked" : ""} 
-                       title="Marcar / desmarcar todos los archivos" />
+                       title="${isChecked ? 'Desmarcar para no descargar esta carpeta' : 'Marcar para descargar esta carpeta'}" />
                 <button class="topic-toggle-btn" data-tema="${tema.tema}">
                   ${isExpanded ? "▾" : "▸"}
                 </button>
@@ -1526,9 +1529,11 @@ button {
                 <div class="topic-title-box">
                   <div class="topic-title">
                     ${tema.tema}
-                    ${isNovedades ? `<span class="badge root-folder">Tablón de Novedades</span>` : ""}
-                    ${isSinRegla ? `<span class="badge warn">Sin destino</span>` : `<span class="badge ready">✓ Asignado</span>`}
-                    ${choquesEnTema > 0 ? `<span class="badge danger">${choquesEnTema} choque${choquesEnTema > 1 ? "s" : ""}</span>` : ""}
+                    ${isTopicOmitted ? `<span class="badge neutral">Omitido</span>` : `
+                      ${isNovedades ? `<span class="badge root-folder">Tablón de Novedades</span>` : ""}
+                      ${isSinRegla ? `<span class="badge warn">Sin destino</span>` : `<span class="badge ready">✓ Asignado</span>`}
+                      ${choquesEnTema > 0 ? `<span class="badge danger">${choquesEnTema} choque${choquesEnTema > 1 ? "s" : ""}</span>` : ""}
+                    `}
                   </div>
                   <div class="topic-meta">
                     ${copiedCount} de ${archivosTema.length} archivos marcados para descargar
@@ -1538,12 +1543,11 @@ button {
 
               <div class="topic-right">
                 <span class="topic-dest-label">${isNovedades ? "Destino base:" : "Destino carpeta:"}</span>
-                <select class="topic-dest-select" data-tema="${tema.tema}">
-                  <option value="." ${tema.destino === "." ? "selected" : ""}>. (raíz del curso)</option>
+                <select class="topic-dest-select" data-tema="${tema.tema}" ${isTopicOmitted ? "disabled" : ""}>
+                  <option value="." ${destinoSeleccionado === "." ? "selected" : ""}>. (raíz del curso)</option>
                   ${destinosDisponibles.filter((d) => d !== "." && d !== "-").map((d) => `
-                    <option value="${d}" ${tema.destino === d ? "selected" : ""}>${d}</option>
+                    <option value="${d}" ${destinoSeleccionado === d ? "selected" : ""}>${d}</option>
                   `).join("")}
-                  <option value="-" ${tema.destino === "-" ? "selected" : ""}>- (no bajar este tema)</option>
                   <option value="__nueva__">+ Nueva carpeta...</option>
                 </select>
                 <button class="secondary-btn btn-drilldown-toggle" data-tema="${tema.tema}">
@@ -1697,13 +1701,49 @@ button {
       document.querySelectorAll(".topic-check").forEach((chk) => {
         chk.addEventListener("change", () => {
           const temaNombre = chk.dataset.tema;
-          const archivos = DATOS.archivos.filter((a) => a.clave_curso === curso.clave_curso && a.tema === temaNombre);
-          const nuevaAccion = chk.checked ? "copiar" : "omitir";
-          archivos.forEach((a) => {
-            if (a.accion !== "ya-esta") a.accion = nuevaAccion;
+          let tema = DATOS.temas.find((t) => t.clave_curso === curso.clave_curso && t.tema === temaNombre);
+          if (!tema) {
+            tema = {
+              clave_curso: curso.clave_curso,
+              tema: temaNombre,
+              destino: ".",
+              regla: "si",
+              items: "0",
+            };
+            DATOS.temas.push(tema);
+          }
+
+          // Obtener archivos del tema (incluyendo huérfanos / Novedades)
+          const nombresTemasSet = new Set(DATOS.temas.filter((t) => t.clave_curso === curso.clave_curso && t.tema !== temaNombre).map((t) => t.tema));
+          const archivos = DATOS.archivos.filter((a) => {
+            if (a.clave_curso !== curso.clave_curso) return false;
+            if (a.tema === temaNombre) return true;
+            if ((!a.tema || a.tema === "Sin tema" || !nombresTemasSet.has(a.tema)) && (temaNombre.toLowerCase().includes("sin tema") || temaNombre.toLowerCase().includes("novedad"))) {
+              return true;
+            }
+            return false;
           });
+
+          if (!chk.checked) {
+            // Desactivar descarga del tema
+            if (tema.destino !== "-") {
+              tema._destinoPrevio = tema.destino || ".";
+            }
+            tema.destino = "-";
+            archivos.forEach((a) => {
+              if (a.accion !== "ya-esta") a.accion = "omitir";
+            });
+            showToast(`Carpeta "${temaNombre}" omitida (no se descargará)`);
+          } else {
+            // Reactivar descarga del tema
+            tema.destino = tema._destinoPrevio || ".";
+            archivos.forEach((a) => {
+              if (a.accion !== "ya-esta") a.accion = "copiar";
+            });
+            showToast(`Carpeta "${temaNombre}" activada para descargar`);
+          }
+
           marcarCambio();
-          showToast(chk.checked ? `Todos los archivos de "${temaNombre}" marcados` : `Archivos de "${temaNombre}" omitidos`);
           renderAll();
         });
       });
