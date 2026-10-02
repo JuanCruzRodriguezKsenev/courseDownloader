@@ -34,6 +34,7 @@
   /* SEMÁFORO DE ESTADOS (ÚNICOS COLORES EN PANTALLA) */
   --accent-green: #16A34A;
   --accent-green-bg: rgba(22, 163, 74, 0.12);
+  --accent-success: var(--accent-green);
 
   --accent-warning-visible: #D97706; /* Ámbar nítido */
   --accent-warning-bg: rgba(217, 119, 6, 0.14);
@@ -637,10 +638,31 @@ button {
 }
 
 .topic-check, .file-check {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   cursor: pointer;
-  accent-color: var(--btn-primary-bg);
+  accent-color: var(--accent-success);
+}
+
+.file-check-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  cursor: pointer;
+}
+
+.file-check-done {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: rgba(22, 163, 74, 0.12);
+  color: var(--accent-success);
+  font-weight: bold;
+  font-size: 11px;
 }
 
 .topic-toggle-btn {
@@ -1297,6 +1319,24 @@ button {
       });
     }
 
+    function obtenerDestinosParaCurso(curso) {
+      if (!curso) return DATOS.destinos || [];
+      const materia = curso.materia || "";
+      const carpetasMat = (DATOS.carpetasPorMateria && DATOS.carpetasPorMateria[materia]) || [];
+      const destinosSet = new Set(DATOS.destinos || []);
+      for (const c of carpetasMat) destinosSet.add(c);
+      // Incluir destinos ya asignados en temas y archivos de este curso
+      const temasCurso = (DATOS.temas || []).filter((t) => t.clave_curso === curso.clave_curso);
+      for (const t of temasCurso) {
+        if (t.destino && t.destino !== "." && t.destino !== "-") destinosSet.add(t.destino);
+      }
+      const archivosCurso = (DATOS.archivos || []).filter((a) => a.clave_curso === curso.clave_curso);
+      for (const a of archivosCurso) {
+        if (a.destinoPropio && a.destinoPropio !== "." && a.destinoPropio !== "-") destinosSet.add(a.destinoPropio);
+      }
+      return Array.from(destinosSet);
+    }
+
     // RENDER BANNER DEL CURSO ACTIVO
     function renderBanner() {
       const curso = getActiveCurso();
@@ -1323,6 +1363,7 @@ button {
       selectMateriaEl.innerHTML = `
         <option value="">(sin materia)</option>
         ${DATOS.materias.map((m) => `<option value="${m}" ${curso.materia === m ? "selected" : ""}>${m}</option>`).join("")}
+        <option value="__nueva__">+ Nueva materia...</option>
       `;
       if (esModoIndice && !esNuevo && curso.materia && curso.materia.trim().length > 0) {
         selectMateriaEl.disabled = true;
@@ -1401,6 +1442,8 @@ button {
       const curso = getActiveCurso();
       const topicsContainerEl = document.getElementById("topicsContainer");
       if (!curso) return;
+
+      const destinosDisponibles = obtenerDestinosParaCurso(curso);
 
       recalcularChoques();
       const q = searchTerm.toLowerCase().trim();
@@ -1497,7 +1540,7 @@ button {
                 <span class="topic-dest-label">${isNovedades ? "Destino base:" : "Destino carpeta:"}</span>
                 <select class="topic-dest-select" data-tema="${tema.tema}">
                   <option value="." ${tema.destino === "." ? "selected" : ""}>. (raíz del curso)</option>
-                  ${DATOS.destinos.filter((d) => d !== "." && d !== "-").map((d) => `
+                  ${destinosDisponibles.filter((d) => d !== "." && d !== "-").map((d) => `
                     <option value="${d}" ${tema.destino === d ? "selected" : ""}>${d}</option>
                   `).join("")}
                   <option value="-" ${tema.destino === "-" ? "selected" : ""}>- (no bajar este tema)</option>
@@ -1531,11 +1574,15 @@ button {
                     return `
                       <tr class="${isClash ? "row-clash" : ""} ${isOmitted ? "row-omitted" : ""}" data-clave="${arch.clave}">
                         <td style="text-align: center;">
-                          <input type="checkbox" class="file-check" 
-                                 data-clave="${arch.clave}" 
-                                 ${arch.accion !== "omitir" ? "checked" : ""} 
-                                 ${arch.accion === "ya-esta" ? "disabled" : ""}
-                                 title="${arch.accion !== 'omitir' ? 'Desmarcar para omitir' : 'Marcar para copiar'}" />
+                          ${arch.accion === "ya-esta" ? `
+                            <span class="file-check-done" title="Ya descargado en disco">✓</span>
+                          ` : `
+                            <label class="file-check-wrapper" title="${arch.accion !== 'omitir' ? 'Desmarcar para omitir' : 'Marcar para copiar'}">
+                              <input type="checkbox" class="file-check" 
+                                     data-clave="${arch.clave}" 
+                                     ${arch.accion !== "omitir" ? "checked" : ""} />
+                            </label>
+                          `}
                           <select id="sel-acc-${arch.clave}" class="sel-acc-sync" data-clave="${arch.clave}">
                             <option value="copiar" ${arch.accion === "copiar" ? "selected" : ""}>copiar</option>
                             <option value="omitir" ${arch.accion === "omitir" ? "selected" : ""}>omitir</option>
@@ -1550,7 +1597,6 @@ button {
                                  value="${arch.nombre}" 
                                  ${isOmitted || arch.accion === "ya-esta" ? "disabled" : ""} />
                           ${isClash ? `<span class="clash-warning">⚠ Choque: mismo nombre que otro archivo en este destino</span>` : ""}
-                          ${arch.accion === "ya-esta" ? `<span class="badge neutral" style="margin-top:2px;">ya está en disco</span>` : ""}
                           ${arch.accion === "duplicado" ? `<span class="badge neutral" style="margin-top:2px;">duplicado</span>` : ""}
                         </td>
                         <td>
@@ -1561,7 +1607,7 @@ button {
                               (Hereda: ${tema.destino || "."})
                             </option>
                             <option value="." ${arch.destinoPropio === "." ? "selected" : ""}>. (raíz)</option>
-                            ${DATOS.destinos.filter((d) => d !== "." && d !== "-").map((d) => `
+                            ${destinosDisponibles.filter((d) => d !== "." && d !== "-").map((d) => `
                               <option value="${d}" ${arch.destinoPropio === d ? "selected" : ""}>${d}</option>
                             `).join("")}
                             <option value="__nueva__">+ Nueva carpeta...</option>
@@ -1671,9 +1717,47 @@ button {
           const escClave = (window.CSS && window.CSS.escape) ? window.CSS.escape(arch.clave) : arch.clave;
           const selAcc = document.querySelector(`[id='sel-acc-${escClave}']`);
           if (selAcc) selAcc.value = arch.accion;
+
+          const tr = chk.closest("tr");
+          if (tr) {
+            const isOmitted = arch.accion === "omitir";
+            tr.classList.toggle("row-omitted", isOmitted);
+            const renameInp = tr.querySelector(".file-rename-input");
+            if (renameInp) renameInp.disabled = isOmitted;
+            const destSel = tr.querySelector(".file-dest-select");
+            if (destSel) destSel.disabled = isOmitted;
+            const livePathDiv = tr.querySelector(".live-dest-path");
+            if (livePathDiv) {
+              const tema = DATOS.temas.find((t) => t.clave_curso === curso.clave_curso && t.tema === arch.tema) || { destino: "." };
+              const livePath = computeLivePath(curso, tema, arch);
+              livePathDiv.textContent = isOmitted ? "(omitido)" : livePath;
+              livePathDiv.title = livePath;
+            }
+          }
+
+          if (chk.parentElement && chk.parentElement.classList.contains("file-check-wrapper")) {
+            chk.parentElement.title = arch.accion !== "omitir" ? "Desmarcar para omitir" : "Marcar para copiar";
+          }
+
+          const topicCard = chk.closest(".topic-card");
+          if (topicCard) {
+            const temaNombre = topicCard.dataset.tema;
+            const archivosTema = DATOS.archivos.filter((a) => a.clave_curso === curso.clave_curso && a.tema === temaNombre);
+            const copied = archivosTema.filter((f) => f.accion !== "omitir").length;
+            const metaEl = topicCard.querySelector(".topic-meta");
+            if (metaEl) {
+              metaEl.textContent = `${copied} de ${archivosTema.length} archivos marcados para descargar`;
+            }
+            const masterChk = topicCard.querySelector(".topic-check");
+            if (masterChk) {
+              masterChk.checked = (copied === archivosTema.length && archivosTema.length > 0);
+              masterChk.indeterminate = (copied > 0 && copied < archivosTema.length);
+            }
+          }
+
           marcarCambio();
+          updateMetrics();
           showToast(chk.checked ? `"${arch.nombre}" marcado para descargar` : `"${arch.nombre}" omitido`);
-          renderAll();
         });
       });
 
@@ -1706,6 +1790,13 @@ button {
             }
             if (!DATOS.destinos.includes(limpia)) {
               DATOS.destinos.push(limpia);
+            }
+            if (curso.materia) {
+              if (!DATOS.carpetasPorMateria) DATOS.carpetasPorMateria = {};
+              if (!DATOS.carpetasPorMateria[curso.materia]) DATOS.carpetasPorMateria[curso.materia] = [];
+              if (!DATOS.carpetasPorMateria[curso.materia].includes(limpia)) {
+                DATOS.carpetasPorMateria[curso.materia].push(limpia);
+              }
             }
             const opt = document.createElement("option");
             opt.value = limpia;
@@ -1742,6 +1833,13 @@ button {
             }
             if (!DATOS.destinos.includes(limpia)) {
               DATOS.destinos.push(limpia);
+            }
+            if (curso.materia) {
+              if (!DATOS.carpetasPorMateria) DATOS.carpetasPorMateria = {};
+              if (!DATOS.carpetasPorMateria[curso.materia]) DATOS.carpetasPorMateria[curso.materia] = [];
+              if (!DATOS.carpetasPorMateria[curso.materia].includes(limpia)) {
+                DATOS.carpetasPorMateria[curso.materia].push(limpia);
+              }
             }
             const opt = document.createElement("option");
             opt.value = limpia;
@@ -1798,12 +1896,35 @@ button {
     // EVENTOS GLOBALES DE CABECERA
     document.getElementById("selectMateria").addEventListener("change", () => {
       const curso = getActiveCurso();
-      if (curso) {
-        curso.materia = document.getElementById("selectMateria").value;
-        actualizarDocentes();
-        marcarCambio();
-        renderAll();
+      if (!curso) return;
+      let val = document.getElementById("selectMateria").value;
+      if (val === "__nueva__") {
+        const nombre = (window.prompt ? window.prompt("Nombre de la nueva materia (ej. Ingenieria/Fisica 3):") : "") || "";
+        let limpia = nombre.trim().replace(/\\/g, "/").replace(/\/+/g, "/").replace(/^\/|\/$/g, "");
+        if (!limpia || limpia.includes("..")) {
+          document.getElementById("selectMateria").value = curso.materia || "";
+          return;
+        }
+        if (!limpia.includes("/")) {
+          limpia = `Ingenieria/${limpia}`;
+        }
+        if (!DATOS.materias.includes(limpia)) {
+          DATOS.materias.push(limpia);
+          DATOS.materias.sort();
+        }
+        if (!DATOS.carpetasPorMateria[limpia]) {
+          DATOS.carpetasPorMateria[limpia] = [];
+        }
+        curso.materia = limpia;
+        renderBanner();
+        val = limpia;
+        showToast(`Materia "${limpia}" agregada y seleccionada`);
+      } else {
+        curso.materia = val;
       }
+      marcarCambio();
+      actualizarDocentes();
+      renderTopics();
     });
 
     document.getElementById("inputDocente").addEventListener("input", () => {

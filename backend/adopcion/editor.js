@@ -220,11 +220,7 @@ export function crearManejadorEditor(opts, prefijo = "") {
           const claveCursoActivo = url.searchParams.get("curso") || undefined;
           const filas = indiceAFilasEditor({ indice, vistos: mapaVistos, claveCursoActivo });
 
-          const destinosSet = new Set(DESTINOS);
-          for (const carps of Object.values(carpetasPorMateria)) {
-            for (const c of carps) destinosSet.add(c);
-          }
-          const destinos = Array.from(destinosSet);
+          const destinos = Array.from(new Set(DESTINOS));
 
           return Response.json({
             cursos: filas.cursos,

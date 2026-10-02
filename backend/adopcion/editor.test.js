@@ -283,7 +283,7 @@ describe("backend/adopcion/editor.js (modo=indice y modo TSV)", () => {
     expect(tsvCursos).toContain("NuevoDocente");
   });
 
-  it("GET api/datos incluye carpetasPorMateria y fusiona carpetas en destinos (Plan 08d, S-2)", async () => {
+  it("GET api/datos incluye carpetasPorMateria y conserva destinos estrictos sin mezclar materias (Plan 08f, D-1)", async () => {
     // Crear una subcarpeta adicional en disco
     await fs.mkdir(path.join(dirRaiz, "Ingenieria/Fisica 2/Talleres"), { recursive: true });
 
@@ -301,6 +301,6 @@ describe("backend/adopcion/editor.js (modo=indice y modo TSV)", () => {
     expect(json.carpetasPorMateria).toBeDefined();
     expect(json.carpetasPorMateria["Ingenieria/Fisica 2"]).toContain("Talleres");
     expect(json.carpetasPorMateria["Ingenieria/Fisica 2"]).toContain("Teorias");
-    expect(json.destinos).toContain("Talleres");
+    expect(json.destinos).not.toContain("Talleres");
   });
 });
