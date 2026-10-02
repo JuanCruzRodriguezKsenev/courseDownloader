@@ -2,6 +2,7 @@
 .agents/
 .antigravitycli/
 _metadata/
+.worktrees/
 
 # Dev dependencies
 node_modules/
