@@ -27,6 +27,7 @@
 - [Classroom: Sub-corte 2c-2 asociar desde el popup](project_classroom_destino_2c2_asociar_popup.md) — cableado de 🗂️, BunClient.registrarCursoVisto, armarVistos, cursoParaEditor, notasDeDestino con Abrí 🗂️ y compuerta en 64 archivos / 1022 tests
 - [Classroom: Sub-corte 2c-3 visibilidad, orden y filtro](project_classroom_destino_2c3_resaltado_orden_filtro.md) — .sin-asignar en FilaClase, prioridad arriba en su curso, filtro sin-asignar en popover, click en nota y compuerta en 64 archivos / 1029 tests
 - [Classroom: Sub-corte 2c-4 nuevo editor monocromo](project_classroom_destino_2c4_editor_monocromo.md) — workspace monocromo estricto, sidebar persistente, macro/micro drilldown, reubicación y compuerta en 64 archivos / 1029 tests
+- [Classroom: Sub-corte 2c-5 ajustes ergonómicos](project_classroom_destino_2c5_ajustes_ergonomicos.md) — layout fijo, sticky scroll en dos niveles, carpetas personalizadas y compuerta en 64 archivos / 1034 tests
 
 
 
