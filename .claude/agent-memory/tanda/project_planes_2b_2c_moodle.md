@@ -21,7 +21,8 @@ asociar = reusar el editor web del 3001 en modo `?modo=indice`, no pantalla del 
 - La adopción omitió 9 archivos (8 cronogramas + 1 por tema `-`) y el índice no guarda omisiones → `omitidos`/tema `-` (RN-31 nueva) + migración en plan 06. RN-10 no es derivable de nombres → PA-5 abierta.
 - El índice real tiene md5 de 32 hex (la spec ejemplifica 16) y accesos de la adopción SIN frontmatter; los nuevos llevan `tipo: acceso` + `revisado`.
 - Nombre editado antes de bajar → `cursos.<c>.nombres` (una entrada de `archivos` exige md5/ruta).
-- Plan 08b (2c-3): temas sin asignar resaltados con `.sin-asignar`, orden prioritario en su curso y filtro en Estado/click en nota (ejecutado por obra, verificado 64 archivos / 1029 tests). Corte 2c cerrado en código, pendiente prueba en navegador (W-0..W-7).
+- Plan 08b (2c-3): temas sin asignar resaltados con `.sin-asignar`, orden prioritario en su curso y filtro en Estado/click en nota (ejecutado por obra, verificado 64 archivos / 1029 tests).
+- Plan 08c (2c-4): nuevo editor web monocromo de alta densidad (`05-workspace-monocromo` con sidebar, macro temas/Novedades y micro ticks/carpetas individuales). Plan escrito en la Bóveda, listo para ejecución por obra. Pendiente verificación en navegador (W-0..W-7).
 
 **How to apply:** al retomar, mirar qué planes ejecutó obra (`Estado.md` de la bóveda) y re-verificar cada informe pegando
 la salida; los controles negativos de obra fallaron antes ("probado" sin salida): exigir la salida roja. Estado de los
