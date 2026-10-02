@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import {
   aplicarEstadoDestino,
   bloquearSeleccion,
+  compararPrioridadDestino,
   puedeBajar,
   notasDeDestino,
   cardIndiceIlegible,
@@ -654,6 +655,47 @@ describe("popup/features/destino.js", () => {
     it("sin clases con cursoId devuelve null", () => {
       expect(cursoParaEditor({ clases: [], claveListado: "todos", sitio: sitioClassroom })).toBeNull();
       expect(cursoParaEditor({ clases: [{ cursoId: null }], claveListado: "todos", sitio: sitioClassroom })).toBeNull();
+    });
+  });
+
+  describe("compararPrioridadDestino()", () => {
+    it("antepone ítems con sinAsignar: true frente a normales (D-2)", () => {
+      const normal = { id: 1, sinAsignar: false, titulo: "Clase A" };
+      const sinAsignar = { id: 2, sinAsignar: true, titulo: "Clase B" };
+
+      expect(compararPrioridadDestino(normal, sinAsignar)).toBeGreaterThan(0);
+      expect(compararPrioridadDestino(sinAsignar, normal)).toBeLessThan(0);
+      expect(compararPrioridadDestino(sinAsignar, sinAsignar)).toBe(0);
+      expect(compararPrioridadDestino(normal, normal)).toBe(0);
+    });
+
+    it("ordena un array colocando primero los ítems con sinAsignar (D-2)", () => {
+      const lista = [
+        { id: 1, titulo: "Normal 1", sinAsignar: false },
+        { id: 2, titulo: "Sin asignar 1", sinAsignar: true },
+        { id: 3, titulo: "Normal 2", sinAsignar: false },
+        { id: 4, titulo: "Sin asignar 2", sinAsignar: true },
+      ];
+
+      lista.sort(compararPrioridadDestino);
+
+      expect(lista.map((x) => x.id)).toEqual([2, 4, 1, 3]);
+    });
+
+    it("desempata dentro de un curso manteniendo el orden de los ítems con sinAsignar arriba", () => {
+      const lista = [
+        { id: 1, curso: "Fisica 2", titulo: "TP 1", sinAsignar: false },
+        { id: 2, curso: "Fisica 2", titulo: "SIU Examen", sinAsignar: true },
+        { id: 3, curso: "Fisica 2", titulo: "TP 2", sinAsignar: false },
+      ];
+
+      lista.sort((a, b) => {
+        const diffSin = compararPrioridadDestino(a, b);
+        if (diffSin !== 0) return diffSin;
+        return a.titulo.localeCompare(b.titulo);
+      });
+
+      expect(lista.map((x) => x.id)).toEqual([2, 1, 3]);
     });
   });
 });

@@ -30,10 +30,15 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **64 archivos, 1022 tests**, todo en verde |
+| `pnpm test` | **64 archivos, 1029 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 1029** (2026-10-01, plan `08b - 2c-3 Resaltado, orden y filtro de temas sin asignar`). Son los 1022 de abajo más **+7** tests:
+- **+1** en `popup/features/listaClases.preact.test.js` (suite de FilaClase: nota con `onNotaClick` lleva clase clickable y dispara callback al clickear D-4; 45 → 46 tests),
+- **+3** en `popup/features/destino.test.js` (suite de `compararPrioridadDestino` en D-2: antepone ítems con `sinAsignar: true` frente a normales, ordena array flotando sinAsignar primero, y desempata dentro de curso manteniendo sinAsignar arriba; 28 → 31 tests),
+- y **+3** en `popup/features/filters.test.js` (suite de filtro Sin asignar en D-3/D-4: filtra exclusivamente clases con `sinAsignar: true`, unión OR de `sin-asignar` con otro estado, y `activarFiltroSinAsignar()` aisla ítems sin asignar y actualiza pills UI; 56 → 59 tests).
 
 **De dónde sale el 1022** (2026-10-01, plan `08 - 2c-2 Asociar desde el popup y cierre del 2c`). Son los 1010 de abajo más **+12** tests:
 - **+3** en `core/backend/bunClient.test.ts` (suite de `registrarCursoVisto`: forma del pedido con payload de cursos D-3, error aplicativo devuelto sin lanzar y error de red lanzado; 34 → 37 tests),

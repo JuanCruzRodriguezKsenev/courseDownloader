@@ -244,7 +244,7 @@ export function FilaClase({ clase, ctx }) {
     // Sin sincronizar: fila atenuada (equivale al viejo fila.style.opacity=0.65 de popup.js).
     const estilo = !sincronizado ? 'opacity:0.65' : '';
     return html`
-      <div class="video-item ${sel ? 'selected' : ''}" title=${titleFila} style=${estilo} onClick=${onRowClick}>
+      <div class="video-item ${sel ? 'selected' : ''}${clase.sinAsignar ? ' sin-asignar' : ''}" title=${titleFila} style=${estilo} onClick=${onRowClick}>
         ${checkbox}
         ${chipTipo}
         <span class="video-label">${etiquetaTexto}</span>
@@ -256,7 +256,7 @@ export function FilaClase({ clase, ctx }) {
   // Vista Cola. `bajando` (corte 6a) es la fila anclada arriba de la divisoria: la marca con el
   // mismo acento naranja que la fila seleccionada, para no sumar vocabulario visual.
   return html`
-    <div class="video-item ${sel ? 'selected' : ''} ${esActivo ? 'bajando' : ''}" title=${titleFila} onClick=${onRowClick}>
+    <div class="video-item ${sel ? 'selected' : ''} ${esActivo ? 'bajando' : ''}${clase.sinAsignar ? ' sin-asignar' : ''}" title=${titleFila} onClick=${onRowClick}>
       ${checkbox}
       ${chipTipo}
       <span class="video-label" style=${`cursor:${(tieneCheckbox && !estaBloqueado) ? 'pointer' : 'default'}`}>${etiquetaTexto}</span>
@@ -345,7 +345,9 @@ export function ListaClases() {
   // [CLASSROOM CORTE 1] La nota del escaneo va DENTRO de la lista, como `.cola-divisor`: la
   // región sigue teniendo un solo dueño (esta isla) y un solo `if`, que es la regla de
   // `docs/alertas-y-bloqueo-diseno.md` §1. Texto plano: no usa dangerouslySetInnerHTML.
-  const nota = ctx.nota ? html`<p class="lista-nota" key="nota">${ctx.nota}</p>` : null;
+  const nota = ctx.nota
+    ? html`<p class="lista-nota ${ctx.onNotaClick ? 'clickable' : ''}" key="nota" onClick=${ctx.onNotaClick}>${ctx.nota}</p>`
+    : null;
 
   // [MULTISITIO CORTE 6A] La fila anclada (la que se está bajando) llega SIEMPRE primera —
   // eso lo decide popup.js al armar el vm, no la isla. Acá sólo se pinta la línea divisoria

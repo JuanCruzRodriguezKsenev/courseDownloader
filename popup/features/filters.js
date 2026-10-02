@@ -199,7 +199,9 @@ const FilterFeature = {
              || filtrosActivos.materias.has((clase.carpeta || '').toUpperCase()))
           : (!clase.carpeta || (clase.carpeta.toLowerCase() === materiaActiva));
         const coincideTexto = clase.titulo.toLowerCase().includes(busqueda);
-        const coincideEstado = filtrosActivos.estados.size === 0 || filtrosActivos.estados.has(clase.estado);
+        const coincideEstado = filtrosActivos.estados.size === 0
+          || filtrosActivos.estados.has(clase.estado)
+          || (filtrosActivos.estados.has("sin-asignar") && Boolean(clase.sinAsignar));
         // [ESCANEO-API CORTE 5] El tipo es ORTOGONAL a la faceta y por eso vive en su propio
         // Set y no en `valoresFaceta`: la faceta es el eje DE UN PORTAL, con vocabulario propio
         // y elegido por portal (ADR-0012); el tipo es universal. Mezclarlos reabriría ese bug.
@@ -385,7 +387,8 @@ const FilterFeature = {
         const estadosDisponibles = [
           { key: "pending", label: "Pendientes" },
           { key: "downloaded", label: "Descargados" },
-          { key: "process", label: "En Fila" }
+          { key: "process", label: "En Fila" },
+          { key: "sin-asignar", label: "Sin asignar" }
         ];
 
         estadosDisponibles.forEach(est => {
@@ -638,10 +641,25 @@ const FilterFeature = {
       return sec;
     }
 
+    /**
+     * Activa exclusivamente el filtro "sin-asignar" en Disponibles (D-4).
+     * Aisla los ítems pendientes de asignación de carpeta.
+     */
+    function activarFiltroSinAsignar() {
+      filtrosActivos.estados.clear();
+      filtrosActivos.estados.add("sin-asignar");
+      actualizarPillsUIState();
+      if (nodos.filterMenu && nodos.filterMenu.style.display !== "none") {
+        renderizarFiltrosMenuPopover();
+      }
+      aplicarFiltrosCruzados();
+    }
+
     return {
       coincideConFiltrosCola,
       aplicarFiltrosCruzados,
       desbanearFiltros,
+      activarFiltroSinAsignar,
       // Se exponen para poder testearlos solos: son los dos predicados de los que depende que
       // se apaguen "Todos" / "Ordenar", y su caso interesante (filtrar por descargados) no se
       // alcanza desde afuera. Van los dos porque la gracia es justamente que NO coinciden.

@@ -85,6 +85,11 @@
     background-color: rgba(var(--accent-orange-rgb), 0.03);
   }
 
+  &.sin-asignar {
+    border-left-color: var(--accent-warning-visible);
+    background-color: rgba(245, 158, 11, 0.06);
+  }
+
   input[type="checkbox"] {
     flex-shrink: 0;
     opacity: 0;
@@ -190,6 +195,16 @@
   color: var(--text-muted);
   white-space: pre-line;
   flex-shrink: 0;
+
+  &.clickable {
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+
+    &:hover {
+      background-color: rgba(var(--accent-orange-rgb), 0.10);
+      color: var(--text-main);
+    }
+  }
 }
 
 /* Botón de acción interna de fila */

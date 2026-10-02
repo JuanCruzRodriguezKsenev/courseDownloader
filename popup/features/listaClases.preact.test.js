@@ -651,12 +651,34 @@ describe('Isla Preact: ListaClases — la alerta comparte contenedor', () => {
       });
       await flush();
 
+      const fila = root.querySelector('.video-item');
+      expect(fila.classList.contains('sin-asignar')).toBe(true);
+
       const chip = root.querySelector('.chip-materia');
       expect(chip.classList.contains('chip-sin-asignar')).toBe(true);
       expect(chip.textContent).toBe('⚠ Ingenieria/Fisica 2');
       expect(chip.getAttribute('title')).toBe(
         'Este tema es nuevo: va a la raíz de la materia hasta que le asignes carpeta'
       );
+    });
+
+    it('nota con onNotaClick → clase clickable y llamada a callback al clickear (D-4)', async () => {
+      let clickeado = false;
+      puente.render({
+        modo: 'lista',
+        items: [],
+        ctx: {
+          ...ctxBase(),
+          nota: '1 archivo en temas sin asignar',
+          onNotaClick: () => { clickeado = true; },
+        },
+      });
+      await flush();
+
+      const nota = root.querySelector('.lista-nota');
+      expect(nota.classList.contains('clickable')).toBe(true);
+      nota.click();
+      expect(clickeado).toBe(true);
     });
 
     it('bloqueo: omitido → checkbox con disabled y pastilla omitido (D-3)', async () => {

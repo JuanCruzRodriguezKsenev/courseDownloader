@@ -383,6 +383,7 @@ import { crearPisoVisible } from './popup/features/pisoVisible.js';
 import {
   aplicarEstadoDestino,
   bloquearSeleccion,
+  compararPrioridadDestino,
   notasDeDestino,
   cardIndiceIlegible,
   armarVistos,
@@ -885,6 +886,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     const desbanearFiltros = _filters.desbanearFiltros;
     const actualizarPillsUIState = _filters.actualizarPillsUIState;
     const renderizarFiltrosMenuPopover = _filters.renderizarFiltrosMenuPopover;
+    const activarFiltroSinAsignar = _filters.activarFiltroSinAsignar;
 
     // Feature: orden de la pestaña Cola (corte 6b). Se lleva el listener del botón, el
     // comparador y la etiqueta, que estaban sueltos en este archivo. Recibe `sitios` —no un
@@ -2384,7 +2386,13 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         // [CORTE 6B] Mismo comparador que la Cola: la feature sabe en qué pestaña está y usa
         // los criterios de cada una. Con el default ('nombre' + ordenAscendente) el resultado
         // es idéntico al orden por título que había acá.
-        filtrados.sort(_orden.comparador());
+        // [DESTINO CORTE 2c-3] Anteponer ítems con sinAsignar dentro del curso (D-2).
+        const comp = _orden.comparador();
+        filtrados.sort((a, b) => {
+          const diffSin = compararPrioridadDestino(a, b);
+          if (diffSin !== 0) return diffSin;
+          return comp(a, b);
+        });
 
         // [CLASSROOM ESCANEAR TODAS] Agrupar por curso si hay origen 'todos' y más de un curso
         if (appState.origenListado?.clave === "todos") {
@@ -2402,7 +2410,10 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             filtrados.sort((a, b) => {
               const idxA = indiceCurso.has(nombreCurso(a)) ? indiceCurso.get(nombreCurso(a)) : 999999;
               const idxB = indiceCurso.has(nombreCurso(b)) ? indiceCurso.get(nombreCurso(b)) : 999999;
-              return idxA - idxB;
+              if (idxA !== idxB) return idxA - idxB;
+              const diffSin = compararPrioridadDestino(a, b);
+              if (diffSin !== 0) return diffSin;
+              return comp(a, b);
             });
 
             grupos = [];
@@ -2508,6 +2519,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
               partes.push(notaDestino);
             }
             return partes.length > 0 ? partes.join("\n") : null;
+          })(),
+          onNotaClick: (() => {
+            if (appState.pestañaActiva !== "disponibles") return undefined;
+            const tieneSinAsignar = (appState.listadoClasesGlobal || []).some(c => c.sinAsignar);
+            return tieneSinAsignar ? () => activarFiltroSinAsignar() : undefined;
           })(),
           // [ESCANEO-API CORTE 2] El override del input, ya saneado, para que cada fila pueda
           // mostrar a dónde va a ir. **No es adorno**: si el input puede pisar el destino de 103

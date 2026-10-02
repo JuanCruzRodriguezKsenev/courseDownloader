@@ -2,6 +2,7 @@
  * POPUP — FEATURE: DESTINO POR ÍNDICE (V1.1.0)
  * ==========================================================================
  * CHANGELOG v1.1.0:
+ * - [DESTINO CORTE 2c-3] Comparador `compararPrioridadDestino` para ordenar sinAsignar primero (D-2).
  * - [DESTINO CORTE 2c-2] Funciones `armarVistos` (D-3) y `cursoParaEditor` (D-2).
  *
  * CHANGELOG v1.0.0:
@@ -12,6 +13,18 @@
  * - Expone `bloquearSeleccion` (embudo de selección, D-4) y `puedeBajar` (cola, D-4).
  * ==========================================================================
  */
+
+/**
+ * Comparador de prioridad para temas sin asignar (D-2).
+ * Coloca los ítems con `sinAsignar === true` antes que los demás dentro de un mismo grupo.
+ *
+ * @param {object} a
+ * @param {object} b
+ * @returns {number}
+ */
+export function compararPrioridadDestino(a, b) {
+  return (b && b.sinAsignar ? 1 : 0) - (a && a.sinAsignar ? 1 : 0);
+}
 
 /**
  * Consulta al backend el estado de las clases del portal con destino por índice
