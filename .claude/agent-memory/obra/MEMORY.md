@@ -31,6 +31,4 @@
 - [Classroom: Sub-corte 2c-6 detección estricta y selectores](project_classroom_destino_2c6_deteccion_estricta_selectores.md) — detección de carpetas por materia, creación en ambos selectores, tilde verde en descargados y compuerta en 64 archivos / 1034 tests
 - [Classroom: Sub-corte 2c-7 desactivación limpia de carpetas](project_classroom_destino_2c7_desactivacion_limpia_carpetas.md) — desactivación limpia de carpetas por checkbox maestro, eliminación de opción redundante en selector con estado disabled y compuerta en 64 archivos / 1034 tests
 - [Classroom: Sub-corte 2c-8 atenuación e indicador en disco](project_classroom_destino_2c8_atenuacion_indicador_en_disco.md) — atenuación visual neta con .row-descargado, badge 🔒 en disco, cursor not-allowed y tooltips de inmutabilidad; compuerta en 64 archivos / 1034 tests
-
-
-
+- [Moodle: Sub-corte 1 genérico del destino](project_moodle_1_generico_destino.md) — portales.js puro, accesoMd.ts isomórfico, parada en G-4 por sinAsignar en ítem sin tema y clave en calcularEstado
