@@ -23,7 +23,11 @@ asociar = reusar el editor web del 3001 en modo `?modo=indice`, no pantalla del 
 - Nombre editado antes de bajar → `cursos.<c>.nombres` (una entrada de `archivos` exige md5/ruta).
 - Plan 08b (2c-3): temas sin asignar resaltados con `.sin-asignar`, orden prioritario en su curso y filtro en Estado/click en nota (ejecutado por obra, verificado 64 archivos / 1029 tests).
 - Plan 08c (2c-4): nuevo editor web monocromo de alta densidad (`05-workspace-monocromo` con sidebar, macro temas/Novedades y micro ticks/carpetas individuales). Ejecutado por obra.
-- Plan 08d (2c-5): ajustes ergonómicos del editor (layout fixed de tabla, nombres legibles, fix ruta duplicada, sticky de toolbar y tarjetas de tema durante sus clases, y creación/persistencia de carpetas nuevas). Plan escrito en la Bóveda, listo para ejecución por obra. Pendiente verificación en navegador (W-0..W-7).
+- Plan 08d (2c-5): ajustes ergonómicos del editor (layout fixed de tabla, nombres legibles, fix ruta duplicada, sticky de toolbar y tarjetas de tema durante sus clases, y creación/persistencia de carpetas nuevas). Ejecutado por obra.
+- Plan 08f (2c-6): detección estricta de carpetas por materia y creación en ambos selectores. Ejecutado por obra.
+- Plan 08g (2c-7): desactivación limpia de carpetas vía checkbox maestro y eliminación de opción redundante en selector. Ejecutado por obra.
+- Plan 08h (2c-8): atenuación visual neta e indicador `🔒 en disco` para archivos descargados inmutables en editor web. Escrito en Bóveda, listo para ejecución por obra antes de W-0..W-7.
+- Plan 14 (Concurrencia): protocolo de ejecución concurrente de adaptadores en worktrees aislados sin tocar archivos centrales + plan integrador final de registro. Escrito en Bóveda.
 
 **How to apply:** al retomar, mirar qué planes ejecutó obra (`Estado.md` de la bóveda) y re-verificar cada informe pegando
 la salida; los controles negativos de obra fallaron antes ("probado" sin salida): exigir la salida roja. Estado de los
