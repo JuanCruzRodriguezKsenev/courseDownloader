@@ -127,7 +127,10 @@ export function proponerParaCurso({
     let carpetaPropuesta = ".";
     let sinAsignar = false;
 
-    if (curso.temas && temaStr in curso.temas && curso.temas[temaStr] !== undefined) {
+    if (curso.carpetas && curso.carpetas[clave] !== undefined) {
+      carpetaPropuesta = curso.carpetas[clave]!;
+      sinAsignar = false;
+    } else if (curso.temas && temaStr in curso.temas && curso.temas[temaStr] !== undefined) {
       carpetaPropuesta = curso.temas[temaStr]!;
       sinAsignar = false;
     } else {

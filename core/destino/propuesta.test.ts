@@ -206,4 +206,22 @@ describe("core/destino/propuesta.ts", () => {
     expect(props[0]!.omitido).toBe(false);
     expect(props[0]!.nombre).toMatch(/\.pdf$/);
   });
+
+  it("carpeta personalizada en curso.carpetas gana sobre la del tema (Plan 08d, D-5)", () => {
+    const cursoConCarpeta: CursoIndice = {
+      ...cursoBase,
+      carpetas: {
+        "google-classroom:a2": "Talleres",
+      },
+    };
+    const items = [
+      { idArchivo: "a1", original: "05_capacitores.pdf", tema: "Clases Teóricas" },
+      { idArchivo: "a2", original: "guia1.pdf", tema: "Guías de TP" },
+    ];
+    const props = proponerParaCurso({ curso: cursoConCarpeta, items });
+
+    expect(props[0]!.carpeta).toBe("Teorias/Palacio");
+    expect(props[1]!.carpeta).toBe("Talleres");
+    expect(props[1]!.sinAsignar).toBe(false);
+  });
 });

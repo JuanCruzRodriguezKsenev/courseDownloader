@@ -13,6 +13,8 @@ export interface CursoIndice {
   omitidos?: string[];
   /** Nombres personalizados por el dueño antes de descargar (RN-14, D-3) */
   nombres?: Record<string, string>;
+  /** Carpetas personalizadas por archivo si difieren del tema (D-5) */
+  carpetas?: Record<string, string>;
 }
 
 export interface ArchivoIndice {

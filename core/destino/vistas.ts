@@ -7,7 +7,6 @@
  */
 
 import { DESTINOS, resolverCarpeta, sugerirDestino } from "./carpetas";
-import type { Destino } from "./carpetas";
 import { claveCurso } from "./indice";
 import type { Indice, CursoIndice } from "./indice";
 import { proponerParaCurso } from "./propuesta";
@@ -43,6 +42,7 @@ export interface FilaArchivoEditor {
   original: string;
   origen: string;
   md5: string;
+  destinoPropio?: string;
 }
 
 export interface FilasEditor {
@@ -109,6 +109,15 @@ export function invertirCarpeta(
     }
   }
   return { destino: carpeta, editable: false };
+}
+
+export function esDestinoSeguro(destino: string): boolean {
+  if (destino === "-" || destino === ".") return true;
+  if (!destino || destino.trim().length === 0) return false;
+  if (/[\0-\x1f\x7f\t\r\n]/.test(destino)) return false;
+  if (destino.includes("..")) return false;
+  if (destino.startsWith("/") || destino.startsWith("\\")) return false;
+  return true;
 }
 
 export function normalizarVistos(vistos: VistosInput): Map<string, VistoCurso> {
@@ -271,9 +280,18 @@ export function indiceAFilasEditor({
           nombre = prop.nombre || proponerNombre({ original, tema: temaStr, docente: cursoIndice?.docente });
           carpeta = prop.carpeta || ".";
         }
+
+        if (cursoIndice?.carpetas?.[clave]) {
+          carpeta = cursoIndice.carpetas[clave];
+        }
       }
 
-      archivos.push({
+      let destinoPropio: string | undefined;
+      if (cursoIndice?.carpetas?.[clave]) {
+        destinoPropio = invertirCarpeta(cursoIndice.carpetas[clave], cursoIndice?.docente).destino;
+      }
+
+      const filaArch: FilaArchivoEditor = {
         clave,
         clave_curso: claveC,
         tema: temaStr,
@@ -283,7 +301,11 @@ export function indiceAFilasEditor({
         original,
         origen,
         md5,
-      });
+      };
+      if (destinoPropio !== undefined) {
+        filaArch.destinoPropio = destinoPropio;
+      }
+      archivos.push(filaArch);
     }
   }
 
@@ -353,7 +375,7 @@ export function filasEditorAIndice({
       !invertirCarpeta(temaOriginal, cursoExistente?.docente).editable &&
       destino === temaOriginal);
 
-    if (!esOriginalNoEditable && destino !== "-" && !DESTINOS.includes(destino as Destino)) {
+    if (!esOriginalNoEditable && destino !== "-" && !esDestinoSeguro(destino)) {
       errores.push(`Tema '${nombreCurso} › ${t.tema}': destino inválido '${destino}'.`);
     }
   }
@@ -386,6 +408,12 @@ export function filasEditorAIndice({
           `Archivo '${a.original}': nombre '${nombre}' no coincide con su sanitizado. Quedaría '${sanitizado}'.`
         );
       }
+    }
+    if (a.destinoPropio && !esDestinoSeguro(a.destinoPropio)) {
+      errores.push(`Archivo '${a.original}': destino propio inválido '${a.destinoPropio}'.`);
+    }
+    if (a.carpeta && !esDestinoSeguro(a.carpeta)) {
+      errores.push(`Archivo '${a.original}': carpeta destino inválida '${a.carpeta}'.`);
     }
   }
 
@@ -457,6 +485,40 @@ export function filasEditorAIndice({
       delete nuevoCurso.omitidos;
     }
 
+    // Actualizar carpetas personalizadas (D-5, Plan 08d)
+    const carpetasFinales: Record<string, string> = cursoExistente?.carpetas
+      ? { ...cursoExistente.carpetas }
+      : {};
+
+    for (const a of archivosCurso) {
+      if (a.accion === "ya-esta" || a.accion === "omitir") {
+        delete carpetasFinales[a.clave];
+        continue;
+      }
+      const carpetaTema = nuevoCurso.temas[a.tema] || ".";
+      let carpetaArchivo = carpetaTema;
+
+      if (a.destinoPropio !== undefined) {
+        if (a.destinoPropio !== "") {
+          carpetaArchivo = a.destinoPropio === "." ? "." : resolverCarpeta(a.destinoPropio, nuevoCurso.docente);
+        }
+      } else if (a.carpeta && a.carpeta !== "") {
+        carpetaArchivo = a.carpeta === "." ? "." : resolverCarpeta(a.carpeta, nuevoCurso.docente);
+      }
+
+      if (carpetaArchivo !== carpetaTema) {
+        carpetasFinales[a.clave] = carpetaArchivo;
+      } else {
+        delete carpetasFinales[a.clave];
+      }
+    }
+
+    if (Object.keys(carpetasFinales).length > 0) {
+      nuevoCurso.carpetas = carpetasFinales;
+    } else {
+      delete nuevoCurso.carpetas;
+    }
+
     // Actualizar nombres personalizados (D-3)
     const visto = mapaVistos.get(cFila.clave_curso);
     const itemsEntrada: ItemEntradaPropuesta[] = visto
@@ -482,6 +544,7 @@ export function filasEditorAIndice({
       ...nuevoCurso,
       nombres: undefined,
       omitidos: undefined,
+      carpetas: nuevoCurso.carpetas,
     };
 
     const propuestasBase = proponerParaCurso({

@@ -420,4 +420,78 @@ describe("core/destino/vistas.ts", () => {
       "-"
     );
   });
+
+  it("carpeta personalizada por archivo se persiste en nuevoCurso.carpetas (D-5)", () => {
+    const filas = indiceAFilasEditor({
+      indice: indiceEjemplo,
+      vistos: vistosEjemplo,
+    });
+
+    const filaA3 = filas.archivos.find((a) => a.clave === "google-classroom:a3");
+    expect(filaA3).toBeDefined();
+    filaA3!.destinoPropio = "Talleres";
+
+    const res = filasEditorAIndice({
+      indice: indiceEjemplo,
+      filas,
+      vistos: vistosEjemplo,
+    });
+
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+
+    const curso = res.indice.cursos["google-classroom:c1"]!;
+    expect(curso.carpetas).toBeDefined();
+    expect(curso.carpetas!["google-classroom:a3"]).toBe("Talleres");
+  });
+
+  it("destino de tema personalizado seguro se acepta y con .. o / se rechaza", () => {
+    const filas = indiceAFilasEditor({
+      indice: indiceEjemplo,
+      vistos: vistosEjemplo,
+    });
+
+    // Destino seguro nuevo
+    filas.temas[1]!.destino = "Talleres";
+    const resOk = filasEditorAIndice({
+      indice: indiceEjemplo,
+      filas,
+      vistos: vistosEjemplo,
+    });
+    expect(resOk.ok).toBe(true);
+
+    // Destino con ..
+    filas.temas[1]!.destino = "../inseguro";
+    const resInseguro = filasEditorAIndice({
+      indice: indiceEjemplo,
+      filas,
+      vistos: vistosEjemplo,
+    });
+    expect(resInseguro.ok).toBe(false);
+  });
+
+  it("indiceAFilasEditor propaga cursoIndice.carpetas a arch.carpeta y arch.destinoPropio", () => {
+    const indiceConCarpetas: Indice = {
+      ...indiceEjemplo,
+      cursos: {
+        ...indiceEjemplo.cursos,
+        "google-classroom:c1": {
+          ...indiceEjemplo.cursos["google-classroom:c1"]!,
+          carpetas: {
+            "google-classroom:a3": "Talleres",
+          },
+        },
+      },
+    };
+
+    const filas = indiceAFilasEditor({
+      indice: indiceConCarpetas,
+      vistos: vistosEjemplo,
+    });
+
+    const filaA3 = filas.archivos.find((a) => a.clave === "google-classroom:a3");
+    expect(filaA3).toBeDefined();
+    expect(filaA3!.carpeta).toBe("Talleres");
+    expect(filaA3!.destinoPropio).toBe("Talleres");
+  });
 });

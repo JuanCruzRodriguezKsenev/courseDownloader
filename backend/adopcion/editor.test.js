@@ -282,4 +282,25 @@ describe("backend/adopcion/editor.js (modo=indice y modo TSV)", () => {
     );
     expect(tsvCursos).toContain("NuevoDocente");
   });
+
+  it("GET api/datos incluye carpetasPorMateria y fusiona carpetas en destinos (Plan 08d, S-2)", async () => {
+    // Crear una subcarpeta adicional en disco
+    await fs.mkdir(path.join(dirRaiz, "Ingenieria/Fisica 2/Talleres"), { recursive: true });
+
+    guardarVisto({
+      sitio: "google-classroom",
+      curso: { id: "c1", nombre: "Física II" },
+      items: [{ idArchivo: "f1", original: "guia.pdf", tema: "Teoría" }],
+    });
+
+    const req = new Request("http://127.0.0.1:3002/adopcion/api/datos?modo=indice");
+    const res = await manejar(req, new URL(req.url));
+    expect(res.status).toBe(200);
+
+    const json = await res.json();
+    expect(json.carpetasPorMateria).toBeDefined();
+    expect(json.carpetasPorMateria["Ingenieria/Fisica 2"]).toContain("Talleres");
+    expect(json.carpetasPorMateria["Ingenieria/Fisica 2"]).toContain("Teorias");
+    expect(json.destinos).toContain("Talleres");
+  });
 });

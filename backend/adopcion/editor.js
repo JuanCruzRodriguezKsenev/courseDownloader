@@ -121,6 +121,32 @@ function obtenerDocentes(raiz, materias) {
   return docentes;
 }
 
+export function obtenerCarpetasDeMateria(raiz, materia) {
+  const carpetas = [];
+  const dirMat = path.join(raiz, materia);
+  if (!fs.existsSync(dirMat)) return carpetas;
+  try {
+    const subs = fs.readdirSync(dirMat, { withFileTypes: true });
+    for (const sub of subs) {
+      if (sub.isDirectory() && !sub.name.startsWith(".")) {
+        carpetas.push(sub.name);
+      }
+    }
+    carpetas.sort();
+  } catch {
+    // Si no se puede leer, devolver array vacío
+  }
+  return carpetas;
+}
+
+export function obtenerCarpetasExistentes(raiz, materias) {
+  const carpetasPorMateria = {};
+  for (const m of materias) {
+    carpetasPorMateria[m] = obtenerCarpetasDeMateria(raiz, m);
+  }
+  return carpetasPorMateria;
+}
+
 export function crearManejadorEditor(opts, prefijo = "") {
   const rutaRaiz = `${prefijo}/`;
   const rutaDatos = `${prefijo}/api/datos`;
@@ -190,14 +216,22 @@ export function crearManejadorEditor(opts, prefijo = "") {
 
           const materias = obtenerMaterias(opts.raiz);
           const docentes = obtenerDocentes(opts.raiz, materias);
+          const carpetasPorMateria = obtenerCarpetasExistentes(opts.raiz, materias);
           const claveCursoActivo = url.searchParams.get("curso") || undefined;
           const filas = indiceAFilasEditor({ indice, vistos: mapaVistos, claveCursoActivo });
+
+          const destinosSet = new Set(DESTINOS);
+          for (const carps of Object.values(carpetasPorMateria)) {
+            for (const c of carps) destinosSet.add(c);
+          }
+          const destinos = Array.from(destinosSet);
 
           return Response.json({
             cursos: filas.cursos,
             temas: filas.temas,
             archivos: filas.archivos,
-            destinos: DESTINOS,
+            destinos,
+            carpetasPorMateria,
             materias,
             docentes,
             claveCursoActivo,
@@ -213,12 +247,20 @@ export function crearManejadorEditor(opts, prefijo = "") {
         const datosArchivos = leerTsvCrudo(path.join(opts.salida, "archivos.tsv"));
         const materias = obtenerMaterias(opts.raiz);
         const docentes = obtenerDocentes(opts.raiz, materias);
+        const carpetasPorMateria = obtenerCarpetasExistentes(opts.raiz, materias);
+
+        const destinosSet = new Set(DESTINOS);
+        for (const carps of Object.values(carpetasPorMateria)) {
+          for (const c of carps) destinosSet.add(c);
+        }
+        const destinos = Array.from(destinosSet);
 
         return Response.json({
           cursos: datosCursos.filas,
           temas: datosTemas.filas,
           archivos: datosArchivos.filas,
-          destinos: DESTINOS,
+          destinos,
+          carpetasPorMateria,
           materias,
           docentes,
         });

@@ -482,6 +482,9 @@ button {
 
 /* STRIP DE FILTROS / MÉTRICAS */
 .stats-strip {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   gap: 8px;
   padding: 10px 24px;
@@ -531,6 +534,9 @@ button {
 
 /* TOOLBAR */
 .toolbar {
+  position: sticky;
+  top: 41px;
+  z-index: 20;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -594,7 +600,6 @@ button {
   border: 1px solid var(--border-color);
   border-left: 4px solid var(--border-color);
   border-radius: var(--radius-md);
-  overflow: hidden;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .topic-card.has-warning {
@@ -605,12 +610,19 @@ button {
 }
 
 .topic-header {
+  position: sticky;
+  top: 86px;
+  z-index: 10;
   padding: 10px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: var(--bg-surface);
+  background-color: var(--bg-surface);
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 2px 4px rgba(var(--shadow-rgb), 0.05);
   user-select: none;
 }
 .topic-header:hover {
@@ -698,6 +710,7 @@ button {
 }
 
 .files-table {
+  table-layout: fixed;
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
@@ -740,16 +753,22 @@ button {
   color: var(--text-main);
   font-family: var(--font-mono);
   font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .file-rename-input {
   width: 100%;
-  padding: 4px 8px;
+  box-sizing: border-box;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  padding: 5px 8px;
   border: 1px solid var(--border-color);
   background: var(--bg-surface);
   color: var(--text-main);
   border-radius: var(--radius-xs);
-  font-size: 12px;
 }
 .file-rename-input:focus {
   outline: none;
@@ -775,7 +794,7 @@ button {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
-  max-width: 320px;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1076,7 +1095,14 @@ button {
 
       if (arch.accion === "ya-esta") {
         const cNorm = (arch.carpeta && arch.carpeta !== ".") ? arch.carpeta : "";
-        const rBase = cNorm ? (materia ? `${materia}/${cNorm}` : cNorm) : (materia || ".");
+        let rBase = "";
+        if (!cNorm) {
+          rBase = materia || ".";
+        } else if (materia && (cNorm === materia || cNorm.startsWith(`${materia}/`))) {
+          rBase = cNorm;
+        } else {
+          rBase = materia ? `${materia}/${cNorm}` : cNorm;
+        }
         return `${rBase}/${arch.nombre}`;
       }
 
@@ -1475,6 +1501,7 @@ button {
                     <option value="${d}" ${tema.destino === d ? "selected" : ""}>${d}</option>
                   `).join("")}
                   <option value="-" ${tema.destino === "-" ? "selected" : ""}>- (no bajar este tema)</option>
+                  <option value="__nueva__">+ Nueva carpeta...</option>
                 </select>
                 <button class="secondary-btn btn-drilldown-toggle" data-tema="${tema.tema}">
                   ${isExpanded ? "Ocultar archivos" : `Ver ${archivosTema.length} archivos`}
@@ -1487,11 +1514,11 @@ button {
               <table class="files-table">
                 <thead>
                   <tr>
-                    <th style="width: 44px; text-align: center;">✓</th>
-                    <th style="width: 28%;">Archivo original</th>
-                    <th style="width: 26%;">Nombre en destino (editable)</th>
+                    <th style="width: 40px; text-align: center;">✓</th>
+                    <th style="width: 26%;">Archivo original</th>
+                    <th style="width: 36%;">Nombre en destino (editable)</th>
                     <th style="width: 18%;">Carpeta destino</th>
-                    <th style="width: 24%;">Ruta calculada en vivo</th>
+                    <th style="width: 20%;">Ruta calculada en vivo</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1537,6 +1564,7 @@ button {
                             ${DATOS.destinos.filter((d) => d !== "." && d !== "-").map((d) => `
                               <option value="${d}" ${arch.destinoPropio === d ? "selected" : ""}>${d}</option>
                             `).join("")}
+                            <option value="__nueva__">+ Nueva carpeta...</option>
                           </select>
                         </td>
                         <td>
@@ -1668,13 +1696,31 @@ button {
         sel.addEventListener("change", () => {
           const arch = DATOS.archivos.find((a) => a.clave === sel.dataset.clave);
           if (!arch) return;
-          arch.destinoPropio = sel.value;
-          if (sel.value) {
-            arch.carpeta = sel.value;
-            showToast(`"${arch.nombre}" reubicado a ${sel.value}`);
+          let val = sel.value;
+          if (val === "__nueva__") {
+            const nombre = (window.prompt ? window.prompt("Nombre de la nueva carpeta:") : "") || "";
+            const limpia = nombre.trim().replace(/[\\/]/g, "");
+            if (!limpia) {
+              sel.value = arch.destinoPropio || "";
+              return;
+            }
+            if (!DATOS.destinos.includes(limpia)) {
+              DATOS.destinos.push(limpia);
+            }
+            const opt = document.createElement("option");
+            opt.value = limpia;
+            opt.textContent = limpia;
+            sel.appendChild(opt);
+            sel.value = limpia;
+            val = limpia;
+          }
+          arch.destinoPropio = val;
+          if (val) {
+            arch.carpeta = resolverCarpeta(val, curso.docente);
+            showToast(`"${arch.nombre}" reubicado a ${arch.carpeta}`);
           } else {
             const tema = DATOS.temas.find((t) => t.clave_curso === curso.clave_curso && t.tema === arch.tema);
-            arch.carpeta = (tema && tema.destino) ? tema.destino : ".";
+            arch.carpeta = (tema && tema.destino) ? resolverCarpeta(tema.destino, curso.docente) : ".";
             showToast(`"${arch.nombre}" vuelve a heredar de su carpeta`);
           }
           marcarCambio();
@@ -1686,22 +1732,40 @@ button {
       document.querySelectorAll(".topic-dest-select").forEach((sel) => {
         sel.addEventListener("change", () => {
           let tema = DATOS.temas.find((t) => t.clave_curso === curso.clave_curso && t.tema === sel.dataset.tema);
+          let val = sel.value;
+          if (val === "__nueva__") {
+            const nombre = (window.prompt ? window.prompt("Nombre de la nueva carpeta:") : "") || "";
+            const limpia = nombre.trim().replace(/[\\/]/g, "");
+            if (!limpia) {
+              sel.value = (tema && tema.destino) ? tema.destino : ".";
+              return;
+            }
+            if (!DATOS.destinos.includes(limpia)) {
+              DATOS.destinos.push(limpia);
+            }
+            const opt = document.createElement("option");
+            opt.value = limpia;
+            opt.textContent = limpia;
+            sel.appendChild(opt);
+            sel.value = limpia;
+            val = limpia;
+          }
           if (!tema) {
             // Virtual Novedades/huérfano
             tema = {
               clave_curso: curso.clave_curso,
               tema: sel.dataset.tema,
-              destino: sel.value,
+              destino: val,
               regla: "si",
               items: "0",
             };
             DATOS.temas.push(tema);
           } else {
-            tema.destino = sel.value;
+            tema.destino = val;
             tema.regla = "si";
           }
           marcarCambio();
-          showToast(`Destino de "${tema.tema}" actualizado a ${sel.value}`);
+          showToast(`Destino de "${tema.tema}" actualizado a ${val}`);
           renderAll();
         });
       });

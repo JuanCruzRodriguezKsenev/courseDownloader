@@ -115,6 +115,16 @@ try {
     inputQ1.dispatchEvent(new dom.window.Event("input"));
   }
 
+  // 3b. Asignar nueva carpeta personalizada a q1
+  dom.window.prompt = () => "Talleres";
+  const selectDestQ1 = doc.querySelector(".file-dest-select[data-clave='google-classroom:q1']");
+  if (!selectDestQ1) {
+    errores.push("No se encontró file-dest-select para google-classroom:q1");
+  } else {
+    selectDestQ1.value = "__nueva__";
+    selectDestQ1.dispatchEvent(new dom.window.Event("change"));
+  }
+
   // 4. Cambiar acción de archivo q2 a omitir
   const selectQ2 = doc.querySelector("[id='sel-acc-google-classroom:q2']");
   if (!selectQ2) {
@@ -152,6 +162,9 @@ try {
     }
     if (!cursoNuevo.nombres || cursoNuevo.nombres["google-classroom:q1"] !== "01_tabla_periodica_personalizada.pdf") {
       errores.push(`Nombre editado no figura en curso.nombres: ${JSON.stringify(cursoNuevo.nombres)}`);
+    }
+    if (!cursoNuevo.carpetas || cursoNuevo.carpetas["google-classroom:q1"] !== "Talleres") {
+      errores.push(`q1 no figura con carpeta Talleres en curso.carpetas: ${JSON.stringify(cursoNuevo.carpetas)}`);
     }
     if (!cursoNuevo.omitidos || !cursoNuevo.omitidos.includes("google-classroom:q2")) {
       errores.push(`q2 no figura en curso.omitidos: ${JSON.stringify(cursoNuevo.omitidos)}`);
