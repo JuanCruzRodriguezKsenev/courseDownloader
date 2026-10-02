@@ -21,6 +21,7 @@ asociar = reusar el editor web del 3001 en modo `?modo=indice`, no pantalla del 
 - La adopción omitió 9 archivos (8 cronogramas + 1 por tema `-`) y el índice no guarda omisiones → `omitidos`/tema `-` (RN-31 nueva) + migración en plan 06. RN-10 no es derivable de nombres → PA-5 abierta.
 - El índice real tiene md5 de 32 hex (la spec ejemplifica 16) y accesos de la adopción SIN frontmatter; los nuevos llevan `tipo: acceso` + `revisado`.
 - Nombre editado antes de bajar → `cursos.<c>.nombres` (una entrada de `archivos` exige md5/ruta).
+- Plan 08b (2c-3): temas sin asignar no se buscan a ciegas entre 92 items; clase `.sin-asignar` con acento warning, orden prioritario al inicio de su curso y filtro en Estado/click en nota.
 
 **How to apply:** al retomar, mirar qué planes ejecutó obra (`Estado.md` de la bóveda) y re-verificar cada informe pegando
 la salida; los controles negativos de obra fallaron antes ("probado" sin salida): exigir la salida roja. Estado de los
