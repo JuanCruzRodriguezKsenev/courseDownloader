@@ -16,24 +16,24 @@
  * externas de la extensión ni constantes fuera de su ámbito inyectado.
  */
 
-async function mapearConConcurrencia(items, limite, fn) {
-  const resultados = new Array(items.length);
-  let indice = 0;
-  async function trabajador() {
-    while (indice < items.length) {
-      const actual = indice++;
-      resultados[actual] = await fn(items[actual], actual);
-    }
-  }
-  const trabajadores = Array.from(
-    { length: Math.min(limite, items.length) },
-    () => trabajador()
-  );
-  await Promise.all(trabajadores);
-  return resultados;
-}
-
 async function escanearListado() {
+  async function mapearConConcurrencia(items, limite, fn) {
+    const resultados = new Array(items.length);
+    let indice = 0;
+    async function trabajador() {
+      while (indice < items.length) {
+        const actual = indice++;
+        resultados[actual] = await fn(items[actual], actual);
+      }
+    }
+    const trabajadores = Array.from(
+      { length: Math.min(limite, items.length) },
+      () => trabajador()
+    );
+    await Promise.all(trabajadores);
+    return resultados;
+  }
+
   const cursoId = new URLSearchParams(window.location.search).get("id") || "";
   const encabezado = document.querySelector(".page-header-headings h1, .page-header h1, h1");
   let cursoNombre = encabezado ? encabezado.textContent.trim() : "";

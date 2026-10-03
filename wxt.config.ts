@@ -59,7 +59,7 @@ export default defineConfig({
       // --- Portal 4: Moodle LINTI ---
       'https://catedras.linti.unlp.edu.ar/*',
       // --- Portal 5: Google Sites Mate C ---
-      'https://sites.google.com/ing.unlp.edu.ar/matec/*',
+      'https://sites.google.com/*',
       // --- Portal 6: Moodle Asignaturas (UNLP) ---
       'https://asignaturas.info.unlp.edu.ar/*',
       // --- Backend local ---

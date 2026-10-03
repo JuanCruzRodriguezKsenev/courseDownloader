@@ -30,10 +30,12 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **78 archivos, 1122 tests**, todo en verde |
+| `pnpm test` | **78 archivos, 1129 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 1129** (2026-10-02, plan `15 - Scrapers inyectables autocontenidos en Sites Mate C y Moodle Asignaturas`). Son los 1122 de abajo más **+7** tests en `sitio/inyeccion.test.js` (suite de ejecución en sandbox limpio `node:vm` para los 6 portales y control negativo ante variables libres; 7 → 14 tests).
 
 **De dónde sale el 1122** (2026-10-02, plan `14b - Integracion y registro central de portales`). Son los 1049 de abajo más **+73** tests repartidos en **+12** archivos nuevos:
 - **+21** tests en los 4 archivos de `sitio/moodle-linti/` (`config.test.ts` 4, `descargarAdjunto.test.js` 6, `parserTitulos.test.js` 2, `scraper.test.js` 9; plan 10),
