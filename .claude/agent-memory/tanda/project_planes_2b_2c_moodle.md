@@ -32,6 +32,7 @@ asociar = reusar el editor web del 3001 en modo `?modo=indice`, no pantalla del 
 - Planes 10 (Moodle LINTI puro), 11 (Sites Mate C puro), 13 (Moodle Asignaturas puro): ejecutados en paralelo por obra en worktrees aislados y fusionados con cero colisiones a `moodle-linti`.
 - Plan 14-B (Integración y registro central): alta oficial de los 3 portales en `sitio/registro.ts`, entrypoints, `wxt.config.ts`, `eslint.config.js`, validación de disyunción de URLs e inyección. Ejecutado por obra, verificado por tanda (`verificador`): compuerta limpia, 78 archivos / 1122 tests.
 - Limpieza de worktrees concurrentes completada (`git worktree remove` de los 3 árboles).
+- Plan 15 (Scrapers inyectables autocontenidos): corrige ReferenceError en navegador para Sites Mate C (`SUBPAGINAS_MATEC` fuera de `escanearListado`) y Moodle Asignaturas (`mapearConConcurrencia` fuera de `escanearListado`), unifica host permissions a `https://sites.google.com/*` en `wxt.config.ts`, y suma test en `node:vm` limpio a `sitio/inyeccion.test.js`. Escrito en Bóveda.
 
 **How to apply:** al retomar, mirar qué planes ejecutó obra (`Estado.md` de la bóveda) y re-verificar cada informe pegando
 la salida; los controles negativos de obra fallaron antes ("probado" sin salida): exigir la salida roja. Estado de los
