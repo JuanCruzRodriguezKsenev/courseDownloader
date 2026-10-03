@@ -35,3 +35,4 @@
 - [Moodle: Sub-corte 2 adaptador LINTI puro](project_moodle_2_adaptador_linti_puro.md) — adaptador puro sitio/moodle-linti/ con scraper, resolver, parserTitulos y config; 4 archivos / 21 tests verdes
 - [Google Sites Mate C: adaptador puro](project_sites_matec_puro.md) — adaptador puro en sitio/sites-matec/, 4 suites con 21 tests, fixtures sanitizados NFR-2 y triada local en verde
 - [Moodle Asignaturas Puro (Plan 14)](project_moodle_asignaturas_puro.md) — adaptador completo en sitio/moodle-asignaturas/ con 25 tests en verde y 1074 totales
+- [Integración Central de Portales (Plan 14-B)](project_integracion_portales_14b.md) — alta oficial de moodle-linti, sites-matec y moodle-asignaturas en los 5 puntos centrales; compuerta limpia en 78 archivos / 1122 tests

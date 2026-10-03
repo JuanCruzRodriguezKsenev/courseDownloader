@@ -14,9 +14,9 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 ## 🔴 Abierto
 
-> ## Estado al 2026-10-01: **VEINTICINCO** entradas abiertas
+> ## Estado al 2026-10-02: **VEINTISIETE** entradas abiertas
 >
-> Re-contadas, no sumadas al número anterior (3 🔴, 3 🟠, 19 ⚪):
+> Re-contadas, no sumadas al número anterior (3 🔴, 3 🟠, 21 ⚪):
 >
 > 1. 🔴 **El mecanismo de popovers sin tests** (hallado 2026-08-05).
 > 2. 🔴 **El loader del popup no tiene dueño**: tokens y demora pendientes (hallado 2026-08-12).
@@ -43,6 +43,8 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 > 23. ⚪ **`generar.js` y `core/destino/propuesta.ts` arman la propuesta cada uno por su lado** (hallado 2026-09-30).
 > 24. ⚪ **El editor en modo índice no cambia la materia de un curso ya asociado (D-4 del plan 07)**.
 > 25. ⚪ **Los vistos del editor viven en memoria: un reinicio del backend obliga a reabrir desde el popup (D-2 del plan 07)**.
+> 26. ⚪ **`inyeccion.test.js`: iteración sobre `Sitios.todos()` exige importar manualmente el scraper de cada portal para resolver su global** (hallado 2026-10-02, Plan 14-b).
+> 27. ⚪ **Vitest no ignora `.worktrees/`: worktrees concurrentes en la raíz ejecutan tests duplicados salvo remoción o exclusión explícita** (hallado 2026-10-02, Plan 14-b).
 >
 > ### Lo que se cerró el 2026-09-27
 >
