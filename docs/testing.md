@@ -30,10 +30,17 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **66 archivos, 1049 tests**, todo en verde |
+| `pnpm test` | **78 archivos, 1122 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 1122** (2026-10-02, plan `14b - Integracion y registro central de portales`). Son los 1049 de abajo más **+73** tests repartidos en **+12** archivos nuevos:
+- **+21** tests en los 4 archivos de `sitio/moodle-linti/` (`config.test.ts` 4, `descargarAdjunto.test.js` 6, `parserTitulos.test.js` 2, `scraper.test.js` 9; plan 10),
+- **+21** tests en los 4 archivos de `sitio/sites-matec/` (`config.test.js` 7, `descargarAdjunto.test.js` 6, `parserTitulos.test.js` 2, `scraper.test.js` 6; plan 11),
+- **+25** tests en los 4 archivos de `sitio/moodle-asignaturas/` (`config.test.ts` 6, `descargarAdjunto.test.js` 7, `parserTitulos.test.js` 3, `scraper.test.js` 9; plan 13),
+- **+3** en `sitio/registro.test.ts` (resolución de URL y disyunción estricta de los 6 portales; 22 → 25 tests),
+- y **+3** en `sitio/inyeccion.test.js` (expansión dinámica de serialización de escaneo para los 3 nuevos portales; 4 → 7 tests).
 
 **De dónde sale el 1049** (2026-10-02, plan `09 - Moodle-1 Lo genérico del destino que hoy dice Classroom`). Son los 1034 de abajo más **+15** tests repartidos en **+2** archivos nuevos:
 - **+6** en el archivo nuevo `backend/destino/portales.test.js` (suite de `PORTALES_VALIDOS` y `PORTALES_CON_DESTINO_INDICE`, y resolución pura de `resolverRaizDeDestino` con raíces configuradas y defaults D-1/D-2),

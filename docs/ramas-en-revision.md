@@ -16,12 +16,12 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## 🚧 En revisión
 
-Corte Moodle 1 en curso en la rama `moodle-linti`:
-- **Plan**: `~/Boveda/Proyectos/courseDownloader/Planes/09 - Moodle-1 Lo genérico del destino que hoy dice Classroom.md`.
-- **Qué entrega**: generalización del destino por índice para soportar Moodle sin tocar Classroom: módulo puro node-free `backend/destino/portales.js` (`PORTALES_VALIDOS`, `PORTALES_CON_DESTINO_INDICE`, `resolverRaizDeDestino`), extracción isomórfica de accesos Markdown a `core/destino/accesoMd.ts`, tolerancia del núcleo a formas de ítems de Moodle (temas vacíos a la raíz con `sinAsignar: false`, `idArchivo` con slashes y espacios, sufijos en choques RN-16 y claves con prefijo estricto).
-- **Spec**: `docs/specs/moodle-linti/spec.md`. Implementa RN-1, RN-5, RN-7, RN-9, RN-13, NFR-1.
-- **Compuerta**: 66 archivos / 1049 tests (ver `docs/testing.md` §Baseline).
-- **Estado**: Plan 09 ejecutado por `obra`.
+Integración de portales Moodle y Google Sites en curso en la rama `moodle-linti`:
+- **Planes**: `~/Boveda/Proyectos/courseDownloader/Planes/09 - Moodle-1 Lo genérico del destino que hoy dice Classroom.md`, `10 - Moodle-2 Adaptador puro Moodle LINTI.md`, `11 - Google Sites Mate C adaptador puro.md`, `13 - Moodle Asignaturas UNLP adaptador puro.md` y `14b - Integracion y registro central de portales.md`.
+- **Qué entrega**: generalización del destino por índice (Plan 09) y los 3 nuevos adaptadores de portal integrados oficialmente: Moodle LINTI (`catedras.linti.unlp.edu.ar`), Google Sites Mate C (`sites.google.com/ing.unlp.edu.ar/matec`) y Moodle Asignaturas (`asignaturas.info.unlp.edu.ar`), con registro en runtime (`sitio/registro.ts`), entrypoints de popup y background, permisos de host (`wxt.config.ts`), globals de eslint (`eslint.config.js`), validación de inyección serializable y disyunción estricta de URLs de los 6 portales.
+- **Specs**: `docs/specs/moodle-linti/spec.md`, `docs/specs/google-sites-matec/spec.md`, `docs/specs/moodle-asignaturas/spec.md`.
+- **Compuerta**: 78 archivos / 1122 tests (ver `docs/testing.md` §Baseline).
+- **Estado**: Plan 14-B ejecutado por `obra`. Pendiente verificación en navegador de los 3 portales nuevos.
 
 Corte 2c en curso en la rama `classroom-destino-2c`:
 - **Planes**: `~/Boveda/Proyectos/courseDownloader/Planes/07 - 2c-1 Editor web sobre el índice real.md`, `08 - 2c-2 Asociar desde el popup y cierre del 2c.md`, `08b - 2c-3 Resaltado, orden y filtro de temas sin asignar.md`, `08c - 2c-4 Nuevo editor web monocromo de alta densidad.md`, `08d - 2c-5 Ajustes ergonomicos del editor web (layout, carpetas y sticky).md`, `08f - 2c-6 Deteccion estricta de carpetas por materia y creacion en ambos selectores.md`, `08g - 2c-7 Desactivacion limpia de carpetas y eliminacion de opcion redundante en selector.md` y `08h - 2c-8 Atenuacion e indicador inmutable para archivos en disco.md`.

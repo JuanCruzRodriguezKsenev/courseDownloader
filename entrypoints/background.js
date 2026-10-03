@@ -43,6 +43,18 @@ import '../sitio/google-classroom/config.ts';
 import '../sitio/google-classroom/parserTitulos.js';
 import '../sitio/google-classroom/descargarAdjunto.js';
 
+import '../sitio/moodle-linti/config.ts';
+import '../sitio/moodle-linti/parserTitulos.js';
+import '../sitio/moodle-linti/descargarAdjunto.js';
+
+import '../sitio/sites-matec/config.ts';
+import '../sitio/sites-matec/parserTitulos.js';
+import '../sitio/sites-matec/descargarAdjunto.js';
+
+import '../sitio/moodle-asignaturas/config.ts';
+import '../sitio/moodle-asignaturas/parserTitulos.js';
+import '../sitio/moodle-asignaturas/descargarAdjunto.js';
+
 import BunClient from '../core/backend/bunClient.ts';
 import { aplicarEvento, esRecorridoTodos } from '../core/estado/recorridoTodos.ts';
 // [MULTISITIO CORTE 8] Acá se importaba `sitioAsumido`: el SW era el último lector del andamio

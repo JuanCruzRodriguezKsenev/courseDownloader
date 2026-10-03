@@ -14,6 +14,9 @@ import { describe, it, expect } from 'vitest';
 import './ramonnet/scraper.js';
 import './anatomy-by-chris/scraper.js';
 import './google-classroom/scraper.js';
+import './moodle-linti/scraper.js';
+import './sites-matec/scraper.js';
+import './moodle-asignaturas/scraper.js';
 import { Sitios } from './registro.ts';
 
 const compilaComoExpresion = (fn) => new Function(`return (${fn.toString()});`);

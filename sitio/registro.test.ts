@@ -3,15 +3,18 @@ import { Sitios } from "./registro";
 import { SitioRamonNet } from "./ramonnet/config";
 import { SitioAnatomyByChris } from "./anatomy-by-chris/config";
 import { SitioGoogleClassroom } from "./google-classroom/config";
+import { SitioMoodleLinti } from "./moodle-linti/config";
+import { SitioSitesMatec } from "./sites-matec/config";
+import { SitioMoodleAsignaturas } from "./moodle-asignaturas/config";
 
 /**
- * Tests del registro de sitios (multi-sitio, corte 2; ampliado en el corte 7 y en classroom-corte-1).
+ * Tests del registro de sitios (multi-sitio, corte 2; ampliado en el corte 7, classroom-corte-1 y plan 14-B).
  *
  * Lo que se afirma no es "encuentra Ramón Net" sino el contrato del que depende el bucle de
  * descarga: que un id desconocido devuelve `undefined` y NO cae al portal por defecto, que es
  * el bug que ADR-0010 previene.
  *
- * **Desde Classroom hay tres portales registrados**, y con eso una mitad del frente
+ * **Desde la integración hay seis portales registrados**, y con eso una mitad del frente
  * multiportal deja de tener sólo dobles: que los `esPaginaDelSitio` sean DISJUNTOS se puede
  * afirmar de verdad recién acá.
  */
@@ -20,6 +23,9 @@ describe("Sitios.obtener (por id, como viene de un ítem persistido)", () => {
     expect(Sitios.obtener("ramonnet")).toBe(SitioRamonNet);
     expect(Sitios.obtener("anatomy-by-chris")).toBe(SitioAnatomyByChris);
     expect(Sitios.obtener("google-classroom")).toBe(SitioGoogleClassroom);
+    expect(Sitios.obtener("moodle-linti")).toBe(SitioMoodleLinti);
+    expect(Sitios.obtener("sites-matec")).toBe(SitioSitesMatec);
+    expect(Sitios.obtener("moodle-asignaturas")).toBe(SitioMoodleAsignaturas);
   });
 
   it("un id desconocido devuelve undefined y NO cae al portal por defecto", () => {
@@ -65,6 +71,27 @@ describe("Sitios.resolverPorUrl (para la pestaña activa)", () => {
     );
   });
 
+  it("reconoce Moodle LINTI por URL de curso con id numérico", () => {
+    expect(
+      Sitios.resolverPorUrl("https://catedras.linti.unlp.edu.ar/course/view.php?id=301")
+    ).toBe(SitioMoodleLinti);
+  });
+
+  it("reconoce Google Sites Mate C por URL base o subsección", () => {
+    expect(
+      Sitios.resolverPorUrl("https://sites.google.com/ing.unlp.edu.ar/matec")
+    ).toBe(SitioSitesMatec);
+    expect(
+      Sitios.resolverPorUrl("https://sites.google.com/ing.unlp.edu.ar/matec/teorias")
+    ).toBe(SitioSitesMatec);
+  });
+
+  it("reconoce Moodle Asignaturas por URL de curso con id numérico", () => {
+    expect(
+      Sitios.resolverPorUrl("https://asignaturas.info.unlp.edu.ar/course/view.php?id=105")
+    ).toBe(SitioMoodleAsignaturas);
+  });
+
   it("una URL ajena no resuelve a ningún portal", () => {
     expect(Sitios.resolverPorUrl("https://www.google.com/")).toBeUndefined();
   });
@@ -79,7 +106,7 @@ describe("Sitios.resolverPorUrl (para la pestaña activa)", () => {
     ).toBeUndefined();
   });
 
-  it("los tres portales son DISJUNTOS: ninguno reclama la URL del otro", () => {
+  it("los seis portales son DISJUNTOS: ninguno reclama la URL del otro", () => {
     const urls = [
       "https://ramonnet.com.ar/usuario/clases-grabadas",
       "https://hotmart.com/es/club/anatomy-by-chris/products/6083220/content/ABC",
@@ -87,6 +114,10 @@ describe("Sitios.resolverPorUrl (para la pestaña activa)", () => {
       "https://classroom.google.com/c/MjQzNjkyNDM0NTEw",
       "https://classroom.google.com/u/2/h",
       "https://classroom.google.com/u/2/h/archived",
+      "https://catedras.linti.unlp.edu.ar/course/view.php?id=301",
+      "https://sites.google.com/ing.unlp.edu.ar/matec",
+      "https://sites.google.com/ing.unlp.edu.ar/matec/teorias",
+      "https://asignaturas.info.unlp.edu.ar/course/view.php?id=105",
     ];
     for (const url of urls) {
       const reclaman = Sitios.todos().filter((s) => s.esPaginaDelSitio(url));
@@ -206,10 +237,13 @@ describe("topeEscaneoMs: el techo del escaneo es una medición, no un default", 
     expect(SitioAnatomyByChris.esPortada).toBeUndefined();
   });
 
-  it("destinoPorIndice: Classroom declara true y Ramón Net y Anatomy no lo declaran", () => {
-    // [DESTINO CORTE 2b-3] Classroom baja al índice (.course-downloader.json) de la bóveda;
+  it("destinoPorIndice: Classroom, Moodle y Sites declaran true; Ramón Net y Anatomy no lo declaran", () => {
+    // [DESTINO CORTE 2b-3 y PLAN 14-B] Classroom, Moodle y Sites bajan al índice (.course-downloader.json) de la bóveda;
     // los otros portales no delegan en índice (D-2).
     expect(SitioGoogleClassroom.destinoPorIndice).toBe(true);
+    expect(SitioMoodleLinti.destinoPorIndice).toBe(true);
+    expect(SitioSitesMatec.destinoPorIndice).toBe(true);
+    expect(SitioMoodleAsignaturas.destinoPorIndice).toBe(true);
     expect(SitioRamonNet.destinoPorIndice).toBeUndefined();
     expect(SitioAnatomyByChris.destinoPorIndice).toBeUndefined();
   });
