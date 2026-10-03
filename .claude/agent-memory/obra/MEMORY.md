@@ -32,3 +32,4 @@
 - [Classroom: Sub-corte 2c-7 desactivación limpia de carpetas](project_classroom_destino_2c7_desactivacion_limpia_carpetas.md) — desactivación limpia de carpetas por checkbox maestro, eliminación de opción redundante en selector con estado disabled y compuerta en 64 archivos / 1034 tests
 - [Classroom: Sub-corte 2c-8 atenuación e indicador en disco](project_classroom_destino_2c8_atenuacion_indicador_en_disco.md) — atenuación visual neta con .row-descargado, badge 🔒 en disco, cursor not-allowed y tooltips de inmutabilidad; compuerta en 64 archivos / 1034 tests
 - [Moodle: Sub-corte 1 genérico del destino](project_moodle_1_generico_destino.md) — portales.js puro, accesoMd.ts isomórfico, parada en G-4 por sinAsignar en ítem sin tema y clave en calcularEstado
+- [Moodle Asignaturas Puro (Plan 14)](project_moodle_asignaturas_puro.md) — adaptador completo en sitio/moodle-asignaturas/ con 25 tests en verde y 1074 totales
