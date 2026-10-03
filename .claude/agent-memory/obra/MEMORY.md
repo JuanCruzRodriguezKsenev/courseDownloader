@@ -33,3 +33,4 @@
 - [Classroom: Sub-corte 2c-8 atenuación e indicador en disco](project_classroom_destino_2c8_atenuacion_indicador_en_disco.md) — atenuación visual neta con .row-descargado, badge 🔒 en disco, cursor not-allowed y tooltips de inmutabilidad; compuerta en 64 archivos / 1034 tests
 - [Moodle: Sub-corte 1 genérico del destino](project_moodle_1_generico_destino.md) — portales.js puro, accesoMd.ts isomórfico, parada en G-4 por sinAsignar en ítem sin tema y clave en calcularEstado
 - [Moodle: Sub-corte 2 adaptador LINTI puro](project_moodle_2_adaptador_linti_puro.md) — adaptador puro sitio/moodle-linti/ con scraper, resolver, parserTitulos y config; 4 archivos / 21 tests verdes
+- [Google Sites Mate C: adaptador puro](project_sites_matec_puro.md) — adaptador puro en sitio/sites-matec/, 4 suites con 21 tests, fixtures sanitizados NFR-2 y triada local en verde
