@@ -20,9 +20,9 @@ Subcarpeta por tema en la carpeta destino en curso en la rama `subcarpeta-tema`:
 - **Plan**: `~/Boveda/Proyectos/courseDownloader/Planes/20 - Subcarpeta por tema en la carpeta destino.md`.
 - **Qué entrega**: subcarpeta por tema opcional y configurable en la carpeta destino (`Teorias/<docente>/<Tema>`). Núcleo en `core/destino/carpetas.ts` y `core/destino/vistas.ts` (`nombreSubcarpetaTema`, tercer parámetro en `resolverCarpeta`, `invertirCarpeta` con detección de subcarpeta, preservación de carpetas no editables e inmutabilidad de archivos descargados). Editor web monocromo (`backend/adopcion/editor.html`) con casilla reactiva «📁 Subcarpeta del tema» por tarjeta, interruptor masivo «📁 Subcarpetas del curso» en la toolbar, actualización en vivo de rutas sin tocar overrides propios de archivo (`computeLivePath`), botón «↺ Que hereden» adaptado a la subcarpeta, y mitigación de falsos choques entre temas. Sin migración de esquema (`version: 1` se mantiene, retrocompatible).
 - **Spec**: `docs/specs/classroom-destino/spec.md` (ampliación RN-6 y descripción de `cursos.<clave>.temas.<tema>`).
-- **Compuerta**: 78 archivos / 1162 tests (ver `docs/testing.md` §Baseline).
+- **Compuerta**: 79 archivos / 1165 tests (ver `docs/testing.md` §Baseline).
 - **Humo jsdom**: `humo-editor.js` y `humo-editor-indice.js` en verde (errores: 0).
-- **Estado**: Parte I ejecutada por `obra`. Pendiente Parte II (CLI `generar`/`aplicar`) y verificación en navegador (M-1..M-8).
+- **Estado**: Partes I y II ejecutadas por `obra`. Pendiente verificación en navegador (M-1..M-8).
 
 ### Checklist de verificación M de subcarpeta por tema (dueño + tanda)
 - ⬜ **M-1** — Un curso nuevo con temas «Series» y «Prácticas»: cada uno con destino de carpeta muestra la casilla encendida y la ruta en vivo con `…/Series/archivo`.

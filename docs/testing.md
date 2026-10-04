@@ -30,14 +30,15 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **78 archivos, 1162 tests**, todo en verde |
+| `pnpm test` | **79 archivos, 1165 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
 
-**De dónde sale el 1162** (2026-10-04, plan `20 - Subcarpeta por tema en la carpeta destino`, Parte I): Son los 1140 de abajo más **+22** tests:
+**De dónde sale el 1165** (2026-10-04, plan `20 - Subcarpeta por tema en la carpeta destino`, Partes I y II): Son los 1140 de abajo más **+25** tests (+1 archivo):
 - **+15** en `core/destino/carpetas.test.ts` (suites de `nombreSubcarpetaTema` con AC-5 y temas reservados, y `resolverCarpeta` con AC-1..4 y RN-9; 23 → 38 tests),
-- **+7** en `core/destino/vistas.test.ts` (suite de `Subcarpeta por tema` con AC-6..10, sonda de defecto previo sin override y A7; 18 → 25 tests).
+- **+7** en `core/destino/vistas.test.ts` (suite de `Subcarpeta por tema` con AC-6..10, sonda de defecto previo sin override y A7; 18 → 25 tests),
+- **+3** en el archivo nuevo `backend/adopcion/aplicar.test.js` (suite de CLI `aplicar.js` con AC-16: `temas.tsv` sin columna subcarpeta retrocompatible, con columna `si` hacia `Teorias/<docente>/<Tema>` y con columna `no`).
 Las interacciones de UI (casilla por tema, interruptor masivo, herencia, omisión y choques con ruta completa AC-11..15, y paridad AC-14) se ejercitan en el script de humo en jsdom (`bun backend/adopcion/humo-editor-indice.js`).
 
 **De dónde sale el 1140** (2026-10-04, plan `17 - Boton Heredar carpeta en las tarjetas de tema del editor`). Son los 1139 de abajo más **+1** test en `core/destino/vistas.test.ts` (suite de `destinoPropio` vacío que no se persiste en `nuevoCurso.carpetas` al heredar la carpeta del tema P-2; 17 → 18 tests).
