@@ -190,6 +190,11 @@ export function FilaClase({ clase, ctx }) {
            >${textoMateria}</span>`
     : null;
 
+  // [PLAN 12 / RN-32] Chip de videollamada sincrónica (D-5)
+  const chipVideollamada = clase.esVideollamada
+    ? html`<span class="chip-videollamada" title="enlace de videollamada sincrónica, posiblemente inactivo">📹 Videollamada</span>`
+    : null;
+
   // ── Etiqueta y Título de la fila ──────────────────────────────────────────────────────────
   // Con destino (D-1): la etiqueta muestra destino.nombre y el title el nombre original y ruta.
   // Descartado / existente (D-6): el title incluye «Ya lo tenías: no se escribió nada».
@@ -248,6 +253,7 @@ export function FilaClase({ clase, ctx }) {
         ${checkbox}
         ${chipTipo}
         <span class="video-label">${etiquetaTexto}</span>
+        ${chipVideollamada}
         ${chipMateria}
         <span class="badge ${badgeCls}">${badgeTxt}</span>
       </div>`;
@@ -260,6 +266,7 @@ export function FilaClase({ clase, ctx }) {
       ${checkbox}
       ${chipTipo}
       <span class="video-label" style=${`cursor:${(tieneCheckbox && !estaBloqueado) ? 'pointer' : 'default'}`}>${etiquetaTexto}</span>
+      ${chipVideollamada}
       ${chipMateria}
       ${esActivo
         ? html`<span class="badge process">Bajando</span>`

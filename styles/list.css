@@ -311,6 +311,18 @@
   }
 }
 
+.chip-videollamada {
+  font-size: var(--font-xs);
+  padding: 2px var(--space-xs);
+  border: 1px solid var(--accent-orange);
+  border-radius: var(--radius-xs);
+  color: var(--accent-orange);
+  background-color: rgba(var(--accent-orange-rgb), 0.08);
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-weight: var(--font-bold);
+}
+
 /* Tarjeta de Error de Servidor Desconectado */
 .server-error-card {
   display: flex;

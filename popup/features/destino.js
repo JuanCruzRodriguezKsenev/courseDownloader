@@ -1,6 +1,9 @@
 /**
  * POPUP — FEATURE: DESTINO POR ÍNDICE (V1.1.0)
  * ==========================================================================
+ * CHANGELOG v1.2.0:
+ * - [PLAN 12 / RN-32] Comparador `compararPrioridadDestino` ordena primero `esVideollamada`, luego `sinAsignar` (D-4).
+ *
  * CHANGELOG v1.1.0:
  * - [DESTINO CORTE 2c-3] Comparador `compararPrioridadDestino` para ordenar sinAsignar primero (D-2).
  * - [DESTINO CORTE 2c-2] Funciones `armarVistos` (D-3) y `cursoParaEditor` (D-2).
@@ -15,14 +18,17 @@
  */
 
 /**
- * Comparador de prioridad para temas sin asignar (D-2).
- * Coloca los ítems con `sinAsignar === true` antes que los demás dentro de un mismo grupo.
+ * Comparador de prioridad de destino y videollamadas (D-2 corte 2c-3, D-4 plan 12 / RN-32).
+ * Coloca primero los enlaces de videollamada (`esVideollamada === true`), luego los ítems
+ * con `sinAsignar === true` y finalmente el resto dentro de un mismo grupo o curso.
  *
  * @param {object} a
  * @param {object} b
  * @returns {number}
  */
 export function compararPrioridadDestino(a, b) {
+  const diffVideo = (b && b.esVideollamada ? 1 : 0) - (a && a.esVideollamada ? 1 : 0);
+  if (diffVideo !== 0) return diffVideo;
   return (b && b.sinAsignar ? 1 : 0) - (a && a.sinAsignar ? 1 : 0);
 }
 
