@@ -10,4 +10,5 @@
 - [Leer la doc antes de preguntar](feedback_leer_doc_antes_de_preguntar.md) — no preguntar sesión/carpetas de un portal nuevo: está en multisitio-diseno y en Classroom
 - [Firma en doc y Bóveda](feedback_firma_documentos.md) — firmar siempre: tanda agy 3.8 flash high
 - [Política de videos por portal](policy_descarga_videos_por_portal.md) — sólo Ramón Net y Anatomy descargan video; Classroom, Moodle y Google Sites sólo guardan link .md
+- [Plan 19 borrador del editor](project_borrador_editor_plan19.md) — beforeunload→localStorage; cuelgue al cerrar, causa probable sin reproducir
 - [Moodle Asignaturas](project_moodle_asignaturas.md) — medición en vivo curso id=82, diseño en Bóveda, spec draft y fixtures sanitizados (2026-10-01)
