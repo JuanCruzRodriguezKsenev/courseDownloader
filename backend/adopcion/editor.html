@@ -726,6 +726,27 @@ button {
   border-color: var(--text-main);
 }
 
+.topic-subfolder-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-main);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.topic-subfolder-label input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+.topic-subfolder-label:has(input:disabled),
+.topic-subfolder-label input:disabled + span {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+
 /* TABLA DE ARCHIVOS (DRILLDOWN) */
 .files-drilldown {
   border-top: 1px solid var(--border-color);
@@ -1056,8 +1077,10 @@ button {
           <div class="toolbar-right">
             <button class="ghost-btn" id="btnExpandAll">Expandir todos</button>
             <button class="ghost-btn" id="btnCollapseAll">Colapsar todos</button>
+            <button class="secondary-btn" id="btnToggleSubcarpetasCurso" title="Activa o desactiva la subcarpeta en todos los temas elegibles del curso">📁 Subcarpetas del curso</button>
             <button class="secondary-btn" id="btnAutoAll">Aplicar reglas automáticas</button>
           </div>
+
         </section>
 
         <!-- LISTA DE CARPETAS / TEMAS CON DRILLDOWN DE ARCHIVOS -->
@@ -1246,14 +1269,43 @@ button {
       return "📁";
     }
 
-    // RESOLUCIÓN DE CARPETAS IDÉNTICA A carpetas.ts
-    function resolverCarpeta(destino, docente) {
-      const d = (docente || "").trim();
-      if (destino === "Teorias" && d.length > 0) {
-        return `Teorias/${d}`;
+    // SANEAMIENTO Y RESOLUCIÓN DE CARPETAS IDÉNTICA A carpetas.ts
+    function nombreSubcarpetaTema(tema) {
+      const t = (tema || "").trim();
+      if (!t || /^(novedades|sin tema)$/i.test(t)) {
+        return "";
       }
-      return destino;
+
+      const s = t
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .replace(/[\\/:*?"<>|]|[\0-\x1f\x7f]/g, "-")
+        .replace(/\.{2,}/g, ".")
+        .replace(/\s+/g, " ")
+        .replace(/^[\s.-]+|[\s.-]+$/g, "");
+
+      if (!s || s === "." || s === ".." || /^[-.]+$/.test(s)) {
+        return "";
+      }
+
+      return s.charAt(0).toUpperCase() + s.slice(1);
     }
+
+    function resolverCarpeta(destino, docente, subcarpetaTema) {
+      const d = (docente || "").trim();
+      let base = destino;
+      if (destino === "Teorias" && d.length > 0) {
+        base = `Teorias/${d}`;
+      }
+      if (destino !== "." && destino !== "-" && subcarpetaTema) {
+        const sub = nombreSubcarpetaTema(subcarpetaTema);
+        if (sub.length > 0) {
+          return `${base}/${sub}`;
+        }
+      }
+      return base;
+    }
+
 
     function getEffectiveDest(tema, arch) {
       if (arch && arch.destinoPropio !== undefined && arch.destinoPropio !== "") {
@@ -1284,8 +1336,11 @@ button {
         return "(no se baja)";
       }
 
-      const cRes = resolverCarpeta(destEfectivo, docente);
+      const tieneDestinoPropio = Boolean(arch && arch.destinoPropio !== undefined && arch.destinoPropio !== "");
+      const subTema = (!tieneDestinoPropio && tema && tema.subcarpeta === "si") ? tema.tema : null;
+      const cRes = resolverCarpeta(destEfectivo, docente, subTema);
       const cNorm = (cRes && cRes !== ".") ? cRes : "";
+
       const rBase = cNorm ? (materia ? `${materia}/${cNorm}` : cNorm) : (materia || "(sin materia)");
       return `${rBase}/${arch.nombre}`;
     }
@@ -1685,11 +1740,21 @@ button {
         );
         const cantHeredables = archivosHeredables.length;
         const disabledHeredar = isTopicOmitted || cantHeredables === 0;
+        const subTemaHeredar = (tema && tema.subcarpeta === "si") ? tema.tema : null;
+        const carpTemaResuelta = resolverCarpeta(tema.destino, curso ? curso.docente : "", subTemaHeredar);
         const titleHeredar = isTopicOmitted
           ? "El tema está omitido"
           : cantHeredables === 0
             ? "No hay archivos con carpeta personalizada distinta para heredar"
-            : `Hacer que ${cantHeredables} archivo${cantHeredables > 1 ? "s" : ""} herede${cantHeredables > 1 ? "n" : ""} la carpeta del tema`;
+            : `Hacer que ${cantHeredables} archivo${cantHeredables > 1 ? "s" : ""} herede${cantHeredables > 1 ? "n" : ""} la carpeta del tema (${carpTemaResuelta})`;
+
+        const esTemaElegibleSubcarpeta = !isTopicOmitted &&
+          Boolean(destinoSeleccionado && destinoSeleccionado !== "." && destinoSeleccionado !== "-") &&
+          Boolean(nombreSubcarpetaTema(tema.tema)) &&
+          !tema.esHuerfano &&
+          !isNovedades;
+        const disabledSubcarpeta = !esTemaElegibleSubcarpeta;
+        const isSubcarpetaChecked = tema.subcarpeta === "si";
 
         return `
           <article class="topic-card ${isSinRegla ? "has-warning" : ""} ${choquesEnTema > 0 ? "has-clash" : ""}" data-tema="${tema.tema}">
@@ -1726,9 +1791,14 @@ button {
                   `).join("")}
                   <option value="__nueva__">+ Nueva carpeta...</option>
                 </select>
+                <label class="topic-subfolder-label" title="${disabledSubcarpeta ? 'Subcarpeta no aplicable para este tema' : 'Crear subcarpeta con el nombre del tema dentro de la carpeta destino'}">
+                  <input type="checkbox" class="topic-subfolder-check" data-tema="${tema.tema}" ${isSubcarpetaChecked ? "checked" : ""} ${disabledSubcarpeta ? "disabled" : ""} />
+                  <span>📁 Subcarpeta del tema</span>
+                </label>
                 <button class="secondary-btn btn-heredar-carpeta" data-tema="${tema.tema}" ${disabledHeredar ? "disabled" : ""} title="${titleHeredar}">
                   ↺ Que hereden
                 </button>
+
                 <button class="secondary-btn btn-drilldown-toggle" data-tema="${tema.tema}">
                   ${isExpanded ? "Ocultar archivos" : `Ver ${archivosTema.length} archivos`}
                 </button>
@@ -2034,7 +2104,8 @@ button {
             showToast(`"${arch.nombre}" reubicado a ${arch.carpeta}`);
           } else {
             const tema = DATOS.temas.find((t) => t.clave_curso === curso.clave_curso && t.tema === arch.tema);
-            arch.carpeta = (tema && tema.destino) ? resolverCarpeta(tema.destino, curso.docente) : ".";
+            const subTema = (tema && tema.subcarpeta === "si") ? tema.tema : null;
+            arch.carpeta = (tema && tema.destino) ? resolverCarpeta(tema.destino, curso.docente, subTema) : ".";
             showToast(`"${arch.nombre}" vuelve a heredar de su carpeta`);
           }
           marcarCambio();
@@ -2073,25 +2144,42 @@ button {
           }
           if (!tema) {
             // Virtual Novedades/huérfano
+            const sub = nombreSubcarpetaTema(sel.dataset.tema) !== "" ? "si" : "no";
             tema = {
               clave_curso: curso.clave_curso,
               tema: sel.dataset.tema,
               destino: val,
               regla: "si",
               items: "0",
+              subcarpeta: sub,
             };
             DATOS.temas.push(tema);
           } else {
             tema.destino = val;
             tema.regla = "si";
           }
+
           marcarCambio();
           showToast(`Destino de "${tema.tema}" actualizado a ${val}`);
           renderAll();
         });
       });
 
-      // Heredar carpeta en archivos del tema (Plan 17, D-1..D-5)
+      // Checkbox de subcarpeta por tema (Paso 3.3, RN-14, RN-17)
+      document.querySelectorAll(".topic-subfolder-check").forEach((chk) => {
+        chk.addEventListener("change", () => {
+          const temaNombre = chk.dataset.tema;
+          const tema = DATOS.temas.find((t) => t.clave_curso === curso.clave_curso && t.tema === temaNombre);
+          if (!tema) return;
+          tema.subcarpeta = chk.checked ? "si" : "no";
+          marcarCambio();
+          const rutaRes = resolverCarpeta(tema.destino, curso.docente, tema.subcarpeta === "si" ? tema.tema : null);
+          showToast(`Subcarpeta de "${tema.tema}": ${tema.subcarpeta === "si" ? `activada (${rutaRes})` : "desactivada"}`);
+          renderAll();
+        });
+      });
+
+      // Heredar carpeta en archivos del tema (Plan 17, D-1..D-5; Plan 20, AC-11)
       document.querySelectorAll(".btn-heredar-carpeta").forEach((btn) => {
         btn.addEventListener("click", () => {
           const temaNombre = btn.dataset.tema;
@@ -2114,7 +2202,8 @@ button {
           );
           if (elegibles.length === 0) return;
 
-          const carpetaResuelta = destinoTema === "." ? "." : resolverCarpeta(destinoTema, curso.docente);
+          const subTemaHeredar = (tema && tema.subcarpeta === "si") ? tema.tema : null;
+          const carpetaResuelta = destinoTema === "." ? "." : resolverCarpeta(destinoTema, curso.docente, subTemaHeredar);
           for (const arch of elegibles) {
             arch.destinoPropio = "";
             arch.carpeta = carpetaResuelta;
@@ -2125,6 +2214,7 @@ button {
           renderAll();
         });
       });
+
 
       // Renombre inline
       document.querySelectorAll(".file-rename-input").forEach((inp) => {
@@ -2242,6 +2332,41 @@ button {
       renderTopics();
     });
 
+    // Interruptor masivo de subcarpetas del curso (Paso 3.4, RN-18, AC-12)
+    const btnToggleSubcarpetas = document.getElementById("btnToggleSubcarpetasCurso");
+    if (btnToggleSubcarpetas) {
+      btnToggleSubcarpetas.addEventListener("click", () => {
+        const curso = getActiveCurso();
+        if (!curso) return;
+
+        const temasCurso = DATOS.temas.filter((t) => t.clave_curso === curso.clave_curso);
+        const elegibles = temasCurso.filter((t) => {
+          if (!t.destino || t.destino === "." || t.destino === "-") return false;
+          if (!nombreSubcarpetaTema(t.tema)) return false;
+          if (t.esHuerfano) return false;
+          const nomLow = (t.tema || "").toLowerCase();
+          if (nomLow.includes("novedad") || nomLow.includes("sin tema")) return false;
+          return true;
+        });
+
+        if (elegibles.length === 0) return;
+
+        const todosEncendidos = elegibles.every((t) => t.subcarpeta === "si");
+        const nuevoEstado = todosEncendidos ? "no" : "si";
+        elegibles.forEach((t) => {
+          t.subcarpeta = nuevoEstado;
+        });
+
+        marcarCambio();
+        showToast(
+          nuevoEstado === "si"
+            ? `Subcarpetas activadas en ${elegibles.length} tema${elegibles.length > 1 ? "s" : ""}`
+            : `Subcarpetas desactivadas en ${elegibles.length} tema${elegibles.length > 1 ? "s" : ""}`
+        );
+        renderAll();
+      });
+    }
+
     // Reglas automáticas en masa
     document.getElementById("btnAutoAll").addEventListener("click", () => {
       const curso = getActiveCurso();
@@ -2256,6 +2381,7 @@ button {
             else if (nom.includes("bibliografia")) t.destino = "Bibliografia";
             else t.destino = "Teorias";
             t.regla = "si";
+            t.subcarpeta = nombreSubcarpetaTema(t.tema) !== "" ? "si" : "no";
           }
         });
         marcarCambio();
@@ -2263,6 +2389,7 @@ button {
         renderAll();
       }
     });
+
 
     // GUARDAR CAMBIOS (POST api/guardar)
     async function ejecutarGuardar() {

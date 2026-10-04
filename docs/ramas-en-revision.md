@@ -16,6 +16,27 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## 🚧 En revisión
 
+Subcarpeta por tema en la carpeta destino en curso en la rama `subcarpeta-tema`:
+- **Plan**: `~/Boveda/Proyectos/courseDownloader/Planes/20 - Subcarpeta por tema en la carpeta destino.md`.
+- **Qué entrega**: subcarpeta por tema opcional y configurable en la carpeta destino (`Teorias/<docente>/<Tema>`). Núcleo en `core/destino/carpetas.ts` y `core/destino/vistas.ts` (`nombreSubcarpetaTema`, tercer parámetro en `resolverCarpeta`, `invertirCarpeta` con detección de subcarpeta, preservación de carpetas no editables e inmutabilidad de archivos descargados). Editor web monocromo (`backend/adopcion/editor.html`) con casilla reactiva «📁 Subcarpeta del tema» por tarjeta, interruptor masivo «📁 Subcarpetas del curso» en la toolbar, actualización en vivo de rutas sin tocar overrides propios de archivo (`computeLivePath`), botón «↺ Que hereden» adaptado a la subcarpeta, y mitigación de falsos choques entre temas. Sin migración de esquema (`version: 1` se mantiene, retrocompatible).
+- **Spec**: `docs/specs/classroom-destino/spec.md` (ampliación RN-6 y descripción de `cursos.<clave>.temas.<tema>`).
+- **Compuerta**: 78 archivos / 1162 tests (ver `docs/testing.md` §Baseline).
+- **Humo jsdom**: `humo-editor.js` y `humo-editor-indice.js` en verde (errores: 0).
+- **Estado**: Parte I ejecutada por `obra`. Pendiente Parte II (CLI `generar`/`aplicar`) y verificación en navegador (M-1..M-8).
+
+### Checklist de verificación M de subcarpeta por tema (dueño + tanda)
+- ⬜ **M-1** — Un curso nuevo con temas «Series» y «Prácticas»: cada uno con destino de carpeta muestra la casilla encendida y la ruta en vivo con `…/Series/archivo`.
+- ⬜ **M-2** — Apagar la casilla de un tema: la ruta pierde la subcarpeta; guardar y reabrir: sigue apagada.
+- ⬜ **M-3** — Guardar con la casilla encendida y reabrir: sigue encendida; el índice (`.course-downloader.json`) trae `Teorias/<docente>/Series` y **ninguna** entrada nueva en `carpetas`.
+- ⬜ **M-4** — Un tema ya descargado: encender la casilla no mueve nada en disco; un archivo nuevo del tema baja a la subcarpeta.
+- ⬜ **M-5** — Un archivo con carpeta propia no lleva la subcarpeta; «↺ Que hereden» lo manda a `…/Series`.
+- ⬜ **M-6** — El interruptor de la toolbar enciende y apaga todos los temas elegibles; los de destino `.` y «Novedades» quedan deshabilitados.
+- ⬜ **M-7** — Omitir un tema y volver a marcarlo: recupera destino y subcarpeta.
+- ⬜ **M-8** — Una descarga real de un PDF de un tema con subcarpeta llega a `Materia/Teorias/<docente>/<Tema>/`.
+
+---
+
+
 Integración de portales Moodle y Google Sites en curso en la rama `moodle-linti`:
 - **Planes**: `~/Boveda/Proyectos/courseDownloader/Planes/09 - Moodle-1 Lo genérico del destino que hoy dice Classroom.md`, `10 - Moodle-2 Adaptador puro Moodle LINTI.md`, `11 - Google Sites Mate C adaptador puro.md`, `13 - Moodle Asignaturas UNLP adaptador puro.md`, `14b - Integracion y registro central de portales.md`, `15 - Scrapers inyectables autocontenidos en Sites Mate C y Moodle Asignaturas.md`, `16 - Correcciones de los planes 08b-15 contra el codigo.md`, `17 - Boton Heredar carpeta en las tarjetas de tema del editor.md` y `19 - Borrador local del editor en lugar del aviso al cerrar.md`.
 - **Qué entrega**: generalización del destino por índice (Plan 09) y los 3 nuevos adaptadores de portal integrados oficialmente: Moodle LINTI (`catedras.linti.unlp.edu.ar`), Google Sites Mate C (`sites.google.com/ing.unlp.edu.ar/matec`) y Moodle Asignaturas (`asignaturas.info.unlp.edu.ar`), con registro en runtime (`sitio/registro.ts`), entrypoints de popup y background, permisos de host (`wxt.config.ts`), globals de eslint (`eslint.config.js`), validación de inyección serializable y disyunción estricta de URLs de los 6 portales. Correcciones del Plan 16 (Parte I): resolver de Sites Mate C con `drive.usercontent.google.com` (`confirm=t`), permisos mínimos acotados a `ing.unlp.edu.ar/matec*`, scraper autocontenido sin duplicación de módulo, inyección con DOM real jsdom, soporte para materias nuevas sintácticamente seguras sin carpeta previa en disco, desacople de `_destinoPrevio` a Map privado y CSS accesible para filas descargadas en tema claro y oscuro. Botón de herencia rápida en editor (Plan 17): botón «↺ Que hereden» en `.topic-right` de tarjetas de tema con deshabilitación reactiva (D-1..D-4), reseteo de `destinoPropio` a `""` preservando archivos inmutables `ya-esta` y omitidos, sin cascadear desde `.topic-dest-select`. Borrador local de adopción (Plan 19): persistencia automática en `localStorage` con debounce de 500 ms y banner de restauración ante cambios sin guardar en lugar del diálogo nativo `beforeunload` para evitar cuelgues del navegador (D-1..D-9).

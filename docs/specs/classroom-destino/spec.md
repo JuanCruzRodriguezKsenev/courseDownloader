@@ -76,6 +76,7 @@ transformación de texto.
 - **RN-5** — Si `Teorias/` ya tiene archivos sueltos y se asocia un curso con docente, **lo que ya
   estaba no se mueve**: sólo el material nuevo va a `Teorias/<Apellido>/`.
 - **RN-6** — El destino se decide **por tema**: todos los adjuntos de un tema van a la misma carpeta.
+  *Ampliada el 2026-10-04 por `docs/specs/subcarpeta-por-tema/spec.md`: el tema puede sumar una subcarpeta.*
 - **RN-7** — Al asociar, la extensión precarga una sugerencia de carpeta para cada tema y el dueño la
   confirma o corrige, una vez por curso.
   - **RN-7a** (dueño, 2026-09-27) — La sugerencia sale primero del **nombre del tema**. Si el nombre no
@@ -284,8 +285,9 @@ La fila 0b va antes que la 2 y la 3 porque un acceso editado tiene otro md5: sin
 | `version` | Entero. Permite migrar el formato sin adivinar. |
 | `cursos.<portal>:<id>` | El id del portal (`google-classroom`) y el id de curso de su URL. El prefijo existe porque la raíz es de la UNLP, no de Classroom: los Moodle de la UNLP van a escribir en el mismo índice (dueño, 2026-09-27). |
 | `cursos.<clave>.materia` | Ruta relativa a la raíz. Tiene que existir (RN-1). |
-| `cursos.<clave>.temas.<tema>` | Ruta relativa a la materia. `"."` es la raíz de la materia. `"-"` indica tema omitido que no se ofrece para descargar (RN-31). |
+| `cursos.<clave>.temas.<tema>` | Ruta relativa a la materia (puede incluir la subcarpeta del tema). `"."` es la raíz de la materia. `"-"` indica tema omitido que no se ofrece para descargar (RN-31). |
 | `cursos.<clave>.omitidos` | Array de claves de archivo (`<portal>:<id>`). Archivos que el dueño omitió; la extensión los lista marcados como omitidos y deshabilitados (RN-31). |
+
 | `cursos.<clave>.nombres` | Diccionario de clave de archivo a nombre personalizado por el dueño antes de descargar (RN-14, D-3). |
 | `archivos.<portal>:<id>` | El portal, `:`, y el id de archivo: id de Drive para los adjuntos, `acceso:<url>:<título>` para los accesos (RN-29). Es la identidad estable, y la misma que viaja por el pipeline — no se inventa un eje nuevo (ADR-0014). |
 | `archivos.<clave>.nombre` | El nombre final, editado o propuesto. |

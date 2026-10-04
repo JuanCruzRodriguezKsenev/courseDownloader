@@ -79,33 +79,41 @@ describe("core/destino/vistas.ts", () => {
     expect(invertirCarpeta("Teorias/Palacio", "Palacio")).toEqual({
       destino: "Teorias",
       editable: true,
+      subcarpeta: false,
     });
     expect(invertirCarpeta("Teorias/Rey Grange", "Rey Grange")).toEqual({
       destino: "Teorias",
       editable: true,
+      subcarpeta: false,
     });
     expect(invertirCarpeta("Teorias", "")).toEqual({
       destino: "Teorias",
       editable: true,
+      subcarpeta: false,
     });
     expect(invertirCarpeta("Practicas", "Palacio")).toEqual({
       destino: "Practicas",
       editable: true,
+      subcarpeta: false,
     });
     expect(invertirCarpeta("-", "Palacio")).toEqual({
       destino: "-",
       editable: true,
+      subcarpeta: false,
     });
     // Carpeta editada a mano:
     expect(invertirCarpeta("Parciales/Viejos", "Palacio")).toEqual({
       destino: "Parciales/Viejos",
       editable: false,
+      subcarpeta: false,
     });
     expect(invertirCarpeta("Teorias", "Palacio")).toEqual({
       destino: "Teorias",
       editable: false,
+      subcarpeta: false,
     });
   });
+
 
   it("ida y vuelta sin cambios deja el índice byte-idéntico", () => {
     const filas = indiceAFilasEditor({
@@ -158,6 +166,7 @@ describe("core/destino/vistas.ts", () => {
     filas.cursos[0]!.materia = "Ingenieria/Quimica";
     filas.cursos[0]!.docente = "Gonzalez";
     filas.temas[0]!.destino = "Teorias";
+    filas.temas[0]!.subcarpeta = "no";
 
     const res = filasEditorAIndice({
       indice: indiceVacio,
@@ -205,6 +214,8 @@ describe("core/destino/vistas.ts", () => {
     filas.cursos[0]!.materia = "Ingenieria/Algebra";
     filas.cursos[0]!.docente = "";
     filas.temas[0]!.destino = "Teorias";
+    filas.temas[0]!.subcarpeta = "no";
+
 
     const res = filasEditorAIndice({
       indice: indiceVacio,
@@ -631,4 +642,266 @@ describe("core/destino/vistas.ts", () => {
       ).toBe(true);
     }
   });
+
+  describe("Subcarpeta por tema (AC-6..10, RN-12, 13, 15, 17)", () => {
+    it("AC-6 — Estado derivado de la carpeta guardada (ambas direcciones)", () => {
+      const indiceConSubcarpeta: Indice = {
+        version: 1,
+        cursos: {
+          "google-classroom:c1": {
+            nombre: "Física",
+            materia: "Ingenieria/Fisica",
+            docente: "Gomez",
+            temas: { Series: "Teorias/Gomez/Series" },
+          },
+        },
+        archivos: {},
+      };
+      const vistos1: VistoCurso[] = [
+        {
+          sitio: "google-classroom",
+          idCurso: "c1",
+          nombre: "Física",
+          items: [{ idArchivo: "a1", original: "doc.pdf", tema: "Series" }],
+        },
+      ];
+
+      const filas1 = indiceAFilasEditor({ indice: indiceConSubcarpeta, vistos: vistos1 });
+      const tema1 = filas1.temas.find((t) => t.tema === "Series");
+      expect(tema1?.destino).toBe("Teorias");
+      expect(tema1?.subcarpeta).toBe("si");
+
+      const indiceSinSubcarpeta: Indice = {
+        version: 1,
+        cursos: {
+          "google-classroom:c1": {
+            nombre: "Física",
+            materia: "Ingenieria/Fisica",
+            docente: "Gomez",
+            temas: { Series: "Teorias/Gomez" },
+          },
+        },
+        archivos: {},
+      };
+
+      const filas2 = indiceAFilasEditor({ indice: indiceSinSubcarpeta, vistos: vistos1 });
+      const tema2 = filas2.temas.find((t) => t.tema === "Series");
+      expect(tema2?.destino).toBe("Teorias");
+      expect(tema2?.subcarpeta).toBe("no");
+    });
+
+    it("AC-7 — Ida y vuelta byte-idéntica con tema guardado como Teorias/Gomez/Series", () => {
+      const indice: Indice = {
+        version: 1,
+        cursos: {
+          "google-classroom:c1": {
+            nombre: "Física",
+            materia: "Ingenieria/Fisica",
+            docente: "Gomez",
+            temas: { Series: "Teorias/Gomez/Series" },
+          },
+        },
+        archivos: {},
+      };
+      const vistos: VistoCurso[] = [
+        {
+          sitio: "google-classroom",
+          idCurso: "c1",
+          nombre: "Física",
+          items: [{ idArchivo: "a1", original: "doc.pdf", tema: "Series" }],
+        },
+      ];
+
+      const filas = indiceAFilasEditor({ indice, vistos });
+      const res = filasEditorAIndice({ indice, filas, vistos });
+
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+      expect(serializarIndice(res.indice)).toBe(serializarIndice(indice));
+    });
+
+    it("AC-8 — Tema nuevo encendido por defecto", () => {
+      const indiceVacio: Indice = { version: 1, cursos: {}, archivos: {} };
+      const vistos: VistoCurso[] = [
+        {
+          sitio: "google-classroom",
+          idCurso: "c_nuevo",
+          nombre: "Física",
+          items: [{ idArchivo: "a1", original: "doc.pdf", tema: "Series", publicacion: "Clase teórica" }],
+        },
+      ];
+
+      const filas = indiceAFilasEditor({ indice: indiceVacio, vistos });
+      const tema = filas.temas.find((t) => t.tema === "Series");
+      expect(tema?.subcarpeta).toBe("si");
+    });
+
+    it("AC-9 — Lo descargado no se mueve al encender subcarpeta", () => {
+      const claveBajado = "google-classroom:a_bajado";
+      const indice: Indice = {
+        version: 1,
+        cursos: {
+          "google-classroom:c1": {
+            nombre: "Física",
+            materia: "Ingenieria/Fisica",
+            docente: "Gomez",
+            temas: { Series: "Teorias/Gomez" },
+          },
+        },
+        archivos: {
+          [claveBajado]: {
+            curso: "google-classroom:c1",
+            nombre: "01_clase.pdf",
+            ruta: "Teorias/Gomez/01_clase.pdf",
+            md5: "d41d8cd98f00b204e9800998ecf8427e",
+            original: "clase.pdf",
+          },
+        },
+      };
+
+      const vistos: VistoCurso[] = [
+        {
+          sitio: "google-classroom",
+          idCurso: "c1",
+          nombre: "Física",
+          items: [
+            { idArchivo: "a_bajado", original: "clase.pdf", tema: "Series" },
+            { idArchivo: "a_nuevo", original: "nuevo.pdf", tema: "Series" },
+          ],
+        },
+      ];
+
+      const filas = indiceAFilasEditor({ indice, vistos });
+      // El dueño enciende la subcarpeta
+      const temaFila = filas.temas.find((t) => t.tema === "Series");
+      expect(temaFila).toBeDefined();
+      temaFila!.subcarpeta = "si";
+
+      const res = filasEditorAIndice({ indice, filas, vistos });
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+
+      // El archivo ya descargado no cambia de ruta ni se altera
+      expect(res.indice.archivos[claveBajado]?.ruta).toBe("Teorias/Gomez/01_clase.pdf");
+      // El tema ahora apunta a la subcarpeta
+      expect(res.indice.cursos["google-classroom:c1"]?.temas["Series"]).toBe("Teorias/Gomez/Series");
+      // El archivo nuevo 'copiar' hereda el tema y NO deja override en carpetas
+      expect(res.indice.cursos["google-classroom:c1"]?.carpetas).toBeUndefined();
+    });
+
+    it("AC-10 — Carpeta propia del archivo no lleva la subcarpeta del tema", () => {
+      const indice: Indice = {
+        version: 1,
+        cursos: {
+          "google-classroom:c1": {
+            nombre: "Física",
+            materia: "Ingenieria/Fisica",
+            docente: "Gomez",
+            temas: { Series: "Teorias/Gomez/Series" },
+          },
+        },
+        archivos: {},
+      };
+
+      const vistos: VistoCurso[] = [
+        {
+          sitio: "google-classroom",
+          idCurso: "c1",
+          nombre: "Física",
+          items: [{ idArchivo: "a1", original: "guia.pdf", tema: "Series" }],
+        },
+      ];
+
+      const filas = indiceAFilasEditor({ indice, vistos });
+      // Asignar destinoPropio al archivo
+      const arch = filas.archivos.find((a) => a.original === "guia.pdf");
+      expect(arch).toBeDefined();
+      arch!.destinoPropio = "Practicas";
+
+      const res = filasEditorAIndice({ indice, filas, vistos });
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+
+      const curso = res.indice.cursos["google-classroom:c1"];
+      expect(curso?.temas["Series"]).toBe("Teorias/Gomez/Series");
+      expect(curso?.carpetas?.["google-classroom:a1"]).toBe("Practicas");
+    });
+
+    it("Sonda defecto previo: cambiar destino de tema no deja override sin destinoPropio", () => {
+      const indice: Indice = {
+        version: 1,
+        cursos: {
+          "google-classroom:c1": {
+            nombre: "C",
+            materia: "M",
+            docente: "Gomez",
+            temas: { Series: "Teorias/Gomez" },
+          },
+        },
+        archivos: {},
+      };
+
+      const vistos: VistoCurso[] = [
+        {
+          sitio: "google-classroom",
+          idCurso: "c1",
+          nombre: "C",
+          items: [{ idArchivo: "a", original: "a.pdf", tema: "Series" }],
+        },
+      ];
+
+      const filas = indiceAFilasEditor({ indice, vistos });
+      // Cambiar destino del tema a Practicas sin subcarpeta
+      const tema = filas.temas.find((t) => t.tema === "Series")!;
+      tema.destino = "Practicas";
+      tema.subcarpeta = "no";
+      // El archivo tiene carpeta vieja 'Teorias/Gomez' pero destinoPropio undefined/vacio
+      const arch = filas.archivos.find((a) => a.original === "a.pdf")!;
+      expect(arch.destinoPropio).toBeUndefined();
+
+      const res = filasEditorAIndice({ indice, filas, vistos, materiasValidas: new Set(["M"]) });
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+
+      const curso = res.indice.cursos["google-classroom:c1"]!;
+      expect(curso.temas["Series"]).toBe("Practicas");
+      expect(curso.carpetas).toBeUndefined();
+    });
+
+    it("A7: tema guardado como carpeta a mano no invertible se conserva", () => {
+      const indice: Indice = {
+        version: 1,
+        cursos: {
+          "google-classroom:c1": {
+            nombre: "C",
+            materia: "M",
+            docente: "Gomez",
+            temas: { Series: "Carpetas/Manuales" },
+          },
+        },
+        archivos: {},
+      };
+
+      const vistos: VistoCurso[] = [
+        {
+          sitio: "google-classroom",
+          idCurso: "c1",
+          nombre: "C",
+          items: [{ idArchivo: "a", original: "a.pdf", tema: "Series" }],
+        },
+      ];
+
+      const filas = indiceAFilasEditor({ indice, vistos });
+      const tema = filas.temas.find((t) => t.tema === "Series")!;
+      expect(tema.editable).toBe(false);
+      expect(tema.destino).toBe("Carpetas/Manuales");
+
+      const res = filasEditorAIndice({ indice, filas, vistos, materiasValidas: new Set(["M"]) });
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+
+      expect(res.indice.cursos["google-classroom:c1"]?.temas["Series"]).toBe("Carpetas/Manuales");
+    });
+  });
 });
+

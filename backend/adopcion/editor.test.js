@@ -146,8 +146,9 @@ describe("backend/adopcion/editor.js (modo=indice y modo TSV)", () => {
     expect(cursoEnIndice).toBeDefined();
     expect(cursoEnIndice.materia).toBe("Ingenieria/Algebra");
     expect(cursoEnIndice.docente).toBe("Perez");
-    expect(cursoEnIndice.temas["Teorías"]).toBe("Teorias/Perez");
+    expect(cursoEnIndice.temas["Teorías"]).toBe("Teorias/Perez/Teorias");
   });
+
 
   it("POST api/guardar?modo=indice con materia nueva segura responde ok: true y guarda sin crear carpeta en raíz (D-5)", async () => {
     guardarVisto({
