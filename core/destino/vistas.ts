@@ -120,6 +120,19 @@ export function esDestinoSeguro(destino: string): boolean {
   return true;
 }
 
+export function esMateriaSintacticamenteSegura(materia: string): boolean {
+  if (!materia || typeof materia !== "string") return false;
+  if (/[\0-\x1f\x7f\t\r\n]/.test(materia)) return false;
+  if (materia.includes("\\")) return false;
+  const partes = materia.split("/");
+  if (partes.length !== 2) return false;
+  const [carrera, nombre] = partes;
+  if (!carrera || !nombre) return false;
+  if (carrera.trim().length === 0 || nombre.trim().length === 0) return false;
+  if (carrera === "." || carrera === "-" || nombre === "." || nombre === "-") return false;
+  return esDestinoSeguro(carrera) && esDestinoSeguro(nombre);
+}
+
 export function normalizarVistos(vistos: VistosInput): Map<string, VistoCurso> {
   const mapa = new Map<string, VistoCurso>();
   if (!vistos) return mapa;
@@ -341,8 +354,10 @@ export function filasEditorAIndice({
     if (docente.includes("/") || docente.includes("\\")) {
       errores.push(`Curso '${c.nombre}': docente contiene barras (/ o \\): '${docente}'.`);
     }
-    if (setMaterias && materia !== "" && !setMaterias.has(materia)) {
-      errores.push(`Curso '${c.nombre}': materia '${materia}' no existe.`);
+    const esSegura = esMateriaSintacticamenteSegura(materia);
+    const estaEnDisco = setMaterias ? setMaterias.has(materia) : false;
+    if (materia !== "" && !esSegura && !estaEnDisco) {
+      errores.push(`Curso '${c.nombre}': materia '${materia}' inválida.`);
     }
 
     const cursoExistente = indice.cursos[c.clave_curso];

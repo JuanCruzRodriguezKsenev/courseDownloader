@@ -358,5 +358,28 @@ describe("backend/destino/escritura.js", () => {
       // Solo debió hashearse el .part (1 vez). El archivo 'otro_grande.pdf' fue descartado por tamaño antes del hash
       expect(llamadasHasher).toBe(1);
     });
+
+    it("materia inexistente en disco -> finalizarEnDestino crea la carpeta y escribe el archivo (D-5)", async () => {
+      const rutaRel = "Informatica/Algoritmos/Teorias";
+      const carpetaAbs = path.join(raiz, rutaRel);
+      const parcial = path.join(raiz, "algo.part");
+      await fs.writeFile(parcial, "contenido_algoritmos", "utf8");
+
+      const res = await finalizarEnDestino({
+        raiz,
+        parcial,
+        carpetaAbs,
+        archivoAbs: path.join(carpetaAbs, "teoria1.pdf"),
+        nombreFinal: "teoria1.pdf",
+        claveArchivo: "google-classroom:alg1",
+        claveCurso: "google-classroom:c_alg",
+        original: "Teoria 1.pdf",
+        rutaRelativa: rutaRel,
+      });
+
+      expect(res).toBe("escrito");
+      expect(fsSync.existsSync(path.join(carpetaAbs, "teoria1.pdf"))).toBe(true);
+      expect(await fs.readFile(path.join(carpetaAbs, "teoria1.pdf"), "utf8")).toBe("contenido_algoritmos");
+    });
   });
 });

@@ -45,7 +45,7 @@ const SitioSitesMatec: PuertoSitio = {
   },
 
   get patronPestañas() {
-    return "https://sites.google.com/ing.unlp.edu.ar/matec/*";
+    return "https://sites.google.com/ing.unlp.edu.ar/matec*";
   },
 
   get urlListado() {

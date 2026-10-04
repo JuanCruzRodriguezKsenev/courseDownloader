@@ -89,6 +89,31 @@ try {
     errores.push(`Encabezado no dice Asociar curso: ${h2?.textContent}`);
   }
 
+  // 1b. Comprobación C-6 (D-6): desmarcar y volver a marcar .topic-check no altera DATOS.temas ni agrega claves con _
+  const temasInicialJson = dom.window.eval("JSON.stringify(DATOS.temas)");
+  const topicCheck = doc.querySelector(".topic-check");
+  if (!topicCheck) {
+    errores.push("No se encontró .topic-check para probar alternancia");
+  } else {
+    topicCheck.checked = false;
+    topicCheck.dispatchEvent(new dom.window.Event("change"));
+    topicCheck.checked = true;
+    topicCheck.dispatchEvent(new dom.window.Event("change"));
+
+    const temasFinalJson = dom.window.eval("JSON.stringify(DATOS.temas)");
+    if (temasFinalJson !== temasInicialJson) {
+      errores.push(`DATOS.temas cambió tras desmarcar y marcar: inicial ${temasInicialJson} vs final ${temasFinalJson}`);
+    }
+
+    const temasActuales = dom.window.eval("DATOS.temas");
+    for (const tema of temasActuales) {
+      const clavesGuionBajo = Object.keys(tema).filter((k) => k.startsWith("_"));
+      if (clavesGuionBajo.length > 0) {
+        errores.push(`tema contiene claves que empiezan con _: ${clavesGuionBajo.join(", ")}`);
+      }
+    }
+  }
+
   // 2. Elegir materia y docente
   const selectMateria = doc.querySelector(".tabla-curso-cabecera select");
   if (!selectMateria) {

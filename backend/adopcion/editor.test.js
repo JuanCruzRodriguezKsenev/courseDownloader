@@ -149,6 +149,58 @@ describe("backend/adopcion/editor.js (modo=indice y modo TSV)", () => {
     expect(cursoEnIndice.temas["Teorías"]).toBe("Teorias/Perez");
   });
 
+  it("POST api/guardar?modo=indice con materia nueva segura responde ok: true y guarda sin crear carpeta en raíz (D-5)", async () => {
+    guardarVisto({
+      sitio: "google-classroom",
+      curso: { id: "c_nueva_materia", nombre: "Algoritmos" },
+      items: [
+        {
+          idArchivo: "alg_1",
+          original: "teoria1.pdf",
+          tema: "Teorías",
+        },
+      ],
+    });
+
+    const reqDatos = new Request("http://127.0.0.1:3002/adopcion/api/datos?modo=indice");
+    const resDatos = await (await manejar(reqDatos, new URL(reqDatos.url))).json();
+
+    const materiaNueva = "Informatica/Algoritmos";
+    resDatos.cursos[0].materia = materiaNueva;
+    resDatos.cursos[0].docente = "Docente";
+    resDatos.temas[0].destino = "Teorias";
+
+    const reqGuardar = new Request(
+      "http://127.0.0.1:3002/adopcion/api/guardar?modo=indice",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cursos: resDatos.cursos,
+          temas: resDatos.temas,
+          archivos: resDatos.archivos,
+        }),
+      }
+    );
+
+    const resGuardar = await manejar(reqGuardar, new URL(reqGuardar.url));
+    expect(resGuardar.status).toBe(200);
+    const jsonGuardar = await resGuardar.json();
+    expect(jsonGuardar.ok).toBe(true);
+
+    const rawIndice = await fs.readFile(path.join(dirRaiz, NOMBRE_INDICE), "utf8");
+    const parsedIndice = JSON.parse(rawIndice);
+    const cursoEnIndice = parsedIndice.cursos["google-classroom:c_nueva_materia"];
+    expect(cursoEnIndice).toBeDefined();
+    expect(cursoEnIndice.materia).toBe("Informatica/Algoritmos");
+
+    const existeCarpeta = await fs
+      .access(path.join(dirRaiz, "Informatica"))
+      .then(() => true)
+      .catch(() => false);
+    expect(existeCarpeta).toBe(false);
+  });
+
   it("guardar dos veces seguidas no cambia el archivo en disco (idempotencia)", async () => {
     guardarVisto({
       sitio: "google-classroom",

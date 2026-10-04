@@ -36,3 +36,6 @@
 - [Google Sites Mate C: adaptador puro](project_sites_matec_puro.md) — adaptador puro en sitio/sites-matec/, 4 suites con 21 tests, fixtures sanitizados NFR-2 y triada local en verde
 - [Moodle Asignaturas Puro (Plan 14)](project_moodle_asignaturas_puro.md) — adaptador completo en sitio/moodle-asignaturas/ con 25 tests en verde y 1074 totales
 - [Integración Central de Portales (Plan 14-B)](project_integracion_portales_14b.md) — alta oficial de moodle-linti, sites-matec y moodle-asignaturas en los 5 puntos centrales; compuerta limpia en 78 archivos / 1122 tests
+- [Scrapers Inyectables Autocontenidos (Plan 15)](project_scrapers_inyectables_autocontenidos_plan15.md) — scrapers autocontenidos en Sites Mate C y Moodle Asignaturas, wildcard en wxt.config.ts y tests en node:vm; compuerta en 78 archivos / 1129 tests
+- [Classroom: Videollamadas y descarte en adopción (Plan 12)](project_classroom_videollamadas_adopcion.md) — videollamadas con reconocimiento autocontenido, orden al tope, chip visual y omisión probada en adopción; compuerta en 78 archivos / 1135 tests
+- [Correcciones de planes 08b a 15 (Plan 16 Parte I)](project_correcciones_planes_08b_15_plan16.md) — resolver Drive usercontent, permisos mínimos matec*, scraper autocontenido, inyección DOM real, materias seguras y editor accesible; 78 archivos / 1139 tests

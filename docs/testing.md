@@ -30,10 +30,18 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **78 archivos, 1129 tests**, todo en verde |
+| `pnpm test` | **78 archivos, 1139 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 1139** (2026-10-04, plan `16 - Correcciones de los planes 08b-15 contra el codigo`). Son los 1129 de abajo más **+10** tests:
+- **+2** en `sitio/sites-matec/descargarAdjunto.test.js` (suite de `drive.usercontent.google.com` con `confirm=t`, `authuser` y codificación de id D-1; 6 → 8 tests),
+- **+1** en `sitio/sites-matec/config.test.js` (suite de cobertura de `patronPestañas` y manifiesto D-2; 7 → 8 tests),
+- **+2** en `sitio/inyeccion.test.js` (suite de inyección sobre DOM real con JSDOM y fixtures para `sites-matec` y `moodle-asignaturas` D-4; 14 → 16 tests),
+- **+3** en `core/destino/vistas.test.ts` (suite de `esMateriaSintacticamenteSegura` y validación en `filasEditorAIndice` D-5; 14 → 17 tests),
+- **+1** en `backend/adopcion/editor.test.js` (suite de `POST /api/guardar?modo=indice` con materia nueva segura sin crear carpeta en disco D-5; 9 → 10 tests),
+- **+1** en `backend/destino/escritura.test.js` (suite de creación de carpeta de materia inexistente al escribir primer archivo D-5; 11 → 12 tests).
 
 **De dónde sale el 1129** (2026-10-02, plan `15 - Scrapers inyectables autocontenidos en Sites Mate C y Moodle Asignaturas`). Son los 1122 de abajo más **+7** tests en `sitio/inyeccion.test.js` (suite de ejecución en sandbox limpio `node:vm` para los 6 portales y control negativo ante variables libres; 7 → 14 tests).
 

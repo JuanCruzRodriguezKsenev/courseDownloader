@@ -9,6 +9,10 @@
  * de `Scraper.escanearAulaVirtual`).
  */
 import vm from 'node:vm';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { JSDOM } from 'jsdom';
 import { describe, it, expect } from 'vitest';
 // Los scrapers publican su global al cargarse, y el getter `escanearListado` de cada
 // descriptor lee ese global.
@@ -19,6 +23,15 @@ import './moodle-linti/scraper.js';
 import './sites-matec/scraper.js';
 import './moodle-asignaturas/scraper.js';
 import { Sitios } from './registro.ts';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const matecSeriesHtml = fs.readFileSync(path.join(__dirname, 'sites-matec/__fixtures__/series.html'), 'utf-8');
+const matecAutoHtml = fs.readFileSync(path.join(__dirname, 'sites-matec/__fixtures__/autoevaluaciones.html'), 'utf-8');
+const moodleCursoHtml = fs.readFileSync(path.join(__dirname, 'moodle-asignaturas/__fixtures__/curso.html'), 'utf-8');
+const moodleCarpetaHtml = fs.readFileSync(path.join(__dirname, 'moodle-asignaturas/__fixtures__/carpeta.html'), 'utf-8');
+const moodleUrlHtml = fs.readFileSync(path.join(__dirname, 'moodle-asignaturas/__fixtures__/url-intermedia.html'), 'utf-8');
 
 const compilaComoExpresion = (fn) => new Function(`return (${fn.toString()});`);
 
@@ -154,3 +167,79 @@ describe('inyección: la función de escaneo sobrevive a executeScript', () => {
     expect(errorCapturado.name).toBe('ReferenceError');
   });
 });
+
+describe('inyección sobre DOM real con fixtures (sites-matec y moodle-asignaturas)', () => {
+  it('sites-matec: evalúa escanearListado en ventana JSDOM limpia con fixtures y resuelve enlaces > 0 sin ReferenceError', async () => {
+    const sitio = Sitios.obtener('sites-matec');
+    expect(sitio).toBeDefined();
+
+    const dom = new JSDOM('<html><body></body></html>', {
+      url: 'https://sites.google.com/ing.unlp.edu.ar/matec/inicio',
+      runScripts: 'outside-only',
+    });
+    const ctx = dom.getInternalVMContext();
+    ctx.fetch = async (url) => {
+      const urlStr = String(url);
+      let body = '<html><body></body></html>';
+      if (urlStr.includes('/series')) body = matecSeriesHtml;
+      if (urlStr.includes('/autoevaluaciones')) body = matecAutoHtml;
+      return {
+        ok: true,
+        status: 200,
+        text: async () => body,
+      };
+    };
+
+    const fnCodigo = `(${sitio.escanearListado.toString()})`;
+    const fnInyectada = vm.runInContext(fnCodigo, ctx);
+    expect(typeof fnInyectada).toBe('function');
+
+    const res = await fnInyectada();
+    expect(res.materia).toBe('Matemática C');
+    expect(res.enlaces.length).toBeGreaterThan(0);
+    expect(res.enlaces.length).toBe(29);
+  });
+
+  it('moodle-asignaturas: evalúa escanearListado en ventana JSDOM limpia con fixtures y resuelve enlaces > 0 sin ReferenceError', async () => {
+    const sitio = Sitios.obtener('moodle-asignaturas');
+    expect(sitio).toBeDefined();
+
+    const dom = new JSDOM(moodleCursoHtml, {
+      url: 'https://asignaturas.info.unlp.edu.ar/course/view.php?id=82',
+      runScripts: 'outside-only',
+    });
+    const ctx = dom.getInternalVMContext();
+    ctx.fetch = async (url) => {
+      const urlStr = String(url);
+      if (urlStr.includes('/mod/folder/')) {
+        return {
+          ok: true,
+          status: 200,
+          text: async () => moodleCarpetaHtml,
+        };
+      }
+      if (urlStr.includes('/mod/url/')) {
+        return {
+          ok: true,
+          status: 200,
+          text: async () => moodleUrlHtml,
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        text: async () => '<html><body></body></html>',
+      };
+    };
+
+    const fnCodigo = `(${sitio.escanearListado.toString()})`;
+    const fnInyectada = vm.runInContext(fnCodigo, ctx);
+    expect(typeof fnInyectada).toBe('function');
+
+    const res = await fnInyectada();
+    expect(res.materia).toBe('2024_CURSADA REGULAR_Programación II');
+    expect(res.enlaces.length).toBeGreaterThan(0);
+    expect(res.enlaces.length).toBe(110);
+  });
+});
+

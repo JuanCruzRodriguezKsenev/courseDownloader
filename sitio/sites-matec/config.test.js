@@ -13,11 +13,47 @@ describe("SitioSitesMatec", () => {
     expect(SitioSitesMatec.nombre).toBe("Google Sites Mate C");
     expect(SitioSitesMatec.color).toBe("#1a73e8");
     expect(SitioSitesMatec.urlSondeoInternet).toBe("https://sites.google.com/favicon.ico");
-    expect(SitioSitesMatec.patronPestañas).toBe("https://sites.google.com/ing.unlp.edu.ar/matec/*");
+    expect(SitioSitesMatec.patronPestañas).toBe("https://sites.google.com/ing.unlp.edu.ar/matec*");
     expect(SitioSitesMatec.urlListado).toBe("https://sites.google.com/ing.unlp.edu.ar/matec");
     expect(SitioSitesMatec.topeEscaneoMs).toBe(10000);
     expect(SitioSitesMatec.credencialesAdjunto).toBe("include");
     expect(SitioSitesMatec.destinoPorIndice).toBe(true);
+  });
+
+  it("patronPestañas y los patrones del manifiesto cubren las URLs de Matemática C y rechazan otras", () => {
+    const matchPatternARegex = (patron) => {
+      const escapado = patron.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
+      return new RegExp(`^${escapado}$`);
+    };
+
+    const regexPestañas = matchPatternARegex(SitioSitesMatec.patronPestañas);
+    const patronesManifiesto = [
+      "https://sites.google.com/ing.unlp.edu.ar/matec",
+      "https://sites.google.com/ing.unlp.edu.ar/matec/*",
+    ];
+    const regexManifiesto = patronesManifiesto.map(matchPatternARegex);
+    const matcheaManifiesto = (url) => regexManifiesto.some((r) => r.test(url));
+
+    const urlsValidas = [
+      "https://sites.google.com/ing.unlp.edu.ar/matec",
+      "https://sites.google.com/ing.unlp.edu.ar/matec/",
+      "https://sites.google.com/ing.unlp.edu.ar/matec/inicio/series",
+    ];
+
+    const urlsInvalidas = [
+      "https://sites.google.com/otra/cosa",
+      "https://sites.google.com/ing.unlp.edu.ar/otrosite",
+    ];
+
+    for (const url of urlsValidas) {
+      expect(regexPestañas.test(url), `patronPestañas debería matchear ${url}`).toBe(true);
+      expect(matcheaManifiesto(url), `patrones del manifiesto deberían matchear ${url}`).toBe(true);
+    }
+
+    for (const url of urlsInvalidas) {
+      expect(regexPestañas.test(url), `patronPestañas no debería matchear ${url}`).toBe(false);
+      expect(matcheaManifiesto(url), `patrones del manifiesto no deberían matchear ${url}`).toBe(false);
+    }
   });
 
   it("esPaginaDelSitio reconoce rutas de Matemática C y rechaza otras", () => {
@@ -45,7 +81,7 @@ describe("SitioSitesMatec", () => {
 
   it("resolverAdjunto delega en DescargarAdjuntoSitesMatec", async () => {
     const res = await SitioSitesMatec.resolverAdjunto?.("drive:123");
-    expect(res).toBe("https://drive.google.com/uc?export=download&id=123");
+    expect(res).toBe("https://drive.usercontent.google.com/download?id=123&export=download&confirm=t");
   });
 
   it("clasificarCarpeta delega en ParserTitulosSitesMatec", () => {

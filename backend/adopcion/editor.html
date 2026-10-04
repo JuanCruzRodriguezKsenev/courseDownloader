@@ -41,6 +41,7 @@
 
   --accent-error: #DC2626;          /* Rojo choque */
   --accent-error-bg: rgba(220, 38, 38, 0.14);
+  --row-descargado-bg: rgba(15, 23, 42, 0.03);
 
   /* CANALES RGB */
   --shadow-rgb: 15, 23, 42;
@@ -88,6 +89,7 @@
 
     --accent-error: #EF4444;          /* Rojo choque */
     --accent-error-bg: rgba(239, 68, 68, 0.18);
+    --row-descargado-bg: rgba(255, 255, 255, 0.03);
 
     --shadow-rgb: 0, 0, 0;
     --scroll-thumb: rgba(148, 163, 184, 0.3);
@@ -773,13 +775,12 @@ button {
 
 .files-table tr.row-descargado {
   opacity: 0.55;
-  background: rgba(255, 255, 255, 0.015);
+  background: var(--row-descargado-bg);
 }
 .files-table tr.row-descargado td,
 .files-table tr.row-descargado .file-rename-input,
 .files-table tr.row-descargado .file-dest-select {
   cursor: not-allowed;
-  color: var(--text-muted);
 }
 
 .file-badge-en-disco {
@@ -1061,6 +1062,7 @@ button {
     let onlyProblems = false;
     let expandedTemas = new Set();
     let FILAS_CON_CHOQUE = new Set();
+    const destinosPrevios = new Map();
 
     // TOAST NOTIFICACIONES
     function showToast(msg) {
@@ -1539,7 +1541,8 @@ button {
         const copiedCount = activeFiles.length;
         const isChecked = !isTopicOmitted && (activeFiles.length > 0 || archivosTema.length === 0);
         const isNovedades = tema.tema.toLowerCase().includes("novedad") || tema.tema.toLowerCase().includes("sin tema");
-        const destinoSeleccionado = isTopicOmitted ? (tema._destinoPrevio || ".") : tema.destino;
+        const claveTema = `${tema.clave_curso}\t${tema.tema}`;
+        const destinoSeleccionado = isTopicOmitted ? (destinosPrevios.get(claveTema) || ".") : tema.destino;
 
         return `
           <article class="topic-card ${isSinRegla ? "has-warning" : ""} ${choquesEnTema > 0 ? "has-clash" : ""}" data-tema="${tema.tema}">
@@ -1753,10 +1756,11 @@ button {
             return false;
           });
 
+          const claveTema = `${tema.clave_curso}\t${tema.tema}`;
           if (!chk.checked) {
             // Desactivar descarga del tema
             if (tema.destino !== "-") {
-              tema._destinoPrevio = tema.destino || ".";
+              destinosPrevios.set(claveTema, tema.destino || ".");
             }
             tema.destino = "-";
             archivos.forEach((a) => {
@@ -1765,7 +1769,7 @@ button {
             showToast(`Carpeta "${temaNombre}" omitida (no se descargará)`);
           } else {
             // Reactivar descarga del tema
-            tema.destino = tema._destinoPrevio || ".";
+            tema.destino = destinosPrevios.get(claveTema) || ".";
             archivos.forEach((a) => {
               if (a.accion !== "ya-esta") a.accion = "copiar";
             });
@@ -1975,7 +1979,9 @@ button {
           return;
         }
         if (!limpia.includes("/")) {
-          limpia = `Ingenieria/${limpia}`;
+          showToast("Escribí Carrera/Materia, por ejemplo Informatica/Algoritmos");
+          document.getElementById("selectMateria").value = curso.materia || "";
+          return;
         }
         if (!DATOS.materias.includes(limpia)) {
           DATOS.materias.push(limpia);

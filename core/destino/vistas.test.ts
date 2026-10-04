@@ -3,6 +3,7 @@ import {
   invertirCarpeta,
   indiceAFilasEditor,
   filasEditorAIndice,
+  esMateriaSintacticamenteSegura,
 } from "./vistas";
 import type { VistoCurso } from "./vistas";
 import { serializarIndice } from "./indice";
@@ -493,5 +494,103 @@ describe("core/destino/vistas.ts", () => {
     expect(filaA3).toBeDefined();
     expect(filaA3!.carpeta).toBe("Talleres");
     expect(filaA3!.destinoPropio).toBe("Talleres");
+  });
+
+  it("esMateriaSintacticamenteSegura valida dos niveles seguros y rechaza inválidos (D-5)", () => {
+    expect(esMateriaSintacticamenteSegura("Informatica/Algoritmos")).toBe(true);
+    expect(esMateriaSintacticamenteSegura("Ingenieria/Matematica C")).toBe(true);
+
+    expect(esMateriaSintacticamenteSegura("Algoritmos")).toBe(false); // un nivel
+    expect(esMateriaSintacticamenteSegura("A/B/C")).toBe(false); // tres niveles
+    expect(esMateriaSintacticamenteSegura("A/../B")).toBe(false); // ..
+    expect(esMateriaSintacticamenteSegura("/A/B")).toBe(false); // empieza con /
+    expect(esMateriaSintacticamenteSegura("A//B")).toBe(false); // parte vacía
+    expect(esMateriaSintacticamenteSegura("\t")).toBe(false); // tabulación
+    expect(esMateriaSintacticamenteSegura("")).toBe(false);
+  });
+
+  it("filasEditorAIndice acepta materia nueva sintácticamente segura aunque no exista en disco (D-5)", () => {
+    const indiceVacio: Indice = {
+      version: 1,
+      cursos: {},
+      archivos: {},
+    };
+
+    const vistos: VistoCurso[] = [
+      {
+        sitio: "google-classroom",
+        idCurso: "nuevo",
+        nombre: "Algoritmos 2026",
+        items: [{ idArchivo: "a1", original: "doc.pdf", tema: "Teoria" }],
+      },
+    ];
+
+    const filas = indiceAFilasEditor({
+      indice: indiceVacio,
+      vistos,
+    });
+
+    filas.cursos[0]!.materia = "Informatica/Algoritmos";
+    filas.cursos[0]!.docente = "Docente";
+    filas.temas[0]!.destino = "Teorias";
+
+    const res = filasEditorAIndice({
+      indice: indiceVacio,
+      filas,
+      vistos,
+      materiasValidas: new Set(["Ingenieria/Quimica", "Ingenieria/Fisica 1"]),
+    });
+
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.indice.cursos["google-classroom:nuevo"]!.materia).toBe("Informatica/Algoritmos");
+  });
+
+  it("filasEditorAIndice rechaza materias inválidas que no existen en disco (D-5)", () => {
+    const indiceVacio: Indice = {
+      version: 1,
+      cursos: {},
+      archivos: {},
+    };
+
+    const vistos: VistoCurso[] = [
+      {
+        sitio: "google-classroom",
+        idCurso: "c_invalido",
+        nombre: "Curso Prueba",
+        items: [],
+      },
+    ];
+
+    const materiasInvalidas = [
+      "Algoritmos",
+      "A/B/C",
+      "A/../B",
+      "/A/B",
+      "A//B",
+      "   \t  ",
+    ];
+
+    for (const mat of materiasInvalidas) {
+      const filas = indiceAFilasEditor({
+        indice: indiceVacio,
+        vistos,
+      });
+      filas.cursos[0]!.materia = mat;
+
+      const res = filasEditorAIndice({
+        indice: indiceVacio,
+        filas,
+        vistos,
+        materiasValidas: new Set(["Ingenieria/Quimica"]),
+      });
+
+      expect(res.ok).toBe(false);
+      if (res.ok) continue;
+      expect(
+        res.errores.some((e) => e.includes("inválida") || e.includes("tabulaciones")),
+        `debería rechazar materia '${mat}'`
+      ).toBe(true);
+    }
   });
 });

@@ -14,9 +14,9 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 ## 🔴 Abierto
 
-> ## Estado al 2026-10-02: **VEINTISIETE** entradas abiertas
+> ## Estado al 2026-10-04: **VEINTISÉIS** entradas abiertas
 >
-> Re-contadas, no sumadas al número anterior (3 🔴, 3 🟠, 21 ⚪):
+> Re-contadas, no sumadas al número anterior (3 🔴, 3 🟠, 20 ⚪):
 >
 > 1. 🔴 **El mecanismo de popovers sin tests** (hallado 2026-08-05).
 > 2. 🔴 **El loader del popup no tiene dueño**: tokens y demora pendientes (hallado 2026-08-12).
@@ -43,8 +43,12 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 > 23. ⚪ **`generar.js` y `core/destino/propuesta.ts` arman la propuesta cada uno por su lado** (hallado 2026-09-30).
 > 24. ⚪ **El editor en modo índice no cambia la materia de un curso ya asociado (D-4 del plan 07)**.
 > 25. ⚪ **Los vistos del editor viven en memoria: un reinicio del backend obliga a reabrir desde el popup (D-2 del plan 07)**.
-> 26. ⚪ **`inyeccion.test.js`: iteración sobre `Sitios.todos()` exige importar manualmente el scraper de cada portal para resolver su global** (hallado 2026-10-02, Plan 14-b).
+> 26. ✅ **`inyeccion.test.js`: prueba sobre DOM real y contexto VM aislado** (cerrada 2026-10-04, Plan 16 D-4).
 > 27. ⚪ **Vitest no ignora `.worktrees/`: worktrees concurrentes en la raíz ejecutan tests duplicados salvo remoción o exclusión explícita** (hallado 2026-10-02, Plan 14-b).
+>
+> ### Lo que se cerró el 2026-10-04 (Plan 16)
+>
+> - **`inyeccion.test.js`: prueba con DOM real**: evalúa `escanearListado.toString()` con `dom.getInternalVMContext()` y fixtures reales para `sites-matec` y `moodle-asignaturas`, cerrando el hueco de helpers internos fuera del scope de la función serializada (Plan 16, D-4).
 >
 > ### Lo que se cerró el 2026-09-27
 >

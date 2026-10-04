@@ -5,21 +5,53 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import ScraperSitesMatec, { extraerItemsDeDocumento, escanearListado, SUBPAGINAS_MATEC } from "./scraper.js";
+import ScraperSitesMatec, { escanearListado } from "./scraper.js";
 
 const FIXTURES_DIR = path.join(__dirname, "__fixtures__");
 const seriesHtml = fs.readFileSync(path.join(FIXTURES_DIR, "series.html"), "utf-8");
 const autoevaluacionesHtml = fs.readFileSync(path.join(FIXTURES_DIR, "autoevaluaciones.html"), "utf-8");
 
-describe("ScraperSitesMatec.extraerItemsDeDocumento", () => {
-  it("ScraperSitesMatec expone escanearListado y SUBPAGINAS_MATEC", () => {
-    expect(ScraperSitesMatec.escanearListado).toBeDefined();
-    expect(ScraperSitesMatec.SUBPAGINAS_MATEC).toBe(SUBPAGINAS_MATEC);
+const TEMAS_ESPERADOS = [
+  "Series",
+  "Sistemas",
+  "Matrices",
+  "Espacios",
+  "Transformaciones",
+  "Autovalores",
+  "Diferenciales",
+  "Fourier",
+  "Autoevaluaciones",
+];
+
+describe("ScraperSitesMatec.escanearListado", () => {
+  let fetchOriginal;
+
+  beforeEach(() => {
+    fetchOriginal = globalThis.fetch;
   });
 
-  it("extrae items de series.html clasificando YouTube, Drive videos y Drive PDFs", () => {
-    const doc = new DOMParser().parseFromString(seriesHtml, "text/html");
-    const items = extraerItemsDeDocumento(doc, "Series", "https://sites.google.com/ing.unlp.edu.ar/matec/inicio/series");
+  afterEach(() => {
+    globalThis.fetch = fetchOriginal;
+    vi.restoreAllMocks();
+  });
+
+  it("ScraperSitesMatec expone escanearListado", () => {
+    expect(ScraperSitesMatec.escanearListado).toBeDefined();
+    expect(typeof ScraperSitesMatec.escanearListado).toBe("function");
+  });
+
+  it("extrae items de series.html clasificando YouTube, Drive videos y Drive PDFs", async () => {
+    globalThis.fetch = vi.fn().mockImplementation((url) => {
+      let body = "<html><body></body></html>";
+      if (url.includes("/series")) body = seriesHtml;
+      return Promise.resolve({
+        ok: true,
+        text: () => Promise.resolve(body),
+      });
+    });
+
+    const resultado = await escanearListado();
+    const items = resultado.enlaces.filter((it) => it.tema === "Series");
 
     expect(items.length).toBe(18);
 
@@ -59,13 +91,18 @@ describe("ScraperSitesMatec.extraerItemsDeDocumento", () => {
     }
   });
 
-  it("extrae los 11 formularios Google Forms de autoevaluaciones.html", () => {
-    const doc = new DOMParser().parseFromString(autoevaluacionesHtml, "text/html");
-    const items = extraerItemsDeDocumento(
-      doc,
-      "Autoevaluaciones",
-      "https://sites.google.com/ing.unlp.edu.ar/matec/inicio/autoevaluaciones"
-    );
+  it("extrae los 11 formularios Google Forms de autoevaluaciones.html", async () => {
+    globalThis.fetch = vi.fn().mockImplementation((url) => {
+      let body = "<html><body></body></html>";
+      if (url.includes("/autoevaluaciones")) body = autoevaluacionesHtml;
+      return Promise.resolve({
+        ok: true,
+        text: () => Promise.resolve(body),
+      });
+    });
+
+    const resultado = await escanearListado();
+    const items = resultado.enlaces.filter((it) => it.tema === "Autoevaluaciones");
 
     expect(items.length).toBe(11);
     for (const item of items) {
@@ -79,30 +116,28 @@ describe("ScraperSitesMatec.extraerItemsDeDocumento", () => {
     }
   });
 
-  it("deduplica ítems si una subpágina contiene iframe y enlace a la misma clave", () => {
+  it("deduplica ítems si una subpágina contiene iframe y enlace a la misma clave", async () => {
     const htmlDuplicado = `
-      <div>
-        <h2>Video Repetido</h2>
-        <iframe src="https://www.youtube.com/embed/meW-bo5A3vo" title="Video"></iframe>
-        <a href="https://www.youtube.com/watch?v=meW-bo5A3vo">Ver en YouTube</a>
-      </div>
+      <html><body>
+        <div>
+          <h2>Video Repetido</h2>
+          <iframe src="https://www.youtube.com/embed/meW-bo5A3vo" title="Video"></iframe>
+          <a href="https://www.youtube.com/watch?v=meW-bo5A3vo">Ver en YouTube</a>
+        </div>
+      </body></html>
     `;
-    const doc = new DOMParser().parseFromString(htmlDuplicado, "text/html");
-    const items = extraerItemsDeDocumento(doc, "Series", "https://ejemplo.com");
+    globalThis.fetch = vi.fn().mockImplementation((url) => {
+      let body = "<html><body></body></html>";
+      if (url.includes("/series")) body = htmlDuplicado;
+      return Promise.resolve({
+        ok: true,
+        text: () => Promise.resolve(body),
+      });
+    });
+
+    const resultado = await escanearListado();
+    const items = resultado.enlaces.filter((it) => it.tema === "Series");
     expect(items.length).toBe(1);
-  });
-});
-
-describe("ScraperSitesMatec.escanearListado", () => {
-  let fetchOriginal;
-
-  beforeEach(() => {
-    fetchOriginal = globalThis.fetch;
-  });
-
-  afterEach(() => {
-    globalThis.fetch = fetchOriginal;
-    vi.restoreAllMocks();
   });
 
   it("fetchea las 9 subpáginas en paralelo y devuelve el resultado consolidado", async () => {
@@ -121,8 +156,8 @@ describe("ScraperSitesMatec.escanearListado", () => {
 
     expect(resultado.materia).toBe("Matemática C");
     expect(resultado.enlaces.length).toBe(29); // 18 de series + 11 de autoevaluaciones
-    expect(globalThis.fetch).toHaveBeenCalledTimes(SUBPAGINAS_MATEC.length);
-    expect(SUBPAGINAS_MATEC.length).toBe(9);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(TEMAS_ESPERADOS.length);
+    expect(TEMAS_ESPERADOS.length).toBe(9);
   });
 
   it("tolera errores de red en una subpágina puntual sin fallar el escaneo total", async () => {

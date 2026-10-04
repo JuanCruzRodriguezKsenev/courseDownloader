@@ -3,11 +3,38 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import DescargarAdjuntoSitesMatec from "./descargarAdjunto.js";
-
 describe("DescargarAdjuntoSitesMatec.resolver", () => {
-  it("un archivo drive: devuelve la URL directa de exportación de Drive", async () => {
+  it("un archivo drive: devuelve la URL de drive.usercontent.google.com con confirm=t y sin authuser", async () => {
     const url = await DescargarAdjuntoSitesMatec.resolver("drive:1CGTCOnu1xcKRX_Ez8tQY4GWFHxHa_WPo");
-    expect(url).toBe("https://drive.google.com/uc?export=download&id=1CGTCOnu1xcKRX_Ez8tQY4GWFHxHa_WPo");
+    expect(url).toBe(
+      "https://drive.usercontent.google.com/download?id=1CGTCOnu1xcKRX_Ez8tQY4GWFHxHa_WPo&export=download&confirm=t"
+    );
+    const parsed = new URL(url);
+    expect(parsed.hostname).toBe("drive.usercontent.google.com");
+    expect(parsed.searchParams.get("id")).toBe("1CGTCOnu1xcKRX_Ez8tQY4GWFHxHa_WPo");
+    expect(parsed.searchParams.get("export")).toBe("download");
+    expect(parsed.searchParams.get("confirm")).toBe("t");
+    expect(parsed.searchParams.has("authuser")).toBe(false);
+  });
+
+  it("un archivo drive: con credenciales.authuser incluye authuser", async () => {
+    const url = await DescargarAdjuntoSitesMatec.resolver(
+      "drive:1CGTCOnu1xcKRX_Ez8tQY4GWFHxHa_WPo",
+      undefined,
+      { authuser: "1" }
+    );
+    expect(url).toBe(
+      "https://drive.usercontent.google.com/download?id=1CGTCOnu1xcKRX_Ez8tQY4GWFHxHa_WPo&export=download&confirm=t&authuser=1"
+    );
+    const parsed = new URL(url);
+    expect(parsed.searchParams.get("authuser")).toBe("1");
+  });
+
+  it("un archivo drive: codifica el fileId", async () => {
+    const url = await DescargarAdjuntoSitesMatec.resolver("drive:archivo con espacios/raro");
+    const parsed = new URL(url);
+    expect(parsed.searchParams.get("id")).toBe("archivo con espacios/raro");
+    expect(url).toContain("id=archivo+con+espacios%2Fraro");
   });
 
   it("un acceso da un data: que decodificado tiene frontmatter, conserva '# título\\n\\nurl'", async () => {

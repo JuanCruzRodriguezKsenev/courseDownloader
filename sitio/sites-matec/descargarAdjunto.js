@@ -50,7 +50,14 @@ const DescargarAdjuntoSitesMatec = {
       if (!fileId) {
         throw fallo("adjunto", "id de archivo Drive vacío", { tipoPortal: "rechazo" });
       }
-      return `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`;
+      const driveUrl = new URL("https://drive.usercontent.google.com/download");
+      driveUrl.searchParams.set("id", fileId);
+      driveUrl.searchParams.set("export", "download");
+      driveUrl.searchParams.set("confirm", "t");
+      if (_credenciales?.authuser != null && _credenciales.authuser !== "") {
+        driveUrl.searchParams.set("authuser", String(_credenciales.authuser));
+      }
+      return driveUrl.toString();
     }
 
     if (idArchivo.startsWith("url:")) {
