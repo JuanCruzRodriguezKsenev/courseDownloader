@@ -140,6 +140,12 @@ export interface EnlaceListado {
 
   /** [CORTE 2b-4] Tema o sección dentro del curso (portales con destino por índice (Classroom, Moodle del LINTI)). */
   tema?: string;
+
+  /**
+   * [PLAN 12 / RN-32] Marca si este enlace corresponde a una videollamada sincrónica (Meet, Zoom, Teams, Webex, Jitsi).
+   * Sólo lo produce Classroom para fijarlas al tope del curso con aviso visual y permitir su omisión en adopción.
+   */
+  esVideollamada?: boolean;
 }
 
 /** Lo que devuelve el escaneo del listado de clases de una pestaña. */
