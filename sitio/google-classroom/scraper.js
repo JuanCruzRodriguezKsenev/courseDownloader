@@ -466,13 +466,22 @@ const ScraperClassroom = {
         .slice(0, 500);
     }
 
-    function esEnlaceMeet(url) {
+    function esEnlaceVideollamada(url) {
       if (!url) return false;
+      const dominios = [
+        "meet.google.com",
+        "zoom.us",
+        "teams.microsoft.com",
+        "teams.live.com",
+        "webex.com",
+        "meet.jit.si",
+        "jitsi.net",
+      ];
       try {
         const h = new URL(url).host.toLowerCase();
-        return h === "meet.google.com" || h.endsWith(".meet.google.com");
+        return dominios.some((d) => h === d || h.endsWith("." + d));
       } catch {
-        return /(?:^|\/\/|\.)meet\.google\.com(?:\/|$)/i.test(url);
+        return /(?:^|\/\/|\.)(?:meet\.google\.com|zoom\.us|teams\.microsoft\.com|teams\.live\.com|webex\.com|meet\.jit\.si|jitsi\.net)(?:\/|:|$)/i.test(url);
       }
     }
 
@@ -480,8 +489,8 @@ const ScraperClassroom = {
       const href = a.getAttribute("href") || "";
       const label = (a.getAttribute("aria-label") || "").trim();
 
-      if (esEnlaceMeet(href)) {
-        return null;
+      if (esEnlaceVideollamada(href) && !label.includes("Vínculo a ")) {
+        return { tipo: "acceso", url: href, titulo: label, attId, esVideollamada: true };
       }
 
       const driveIdMatch = /\/file\/d\/([^/]+)/.exec(href);
@@ -503,16 +512,20 @@ const ScraperClassroom = {
 
       if (label.includes("Vínculo a ")) {
         const urlVinculo = label.slice(label.indexOf("Vínculo a ") + "Vínculo a ".length).trim();
-        if (esEnlaceMeet(urlVinculo)) {
-          return null;
-        }
         let host = "";
         try {
           host = new URL(urlVinculo).host;
         } catch {
           host = urlVinculo;
         }
-        return { tipo: "acceso", url: urlVinculo, titulo: `${material} - ${host}`, attId };
+        const esVideo = esEnlaceVideollamada(urlVinculo) || esEnlaceVideollamada(href);
+        return {
+          tipo: "acceso",
+          url: urlVinculo,
+          titulo: `${material} - ${host}`,
+          attId,
+          ...(esVideo ? { esVideollamada: true } : {}),
+        };
       }
 
       if (/docs\.google\.com\/(?:document|presentation|spreadsheets)/.test(href)) {
@@ -992,6 +1005,7 @@ const ScraperClassroom = {
       publicacion: item.material,
       anuncio: item.anuncio,
       tipo: "adjunto",
+      esVideollamada: item.esVideollamada === true ? true : undefined,
       idArchivo:
         item.tipo === "archivo"
           ? item.idArchivo
