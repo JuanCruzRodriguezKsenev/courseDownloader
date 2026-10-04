@@ -446,6 +446,44 @@ describe("core/destino/vistas.ts", () => {
     expect(curso.carpetas!["google-classroom:a3"]).toBe("Talleres");
   });
 
+  it("destinoPropio vacío (hereda) no se persiste en nuevoCurso.carpetas (Plan 17)", () => {
+    const indiceConCarpetas: Indice = {
+      ...indiceEjemplo,
+      cursos: {
+        ...indiceEjemplo.cursos,
+        "google-classroom:c1": {
+          ...indiceEjemplo.cursos["google-classroom:c1"]!,
+          carpetas: {
+            "google-classroom:a3": "Talleres",
+          },
+        },
+      },
+    };
+
+    const filas = indiceAFilasEditor({
+      indice: indiceConCarpetas,
+      vistos: vistosEjemplo,
+    });
+
+    const filaA3 = filas.archivos.find((a) => a.clave === "google-classroom:a3");
+    expect(filaA3).toBeDefined();
+    expect(filaA3!.destinoPropio).toBe("Talleres");
+
+    filaA3!.destinoPropio = "";
+
+    const res = filasEditorAIndice({
+      indice: indiceConCarpetas,
+      filas,
+      vistos: vistosEjemplo,
+    });
+
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+
+    const curso = res.indice.cursos["google-classroom:c1"]!;
+    expect(curso.carpetas).toBeUndefined();
+  });
+
   it("destino de tema personalizado seguro se acepta y con .. o / se rechaza", () => {
     const filas = indiceAFilasEditor({
       indice: indiceEjemplo,

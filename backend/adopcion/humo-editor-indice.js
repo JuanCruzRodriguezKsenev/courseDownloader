@@ -39,7 +39,15 @@ try {
         temas: { "Teoría": "Teorias/Palacio" },
       },
     },
-    archivos: {},
+    archivos: {
+      "google-classroom:q5_ya": {
+        md5: "abc12345",
+        curso: "google-classroom:c_nuevo",
+        archivo: "ya_descargado.pdf",
+        ruta: "Teorias",
+        nombre: "ya_descargado.pdf",
+      },
+    },
   };
   fs.writeFileSync(path.join(dirRaiz, NOMBRE_INDICE), serializarIndice(indiceInicial), "utf8");
 
@@ -56,6 +64,10 @@ try {
     items: [
       { idArchivo: "q1", original: "tabla_periodica.pdf", tema: "Teoría" },
       { idArchivo: "q2", original: "cuestionario.pdf", tema: "Teoría" },
+      { idArchivo: "q3_h1", original: "apunte1.pdf", tema: "Teoría" },
+      { idArchivo: "q4_h2", original: "apunte2.pdf", tema: "Teoría" },
+      { idArchivo: "q5_ya", original: "ya_descargado.pdf", tema: "Teoría" },
+      { idArchivo: "q6_om", original: "otro_omitido.pdf", tema: "Teoría" },
     ],
   });
 
@@ -112,6 +124,99 @@ try {
         errores.push(`tema contiene claves que empiezan con _: ${clavesGuionBajo.join(", ")}`);
       }
     }
+  }
+
+  // 1c. Comprobación Plan 17 (D-1..D-5): Botón '↺ Que hereden' y regla del dueño contra cascadear
+  // Marcar q6_om como omitir
+  const selectQ6 = doc.querySelector("[id='sel-acc-google-classroom:q6_om']");
+  if (selectQ6) {
+    selectQ6.value = "omitir";
+    selectQ6.dispatchEvent(new dom.window.Event("change"));
+  }
+
+  // Asignar override "." a q3_h1 y q4_h2
+  const selectDestQ3 = doc.querySelector(".file-dest-select[data-clave='google-classroom:q3_h1']");
+  if (selectDestQ3) {
+    selectDestQ3.value = ".";
+    selectDestQ3.dispatchEvent(new dom.window.Event("change"));
+  }
+  const selectDestQ4 = doc.querySelector(".file-dest-select[data-clave='google-classroom:q4_h2']");
+  if (selectDestQ4) {
+    selectDestQ4.value = ".";
+    selectDestQ4.dispatchEvent(new dom.window.Event("change"));
+  }
+
+  // Afirmar antes del clic que los dos tienen destinoPropio === "."
+  const archQ3Pre = dom.window.eval("DATOS.archivos.find(a => a.clave === 'google-classroom:q3_h1')");
+  const archQ4Pre = dom.window.eval("DATOS.archivos.find(a => a.clave === 'google-classroom:q4_h2')");
+  const archQ5Pre = dom.window.eval("DATOS.archivos.find(a => a.clave === 'google-classroom:q5_ya')");
+  const archQ6Pre = dom.window.eval("DATOS.archivos.find(a => a.clave === 'google-classroom:q6_om')");
+
+  if (archQ3Pre?.destinoPropio !== "." || archQ4Pre?.destinoPropio !== ".") {
+    errores.push(`Esperado destinoPropio === "." antes del clic, obtenido: q3=${archQ3Pre?.destinoPropio}, q4=${archQ4Pre?.destinoPropio}`);
+  }
+  if (archQ5Pre?.accion !== "ya-esta") {
+    errores.push(`Esperada accion === "ya-esta" para q5_ya, obtenida: ${archQ5Pre?.accion}`);
+  }
+  if (archQ6Pre?.accion !== "omitir") {
+    errores.push(`Esperada accion === "omitir" para q6_om, obtenida: ${archQ6Pre?.accion}`);
+  }
+
+  // Tocar .btn-heredar-carpeta
+  const btnHeredar = doc.querySelector(".btn-heredar-carpeta[data-tema='Teoría']");
+  if (!btnHeredar) {
+    errores.push("No se encontró .btn-heredar-carpeta para el tema Teoría");
+  } else {
+    btnHeredar.click();
+  }
+
+  // Tras el clic: los dos tienen destinoPropio === "" y carpeta resuelta a Teorias; el ya-esta y el omitido no cambian; el botón queda deshabilitado
+  const archQ3Post = dom.window.eval("DATOS.archivos.find(a => a.clave === 'google-classroom:q3_h1')");
+  const archQ4Post = dom.window.eval("DATOS.archivos.find(a => a.clave === 'google-classroom:q4_h2')");
+  const archQ5Post = dom.window.eval("DATOS.archivos.find(a => a.clave === 'google-classroom:q5_ya')");
+  const archQ6Post = dom.window.eval("DATOS.archivos.find(a => a.clave === 'google-classroom:q6_om')");
+
+  if (archQ3Post?.destinoPropio !== "" || archQ3Post?.carpeta !== "Teorias") {
+    errores.push(`q3_h1 tras heredar: esperado destinoPropio="" y carpeta="Teorias", obtenido destinoPropio="${archQ3Post?.destinoPropio}", carpeta="${archQ3Post?.carpeta}"`);
+  }
+  if (archQ4Post?.destinoPropio !== "" || archQ4Post?.carpeta !== "Teorias") {
+    errores.push(`q4_h2 tras heredar: esperado destinoPropio="" y carpeta="Teorias", obtenido destinoPropio="${archQ4Post?.destinoPropio}", carpeta="${archQ4Post?.carpeta}"`);
+  }
+  if (archQ5Post?.accion !== "ya-esta") {
+    errores.push(`q5_ya alterado tras heredar: accion="${archQ5Post?.accion}"`);
+  }
+  if (archQ6Post?.accion !== "omitir") {
+    errores.push(`q6_om alterado tras heredar: accion="${archQ6Post?.accion}"`);
+  }
+
+  const btnHeredarPost = doc.querySelector(".btn-heredar-carpeta[data-tema='Teoría']");
+  if (!btnHeredarPost || !btnHeredarPost.disabled) {
+    errores.push("El botón .btn-heredar-carpeta debería quedar deshabilitado cuando ningún archivo tiene override");
+  }
+
+  // Regla del dueño: cambiar .topic-dest-select a otra carpeta NO altera el destinoPropio de ningún archivo
+  const selDestQ3Override = doc.querySelector(".file-dest-select[data-clave='google-classroom:q3_h1']");
+  if (selDestQ3Override) {
+    selDestQ3Override.value = ".";
+    selDestQ3Override.dispatchEvent(new dom.window.Event("change"));
+  }
+  const topicDestSelect = doc.querySelector(".topic-dest-select[data-tema='Teoría']");
+  if (topicDestSelect) {
+    topicDestSelect.value = "Practicas";
+    topicDestSelect.dispatchEvent(new dom.window.Event("change"));
+  }
+  const archQ3TrasCambioTema = dom.window.eval("DATOS.archivos.find(a => a.clave === 'google-classroom:q3_h1')");
+  if (archQ3TrasCambioTema?.destinoPropio !== ".") {
+    errores.push(`Regla del dueño violada: cambiar carpeta del tema alteró destinoPropio de q3_h1 a "${archQ3TrasCambioTema?.destinoPropio}"`);
+  }
+  // Restaurar q3_h1 para que vuelva a heredar y volver el tema a Teorias
+  const btnHeredarRestaurar = doc.querySelector(".btn-heredar-carpeta[data-tema='Teoría']");
+  if (btnHeredarRestaurar) {
+    btnHeredarRestaurar.click();
+  }
+  if (topicDestSelect) {
+    topicDestSelect.value = "Teorias";
+    topicDestSelect.dispatchEvent(new dom.window.Event("change"));
   }
 
   // 2. Elegir materia y docente
@@ -190,6 +295,9 @@ try {
     }
     if (!cursoNuevo.carpetas || cursoNuevo.carpetas["google-classroom:q1"] !== "Talleres") {
       errores.push(`q1 no figura con carpeta Talleres en curso.carpetas: ${JSON.stringify(cursoNuevo.carpetas)}`);
+    }
+    if (cursoNuevo.carpetas && ("google-classroom:q3_h1" in cursoNuevo.carpetas || "google-classroom:q4_h2" in cursoNuevo.carpetas)) {
+      errores.push(`Archivos que heredan figuran indebidamente en curso.carpetas: ${JSON.stringify(cursoNuevo.carpetas)}`);
     }
     if (!cursoNuevo.omitidos || !cursoNuevo.omitidos.includes("google-classroom:q2")) {
       errores.push(`q2 no figura en curso.omitidos: ${JSON.stringify(cursoNuevo.omitidos)}`);

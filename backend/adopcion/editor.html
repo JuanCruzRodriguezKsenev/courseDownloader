@@ -1544,6 +1544,19 @@ button {
         const claveTema = `${tema.clave_curso}\t${tema.tema}`;
         const destinoSeleccionado = isTopicOmitted ? (destinosPrevios.get(claveTema) || ".") : tema.destino;
 
+        const archivosHeredables = archivosTema.filter((a) =>
+          a.accion !== "ya-esta" &&
+          a.accion !== "omitir" &&
+          Boolean(a.destinoPropio && a.destinoPropio !== tema.destino)
+        );
+        const cantHeredables = archivosHeredables.length;
+        const disabledHeredar = isTopicOmitted || cantHeredables === 0;
+        const titleHeredar = isTopicOmitted
+          ? "El tema está omitido"
+          : cantHeredables === 0
+            ? "No hay archivos con carpeta personalizada distinta para heredar"
+            : `Hacer que ${cantHeredables} archivo${cantHeredables > 1 ? "s" : ""} herede${cantHeredables > 1 ? "n" : ""} la carpeta del tema`;
+
         return `
           <article class="topic-card ${isSinRegla ? "has-warning" : ""} ${choquesEnTema > 0 ? "has-clash" : ""}" data-tema="${tema.tema}">
             <div class="topic-header">
@@ -1579,6 +1592,9 @@ button {
                   `).join("")}
                   <option value="__nueva__">+ Nueva carpeta...</option>
                 </select>
+                <button class="secondary-btn btn-heredar-carpeta" data-tema="${tema.tema}" ${disabledHeredar ? "disabled" : ""} title="${titleHeredar}">
+                  ↺ Que hereden
+                </button>
                 <button class="secondary-btn btn-drilldown-toggle" data-tema="${tema.tema}">
                   ${isExpanded ? "Ocultar archivos" : `Ver ${archivosTema.length} archivos`}
                 </button>
@@ -1937,6 +1953,41 @@ button {
           }
           marcarCambio();
           showToast(`Destino de "${tema.tema}" actualizado a ${val}`);
+          renderAll();
+        });
+      });
+
+      // Heredar carpeta en archivos del tema (Plan 17, D-1..D-5)
+      document.querySelectorAll(".btn-heredar-carpeta").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const temaNombre = btn.dataset.tema;
+          let tema = DATOS.temas.find((t) => t.clave_curso === curso.clave_curso && t.tema === temaNombre);
+          const destinoTema = (tema && tema.destino) ? tema.destino : ".";
+          if (destinoTema === "-") return;
+
+          const nombresTemasSet = new Set(DATOS.temas.filter((t) => t.clave_curso === curso.clave_curso && t.tema !== temaNombre).map((t) => t.tema));
+          const archivosTema = DATOS.archivos.filter((a) => {
+            if (a.clave_curso !== curso.clave_curso) return false;
+            if (a.tema === temaNombre) return true;
+            if ((!a.tema || a.tema === "Sin tema" || !nombresTemasSet.has(a.tema)) && (temaNombre.toLowerCase().includes("sin tema") || temaNombre.toLowerCase().includes("novedad"))) {
+              return true;
+            }
+            return false;
+          });
+
+          const elegibles = archivosTema.filter(
+            (a) => a.accion !== "ya-esta" && a.accion !== "omitir" && Boolean(a.destinoPropio && a.destinoPropio !== destinoTema)
+          );
+          if (elegibles.length === 0) return;
+
+          const carpetaResuelta = destinoTema === "." ? "." : resolverCarpeta(destinoTema, curso.docente);
+          for (const arch of elegibles) {
+            arch.destinoPropio = "";
+            arch.carpeta = carpetaResuelta;
+          }
+
+          showToast(`${elegibles.length} archivo${elegibles.length > 1 ? "s" : ""} de "${temaNombre}" heredan ${carpetaResuelta}`);
+          marcarCambio();
           renderAll();
         });
       });

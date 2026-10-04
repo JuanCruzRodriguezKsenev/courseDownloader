@@ -30,10 +30,12 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **78 archivos, 1139 tests**, todo en verde |
+| `pnpm test` | **78 archivos, 1140 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 1140** (2026-10-04, plan `17 - Boton Heredar carpeta en las tarjetas de tema del editor`). Son los 1139 de abajo más **+1** test en `core/destino/vistas.test.ts` (suite de `destinoPropio` vacío que no se persiste en `nuevoCurso.carpetas` al heredar la carpeta del tema P-2; 17 → 18 tests).
 
 **De dónde sale el 1139** (2026-10-04, plan `16 - Correcciones de los planes 08b-15 contra el codigo`). Son los 1129 de abajo más **+10** tests:
 - **+2** en `sitio/sites-matec/descargarAdjunto.test.js` (suite de `drive.usercontent.google.com` con `confirm=t`, `authuser` y codificación de id D-1; 6 → 8 tests),
