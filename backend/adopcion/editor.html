@@ -874,6 +874,17 @@ button {
 #panel-resultados.visible {
   display: block;
 }
+
+/* BANNER DE BORRADOR LOCAL (Plan 19) */
+#banner-borrador {
+  display: none;
+  background-color: var(--bg-surface);
+  border-bottom: 2px solid var(--border-color);
+  padding: 10px 20px;
+}
+#banner-borrador.visible {
+  display: block;
+}
 .cabecera-panel {
   display: flex;
   justify-content: space-between;
@@ -956,6 +967,20 @@ button {
         <button id="btn-cerrar-panel" class="ghost-btn" style="padding: 2px 8px; font-size: 11px;">Cerrar</button>
       </div>
       <pre id="contenido-panel"></pre>
+    </div>
+
+    <!-- BANNER DE BORRADOR LOCAL (Plan 19) -->
+    <div id="banner-borrador">
+      <div class="cabecera-panel" style="margin-bottom: 0; padding-bottom: 0; border-bottom: none;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="status-dot unsaved"></span>
+          <span id="texto-borrador">Hay un borrador local con cambios sin guardar.</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button id="btn-restaurar-borrador" class="primary-btn" style="padding: 4px 10px; font-size: 11px;">Restaurar</button>
+          <button id="btn-descartar-borrador" class="secondary-btn" style="padding: 4px 10px; font-size: 11px;">Descartar</button>
+        </div>
+      </div>
     </div>
 
     <div class="layout-body">
@@ -1087,6 +1112,105 @@ button {
       }
     }
 
+    // GESTIÓN DE BORRADOR LOCAL (Plan 19)
+    function claveBorrador() {
+      return "adopcion-borrador:" + location.pathname + location.search;
+    }
+
+    function hashCorto(str) {
+      let hash = 5381;
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) + hash) + str.charCodeAt(i);
+        hash = hash & hash;
+      }
+      return (hash >>> 0).toString(16);
+    }
+
+    let debounceGuardarBorrador = null;
+
+    function borrarBorrador() {
+      if (debounceGuardarBorrador) {
+        clearTimeout(debounceGuardarBorrador);
+        debounceGuardarBorrador = null;
+      }
+      try {
+        localStorage.removeItem(claveBorrador());
+      } catch (_) {}
+    }
+
+    function guardarBorrador() {
+      if (debounceGuardarBorrador) {
+        clearTimeout(debounceGuardarBorrador);
+      }
+      debounceGuardarBorrador = setTimeout(() => {
+        debounceGuardarBorrador = null;
+        try {
+          const borrador = {
+            base: hashCorto(ESTADO_INICIAL_JSON),
+            datos: {
+              cursos: DATOS.cursos,
+              temas: DATOS.temas,
+              archivos: DATOS.archivos,
+            },
+            ts: Date.now(),
+          };
+          localStorage.setItem(claveBorrador(), JSON.stringify(borrador));
+        } catch (_) {}
+      }, 500);
+    }
+
+    function leerBorrador() {
+      try {
+        const raw = localStorage.getItem(claveBorrador());
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object" || !parsed.datos) {
+          borrarBorrador();
+          return null;
+        }
+        return parsed;
+      } catch (_) {
+        borrarBorrador();
+        return null;
+      }
+    }
+
+    function mostrarBannerBorrador(borrador) {
+      const banner = document.getElementById("banner-borrador");
+      if (!banner) return;
+      const textoEl = document.getElementById("texto-borrador");
+      if (textoEl) {
+        const hora = borrador && borrador.ts ? new Date(borrador.ts).toLocaleTimeString() : "";
+        textoEl.textContent = hora
+          ? `Hay un borrador local con cambios sin guardar (${hora}).`
+          : "Hay un borrador local con cambios sin guardar.";
+      }
+      banner.classList.add("visible");
+    }
+
+    function ocultarBannerBorrador() {
+      const banner = document.getElementById("banner-borrador");
+      if (banner) banner.classList.remove("visible");
+    }
+
+    function restaurarBorrador() {
+      const borrador = leerBorrador();
+      if (borrador && borrador.datos) {
+        DATOS.cursos = borrador.datos.cursos || [];
+        DATOS.temas = borrador.datos.temas || [];
+        DATOS.archivos = borrador.datos.archivos || [];
+        recalcularChoques();
+        marcarCambio();
+        renderAll();
+      }
+      ocultarBannerBorrador();
+    }
+
+    function descartarBorrador() {
+      borrarBorrador();
+      ocultarBannerBorrador();
+    }
+
     function marcarCambio() {
       const actualJson = JSON.stringify({
         cursos: DATOS.cursos,
@@ -1095,14 +1219,13 @@ button {
       });
       HAY_CAMBIOS = actualJson !== ESTADO_INICIAL_JSON;
       setUnsaved(HAY_CAMBIOS);
+      if (HAY_CAMBIOS) {
+        guardarBorrador();
+      } else {
+        borrarBorrador();
+      }
     }
 
-    window.addEventListener("beforeunload", (e) => {
-      if (HAY_CAMBIOS) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    });
 
     function getActiveCurso() {
       return DATOS.cursos.find((c) => c.clave_curso === CURSO_ACTIVO);
@@ -1224,6 +1347,17 @@ button {
         });
         HAY_CAMBIOS = false;
         setUnsaved(false);
+
+        // Plan 19: Comprobar si hay borrador local
+        const borrador = leerBorrador();
+        if (borrador) {
+          if (borrador.base !== hashCorto(ESTADO_INICIAL_JSON)) {
+            borrarBorrador();
+            showToast("Se descartó un borrador viejo: los datos cambiaron");
+          } else {
+            mostrarBannerBorrador(borrador);
+          }
+        }
 
         recalcularChoques();
         elegirCursoInicial();
@@ -2153,6 +2287,8 @@ button {
           });
           HAY_CAMBIOS = false;
           setUnsaved(false);
+          borrarBorrador();
+          ocultarBannerBorrador();
           const esModoIndice = new URLSearchParams(location.search).get("modo") === "indice";
           const mensajeExito = esModoIndice
             ? "Los cambios se guardaron correctamente en el índice."
@@ -2229,6 +2365,9 @@ button {
     document.getElementById("btn-cerrar-panel").addEventListener("click", () => {
       document.getElementById("panel-resultados").classList.remove("visible");
     });
+
+    document.getElementById("btn-restaurar-borrador")?.addEventListener("click", restaurarBorrador);
+    document.getElementById("btn-descartar-borrador")?.addEventListener("click", descartarBorrador);
 
     // INICIAR CARGA
     cargarDatos();

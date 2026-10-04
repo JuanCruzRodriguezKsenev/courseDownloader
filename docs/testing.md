@@ -37,6 +37,8 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 **De dónde sale el 1140** (2026-10-04, plan `17 - Boton Heredar carpeta en las tarjetas de tema del editor`). Son los 1139 de abajo más **+1** test en `core/destino/vistas.test.ts` (suite de `destinoPropio` vacío que no se persiste en `nuevoCurso.carpetas` al heredar la carpeta del tema P-2; 17 → 18 tests).
 
+**Sobre el plan 19** (2026-10-04, plan `19 - Borrador local del editor en lugar del aviso al cerrar`): no agrega tests a la suite de Vitest (el conteo se mantiene en 78 archivos / 1140 tests); sus 7 aserciones se ejercitan en el script de humo en jsdom (`bun backend/adopcion/humo-editor-indice.js`) cubriendo ausencia de `beforeunload`, debounce de 500 ms, borrado al revertir o guardar, banner interactivo de restauración, descarte por base distinta y tolerancia a `localStorage` inaccesible.
+
 **De dónde sale el 1139** (2026-10-04, plan `16 - Correcciones de los planes 08b-15 contra el codigo`). Son los 1129 de abajo más **+10** tests:
 - **+2** en `sitio/sites-matec/descargarAdjunto.test.js` (suite de `drive.usercontent.google.com` con `confirm=t`, `authuser` y codificación de id D-1; 6 → 8 tests),
 - **+1** en `sitio/sites-matec/config.test.js` (suite de cobertura de `patronPestañas` y manifiesto D-2; 7 → 8 tests),

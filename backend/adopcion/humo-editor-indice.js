@@ -309,6 +309,199 @@ try {
     errores.push("El curso previamente asociado no se conservó intacto");
   }
 
+  // 7. Pruebas del Plan 19: Borrador local y remoción de beforeunload (P-5)
+  // 7a. Sin beforeunload (D-1)
+  const tipoBeforeUnload = dom.window.eval("typeof window.onbeforeunload");
+  if (tipoBeforeUnload !== "object") {
+    errores.push(`window.onbeforeunload esperado 'object', obtenido '${tipoBeforeUnload}'`);
+  }
+  const eventoBU = new dom.window.Event("beforeunload", { cancelable: true });
+  dom.window.dispatchEvent(eventoBU);
+  if (eventoBU.defaultPrevented) {
+    errores.push("beforeunload fue prevenido a pesar de haberse quitado el listener (D-1)");
+  }
+
+  // 7b. Guarda con debounce de 500 ms (D-2)
+  const clave = dom.window.eval("claveBorrador()");
+  const valorOriginal = dom.window.eval("DATOS.archivos.find(a => a.clave === 'google-classroom:q1').nombre");
+  dom.window.eval("DATOS.archivos.find(a => a.clave === 'google-classroom:q1').nombre = 'nombre_borrador_test.pdf'; marcarCambio();");
+  if (dom.window.localStorage.getItem(clave) !== null) {
+    errores.push("El borrador se guardó de inmediato sin respetar el debounce de 500ms");
+  }
+  await new Promise((r) => setTimeout(r, 600));
+  const rawBorrador = dom.window.localStorage.getItem(clave);
+  if (!rawBorrador) {
+    errores.push("El borrador no se guardó en localStorage tras 600ms de debounce");
+  } else {
+    const parsed = JSON.parse(rawBorrador);
+    const archGuardado = parsed.datos?.archivos?.find((a) => a.clave === "google-classroom:q1");
+    if (archGuardado?.nombre !== "nombre_borrador_test.pdf") {
+      errores.push(`Borrador guardado no refleja el cambio: ${archGuardado?.nombre}`);
+    }
+  }
+
+  // 7c. Borra al volver al estado inicial (D-7)
+  dom.window.eval(`DATOS.archivos.find(a => a.clave === 'google-classroom:q1').nombre = ${JSON.stringify(valorOriginal)}; marcarCambio();`);
+  if (dom.window.eval("HAY_CAMBIOS") !== false) {
+    errores.push("HAY_CAMBIOS no volvió a false al restaurar valor original");
+  }
+  if (dom.window.localStorage.getItem(clave) !== null) {
+    errores.push("El borrador no se borró de localStorage al volver al estado inicial");
+  }
+
+  // 7d. Borra al guardar (D-7)
+  dom.window.eval("DATOS.archivos.find(a => a.clave === 'google-classroom:q1').nombre = 'otro_cambio_a_guardar.pdf'; marcarCambio();");
+  await new Promise((r) => setTimeout(r, 600));
+  if (!dom.window.localStorage.getItem(clave)) {
+    errores.push("No se guardó el borrador previo a ejecutarGuardar");
+  }
+  await dom.window.eval("ejecutarGuardar()");
+  if (dom.window.localStorage.getItem(clave) !== null) {
+    errores.push("El borrador no se borró tras ejecutarGuardar() con éxito");
+  }
+
+  // 7e. Restaura (base igual, D-5)
+  // Obtener el estado inicial exacto que devolverá el servidor para domRestaura
+  const resDatosServidor = await manejar(
+    new Request("http://127.0.0.1:3002/adopcion/api/datos?modo=indice&curso=google-classroom:c_nuevo"),
+    new URL("http://127.0.0.1:3002/adopcion/api/datos?modo=indice&curso=google-classroom:c_nuevo")
+  );
+  const datosServidor = await resDatosServidor.json();
+  for (const c of datosServidor.cursos) {
+    c._inicialmenteNuevo = (!c.materia || c.materia.trim().length === 0);
+  }
+  const jsonBaseServidor = JSON.stringify({
+    cursos: datosServidor.cursos,
+    temas: datosServidor.temas,
+    archivos: datosServidor.archivos,
+  });
+
+  function calcularHashCorto(str) {
+    let hash = 5381;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) + hash) + str.charCodeAt(i);
+      hash = hash & hash;
+    }
+    return (hash >>> 0).toString(16);
+  }
+
+  const baseCorrecta = calcularHashCorto(jsonBaseServidor);
+  const datosConCambio = JSON.parse(jsonBaseServidor);
+  const archCNuevo = datosConCambio.archivos.find((a) => a.clave === "google-classroom:q1");
+  if (archCNuevo) archCNuevo.nombre = "restaurado_desde_borrador.pdf";
+
+  const borradorValido = {
+    base: baseCorrecta,
+    datos: datosConCambio,
+    ts: Date.now() - 60000,
+  };
+
+  const domRestaura = new JSDOM(html, {
+    url: "http://127.0.0.1:3002/adopcion/?modo=indice&curso=google-classroom:c_nuevo",
+    runScripts: "dangerously",
+    virtualConsole: vc,
+    beforeParse(w) {
+      w.fetch = async (input, init) => {
+        const urlStr = String(input);
+        const urlObj = new URL(urlStr, "http://127.0.0.1:3002/adopcion/");
+        const req = new Request(urlObj.href, init);
+        return await manejar(req, urlObj);
+      };
+      w.alert = (m) => errores.push("alert: " + m);
+      w.CSS = w.CSS || {};
+      w.CSS.escape = (s) => String(s).replace(/[^a-zA-Z0-9_-]/g, (c) => "\\" + c);
+      w.localStorage.setItem("adopcion-borrador:/adopcion/?modo=indice&curso=google-classroom:c_nuevo", JSON.stringify(borradorValido));
+    },
+  });
+  await new Promise((r) => setTimeout(r, 400));
+
+  const bannerRestaura = domRestaura.window.document.getElementById("banner-borrador");
+  if (!bannerRestaura || !bannerRestaura.classList.contains("visible")) {
+    errores.push("El banner de borrador no es visible al cargar con base coincidente");
+  }
+  const btnRestaurar = domRestaura.window.document.getElementById("btn-restaurar-borrador");
+  if (!btnRestaurar) {
+    errores.push("No se encontró btn-restaurar-borrador");
+  } else {
+    btnRestaurar.click();
+    const hayCambiosTrasRestaurar = domRestaura.window.eval("HAY_CAMBIOS");
+    if (!hayCambiosTrasRestaurar) {
+      errores.push("HAY_CAMBIOS no quedó en true tras restaurar borrador");
+    }
+    const nombreEnDatos = domRestaura.window.eval("DATOS.archivos.find(a => a.clave === 'google-classroom:q1')?.nombre");
+    if (nombreEnDatos !== "restaurado_desde_borrador.pdf") {
+      errores.push(`El cambio no se reflejó en DATOS tras restaurar: ${nombreEnDatos}`);
+    }
+    if (bannerRestaura.classList.contains("visible")) {
+      errores.push("El banner de borrador no se ocultó tras restaurar");
+    }
+  }
+
+  // 7f. Descarta (base distinta, D-6)
+  const borradorBaseDistinta = {
+    base: "base_invalida_1234",
+    datos: datosConCambio,
+    ts: Date.now() - 120000,
+  };
+  const domDescarta = new JSDOM(html, {
+    url: "http://127.0.0.1:3002/adopcion/?modo=indice&curso=google-classroom:c_nuevo",
+    runScripts: "dangerously",
+    virtualConsole: vc,
+    beforeParse(w) {
+      w.fetch = async (input, init) => {
+        const urlStr = String(input);
+        const urlObj = new URL(urlStr, "http://127.0.0.1:3002/adopcion/");
+        const req = new Request(urlObj.href, init);
+        return await manejar(req, urlObj);
+      };
+      w.alert = (m) => errores.push("alert: " + m);
+      w.CSS = w.CSS || {};
+      w.CSS.escape = (s) => String(s).replace(/[^a-zA-Z0-9_-]/g, (c) => "\\" + c);
+      w.localStorage.setItem("adopcion-borrador:/adopcion/?modo=indice&curso=google-classroom:c_nuevo", JSON.stringify(borradorBaseDistinta));
+    },
+  });
+  await new Promise((r) => setTimeout(r, 400));
+
+  const bannerDescarta = domDescarta.window.document.getElementById("banner-borrador");
+  if (bannerDescarta && bannerDescarta.classList.contains("visible")) {
+    errores.push("El banner de borrador se mostró a pesar de tener base distinta");
+  }
+  const claveDescarta = domDescarta.window.eval("claveBorrador()");
+  if (domDescarta.window.localStorage.getItem(claveDescarta) !== null) {
+    errores.push("La clave de borrador no fue borrada al detectar base distinta");
+  }
+  const toastEl = domDescarta.window.document.getElementById("toast");
+  if (!toastEl || !toastEl.textContent.includes("Se descartó un borrador viejo")) {
+    errores.push(`El toast no anunció el descarte de borrador viejo: ${toastEl?.textContent}`);
+  }
+
+  // 7g. Sin localStorage (D-8)
+  const domSinStorage = new JSDOM(html, {
+    url: "http://127.0.0.1:3002/adopcion/?modo=indice&curso=google-classroom:c_nuevo",
+    runScripts: "dangerously",
+    virtualConsole: vc,
+    beforeParse(w) {
+      w.fetch = async (input, init) => {
+        const urlStr = String(input);
+        const urlObj = new URL(urlStr, "http://127.0.0.1:3002/adopcion/");
+        const req = new Request(urlObj.href, init);
+        return await manejar(req, urlObj);
+      };
+      w.alert = (m) => errores.push("alert: " + m);
+      w.CSS = w.CSS || {};
+      w.CSS.escape = (s) => String(s).replace(/[^a-zA-Z0-9_-]/g, (c) => "\\" + c);
+      Object.defineProperty(w, "localStorage", {
+        get() { throw new Error("localStorage no disponible"); },
+      });
+    },
+  });
+  await new Promise((r) => setTimeout(r, 400));
+  try {
+    domSinStorage.window.eval("marcarCambio()");
+  } catch (err) {
+    errores.push(`marcarCambio lanzó sin localStorage: ${err.message}`);
+  }
+
 } finally {
   limpiarVistos();
   fs.rmSync(dirRaiz, { recursive: true, force: true });
