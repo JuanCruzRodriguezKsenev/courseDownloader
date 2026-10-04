@@ -34,6 +34,8 @@ asociar = reusar el editor web del 3001 en modo `?modo=indice`, no pantalla del 
 - Limpieza de worktrees concurrentes completada (`git worktree remove` de los 3 árboles).
 - Plan 15 (Scrapers inyectables autocontenidos): corrige ReferenceError en navegador para Sites Mate C (`SUBPAGINAS_MATEC` fuera de `escanearListado`) y Moodle Asignaturas (`mapearConConcurrencia` fuera de `escanearListado`), unifica host permissions a `https://sites.google.com/*` en `wxt.config.ts`, y suma test en `node:vm` limpio a `sitio/inyeccion.test.js`. Ejecutado por obra y verificado por tanda (`verificador`): compuerta limpia, 78 archivos / 1129 tests. Pendiente verificación en navegador real.
 
+- Plan 16 (2026-10-04): Parte I por obra (`ae666db`), verificada por `verificador` (78/1139 sólo con `--exclude '.worktrees/**'`; `pnpm test` pelado da 156/2274 mientras exista el worktree de `classroom-videollamadas`). Parte II hecha por tanda (diseños, planes 08b-15, tarjeta) sin commitear en la bóveda. Falta Parte III en Brave (B-1..B-6). Plan 12 está implementado en la rama `classroom-videollamadas`, no en `moodle-linti`. `PuertoSitio` = 19 miembros (14 obligatorios, 5 opcionales). Humo del editor sólo corre con `bun`.
+
 **How to apply:** al retomar, mirar qué planes ejecutó obra (`Estado.md` de la bóveda) y re-verificar cada informe pegando
 la salida; los controles negativos de obra fallaron antes ("probado" sin salida): exigir la salida roja. Estado de los
 puntos de parada: ninguno cruzado al 2026-09-30.
