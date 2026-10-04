@@ -4,6 +4,9 @@ import os from "node:os";
 import { sanitizarNombreArchivo } from "../utils.js";
 import { DESTINOS } from "../../core/destino/carpetas.ts";
 import { RAIZ_FACULTAD } from "./raiz.js";
+import { leerIndice, modificarIndice, ErrorIndiceIlegible } from "../destino/indiceServicio.js";
+import { leerVistos } from "../destino/vistos.js";
+import { indiceAFilasEditor, filasEditorAIndice } from "../../core/destino/vistas.ts";
 
 export function opcionesPorDefecto() {
   return {
@@ -118,6 +121,32 @@ function obtenerDocentes(raiz, materias) {
   return docentes;
 }
 
+export function obtenerCarpetasDeMateria(raiz, materia) {
+  const carpetas = [];
+  const dirMat = path.join(raiz, materia);
+  if (!fs.existsSync(dirMat)) return carpetas;
+  try {
+    const subs = fs.readdirSync(dirMat, { withFileTypes: true });
+    for (const sub of subs) {
+      if (sub.isDirectory() && !sub.name.startsWith(".")) {
+        carpetas.push(sub.name);
+      }
+    }
+    carpetas.sort();
+  } catch {
+    // Si no se puede leer, devolver array vacío
+  }
+  return carpetas;
+}
+
+export function obtenerCarpetasExistentes(raiz, materias) {
+  const carpetasPorMateria = {};
+  for (const m of materias) {
+    carpetasPorMateria[m] = obtenerCarpetasDeMateria(raiz, m);
+  }
+  return carpetasPorMateria;
+}
+
 export function crearManejadorEditor(opts, prefijo = "") {
   const rutaRaiz = `${prefijo}/`;
   const rutaDatos = `${prefijo}/api/datos`;
@@ -148,7 +177,8 @@ export function crearManejadorEditor(opts, prefijo = "") {
     }
 
     if (req.method === "GET" && url.pathname === rutaRaiz) {
-      const rutaHtml = path.join(import.meta.dir, "editor.html");
+      const dirModulo = import.meta.dir || import.meta.dirname || path.dirname(new URL(import.meta.url).pathname);
+      const rutaHtml = path.join(dirModulo, "editor.html");
       if (!fs.existsSync(rutaHtml)) {
         return new Response("editor.html no encontrado", { status: 404 });
       }
@@ -159,18 +189,74 @@ export function crearManejadorEditor(opts, prefijo = "") {
     }
 
     if (req.method === "GET" && url.pathname === rutaDatos) {
+      const modoIndice = url.searchParams.get("modo") === "indice";
+      if (modoIndice) {
+        try {
+          const mapaVistos = leerVistos();
+          if (!mapaVistos || mapaVistos.size === 0) {
+            return Response.json({
+              ok: false,
+              vacio: true,
+              error: "No hay cursos escaneados en memoria. Volvé a abrir esto desde el popup.",
+            });
+          }
+
+          let indice;
+          try {
+            indice = await leerIndice(opts.raiz);
+          } catch (err) {
+            if (err instanceof ErrorIndiceIlegible) {
+              return Response.json(
+                { ok: false, indiceIlegible: true, error: err.mensaje },
+                { status: 409 }
+              );
+            }
+            throw err;
+          }
+
+          const materias = obtenerMaterias(opts.raiz);
+          const docentes = obtenerDocentes(opts.raiz, materias);
+          const carpetasPorMateria = obtenerCarpetasExistentes(opts.raiz, materias);
+          const claveCursoActivo = url.searchParams.get("curso") || undefined;
+          const filas = indiceAFilasEditor({ indice, vistos: mapaVistos, claveCursoActivo });
+
+          const destinos = Array.from(new Set(DESTINOS));
+
+          return Response.json({
+            cursos: filas.cursos,
+            temas: filas.temas,
+            archivos: filas.archivos,
+            destinos,
+            carpetasPorMateria,
+            materias,
+            docentes,
+            claveCursoActivo,
+          });
+        } catch (err) {
+          return Response.json({ ok: false, error: String(err) }, { status: 500 });
+        }
+      }
+
       try {
         const datosCursos = leerTsvCrudo(path.join(opts.salida, "cursos.tsv"));
         const datosTemas = leerTsvCrudo(path.join(opts.salida, "temas.tsv"));
         const datosArchivos = leerTsvCrudo(path.join(opts.salida, "archivos.tsv"));
         const materias = obtenerMaterias(opts.raiz);
         const docentes = obtenerDocentes(opts.raiz, materias);
+        const carpetasPorMateria = obtenerCarpetasExistentes(opts.raiz, materias);
+
+        const destinosSet = new Set(DESTINOS);
+        for (const carps of Object.values(carpetasPorMateria)) {
+          for (const c of carps) destinosSet.add(c);
+        }
+        const destinos = Array.from(destinosSet);
 
         return Response.json({
           cursos: datosCursos.filas,
           temas: datosTemas.filas,
           archivos: datosArchivos.filas,
-          destinos: DESTINOS,
+          destinos,
+          carpetasPorMateria,
           materias,
           docentes,
         });
@@ -183,6 +269,44 @@ export function crearManejadorEditor(opts, prefijo = "") {
       const origin = req.headers.get("origin");
       if (origin && origin !== url.origin) {
         return Response.json({ ok: false, errores: ["origen no permitido"] }, { status: 403 });
+      }
+
+      const modoIndice = url.searchParams.get("modo") === "indice";
+      if (modoIndice) {
+        try {
+          const cuerpo = await req.json();
+          const { cursos, temas, archivos } = cuerpo || {};
+          const materias = obtenerMaterias(opts.raiz);
+
+          let erroresGuardado = null;
+          await modificarIndice(opts.raiz, (indiceActual) => {
+            const res = filasEditorAIndice({
+              indice: indiceActual,
+              filas: { cursos: cursos || [], temas: temas || [], archivos: archivos || [] },
+              vistos: leerVistos(),
+              materiasValidas: materias,
+            });
+            if (!res.ok) {
+              erroresGuardado = res.errores;
+              return indiceActual;
+            }
+            return res.indice;
+          });
+
+          if (erroresGuardado) {
+            return Response.json({ ok: false, errores: erroresGuardado });
+          }
+
+          return Response.json({ ok: true });
+        } catch (err) {
+          if (err instanceof ErrorIndiceIlegible) {
+            return Response.json(
+              { ok: false, indiceIlegible: true, error: err.mensaje },
+              { status: 409 }
+            );
+          }
+          return Response.json({ ok: false, errores: [String(err)] }, { status: 500 });
+        }
       }
 
       try {
@@ -374,11 +498,20 @@ export function crearManejadorEditor(opts, prefijo = "") {
         return Response.json({ ok: false, errores: ["origen no permitido"] }, { status: 403 });
       }
 
+      const modoIndice = url.searchParams.get("modo") === "indice";
+      if (modoIndice) {
+        return Response.json({
+          codigo: 0,
+          salida: "En modo índice, Guardar sólo escribe el índice; no copia ni mueve archivos.",
+        });
+      }
+
       try {
+        const dirModulo = import.meta.dir || import.meta.dirname || path.dirname(new URL(import.meta.url).pathname);
         const proc = Bun.spawn(
           [
             process.execPath,
-            path.join(import.meta.dir, "aplicar.js"),
+            path.join(dirModulo, "aplicar.js"),
             "--raiz",
             opts.raiz,
             "--salida",

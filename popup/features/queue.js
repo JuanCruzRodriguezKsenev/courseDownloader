@@ -1,6 +1,14 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: COLA DE DESCARGA (V1.4.0)
+ * CLON DOWNLOADHELPER - FEATURE: COLA DE DESCARGA (V1.6.0)
  * ==========================================================================
+ * CHANGELOG v1.6.0:
+ * - [DESTINO CORTE 2b-4] Filtra con puedeBajar los ítems a encolar; si queda vacía,
+ *   no encola ni muta estado (D-4).
+ *
+ * CHANGELOG v1.5.0:
+ * - [DESTINO CORTE 2b-3] Copia `destino: c.destino` en `nuevosEncolados` para
+ *   propagar el destino resuelto de la clase al ítem de la cola (RN-20).
+ *
  * CHANGELOG v1.4.0:
  * - [FASE 5C] Los 9 usos de chrome.runtime pasan al PuertoMensajeria, que llega por
  *   ctx.mensajeria. Cada call-site declara ahora su intención: `enviar()` donde la
@@ -80,6 +88,7 @@ import { SITIO_LEGADO } from '../../core/estado/appState.ts';
 // viaja por el grafo del bundler desde la Fase 8a. Sumar un lector de `globalThis` sería
 // caminar la migración para atrás.
 import { sanearNombreCarpeta } from '../../core/util/texto.ts';
+import { puedeBajar } from './destino.js';
 const QueueFeature = {
   crear(ctx) {
     const {
@@ -121,6 +130,11 @@ const QueueFeature = {
     }
 
     function encolarItemsEnCaliente(items) {
+      // [DESTINO CORTE 2b-4] Ítems bloqueados (sin-asociar, omitidos, índice ilegible) no se encolan
+      const itemsPermitidos = (items || []).filter(puedeBajar);
+      if (itemsPermitidos.length === 0) return;
+      items = itemsPermitidos;
+
       // [ESCANEO-API CORTE 2] El input es un OVERRIDE, no la fuente. La regla:
       //
       //     carpeta del ítem = override del input || carpeta de su módulo
@@ -149,6 +163,7 @@ const QueueFeature = {
         tipo: c.tipo,
         idArchivo: c.idArchivo,
         bytes: c.bytes,
+        destino: c.destino,
         fechaEncolado: Date.now() + idx,
         // ADR-0010: viaja con el ítem. Sale de la clase y NO del sitio activo a propósito —
         // la cola sobrevive a que el usuario cambie de pestaña, así que "el sitio de ahora"

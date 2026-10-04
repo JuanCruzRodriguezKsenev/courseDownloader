@@ -576,4 +576,186 @@ describe('Isla Preact: ListaClases — la alerta comparte contenedor', () => {
     expect(grupoEl.querySelector('b')).toBeNull();
     expect(grupoEl.textContent).toContain('<b>Curso Hack</b>');
   });
+
+  describe('Classroom corte 2b-5: fila con destino y bloqueos (D-1, D-2, D-3, D-6)', () => {
+    it('una clase sin destino ni bloqueo renderiza exactamente igual que antes', async () => {
+      puente.render({
+        modo: 'lista',
+        items: [{ id: 101, titulo: 'Tejido epitelial', estado: 'pending', carpeta: 'histologia', tipo: 'video' }],
+        ctx: ctxBase(),
+      });
+      await flush();
+
+      const fila = root.querySelector('.video-item');
+      expect(fila).not.toBeNull();
+      expect(fila.getAttribute('title')).toBe('Tejido epitelial');
+      expect(fila.querySelector('.video-label').textContent).toBe('Tejido epitelial');
+      const chip = fila.querySelector('.chip-materia');
+      expect(chip.textContent).toBe('histologia');
+      expect(chip.className).toBe('chip-materia ');
+      const chk = fila.querySelector('input[type="checkbox"]');
+      expect(chk.disabled).toBe(false);
+      expect(fila.outerHTML).toBe(
+        '<div class="video-item " title="Tejido epitelial" style="">' +
+        '<input type="checkbox" id="chk-101">' +
+        '<span class="chip-tipo" title="Video">🎬</span>' +
+        '<span class="video-label">Tejido epitelial</span>' +
+        '<span class="chip-materia " style="" title="histologia">histologia</span>' +
+        '<span class="badge pending">Pendiente</span>' +
+        '</div>'
+      );
+    });
+
+    it('con destino: etiqueta = destino.nombre, title con original y ruta completa, pastilla con dos segmentos (D-1)', async () => {
+      puente.render({
+        modo: 'lista',
+        items: [{
+          id: 102,
+          titulo: 'Palacio - Clase 5 - Capacitores.pdf',
+          tipo: 'adjunto',
+          estado: 'pending',
+          destino: {
+            nombre: '05_capacitores.pdf',
+            ruta: 'Ingenieria/Fisica 2/Teorias/Palacio',
+            original: 'Palacio - Clase 5 - Capacitores.pdf',
+          },
+        }],
+        ctx: ctxBase(),
+      });
+      await flush();
+
+      const fila = root.querySelector('.video-item');
+      expect(fila.querySelector('.video-label').textContent).toBe('05_capacitores.pdf');
+      expect(fila.getAttribute('title')).toContain('Palacio - Clase 5 - Capacitores.pdf');
+      expect(fila.getAttribute('title')).toContain('Ingenieria/Fisica 2/Teorias/Palacio/05_capacitores.pdf');
+      const chip = fila.querySelector('.chip-materia');
+      expect(chip.textContent).toBe('Teorias/Palacio');
+    });
+
+    it('sinAsignar → clase chip-sin-asignar y prefijo ⚠ con title explicativo (D-2, AC-9)', async () => {
+      puente.render({
+        modo: 'lista',
+        items: [{
+          id: 103,
+          titulo: 'Guía de TP Nº 13.pdf',
+          tipo: 'adjunto',
+          estado: 'pending',
+          sinAsignar: true,
+          destino: {
+            nombre: 'guia_tp_13.pdf',
+            ruta: 'Ingenieria/Fisica 2',
+            original: 'Guía de TP Nº 13.pdf',
+          },
+        }],
+        ctx: ctxBase(),
+      });
+      await flush();
+
+      const fila = root.querySelector('.video-item');
+      expect(fila.classList.contains('sin-asignar')).toBe(true);
+
+      const chip = root.querySelector('.chip-materia');
+      expect(chip.classList.contains('chip-sin-asignar')).toBe(true);
+      expect(chip.textContent).toBe('⚠ Ingenieria/Fisica 2');
+      expect(chip.getAttribute('title')).toBe(
+        'Este tema es nuevo: va a la raíz de la materia hasta que le asignes carpeta'
+      );
+    });
+
+    it('nota con onNotaClick → clase clickable y llamada a callback al clickear (D-4)', async () => {
+      let clickeado = false;
+      puente.render({
+        modo: 'lista',
+        items: [],
+        ctx: {
+          ...ctxBase(),
+          nota: '1 archivo en temas sin asignar',
+          onNotaClick: () => { clickeado = true; },
+        },
+      });
+      await flush();
+
+      const nota = root.querySelector('.lista-nota');
+      expect(nota.classList.contains('clickable')).toBe(true);
+      nota.click();
+      expect(clickeado).toBe(true);
+    });
+
+    it('bloqueo: omitido → checkbox con disabled y pastilla omitido (D-3)', async () => {
+      puente.render({
+        modo: 'lista',
+        items: [{
+          id: 104,
+          titulo: 'Cronograma semanal 1.pdf',
+          tipo: 'adjunto',
+          estado: 'pending',
+          bloqueo: 'omitido',
+        }],
+        ctx: ctxBase(),
+      });
+      await flush();
+
+      const chk = root.querySelector('input[type="checkbox"]');
+      expect(chk).not.toBeNull();
+      expect(chk.disabled).toBe(true);
+
+      const chip = root.querySelector('.chip-materia');
+      expect(chip.textContent).toBe('omitido');
+      expect(chip.classList.contains('bloqueado')).toBe(true);
+      expect(chip.getAttribute('title')).toBe('Marcado para no bajarse');
+    });
+
+    it('bloqueo: sin-asociar → checkbox disabled, onClick en fila no cambia selección y pastilla «sin asociar» (D-3, RN-2)', async () => {
+      const ctx = ctxBase();
+      const clase = {
+        id: 105,
+        titulo: 'Clase sin asociar.pdf',
+        tipo: 'adjunto',
+        estado: 'pending',
+        seleccionado: false,
+        bloqueo: 'sin-asociar',
+      };
+      puente.render({
+        modo: 'lista',
+        items: [clase],
+        ctx,
+      });
+      await flush();
+
+      const chk = root.querySelector('input[type="checkbox"]');
+      expect(chk.disabled).toBe(true);
+
+      const chip = root.querySelector('.chip-materia');
+      expect(chip.textContent).toBe('sin asociar');
+      expect(chip.classList.contains('bloqueado')).toBe(true);
+
+      // Click en la fila no debe llamar onCheckChange
+      const fila = root.querySelector('.video-item');
+      fila.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(ctx.onCheckChange).not.toHaveBeenCalled();
+    });
+
+    it('resultadoDestino: descartado → title con «Ya lo tenías» (D-6, A3)', async () => {
+      puente.render({
+        modo: 'lista',
+        items: [{
+          id: 106,
+          titulo: 'Palacio - Clase 5 - Capacitores.pdf',
+          tipo: 'adjunto',
+          estado: 'downloaded',
+          resultadoDestino: 'descartado',
+          destino: {
+            nombre: '05_capacitores.pdf',
+            ruta: 'Ingenieria/Fisica 2/Teorias/Palacio',
+            original: 'Palacio - Clase 5 - Capacitores.pdf',
+          },
+        }],
+        ctx: ctxBase(),
+      });
+      await flush();
+
+      const fila = root.querySelector('.video-item');
+      expect(fila.getAttribute('title')).toContain('Ya lo tenías: no se escribió nada');
+    });
+  });
 });

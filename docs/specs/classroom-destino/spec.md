@@ -86,9 +86,12 @@ transformación de texto.
     `Teorias/`, igual que "Videos de experiencias y simulaciones". Caso: Física I, "Links-Módulo I/II".
 - **RN-8** — Los adjuntos de Novedades y los de "Sin tema" van a la raíz de la materia.
 - **RN-9** — Un tema que aparece después de asociar el curso va a la raíz de la materia y queda
-  marcado como sin asignar hasta que el dueño le fije carpeta.
-- **RN-10** — Del tema de cronogramas se baja sólo el del cuatrimestre en curso, a la raíz de la
-  materia, como `cronograma_AAAA_Nc.<ext>`. Los semanales no se bajan.
+  marcado como sin asignar hasta que el dueño le fije carpeta. En la UI del popup, los ítems
+  sin asignar se resaltan visualmente con estilo de advertencia, se ordenan prioritarios al inicio
+  de su respectivo curso y son filtrables desde el menú de filtros (Estado: «Sin asignar») o haciendo
+  click en la nota informativa de cabecera.
+- **RN-10** — Los cronogramas (tanto cuatrimestrales como semanales) se descargan a la raíz de la
+  materia (`.`), porque aportan fechas relevantes para el calendario de estudio del alumno (dueño, 2026-10-01).
 
 ### Nombres
 
@@ -96,9 +99,9 @@ transformación de texto.
   separador, `NN_` si hay número de orden, `modN_` si hay módulo, extensión en minúscula.
 - **RN-12** — `modN_` sale del **nombre del tema** (`Clases teóricas - Módulo I` → `mod1_`), nunca
   del nombre del archivo.
-- **RN-13** — El dueño puede editar el nombre propuesto en la lista, antes de bajar.
+- **RN-13** — El dueño puede editar el nombre propuesto en la lista, antes de bajar. *(2c: el nombre editado antes de bajar vive en `cursos.<clave>.nombres`)*.
 - **RN-14** — El nombre editado se guarda en el índice **por id de Drive** y se reusa en todos los
-  escaneos siguientes. Un archivo se nombra una sola vez.
+  escaneos siguientes. Un archivo se nombra una sola vez. *(2c: el nombre editado antes de bajar vive en `cursos.<clave>.nombres`)*.
 - **RN-15** — En Parciales la extensión no infiere la fecha: propone `modN_<nombre>` y el dueño la
   escribe.
 - **RN-16** — Si dos archivos distintos quedan con el mismo nombre en la misma carpeta, **todos los
@@ -158,6 +161,19 @@ transformación de texto.
   vuelve a crear aunque no esté en la ruta anotada ni su md5 aparezca en la raíz. Editarlo,
   moverlo o borrarlo es decisión del dueño. Para que vuelva a crearse, se borra su entrada del
   índice. *(Dueño, 2026-09-28; cierra PA-4.)*
+
+### Omisiones
+
+- **RN-31** — Lo que el dueño marcó para no bajar (un tema con `-` o un archivo en `omitidos`) no se ofrece; la extensión lo lista marcado como omitido. *(Dueño, A-2, 2026-09-28; guardado en el índice por el corte 2b.)*
+
+### Enlaces de videollamada
+
+- **RN-32** — **Enlaces de videollamada**: los enlaces a salas sincrónicas (`meet.google.com`, `zoom.us` y subdominios, `teams.microsoft.com` y `teams.live.com`, `webex.com` y subdominios, `meet.jit.si` y `*.jitsi.net`) no se descartan en el escaneo; se clasifican como accesos directos (`tipo: "acceso"` con `esVideollamada: true`).
+  - **Ubicación**: en el listado del popup, dentro de cada curso, las videollamadas se listan fijadas arriba de todo (primeras filas del curso).
+  - **Indicador visual**: se renderizan con un chip distintivo "Videollamada" (o icono 📹) que advierte su naturaleza sincrónica/potencialmente inactiva.
+  - **Selección**: vienen marcadas por defecto para descarga (igual que el resto de los elementos).
+  - **Gestor de adopción**: en el editor web de adopción (`backend/adopcion/editor.html`), se listan entre los archivos del curso y pueden marcarse con acción `omitir` para no descargarlas, guardándose en `cursos.<clave>.omitidos` (RN-31).
+  *(Dueño, 2026-10-01; firmado: tanda agy 3.8 flash high).*
 
 ---
 
@@ -233,7 +249,14 @@ La fila 0b va antes que la 2 y la 3 porque un acceso editado tiene otro md5: sin
         "Guía de TP Nº 3": "Practicas",
         "Laboratorios": "Laboratorios",
         "Bibliografía": "Bibliografia",
-        "Cronogramas": "."
+        "Cronogramas": ".",
+        "Cuestiones administrativas": "-"
+      },
+      "omitidos": [
+        "google-classroom:1WxLl0KPy7o4OxC_yV9nV6-GF0MUazG5c"
+      ],
+      "nombres": {
+        "google-classroom:1a2b3c4d5e6f": "05_capacitores_editado.pdf"
       }
     }
   },
@@ -242,14 +265,14 @@ La fila 0b va antes que la 2 y la 3 porque un acceso editado tiene otro md5: sin
       "curso": "google-classroom:ODc0ODk1NDcwNTMw",
       "nombre": "05_capacitores.pdf",
       "ruta": "Ingenieria/Fisica 2/Teorias/Palacio",
-      "md5": "3f2a9c1b8e4d7a6f",
+      "md5": "3f2a9c1b8e4d7a6f3f2a9c1b8e4d7a6f",
       "original": "Palacio - Clase 5 - Capacitores.pdf"
     },
     "google-classroom:acceso:https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DAbC:Campo%20el%C3%A9ctrico": {
       "curso": "google-classroom:ODc0ODk1NDcwNTMw",
       "nombre": "campo_electrico.md",
       "ruta": "Ingenieria/Fisica 2/Teorias/Palacio",
-      "md5": "9b1c3d5e7f0a2b4c",
+      "md5": "9b1c3d5e7f0a2b4c9b1c3d5e7f0a2b4c",
       "original": "Campo eléctrico"
     }
   }
@@ -261,11 +284,13 @@ La fila 0b va antes que la 2 y la 3 porque un acceso editado tiene otro md5: sin
 | `version` | Entero. Permite migrar el formato sin adivinar. |
 | `cursos.<portal>:<id>` | El id del portal (`google-classroom`) y el id de curso de su URL. El prefijo existe porque la raíz es de la UNLP, no de Classroom: los Moodle de la UNLP van a escribir en el mismo índice (dueño, 2026-09-27). |
 | `cursos.<clave>.materia` | Ruta relativa a la raíz. Tiene que existir (RN-1). |
-| `cursos.<clave>.temas.<tema>` | Ruta relativa a la materia. `"."` es la raíz de la materia. |
+| `cursos.<clave>.temas.<tema>` | Ruta relativa a la materia. `"."` es la raíz de la materia. `"-"` indica tema omitido que no se ofrece para descargar (RN-31). |
+| `cursos.<clave>.omitidos` | Array de claves de archivo (`<portal>:<id>`). Archivos que el dueño omitió; la extensión los lista marcados como omitidos y deshabilitados (RN-31). |
+| `cursos.<clave>.nombres` | Diccionario de clave de archivo a nombre personalizado por el dueño antes de descargar (RN-14, D-3). |
 | `archivos.<portal>:<id>` | El portal, `:`, y el id de archivo: id de Drive para los adjuntos, `acceso:<url>:<título>` para los accesos (RN-29). Es la identidad estable, y la misma que viaja por el pipeline — no se inventa un eje nuevo (ADR-0014). |
 | `archivos.<clave>.nombre` | El nombre final, editado o propuesto. |
 | `archivos.<clave>.ruta` | Ruta relativa a la raíz. La corrige RN-19. |
-| `archivos.<clave>.md5` | Se calcula una vez al bajar y no se recalcula. En un `.md` es informativo: no decide nada, porque manda RN-30. |
+| `archivos.<clave>.md5` | Se calcula una vez al bajar y no se recalcula (32 caracteres hexadecimales). En un `.md` es informativo: no decide nada, porque manda RN-30. |
 | `archivos.<clave>.original` | El nombre de Classroom. Sólo para que el dueño se ubique. |
 
 **Retención**: nada se borra automáticamente. Un curso que desaparece de Classroom conserva su
@@ -279,6 +304,8 @@ entrada (RN-27).
 ## Wireframes
 
 ### Pantalla de asociación — estado base
+
+*(se implementa como el editor web del 3001, no como pantalla del popup — dueño, 2026-09-30)*
 
 ```
 ┌────────────────────────────────────────────────────────┐
@@ -442,12 +469,15 @@ AC-8 — Un docente nuevo no mueve lo que ya estaba
 ```
 
 ```gherkin
-AC-9 — Un tema nuevo no se baja a ciegas
+AC-9 — Un tema nuevo no se baja a ciegas y es visible de inmediato
   Dado el curso "Física II G22" ya asociado
     y un tema "Guía de TP Nº 13" que no estaba al asociarlo
   Cuando se escanea el curso
   Entonces sus adjuntos aparecen con destino la raíz de la materia
     y marcados como tema sin asignar
+    y su fila lleva la clase visual .sin-asignar (borde y fondo de advertencia)
+    y se ordenan al inicio de su curso antes que el resto de los archivos
+    y pueden filtrarse en Disponibles desde el popover de Filtros (Estado: "Sin asignar") o tocando la nota informativa
 ```
 
 ```gherkin
@@ -491,6 +521,15 @@ Esquema del escenario: AC-11 — Nombres que la regla no acierta
     | P10.- Circuitos de CC en estado transitorio   | 10_circuitos_de_cc_en_estado_transitorio   | 10_circuitos_transitorios    |
     | Documento_completo.pdf-PDFA.pdf               | documento_completo_pdfa.pdf                | libro_de_catedra.pdf         |
     | Teoria Grupo G-MAS.pdf                        | teoria_grupo_g_mas.pdf                     | mod1_08_mas.pdf              |
+```gherkin
+AC-14 — Enlaces de videollamada al tope, con chip y descartables en adopción (RN-32)
+  Dado un curso con anuncios o materiales que contienen enlaces a salas de videollamada (Meet, Zoom, Teams, Webex o Jitsi)
+  Cuando se escanea el curso
+  Entonces se clasifican como tipo "acceso" con "esVideollamada: true"
+    y en el popup se listan fijados arriba de todo dentro de su curso
+    y se renderizan con un chip distintivo "Videollamada"
+    y vienen seleccionados por defecto para descarga
+    y en el gestor de adopción web figuran con opción de acción "omitir" para excluirlos de la bajada
 ```
 
 ---
@@ -573,8 +612,8 @@ Decididos por el dueño el 2026-09-27. Cada uno es una rama y un plan.
 | Corte | Qué entrega | Reglas |
 |---|---|---|
 | **2a — Adopción** | Script de una sola corrida: lleva `verificacion-b` a la raíz (se aplicó en la bóveda, `32136ca`) con los nombres que el dueño eligió y hace nacer el índice. No toca la extensión. Plan: `docs/plan-classroom-destino-2a-adopcion.md` | RN-1, 3–8, 11, 12, 15–17, 20, 21, 23–26, 28, 30 (en su forma de adopción); PA-2, PA-3 |
-| **2b — La extensión usa el índice** | Raíz por portal; "ya descargado" y descarga a la carpeta del tema según la tabla de decisión; tema nuevo sin asignar; índice ilegible | RN-2, 3a, 9, 10, 17, 18–22, 25, 27, 29, 29a, 30 |
-| **2c — Pantallas** | Asociar un curso nuevo; editar el nombre en la lista y recordarlo | RN-1, 4, 7, 13, 14 |
+| **2b — La extensión usa el índice** ✅ 2026-10-01 | Raíz por portal; "ya descargado" y descarga a la carpeta del tema según la tabla de decisión; tema nuevo sin asignar; índice ilegible; omisiones migradas. Planes: 01 a 06 en `~/Boveda/Proyectos/courseDownloader/Planes/` | RN-2, 3a, 9, 10, 17, 18–22, 25, 27, 29, 29a, 30, 31 |
+| **2c — Pantallas** (construido, sin verificar en navegador) | Asociar un curso nuevo; editar el nombre en la lista y recordarlo. Planes: 07 y 08 en `~/Boveda/Proyectos/courseDownloader/Planes/` | RN-1, 4, 7, 13, 14 |
 
 ## Medición de respaldo — cruce del árbol contra lo descargado (2026-09-16)
 
@@ -605,6 +644,11 @@ ya poblado.
   quedan dos notas. RN-30 sólo lo protege si sigue en su lugar. **Recomendación** (tanda): para los
   `.md` de acceso, si el id está en el índice no se vuelve a crear nunca, esté donde esté. Costo: un
   acceso movido y después borrado no vuelve. El dueño todavía no la decidió.
+- **PA-5** *(abierta 2026-10-01, para el corte 2b/2c)* — **RN-10 se parte en dos.** Se cumple para lo
+  ya decidido (omisiones migradas en el corte 2b por RN-31). La regla mecánica para cronogramas
+  **nuevos** queda abierta con la medición en su texto: un solo cronograma en todo el índice real
+  y tres nombres de tema. No se puede derivar de los nombres; implementarla sería adivinar. El editor
+  (plan 07) dejará marcar un archivo como omitido a mano.
 
 ## Mediciones pendientes
 

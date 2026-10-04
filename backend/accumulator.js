@@ -26,10 +26,12 @@ export function registrarSesionCancelada(sessionId) {
  * Recibe fragmentos, los almacena si están fuera de orden, y escribe progresivamente
  * al disco los fragmentos contiguos en cuanto se completan.
  */
-export async function alimentarSlidingWindow(claveVideo, index, totalChunks, chunkBuffer, rutaArchivo, sessionId, tituloMostrado) {
+export async function alimentarSlidingWindow(claveVideo, index, totalChunks, chunkBuffer, rutaArchivo, sessionId, tituloMostrado, opciones = {}) {
   if (!acumuladorChunks.has(claveVideo)) {
     // Borrar el archivo mp4 final si existía uno previo completo
-    await unlink(rutaArchivo).catch(() => {});
+    if (!opciones.preservarDestino) {
+      await unlink(rutaArchivo).catch(() => {});
+    }
 
     const stream = createWriteStream(rutaArchivo + ".part");
     acumuladorChunks.set(claveVideo, {
@@ -41,11 +43,15 @@ export async function alimentarSlidingWindow(claveVideo, index, totalChunks, chu
       yaEscribiendo: false,
       totalEsperado: totalChunks,
       sessionId: sessionId,
-      tituloMostrado: tituloMostrado || claveVideo
+      tituloMostrado: tituloMostrado || claveVideo,
+      alFinalizar: typeof opciones.alFinalizar === "function" ? opciones.alFinalizar : null
     });
   }
 
   const sesion = acumuladorChunks.get(claveVideo);
+  if (opciones.alFinalizar && !sesion.alFinalizar) {
+    sesion.alFinalizar = opciones.alFinalizar;
+  }
   sesion.lastActivity = Date.now();
   sesion.totalEsperado = totalChunks;
 
@@ -87,7 +93,7 @@ export async function alimentarSlidingWindow(claveVideo, index, totalChunks, chu
  * Cierra el stream de escritura y renombra el archivo temporal .part al definitivo
  */
 export async function flushVideoADisco(claveVideo, sesion) {
-  const { writeStream, targetFile } = sesion;
+  const { writeStream, targetFile, alFinalizar } = sesion;
   // Los mensajes muestran el título, no la clave: la clave es un detalle interno.
   const tituloVideo = sesion.tituloMostrado || claveVideo;
 
@@ -100,21 +106,27 @@ export async function flushVideoADisco(claveVideo, sesion) {
     writeStream.end(resolve);
   });
 
-  // Renombrar archivo temporal .part al definitivo .mp4
-  await rename(targetFile + ".part", targetFile);
-
-  // Obtener tamaño final para telemetría del backend
-  let finalSize = 0;
   try {
-    const s = await stat(targetFile);
-    finalSize = s.size;
-  } catch {}
+    if (typeof alFinalizar === "function") {
+      sesion.resultado = await alFinalizar(sesion);
+    } else {
+      // Renombrar archivo temporal .part al definitivo .mp4
+      await rename(targetFile + ".part", targetFile);
 
-  acumuladorChunks.delete(claveVideo);
+      // Obtener tamaño final para telemetría del backend
+      let finalSize = 0;
+      try {
+        const s = await stat(targetFile);
+        finalSize = s.size;
+      } catch {}
 
-  const tamañoMB = (finalSize / 1024 / 1024).toFixed(1);
-  const tituloCorto = tituloVideo.length > 25 ? tituloVideo.slice(0, 22) + "..." : tituloVideo;
-  process.stdout.write(`\r✅ [GUARDADO]    ${tituloCorto.padEnd(25)} | ${tamañoMB.padStart(6)} MB guardados exitosamente.\n`);
+      const tamañoMB = (finalSize / 1024 / 1024).toFixed(1);
+      const tituloCorto = tituloVideo.length > 25 ? tituloVideo.slice(0, 22) + "..." : tituloVideo;
+      process.stdout.write(`\r✅ [GUARDADO]    ${tituloCorto.padEnd(25)} | ${tamañoMB.padStart(6)} MB guardados exitosamente.\n`);
+    }
+  } finally {
+    acumuladorChunks.delete(claveVideo);
+  }
 }
 
 /**

@@ -165,6 +165,7 @@ historia de qué se migró en qué fase no está acá: vive en `docs/rearquitect
   | `orden.js` (`OrdenFeature`) | Criterio de orden (llegada/nombre/faceta/portal) + sentido ↑↓ y su popover | Entró con el corte 6b del multi-sitio. En la Cola el orden que se ve **es** el orden en que se baja. |
   | `bloqueo.js` (`Bloqueo`) | El contrato de "este control no se puede usar ahora", en un solo lugar | Estaba copiado en tres funciones de `popup.js`. `pointer-events` **no** es un bloqueo: deja pasar el teclado. Las cuatro reglas → `docs/alertas-y-bloqueo-diseno.md` §2. |
   | `pisoVisible.js` (`crearPisoVisible`) | El mínimo de tiempo que un cartel de "estoy trabajando" se queda en pantalla | **No es dueño de ningún nodo**: resuelve el *cuándo*, no el *quién* — escribir el nodo por atrás lo saltea en silencio. La mitad que falta (la demora para aparecer) sigue en `docs/TECHNICAL_DEBT.md`. |
+  | `destino.js` | Consulta de estado y destino resuelto al backend por índice | Módulo puro de Capa 2: agrupa por curso, consulta POST `/api/destino/estado` en paralelo (D-6) y gestiona bloqueos ("sin-asociar", "omitido", "indice-ilegible") y `sinAsignar` (D-5). Expone `bloquearSeleccion` (embudo, D-4) y `puedeBajar` (cola, D-4). |
 
   No son features, pero viven en la misma carpeta y conviene no confundirlas: `capa.preact.js`
   (la superficie flotante compartida — un **componente**, no una isla) y los seis `*.preact.js`
@@ -266,7 +267,10 @@ caminos y cada uno existe por un bug real**: (1) cancelación del usuario, que n
 (2) `tipoConexion: "sesion"`, que pausa SIN alarma porque el daemon vería la red OK y el
 auto-heal reintentaría contra el login; (3) `tipoBackend: "rechazo"` (4xx), que **saltea sólo
 esa clase** — es el fix del bug 400; y (4) cualquier otro, que pausa CON alarma. **El orden
-importa**: los tres primeros se clasifican antes de consultar al daemon.
+importa**: los tres primeros se clasifican antes de consultar al daemon. Desde el Corte 2b-3,
+los errores con `codigo` del backend se mapean directamente (`INDICE_ILEGIBLE` a bloqueo sin alarma,
+`DESTINO_OCUPADO` / `MATERIA_INEXISTENTE` / `RUTA_INSEGURA` / `DESTINO_REQUERIDO` a rechazo), y los
+adjuntos con `destino` propagan cabeceras `x-destino-*`, usan `destino.nombre` y guardan `resultadoDestino`.
 
 `loopActivo` y el `AbortController` de la ráfaga eran variables de módulo compartidas entre el
 bucle y los handlers IPC; ahora son **estado privado** y se tocan por la API
@@ -345,7 +349,9 @@ tests pasan una URL de fantasía.
 
 También viven acá `core/backend/bunClient.ts` (wrapper fino de todos los endpoints del backend
 Bun: `/api/escanear-disco`, `/api/bypass-stream`, `/api/actualizar-consola`,
-`/api/seleccionar-carpeta`, `/api/health`, `/api/cancelar-descarga`) y
+`/api/seleccionar-carpeta` —con `{ portal }` opcional—, `/api/health`, `/api/cancelar-descarga`,
+`/api/destino/indice` y `/api/destino/estado`; desde el Corte 2b-3
+envía cabeceras `x-destino-*` y parsea `{ error, codigo }` en respuestas fallidas) y
 `core/historial/historialFallos.ts` (factory `crearHistorialFallos(puerto)`, no singleton:
 historial acotado —últimos 50, más nuevo primero— de fallos terminales de la cola bajo la
 clave local `historialFallos`, que respalda la campanita; lo escribe el SW en `registrarFallo`
@@ -363,6 +369,12 @@ en el adaptador ni releer call-sites buscando cuál quedó en la unidad vieja.
 **`ErrorBackend` convierte en tipo lo que era una convención en comentarios**:
 `tipoBackend: "rechazo"` marca **sólo** 4xx (saltear la clase), nunca 5xx (pausar +
 auto-heal). De esa distinción depende el fix del bug 400.
+
+**`core/destino/` agrupa la lógica pura de indexación y destino del árbol del usuario**:
+- **`core/destino/decidir.ts`**: dos funciones puras (`decidirAntes`, `decidirDespues`) que implementan la tabla de decisión de la spec para determinar si un adjunto se descarga, descarta o escribe.
+- **`core/destino/propuesta.ts`**: `proponerParaCurso`, asignación pura de carpeta destino, resolución de nombres y detección de choques (RN-16/16a).
+- **`core/destino/vistas.ts`**: `indiceAFilasEditor` y `filasEditorAIndice`, conversión bidireccional pura entre el índice `.course-downloader.json` y las tres tablas del editor web (`cursos`, `temas`, `archivos`), con inversión de carpetas (D-6) y validaciones de guardado.
+- **`core/destino/accesoMd.ts`**: `accesoADataUri(idArchivo, fecha)`, formateo isomórfico puro de accesos Markdown con frontmatter `tipo: acceso` y `revisado` (D-3, RN-9).
 
 ### Capa 3 — `plataforma/`
 
@@ -490,7 +502,7 @@ devolviendo sincrónicamente y no se enteró.
 que escanea Trabajo en clase y Novedades e inyecta la lectura del DOM), `parserTitulos.js`
 (`ParserTitulosClassroom.clasificarCarpeta`, que clasifica por curso saneado) y `descargarAdjunto.js`
 (`DescargarAdjuntoClassroom.resolver`, que genera la URL con `authuser` para Drive o un data URI en
-base64 para accesos `.md`). No implementa `resolverManifiesto.js` porque no tiene videos HLS (su
+base64 para accesos `.md` con frontmatter de fecha local). No implementa `resolverManifiesto.js` porque no tiene videos HLS (su
 descriptor rechaza esa llamada como red de seguridad).
 
 **Cómo resuelve `ResolverManifiesto.resolver`, y por qué es el primer sospechoso cuando una
@@ -570,6 +582,19 @@ que el bundler no verifica: no llames a `Utils.*` en el top-level de un módulo.
 
 **No volver a meter vocabulario del sitio acá**: el parser de títulos vive en
 `sitio/ramonnet/parserTitulos.js` desde v6.0.0, y ésa es la frontera.
+
+### Backend — `backend/`
+
+El servidor complementario Bun aloja en `backend/destino/` los servicios puros de persistencia e indexación para el corte de destino:
+- **`backend/destino/rutas.js`**: `esRutaBajo(raiz, ruta)`, validación pura de pertenencia estricta a una carpeta raíz soportando discos pelados `D:\` en Windows.
+- **`backend/destino/md5.js`**: `md5Archivo(ruta)`, cálculo de hash MD5 por stream con cache en memoria indexado por `ruta|tamaño|mtime` (D-4).
+- **`backend/destino/recorrido.js`**: `recorrerRaiz(raiz)` y `buscarPorMd5(raiz, md5)`, recorrido del árbol ignorando notas (`Wiki/`, `Mis notas/`, `Clases/`), carpetas ocultas y symlinks.
+- **`backend/destino/indiceServicio.js`**: `leerIndice(raiz)` y `modificarIndice(raiz, fn)`, lectura no destructiva y modificación atómica con candado por raíz sobre `.course-downloader.json`.
+- **`backend/destino/estado.js`**: `calcularEstado({ raiz, sitio, curso, items })`, cálculo de estado contra disco e índice corrigiendo rutas movidas (RN-19).
+- **`backend/destino/escritura.js`**: `validarDestino({ raiz, ruta, nombre, materia })` y `finalizarEnDestino(...)`, gancho `alFinalizar` del acumulador que ejecuta la tabla de decisión (`decidirDespues`) al completar la descarga para escribir, descartar o rechazar por ocupado (D-6, D-7).
+- **`backend/destino/vistos.js`**: `guardarVisto`, `leerVistos` y `limpiarVistos`, almacén volátil en memoria para conservar los escaneos recientes de cursos y alimentar el modo índice del editor web (D-2).
+- **`backend/destino/portales.js`**: módulo puro (node-free) dueño de `PORTALES_VALIDOS`, `PORTALES_CON_DESTINO_INDICE` y `resolverRaizDeDestino({ portalId, raices, raizPorDefecto, raizFacultad })` (D-1, D-2).
+- **`backend/adopcion/editor.html`**: interfaz web monocroma del editor de adopción servida en `/adopcion/` para configurar materias, temas y archivos; incluye borrador local persistido en `localStorage` con debounce de 500 ms y banner interactivo de restauración ante cambios sin guardar, sin listener `beforeunload` para evitar cuelgues del navegador (Plan 19).
 
 ## Flujo de una descarga, de punta a punta
 

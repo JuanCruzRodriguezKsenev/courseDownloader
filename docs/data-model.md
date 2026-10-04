@@ -99,8 +99,22 @@ adopta la vieja, la borra al adoptarla, y con las dos presentes gana la nueva.
                                   // portal entrega la URL firmada, o `acceso:<url>:<título>` en Classroom.
                                   // Se resuelve al BAJAR, no al escanear
   bytes?: number,                 // sólo en adjuntos: peso declarado por el portal, para la UI
+  cursoId?: string,               // [Corte 2b-4] id del curso en el portal (Classroom, D-1)
+  cursoNombre?: string,           // [Corte 2b-4] nombre del curso en el portal (Classroom, D-1)
+  tema?: string,                  // [Corte 2b-4] tema del ítem dentro del curso (Classroom, D-1)
+  publicacion?: string,           // [Corte 2a] título de la publicación donde salió el adjunto (Classroom, RN-7a)
+  anuncio?: string,               // [Corte 2a] texto del anuncio en Novedades (Classroom, RN-16a)
   catedra?: "A"|"B"|"C"|"D"|"COMUN",
   estado: "pending" | "process" | "downloaded",
+  destino?: {                     // [Corte 2b-4] destino resuelto en el árbol del dueño
+    ruta: string | null,
+    nombre: string | null,
+    claveCurso: string,
+    original: string
+  },
+  bloqueo?: "sin-asociar" | "indice-ilegible" | "omitido", // [Corte 2b-4] impide selección y encolado (D-4, D-5)
+  sinAsignar?: boolean,           // [Corte 2b-4] true si el tema no tiene carpeta asignada en el índice (AC-9)
+  resultadoDestino?: "escrito" | "descartado" | "existente", // [Corte 2b-3] resultado del backend al guardar en destino (D-4)
   seleccionado: boolean,          // checkbox en la UI
   visible: boolean                // resultado del filtro activo (computado, no persistente en la práctica)
 }
@@ -121,6 +135,15 @@ adopta la vieja, la borra al adoptarla, y con las dos presentes gana la nueva.
   tipo?: "video" | "adjunto",     // [ADR-0014] ausente = "video"
   idArchivo?: string,             // sólo en adjuntos: id de Drive, membershipId, o `acceso:<url>:<título>`
   bytes?: number,                 // sólo en adjuntos
+  destino?: {                     // [Corte 2b-3] destino en el árbol del dueño (RN-20, D-1).
+                                  // NOTA: `destino` NO forma parte de la clave de identidad
+                                  // (ver ADR-0014): dos ítems que sólo difieren en destino son la misma clase.
+    portal: string,
+    ruta: string,                 // materia + subcarpeta
+    nombre: string,               // nombre final en disco
+    claveCurso: string,
+    original: string
+  },
   fechaEncolado: number,          // Date.now() al encolar. Desde ADR-0011 NO es la fuente del
                                   // orden: es el dato del criterio "de llegada" y el que
                                   // normaliza las colas anteriores al corte 6d.
@@ -186,6 +209,35 @@ Eventos de ciclo de vida (`EventoRecorrido` vía mensaje IPC `recorrido_evento` 
 
 Mensajes IPC directos al popup:
 - `escaneo_progreso`: enviado por el scraper en modo un curso directamente al popup vía `chrome.runtime.sendMessage({ action: "escaneo_progreso", idEscaneo, fase, verMas, publicaciones, archivos, nombre? })` para actualizar el loader en vivo sin pasar por `storage`.
+
+### Índice de destino (`.course-downloader.json`)
+
+Persistido en disco en la raíz de cada portal que soporte destino por índice (Google Classroom: `~/Boveda/Areas/Facultad/.course-downloader.json`, ADR-0017, ADR-0018). Gestionado por el backend Bun (`backend/destino/`) y consumido por la extensión vía `/api/destino/*`.
+
+```ts
+interface Indice {
+  version: 1;
+  cursos: Record<string, CursoIndice>;
+  archivos: Record<string, ArchivoIndice>;
+}
+
+interface CursoIndice {
+  nombre: string;
+  materia: string;
+  docente: string;
+  temas: Record<string, string>; // tema -> carpeta relativa a materia. "." es raíz; "-" indica tema omitido (RN-31)
+  omitidos?: string[];           // array de claves de archivo (<portal>:<id>) que no se descargan (RN-31)
+  nombres?: Record<string, string>; // mapa clave de archivo -> nombre personalizado antes de bajar (RN-14, D-3)
+}
+
+interface ArchivoIndice {
+  curso: string;
+  nombre: string;
+  ruta: string;
+  md5: string;                   // 32 caracteres hex
+  original: string;
+}
+```
 
 ## `chrome.storage.session` — volátil, sobrevive a la suspensión del Service Worker pero no a un reinicio del navegador
 

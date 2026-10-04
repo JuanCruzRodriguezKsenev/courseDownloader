@@ -1,3 +1,8 @@
+/**
+ * MODELO Y SERIALIZACIÓN DEL ÍNDICE DE DESTINO (V1.1.0)
+ * =====================================================
+ */
+
 export const NOMBRE_INDICE = ".course-downloader.json";
 
 export interface CursoIndice {
@@ -5,6 +10,11 @@ export interface CursoIndice {
   materia: string;
   docente: string;
   temas: Record<string, string>;
+  omitidos?: string[];
+  /** Nombres personalizados por el dueño antes de descargar (RN-14, D-3) */
+  nombres?: Record<string, string>;
+  /** Carpetas personalizadas por archivo si difieren del tema (D-5) */
+  carpetas?: Record<string, string>;
 }
 
 export interface ArchivoIndice {

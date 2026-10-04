@@ -1,6 +1,14 @@
 /**
- * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: RESOLUCIÓN DE ADJUNTOS (V1.0.0)
+ * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: RESOLUCIÓN DE ADJUNTOS (V1.2.0)
  * ==========================================================================
+ * CHANGELOG v1.2.0:
+ * - [MOODLE CORTE 1] La construcción de accesos Markdown delega en
+ *   core/destino/accesoMd.ts (D-3, RN-9). Se elimina bytesABase64 local.
+ *
+ * CHANGELOG v1.1.0:
+ * - [DESTINO CORTE 2b-3] Accesos Markdown (.md) nacen con frontmatter `tipo: acceso`
+ *   y `revisado: AAAA-MM-DD` en fecha local (RN-17, D-5).
+ *
  * CHANGELOG v1.0.0:
  * - [CLASSROOM CORTE 1] Nace con el tercer portal.
  * ==========================================================================
@@ -9,21 +17,20 @@
  * No realiza pedidos de red; los status HTTP los clasifica el procesador de cola.
  */
 
+import { accesoADataUri } from "../../core/destino/accesoMd.ts";
+
 function fallo(paso, detalle, extra) {
   const e = new Error(`[google-classroom] ${paso}: ${detalle}`);
   if (extra) Object.assign(e, extra);
   return e;
 }
 
-function bytesABase64(bytes) {
-  let binario = "";
-  const len = bytes.byteLength;
-  const chunk = 8192;
-  for (let i = 0; i < len; i += chunk) {
-    const sub = bytes.subarray(i, Math.min(i + chunk, len));
-    binario += String.fromCharCode.apply(null, sub);
-  }
-  return btoa(binario);
+function fechaLocalHoy() {
+  const ahora = new Date();
+  const y = ahora.getFullYear();
+  const m = String(ahora.getMonth() + 1).padStart(2, "0");
+  const d = String(ahora.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 const DescargarAdjuntoClassroom = {
@@ -41,13 +48,7 @@ const DescargarAdjuntoClassroom = {
     }
 
     if (idArchivo.startsWith("acceso:")) {
-      const partes = idArchivo.split(":");
-      const url = decodeURIComponent(partes[1] || "");
-      const titulo = decodeURIComponent(partes.slice(2).join(":") || "");
-      const contenidoMd = `# ${titulo}\n\n${url}`;
-      const bytes = new TextEncoder().encode(contenidoMd);
-      const b64 = bytesABase64(bytes);
-      return `data:text/markdown;charset=utf-8;base64,${b64}`;
+      return accesoADataUri(idArchivo, fechaLocalHoy());
     }
 
     const authuser = credenciales && credenciales.authuser;

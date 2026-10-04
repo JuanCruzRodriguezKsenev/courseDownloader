@@ -8,3 +8,7 @@
 - [Revisión Mate C](project_revision_mate_c.md) — hallazgos doc a doc de conversiones y wiki; informe escrito en ~/Boveda/Sistema; decidido + regla 2 verificaciones; forja etapa 1 en curso
 - [Planes 2b/2c y Moodle](project_planes_2b_2c_moodle.md) — planes 00-08 en la bóveda (2026-09-30), hallazgos que los moldearon, puntos de parada humanos
 - [Leer la doc antes de preguntar](feedback_leer_doc_antes_de_preguntar.md) — no preguntar sesión/carpetas de un portal nuevo: está en multisitio-diseno y en Classroom
+- [Firma en doc y Bóveda](feedback_firma_documentos.md) — firmar siempre: tanda agy 3.8 flash high
+- [Política de videos por portal](policy_descarga_videos_por_portal.md) — sólo Ramón Net y Anatomy descargan video; Classroom, Moodle y Google Sites sólo guardan link .md
+- [Plan 19 borrador del editor](project_borrador_editor_plan19.md) — beforeunload→localStorage; cuelgue al cerrar, causa probable sin reproducir
+- [Moodle Asignaturas](project_moodle_asignaturas.md) — medición en vivo curso id=82, diseño en Bóveda, spec draft y fixtures sanitizados (2026-10-01)

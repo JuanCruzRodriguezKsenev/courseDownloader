@@ -1,6 +1,9 @@
 /**
- * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.5.1)
+ * ADAPTADOR DE SITIO — GOOGLE CLASSROOM: ESCANEO DEL LISTADO (V1.6.0)
  * ==========================================================================
+ * CHANGELOG v1.6.0:
+ * - [DESTINO CORTE 2b-4] Cada enlace emitido incluye cursoId, cursoNombre y tema (D-1).
+ *
  * CHANGELOG v1.5.1:
  * - [CLASSROOM NOVEDADES SCROLL] buscarContenedorScroll exige que el contenedor scrollee de verdad; la <nav> lateral tapaba la paginación de Novedades.
  *
@@ -463,9 +466,23 @@ const ScraperClassroom = {
         .slice(0, 500);
     }
 
+    function esEnlaceMeet(url) {
+      if (!url) return false;
+      try {
+        const h = new URL(url).host.toLowerCase();
+        return h === "meet.google.com" || h.endsWith(".meet.google.com");
+      } catch {
+        return /(?:^|\/\/|\.)meet\.google\.com(?:\/|$)/i.test(url);
+      }
+    }
+
     function clasificarAdjunto(a, material, attId) {
       const href = a.getAttribute("href") || "";
       const label = (a.getAttribute("aria-label") || "").trim();
+
+      if (esEnlaceMeet(href)) {
+        return null;
+      }
 
       const driveIdMatch = /\/file\/d\/([^/]+)/.exec(href);
       const labelMatch = /^[^:]+: ([^:]+): ([\s\S]+)$/.exec(label);
@@ -486,6 +503,9 @@ const ScraperClassroom = {
 
       if (label.includes("Vínculo a ")) {
         const urlVinculo = label.slice(label.indexOf("Vínculo a ") + "Vínculo a ".length).trim();
+        if (esEnlaceMeet(urlVinculo)) {
+          return null;
+        }
         let host = "";
         try {
           host = new URL(urlVinculo).host;
@@ -966,6 +986,9 @@ const ScraperClassroom = {
       texto: item.nombreFinal,
       href: item.url,
       modulo: `${nombreCurso} › ${item.tema}`,
+      cursoId: idCurso,
+      cursoNombre: nombreCurso,
+      tema: item.tema,
       publicacion: item.material,
       anuncio: item.anuncio,
       tipo: "adjunto",

@@ -34,13 +34,16 @@ import type { PuertoSitio } from "../core/puertos/sitio";
 import { SitioRamonNet } from "./ramonnet/config";
 import { SitioAnatomyByChris } from "./anatomy-by-chris/config";
 import { SitioGoogleClassroom } from "./google-classroom/config";
+import { SitioMoodleLinti } from "./moodle-linti/config";
+import { SitioSitesMatec } from "./sites-matec/config";
+import { SitioMoodleAsignaturas } from "./moodle-asignaturas/config";
 
 /**
  * Los adaptadores que conoce esta build. **Sumar un portal es agregarlo acá** (más su carpeta
  * en `sitio/<portal>/`, y su origen + ruleset dNR en `wxt.config.ts`, que es estático).
  *
- * El orden importa sólo para `resolverPorUrl`: gana el primero que reconoce la URL. **Hay tres
- * portales y eso dejó de ser teórico**: los tres `esPaginaDelSitio` tienen que ser disjuntos.
+ * El orden importa sólo para `resolverPorUrl`: gana el primero que reconoce la URL. **Hay seis
+ * portales y eso dejó de ser teórico**: los seis `esPaginaDelSitio` tienen que ser disjuntos.
  * El de Anatomy by Chris matchea el SLUG del curso y no el host, justamente porque `hotmart.com`
  * hospeda miles de cursos ajenos. Google Classroom matchea el curso por ruta en su dominio.
  * Que sean disjuntos lo afirma `registro.test.ts`; si dos reclamaran la misma URL, es un bug
@@ -54,6 +57,9 @@ const SITIOS: readonly [PuertoSitio, ...PuertoSitio[]] = [
   SitioRamonNet,
   SitioAnatomyByChris,
   SitioGoogleClassroom,
+  SitioMoodleLinti,
+  SitioSitesMatec,
+  SitioMoodleAsignaturas,
 ];
 
 export const Sitios = {

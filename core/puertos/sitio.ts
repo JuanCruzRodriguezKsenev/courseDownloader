@@ -1,6 +1,14 @@
 /**
- * PUERTO DE SITIO (V1.7.0)
+ * PUERTO DE SITIO (V1.9.0)
  * ==========================================================================
+ * CHANGELOG v1.9.0:
+ * - [DESTINO CORTE 2b-4] Campos opcionales en `EnlaceListado`: `cursoId`, `cursoNombre` y `tema`.
+ *   Permiten al popup consultar el estado de cada curso al backend sin desarmar `modulo` (RN-2, D-1).
+ *
+ * CHANGELOG v1.8.0:
+ * - [DESTINO CORTE 2b-3] Miembro nuevo `destinoPorIndice?: boolean` (opcional, default false):
+ *   indica si el portal delega la ubicación y nombre en el índice de destino (.course-downloader.json).
+ *
  * CHANGELOG v1.7.0:
  * - [CLASSROOM ESCANEAR TODAS] Miembro nuevo `esPortada?(url)` (opcional):
  *   predicado que identifica la portada desde donde se puede escanear todos los listados.
@@ -110,16 +118,28 @@ export interface EnlaceListado {
   bytes?: number;
 
   /**
-   * Título de la publicación de donde sale el adjunto (Classroom):
+   * Título de la publicación de donde sale el adjunto (portales con destino por índice (Classroom, Moodle del LINTI)):
    * lo usa la sugerencia de destino (RN-7a).
    */
   publicacion?: string;
 
   /**
-   * Texto del anuncio de Novedades (Classroom), hasta 500 caracteres:
+   * Texto del anuncio de Novedades (portales con destino por índice (Classroom, Moodle del LINTI)), hasta 500 caracteres:
    * nombra el archivo cuando choca (RN-16a).
    */
   anuncio?: string;
+
+  /**
+   * [CORTE 2b-4] Id del curso en el portal (portales con destino por índice (Classroom, Moodle del LINTI)). Permite consultar el
+   * estado del curso al backend sin desarmar `modulo` (D-1, RN-2).
+   */
+  cursoId?: string;
+
+  /** [CORTE 2b-4] Nombre crudo del curso en el portal (portales con destino por índice (Classroom, Moodle del LINTI)). */
+  cursoNombre?: string;
+
+  /** [CORTE 2b-4] Tema o sección dentro del curso (portales con destino por índice (Classroom, Moodle del LINTI)). */
+  tema?: string;
 }
 
 /** Lo que devuelve el escaneo del listado de clases de una pestaña. */
@@ -377,6 +397,12 @@ export interface PuertoSitio {
    *   navegador junto con `authuser` para autorizar la descarga (diseño D1 y M0).
    */
   readonly credencialesAdjunto?: "omit" | "include";
+
+  /**
+   * Si el portal delega la ubicación y nombre en el índice de destino (.course-downloader.json).
+   * Cuando es true, la cola exige que el ítem traiga `destino` y envía los headers `x-destino-*`.
+   */
+  readonly destinoPorIndice?: boolean;
 
   /**
    * Función que se INYECTA en la pestaña del portal (`chrome.scripting.executeScript`)

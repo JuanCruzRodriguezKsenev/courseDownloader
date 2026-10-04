@@ -34,12 +34,19 @@ Lo que la extensión **espera** del backend, derivado de `core/backend/bunClient
 |---|---|---|
 | `GET /api/health` | — | JSON con `ruta` (la carpeta raíz configurada). Doble función: liveness probe del daemon `Conexion` **y** lectura de la ruta. Timeout duro de 4000 ms. |
 | `GET /api/escanear-disco?carpeta=<sub>&sitio=<id>` | query `carpeta` y `sitio` (URL-encoded) | JSON `{ archivos: string[] }` — nombres ya guardados, para pintar clases como descargadas. **`sitio` es opcional**: sin él se mira el layout viejo de un solo nivel. |
-| `POST /api/bypass-stream` | headers `x-video-title` (URL-encoded), `x-chunk-index`, `x-total-chunks`, `x-target-folder`, **`x-site-folder`**, `x-session-id`, **`x-file-name`** (URL-encoded, sólo en adjuntos — ver abajo); body = fragmento binario descifrado | Sólo importa el status. Timeout 30 s. |
-| `GET /api/seleccionar-carpeta` | — | JSON `{ success: boolean, ruta: string }` — abre el diálogo nativo de carpeta (Windows → PowerShell; Linux → `backend/elegirCarpetaLinux.py`, necesita `python3` + PyGObject y `xdg-desktop-portal` con un backend que implemente `FileChooser`; otro SO → 501). |
+| `POST /api/bypass-stream` | headers `x-video-title` (URL-encoded), `x-chunk-index`, `x-total-chunks`, `x-target-folder`, **`x-site-folder`**, `x-session-id`, **`x-file-name`** (URL-encoded, sólo en adjuntos); en **modo destino** (corte 2b) se suman: `x-destino-ruta`, `x-destino-portal`, `x-clave-archivo`, `x-clave-curso`, `x-original` (URL-encoded); body = fragmento binario descifrado | Status 200 `{ success: true, chunk, recibidos, total, resultado?: "escrito" \| "descartado" \| "existente" }`. Si falla validación o decisión de destino: 409 (`INDICE_ILEGIBLE`, `MATERIA_INEXISTENTE`, `DESTINO_OCUPADO`) o 400 (`RUTA_INSEGURA`, `DESTINO_REQUERIDO`). Timeout 30 s. |
+| `GET /api/seleccionar-carpeta` | query opcional `portal=<id>` | JSON `{ success: boolean, ruta: string }` — abre el diálogo nativo de carpeta (Windows → PowerShell; Linux → `backend/elegirCarpetaLinux.py`). Si llega `portal` válido (`ramonnet`, `anatomy-by-chris`, `google-classroom`, `moodle-linti`), guarda en `raices[portal]` sin tocar `rutaRaiz`; sin `portal`, guarda en `rutaRaiz`. Portal desconocido → 400. En ambos casos fusiona con `config_usuario.json`. |
 | `GET /api/cancelar-descarga?titulo=&sessionId=&sitio=` | query | Sólo el status; los fallos se tragan (best-effort). **`sitio` importa**: sin él el backend podría borrar el `.part` de la clase homónima de otro portal. |
 | `POST /api/actualizar-consola` | JSON `{ titulo, porcentaje, terminados, totales, velocidad }` | Sólo el status; los fallos se tragan (telemetría a la consola gráfica del server). |
+| `GET /api/destino/indice?portal=<id>` | query opcional `portal` | JSON `{ ok: true, raiz: string, indice: Indice }`. Si el archivo `.course-downloader.json` no parsea (RN-25): status 200 `{ ok: false, indiceIlegible: true, error: string }`. |
+| `POST /api/destino/estado` | JSON `{ sitio: string, curso: { id: string, nombre: string }, items: [...] }` | JSON `{ ok: true, raiz: string, curso: { asociado: boolean, materia?: string, docente?: string }, items: [{ idArchivo, estado, fila, rutaDestino, nombre, sinAsignar, omitido }] }`. Si el índice no parsea: status 200 `{ ok: false, indiceIlegible: true, error: string }`. |
+| `POST /api/destino/curso-visto` | JSON `{ sitio: string, cursos: [{ id: string, nombre: string, items: [...] }] }` o `{ sitio: string, curso: { id: string, nombre: string }, items: [...] }` | JSON `{ ok: true }`. Guarda el escaneo en memoria para el editor web (D-2, D-3). Mismos corsHeaders que `/api/destino/estado`. |
 
-Fuera de la tabla anterior —porque no lo consume la extensión vía `BunClient` sino el usuario en el navegador—, el servidor monta en `/adopcion/` el editor web de los TSV de adopción de Classroom (`backend/adopcion/editor.js`). Es un endpoint temporal del corte 2a; lee `~/Descargas/adopcion-classroom` y `~/Boveda/Areas/Facultad` (`RAIZ_FACULTAD`, `backend/adopcion/raiz.js`) fijos (no usa `config_usuario.json`), y sus rutas `POST` rechazan cualquier pedido cuyo `Origin` difiera del propio servidor.
+Fuera de la tabla anterior —porque no lo consume la extensión vía `BunClient` sino el usuario en el navegador—, el servidor monta en `/adopcion/` el editor web (`backend/adopcion/editor.js`). Tiene dos modos por query (D-1):
+- **Sin query (modo TSV)**: el editor de adopción de Classroom del corte 2a; lee `~/Descargas/adopcion-classroom` y `~/Boveda/Areas/Facultad` (`RAIZ_FACULTAD`, `backend/adopcion/raiz.js`) fijos y edita los TSV.
+- **`?modo=indice[&curso=<clave>]` (modo índice, corte 2c)**: opera directamente sobre el índice real `.course-downloader.json` y los cursos en memoria de `/api/destino/curso-visto` (D-2). `GET api/datos` traduce el índice y los vistos a filas con `indiceAFilasEditor` (D-6); `POST api/guardar` valida y escribe el índice atómicamente con `filasEditorAIndice` y `modificarIndice`; `POST api/ensayo` responde texto informativo (D-8). Si el índice es ilegible responde status 409 (`indiceIlegible: true`).
+
+En ambos modos sus rutas `POST` rechazan cualquier pedido cuyo `Origin` difiera del propio servidor (403).
 
 ### El layout en disco lleva el portal
 
@@ -124,6 +131,23 @@ suele estar filtrando más de una cosa a la vez. Antes de aflojarlo, enumerá qu
 salen `.pdf.mp4`. El archivo es correcto — renombrarlo sacándole `.mp4` lo deja usable.
 
 **Idempotencia por `x-session-id`**: cada intento de descarga genera un id nuevo, y el backend clavetea su archivo `.part` por ese id. Es lo que evita que los bytes de un intento abortado se mezclen con los del reintento.
+
+### Modo destino (`x-destino-ruta`) — Corte 2b
+
+Cuando la extensión envía `x-destino-ruta`, el backend activa el guardado directo en el árbol de destino del usuario:
+- **Headers obligatorios en modo destino**: `x-destino-ruta` (relativa a la raíz), `x-clave-archivo` (`<portal>:<id>`), `x-clave-curso` (`<portal>:<idCurso>`). Opcionales: `x-destino-portal`, `x-original`.
+- **Validación previa en chunk 0**:
+  - `INDICE_ILEGIBLE` (409): si `.course-downloader.json` no parsea (RN-25).
+  - `MATERIA_INEXISTENTE` (409): si la carpeta de la materia no existe en disco (RN-1, D-3).
+  - `RUTA_INSEGURA` (400): segmentos vacíos, `.` o `..`, o path traversal fuera de la raíz (D-2).
+  - `DESTINO_REQUERIDO` (400): si un portal configurado para destino por índice (`google-classroom`, `moodle-linti`) llega sin `x-destino-ruta` (D-9).
+- **Escritura y decisión al finalizar**:
+  - `preservarDestino`: no se borra ningún archivo previo al abrir el `.part`.
+  - Al completar los fragmentos, se evalúa `decidirDespues` (filas 0, 5, 6 y D-7):
+    - `escrito`: archivo nuevo guardado y anotado en el índice.
+    - `descartado`: archivo de igual MD5 ya existente en la carpeta destino; se borra el `.part` y se anota el archivo existente en el índice.
+    - `existente`: archivo `.md` preexistente; no se sobreescribe y se anota si faltaba (RN-30).
+    - `DESTINO_OCUPADO` (409): el destino ya existe con otro contenido; se borra el `.part` y se rechaza la descarga sin tocar el disco ni el índice (D-7, NFR-4).
 
 ## Versionado
 

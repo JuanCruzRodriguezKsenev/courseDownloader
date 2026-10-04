@@ -14,16 +14,16 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 ## 🔴 Abierto
 
-> ## Estado al 2026-09-30: **VEINTE** entradas abiertas
+> ## Estado al 2026-10-04: **VEINTISÉIS** entradas abiertas
 >
-> Re-contadas, no sumadas al número anterior (3 🔴, 3 🟠, 14 ⚪):
+> Re-contadas, no sumadas al número anterior (3 🔴, 3 🟠, 20 ⚪):
 >
 > 1. 🔴 **El mecanismo de popovers sin tests** (hallado 2026-08-05).
 > 2. 🔴 **El loader del popup no tiene dueño**: tokens y demora pendientes (hallado 2026-08-12).
 > 3. 🔴 **`#ui-msg-status` está oculto y nadie se lo destapa** (hallado 2026-08-13).
 > 4. 🟠 **El banco de pruebas no alcanza al service worker** (hallado 2026-08-12).
 > 5. 🟠 **`sanitizarTexto` no replica al backend porque colapsa espacios**: afecta videos con dobles espacios; `nombreEnDisco` lo resuelve sólo para adjuntos (hallado 2026-09-12).
-> 6. 🟠 **`/api/seleccionar-carpeta` cambia la raíz de todos los portales**: Linux resuelto con `xdg-desktop-portal`; la raíz por portal va al corte 2 (hallado 2026-09-12).
+> 6. 🟠 **`/api/seleccionar-carpeta` cambia la raíz de todos los portales**: construido (raíz por portal, ADR-0019), sin verificar en navegador (V-3).
 > 7. ⚪ **Dos restos de la limpieza de micro-movimientos** (hallado 2026-08-13).
 > 8. ⚪ **Un 403 de un solo archivo de Drive pausa la cola entera** (hallado 2026-09-12).
 > 9. ⚪ **`AGENTS.md:150` cita `.agents/skills/`, que no existe**; sólo queda `skills-lock.json` (hallado 2026-09-12).
@@ -31,13 +31,24 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 > 11. ⚪ **Cerrar el popup a mitad del escaneo descarta el resultado** (hallado 2026-09-13).
 > 12. ⚪ **`popup.js:789` escanea en `status === 'complete'`, que en una SPA no significa "la vista está lista"** (hallado 2026-09-21): en Classroom corte 1 se tapó en el scraper esperando que el DOM confirme la identidad del curso; el disparador sigue siendo prematuro para otros portales.
 > 13. ⚪ **Classroom corte 1: siete pasos de la Verificación B sin mirar en navegador** (mergeado 2026-09-25).
-> 14. ⚪ **Spec corte 2: un curso ya asociado deja de aparecer** (`MC4 1S 2026`, hallado 2026-09-16).
-> 15. ⚪ **Spec corte 2: D12 deja copias md5-idénticas dentro de un mismo curso** (hallado 2026-09-21).
+> 14. ⚪ **Spec corte 2: un curso ya asociado deja de aparecer** (`MC4 1S 2026`, hallado 2026-09-16; cubierto por tests en plan 01, sin verificar en navegador).
+> 15. ⚪ **Spec corte 2: D12 deja copias md5-idénticas dentro de un mismo curso** (hallado 2026-09-21; cubierto por tests en plan 02, sin verificar en navegador).
 > 16. ⚪ **Classroom recorrido: el fallback de `pintadoOk` puede cortar todo el recorrido por un curso lento — NO REPRODUCIDO** (hallado 2026-09-27).
 > 17. ⚪ **Classroom recorrido: el loader puede tapar el popup hasta 210 s si el script muere sin `fin` — NO APARECIÓ en L-9** (hallado 2026-09-27).
 > 18. ⚪ **Classroom recorrido: dos carreras de navegación que cortarían el recorrido — NO APARECIERON** (hallado 2026-09-27).
 > 19. ⚪ **`loaderEsDelRecorrido`: un segundo dueño del loader coordinado a mano** (hallado 2026-09-27; agrava el 🔴 del loader).
 > 20. ⚪ **Classroom recorrido: AC-9 sin verificar, ningún archivo está en dos cursos** (2026-09-27).
+> 21. ⚪ **`claveSesion` del backend no incluye el módulo ni el tipo: dos adjuntos con igual título en un portal comparten sesión** (hallado 2026-10-01, en 2b-2).
+> 22. ⚪ **RN-10 no se puede derivar mecánicamente (PA-5)** (hallado 2026-09-30).
+> 23. ⚪ **`generar.js` y `core/destino/propuesta.ts` arman la propuesta cada uno por su lado** (hallado 2026-09-30).
+> 24. ⚪ **El editor en modo índice no cambia la materia de un curso ya asociado (D-4 del plan 07)**.
+> 25. ⚪ **Los vistos del editor viven en memoria: un reinicio del backend obliga a reabrir desde el popup (D-2 del plan 07)**.
+> 26. ✅ **`inyeccion.test.js`: prueba sobre DOM real y contexto VM aislado** (cerrada 2026-10-04, Plan 16 D-4).
+> 27. ⚪ **Vitest no ignora `.worktrees/`: worktrees concurrentes en la raíz ejecutan tests duplicados salvo remoción o exclusión explícita** (hallado 2026-10-02, Plan 14-b).
+>
+> ### Lo que se cerró el 2026-10-04 (Plan 16)
+>
+> - **`inyeccion.test.js`: prueba con DOM real**: evalúa `escanearListado.toString()` con `dom.getInternalVMContext()` y fixtures reales para `sites-matec` y `moodle-asignaturas`, cerrando el hueco de helpers internos fuera del scope de la función serializada (Plan 16, D-4).
 >
 > ### Lo que se cerró el 2026-09-27
 >
@@ -561,8 +572,8 @@ Llegaron acá al mergear la tanda del toolbar (2026-08-13): vivían en
 
 - **Dónde**: `backend/handlers.js:340` y `:347`.
 - **Qué pasa**: Linux está resuelto con `xdg-desktop-portal` (`backend/elegirCarpetaLinux.py`, 2026-09-13) y otros SO devuelven 501. Al guardar en `config_usuario.json` pisa la clave `rutaRaiz` global, cambiando la carpeta raíz de descarga para **todos** los portales a la vez.
-- **Solución**: queda para el corte 2 de Google Classroom (raíz configurable por portal y ADR-0016).
-- **Estado**: 🟠 abierto (hallado el 2026-09-12).
+- **Solución**: construida en el corte 2b (raíz configurable por portal en `config_usuario.json.raices[portal]`, ADR-0019, plan 01 B-4 y plan 04 P-6.6).
+- **Estado**: 🟠 abierto (construido, sin verificar en navegador; se cierra cuando V-3 esté ✅).
 
 ### ⚪ Cerrar el popup a mitad del escaneo descarta el resultado
 
@@ -616,13 +627,13 @@ Llegaron acá al mergear la tanda del toolbar (2026-08-13): vivían en
 
 - **Dónde**: `docs/specs/classroom-destino/` (no tiene supuesto para esto).
 - **Qué pasa**: `MC4 1S 2026` desapareció de la portada entre el 12 y el 16-09 (probable archivado). El material ya bajado no debe tratarse como huérfano: es cuando la copia local pasa a ser la única.
-- **Estado**: ⚪ abierto, entra a la spec del corte 2 (hallado el 2026-09-16).
+- **Estado**: ⚪ cubierto por tests (RN-27/AC-10 en plan 01), sin verificar en navegador (hallado el 2026-09-16).
 
 ### ⚪ Spec corte 2: D12 deja copias md5-idénticas dentro de un mismo curso
 
 - **Dónde**: `docs/specs/classroom-destino/assumptions.md` (el supuesto 20 cubre dos cursos, no éste).
 - **Qué pasa**: `Informe de laboratorio FISICA I 2024 (Template).docx` quedó 5 veces con md5 idéntico e `interferencia2025.pdf` 2 veces: mismo curso, mismo archivo, distinto material. Decidir si el desempate de D12 mira el contenido antes de copiar.
-- **Estado**: ⚪ abierto, entra a la spec del corte 2 (hallado el 2026-09-21).
+- **Estado**: ⚪ cubierto por tests (PA-2 / fila 5 en plan 02), sin verificar en navegador (hallado el 2026-09-21).
 
 ### ⚪ Classroom recorrido: el fallback de `pintadoOk` puede cortar todo el recorrido — NO REPRODUCIDO
 
@@ -655,6 +666,26 @@ Llegaron acá al mergear la tanda del toolbar (2026-08-13): vivían en
 - **Dónde**: `docs/specs/classroom-escanear-todas/spec.md`, AC-9 (un archivo de Drive en dos cursos aparece en los dos grupos y bajarlo desde uno no marca el otro).
 - **Qué pasa**: en la lista del 2026-09-27 (337 ítems, 5 carpetas) ningún `idArchivo` está en dos cursos, así que no se puede probar con los datos reales. Hace falta un test con fixture o esperar a que Classroom lo traiga.
 - **Estado**: ⚪ abierto (2026-09-27).
+
+### ⚪ `claveSesion` del backend no incluye módulo ni tipo
+
+- **Dónde**: `backend/handlers.js:49` (`claveSesion(carpetaSitio, tituloVideo)`), usada en `:140`, `:196` y `:493`.
+- **Qué pasa**: la identidad de clase en la extensión es (portal, módulo, tipo, título) (ADR-0014), pero el acumulador del backend sigue indexando por (portal, título). Dos adjuntos con el mismo título en el mismo portal, **si sus subidas se solapan**, comparten sesión, stream y `.part`. La cola baja de a uno, así que hoy no hay síntoma conocido.
+- **Fix propuesto**: que `claveSesion` use `x-session-id` cuando viene (ya llega en `:189`) y mantenga la clave actual como respaldo; tocar los tres sitios y el camino de cancelación a la vez.
+- **Estado**: ⚪ abierto (hallado 2026-10-01 por obra en el sub-corte 2b-2; ningún plan 03-06 lo toca).
+
+### ⚪ RN-10 no se puede derivar mecánicamente (PA-5)
+
+- **Dónde**: `docs/specs/classroom-destino/spec.md`, RN-10 y PA-5.
+- **Qué pasa**: la regla «sólo el cronograma del cuatrimestre en curso» exige saber cuál es el actual a partir de nombres libres. En el índice real hay un solo cronograma y tres nombres de tema distintos. El corte 2b preserva las omisiones ya decididas por el dueño (RN-31); para cronogramas futuros queda pendiente la derivación automática o marcarlos a mano en el editor de asociación (corte 2c).
+- **Estado**: ⚪ abierto (hallado el 2026-09-30).
+
+### ⚪ `generar.js` y `core/destino/propuesta.ts` arman la propuesta cada uno por su lado
+
+- **Dónde**: `backend/adopcion/generar.js` y `core/destino/propuesta.ts`.
+- **Qué pasa**: la lógica de sugerir carpeta por tema/publicaciones y proponer nombres de archivo nació en el script de adopción y se reimplementó en TypeScript puro en `core/destino/propuesta.ts` (plan 01). Tienen pequeñas divergencias y no comparten código.
+- **Solución**: unificar cuando el editor de adopción use el núcleo de propuesta de la extensión o cuando se retire el script de adopción.
+- **Estado**: ⚪ abierto (hallado el 2026-09-30).
 
 ### ✅ Ningún test serializa las funciones que se inyectan en la pestaña
 

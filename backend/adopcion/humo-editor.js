@@ -3,8 +3,25 @@
 // Existe porque la verificación por curl nunca ejecutó el JS de la página (así pasó el 🔴 de 69a55e4).
 import { JSDOM, VirtualConsole } from "jsdom";
 import fs from "node:fs";
-const html = fs.readFileSync(process.argv[2], "utf8");
-const datos = fs.readFileSync(process.argv[3], "utf8");
+import path from "node:path";
+
+const dirModulo = import.meta.dir || import.meta.dirname || path.dirname(new URL(import.meta.url).pathname);
+const rutaHtml = process.argv[2] || path.join(dirModulo, "editor.html");
+const html = fs.readFileSync(rutaHtml, "utf8");
+
+let datos;
+if (process.argv[3]) {
+  datos = fs.readFileSync(process.argv[3], "utf8");
+} else {
+  datos = JSON.stringify({
+    cursos: [{ clave_curso: "c1", nombre: "Fisica II", carpeta: "Fisica II", materia: "Ingenieria/Fisica 2", docente: "Palacio", items: "1" }],
+    temas: [{ clave_curso: "c1", tema: "Teoria", destino: "Teorias", regla: "si", items: "1" }],
+    archivos: [{ clave: "c1:a1", clave_curso: "c1", tema: "Teoria", accion: "copiar", carpeta: "Teorias/Palacio", nombre: "clase1.pdf", original: "clase1.pdf", origen: "", md5: "" }],
+    destinos: [".", "Teorias", "Practicas", "Laboratorios", "Parciales", "Finales", "Bibliografia", "Notas"],
+    materias: ["Ingenieria/Fisica 2"],
+    docentes: { "Ingenieria/Fisica 2": ["Palacio"] },
+  });
+}
 const errores = [];
 const vc = new VirtualConsole();
 vc.on("jsdomError", (e) => errores.push(String(e.message || e)));

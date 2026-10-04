@@ -1,9 +1,17 @@
 import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { VERSION, CARPETA_RAIZ_VIDEOS, MAX_CHUNK_BYTES, CONFIG_USER_FILE, establecerRutaRaiz } from "./config.js";
+import { VERSION, CARPETA_RAIZ_VIDEOS, MAX_CHUNK_BYTES, CONFIG_USER_FILE, establecerRutaRaiz, establecerRaizDePortal, raizDeDestino } from "./config.js";
 import { log } from "./logger.js";
 import { sanitizarNombreArchivo, esRutaSegura } from "./utils.js";
+import { leerIndice, ErrorIndiceIlegible } from "./destino/indiceServicio.js";
+import { calcularEstado } from "./destino/estado.js";
+import { validarDestino, finalizarEnDestino, PORTALES_CON_DESTINO_INDICE } from "./destino/escritura.js";
+import { guardarVisto } from "./destino/vistos.js";
+import { PORTALES_VALIDOS } from "./destino/portales.js";
+
+export { PORTALES_VALIDOS };
+
 import { acumuladorChunks, alimentarSlidingWindow, abortarDescargaYLimpiar, sessionesCanceladas } from "./accumulator.js";
 
 let extensionConectada = false;
@@ -197,9 +205,25 @@ export async function handleBypassStream(request, corsHeaders) {
       return new Response(JSON.stringify({ error: "Sesión cancelada." }), { status: 400, headers: corsHeaders });
     }
 
+    const destinoRutaHeader = request.headers.get("x-destino-ruta");
+    const destinoRuta = destinoRutaHeader ? decodeURIComponent(destinoRutaHeader) : null;
+    const destinoPortal = request.headers.get("x-destino-portal") ? decodeURIComponent(request.headers.get("x-destino-portal")) : null;
+    const claveArchivo = request.headers.get("x-clave-archivo") ? decodeURIComponent(request.headers.get("x-clave-archivo")) : null;
+    const claveCurso = request.headers.get("x-clave-curso") ? decodeURIComponent(request.headers.get("x-clave-curso")) : null;
+    const original = request.headers.get("x-original") ? decodeURIComponent(request.headers.get("x-original")) : "";
+
+    // D-9: Portales con destino por índice requieren x-destino-ruta obligatoriamente
+    if (!destinoRuta && PORTALES_CON_DESTINO_INDICE.has(carpetaSitio)) {
+      return new Response(JSON.stringify({ error: "Destino requerido para este portal.", codigo: "DESTINO_REQUERIDO" }), {
+        status: 400,
+        headers: corsHeaders,
+      });
+    }
+
     let subCarpetaFinal = subCarpeta.toLowerCase();
 
-    if (indiceChunk === 0) {
+    // Solo corre el chequeo de cátedras si no estamos en modo destino
+    if (!destinoRuta && indiceChunk === 0) {
       // Chequeo de protección contra incompatibilidad de cátedras
       try {
         const carpetaDestinoBase = rutaDeDestino(carpetaSitio, subCarpetaFinal);
@@ -256,6 +280,8 @@ export async function handleBypassStream(request, corsHeaders) {
       }
     }
 
+    let opcionesAlimentar = {};
+
     if (acumuladorChunks.has(claveVideo)) {
       rutaArchivoFinal = acumuladorChunks.get(claveVideo).targetFile;
     } else {
@@ -265,25 +291,74 @@ export async function handleBypassStream(request, corsHeaders) {
         return new Response(JSON.stringify({ error: "Descarga cancelada o inexistente." }), { status: 400, headers: corsHeaders });
       }
 
-      const carpetaDestino = rutaDeDestino(carpetaSitio, subCarpetaFinal);
-      // [ADJUNTOS] El `.mp4` era correcto mientras lo único que llegaba acá eran videos. Con los
-      // materiales de Hotmart adentro producía `Atlas.pdf.mp4`: un PDF válido con un nombre que
-      // ningún visor abre.
-      //
-      // El contrato es "si viene `x-file-name`, mandá; si no, hacé lo de siempre" — un `if`, y
-      // los videos no cambian en nada. Se sanitiza igual que todo lo demás: `path.basename()` +
-      // lista blanca, que **incluye el punto**, así que la extensión sobrevive.
-      rutaArchivoFinal = path.join(
-        carpetaDestino,
-        nombrePedido ? sanitizarNombreArchivo(nombrePedido) : `${tituloVideo}.mp4`
-      );
+      if (destinoRuta) {
+        const portalEfectivo = destinoPortal || carpetaSitio;
+        const raiz = raizDeDestino(portalEfectivo);
 
-      if (!esRutaSegura(carpetaDestino) || !esRutaSegura(rutaArchivoFinal)) {
-        log("ERROR", "SEGURIDAD", `Path traversal detectado`, { tituloVideo, rutaArchivoFinal });
-        return new Response(JSON.stringify({ error: "Ruta de archivo no segura." }), { status: 400, headers: corsHeaders });
+        let indice;
+        try {
+          indice = await leerIndice(raiz);
+        } catch (err) {
+          return new Response(JSON.stringify({ error: err.mensaje || err.message, codigo: "INDICE_ILEGIBLE" }), {
+            status: 409,
+            headers: corsHeaders,
+          });
+        }
+
+        const curso = indice?.cursos?.[claveCurso];
+        const materia = curso?.materia;
+        if (!materia) {
+          return new Response(JSON.stringify({ error: "La materia del curso no está asociada en el índice.", codigo: "MATERIA_INEXISTENTE" }), {
+            status: 409,
+            headers: corsHeaders,
+          });
+        }
+
+        const nombreAValidar = nombrePedido || `${tituloVideo}.mp4`;
+        const resVal = await validarDestino({ raiz, ruta: destinoRuta, nombre: nombreAValidar, materia });
+        if (!resVal.ok) {
+          const status = resVal.codigo === "MATERIA_INEXISTENTE" ? 409 : 400;
+          return new Response(JSON.stringify({ error: `Destino inválido: ${resVal.codigo}`, codigo: resVal.codigo }), {
+            status,
+            headers: corsHeaders,
+          });
+        }
+
+        rutaArchivoFinal = resVal.archivoAbs;
+        await mkdir(resVal.carpetaAbs, { recursive: true });
+
+        const alFinalizar = async (sesion) => {
+          return await finalizarEnDestino({
+            raiz,
+            parcial: sesion.targetFile + ".part",
+            carpetaAbs: resVal.carpetaAbs,
+            archivoAbs: resVal.archivoAbs,
+            nombreFinal: resVal.nombreFinal,
+            claveArchivo,
+            claveCurso,
+            original,
+            rutaRelativa: destinoRuta,
+          });
+        };
+
+        opcionesAlimentar = {
+          preservarDestino: true,
+          alFinalizar,
+        };
+      } else {
+        const carpetaDestino = rutaDeDestino(carpetaSitio, subCarpetaFinal);
+        rutaArchivoFinal = path.join(
+          carpetaDestino,
+          nombrePedido ? sanitizarNombreArchivo(nombrePedido) : `${tituloVideo}.mp4`
+        );
+
+        if (!esRutaSegura(carpetaDestino) || !esRutaSegura(rutaArchivoFinal)) {
+          log("ERROR", "SEGURIDAD", `Path traversal detectado`, { tituloVideo, rutaArchivoFinal });
+          return new Response(JSON.stringify({ error: "Ruta de archivo no segura." }), { status: 400, headers: corsHeaders });
+        }
+
+        await mkdir(carpetaDestino, { recursive: true });
       }
-
-      await mkdir(carpetaDestino, { recursive: true });
     }
 
     if (indiceChunk === 0) {
@@ -304,16 +379,24 @@ export async function handleBypassStream(request, corsHeaders) {
     }
 
     // Alimentar la Ventana Deslizable progresiva
-    const sesion = await alimentarSlidingWindow(claveVideo, indiceChunk, totalChunks, bufferChunk, rutaArchivoFinal, sessionId, tituloVideo);
+    const sesion = await alimentarSlidingWindow(claveVideo, indiceChunk, totalChunks, bufferChunk, rutaArchivoFinal, sessionId, tituloVideo, opcionesAlimentar);
+
+    const respuestaJson = { success: true, chunk: indiceChunk, recibidos: sesion.nextExpectedIndex, total: totalChunks };
+    if (sesion.resultado !== undefined) {
+      respuestaJson.resultado = sesion.resultado;
+    }
 
     return new Response(
-      JSON.stringify({ success: true, chunk: indiceChunk, recibidos: sesion.nextExpectedIndex, total: totalChunks }),
+      JSON.stringify(respuestaJson),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (err) {
     log("ERROR", "CHUNK", `Error procesando chunk: ${err.message}`);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
+    const status = err.codigo === "DESTINO_OCUPADO" ? 409 : 500;
+    const body = { error: err.message };
+    if (err.codigo) body.codigo = err.codigo;
+    return new Response(JSON.stringify(body), { status, headers: corsHeaders });
   }
 }
 
@@ -322,6 +405,14 @@ export async function handleBypassStream(request, corsHeaders) {
  */
 export async function handleSeleccionarCarpeta(request, corsHeaders) {
   try {
+    const url = new URL(request.url);
+    const portal = url.searchParams.get("portal");
+    if (portal !== null && !PORTALES_VALIDOS.has(portal)) {
+      return new Response(JSON.stringify({ error: `Portal desconocido: ${portal}` }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
     let rutaSeleccionada = "";
     if (process.platform === "win32") {
       const comandoPowerShell = "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; $f.Description = 'Selecciona la carpeta de destino para RamonNet Turbo'; $f.ShowNewFolderButton = $true; $c = $f.ShowDialog(); if ($c -eq 'OK') { $f.SelectedPath }";
@@ -344,11 +435,30 @@ export async function handleSeleccionarCarpeta(request, corsHeaders) {
     }
 
     if (rutaSeleccionada) {
-      establecerRutaRaiz(rutaSeleccionada);
       const fs = await import("node:fs/promises");
-      await fs.writeFile(CONFIG_USER_FILE, JSON.stringify({ rutaRaiz: rutaSeleccionada }, null, 2), "utf8");
+      let configActual = {};
+      try {
+        const contenido = await fs.readFile(CONFIG_USER_FILE, "utf8");
+        configActual = JSON.parse(contenido);
+      } catch {
+        // Si no existe o no parsea, se arranca con objeto vacío
+      }
+      if (!configActual || typeof configActual !== "object" || Array.isArray(configActual)) {
+        configActual = {};
+      }
+
+      if (portal) {
+        establecerRaizDePortal(portal, rutaSeleccionada);
+        configActual.raices = configActual.raices || {};
+        configActual.raices[portal] = rutaSeleccionada;
+      } else {
+        establecerRutaRaiz(rutaSeleccionada);
+        configActual.rutaRaiz = rutaSeleccionada;
+      }
+
+      await fs.writeFile(CONFIG_USER_FILE, JSON.stringify(configActual, null, 2), "utf8");
       
-      process.stdout.write(`\r📂 [DISCO]     Nueva carpeta raiz establecida: "${rutaSeleccionada}"\n`);
+      process.stdout.write(`\r📂 [DISCO]     Nueva carpeta raiz establecida${portal ? ` para ${portal}` : ""}: "${rutaSeleccionada}"\n`);
       
       return new Response(JSON.stringify({ success: true, ruta: rutaSeleccionada }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -396,3 +506,101 @@ export async function handleCancelarDescarga(url, corsHeaders) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
   }
 }
+
+/**
+ * GET /api/destino/indice?portal=
+ */
+export async function handleDestinoIndice(url, corsHeaders) {
+  try {
+    const portal = url.searchParams.get("portal") || undefined;
+    const raiz = raizDeDestino(portal);
+    const indice = await leerIndice(raiz);
+    return new Response(JSON.stringify({ ok: true, raiz, indice }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    if (err instanceof ErrorIndiceIlegible) {
+      return new Response(JSON.stringify({ ok: false, indiceIlegible: true, error: err.mensaje }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: corsHeaders,
+    });
+  }
+}
+
+/**
+ * POST /api/destino/estado
+ */
+export async function handleDestinoEstado(request, corsHeaders) {
+  try {
+    const body = await request.json();
+    const { sitio, curso, items } = body || {};
+    const raiz = raizDeDestino(sitio);
+    const resultado = await calcularEstado({ raiz, sitio, curso, items });
+    return new Response(JSON.stringify(resultado), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    if (err instanceof ErrorIndiceIlegible) {
+      return new Response(JSON.stringify({ ok: false, indiceIlegible: true, error: err.mensaje }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: corsHeaders,
+    });
+  }
+}
+
+/**
+ * POST /api/destino/curso-visto
+ */
+export async function handleDestinoCursoVisto(request, corsHeaders) {
+  try {
+    const body = await request.json();
+    const { sitio, curso, items, cursos } = body || {};
+
+    if (Array.isArray(cursos)) {
+      const validos = cursos.filter(c => c && (c.id || c.idCurso || c.clave));
+      if (validos.length === 0) {
+        return new Response(JSON.stringify({ ok: false, error: "Falta identificar los cursos." }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      for (const c of validos) {
+        guardarVisto({ sitio, curso: c, items: c.items });
+      }
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!curso || (!curso.id && !curso.idCurso && !curso.clave)) {
+      return new Response(JSON.stringify({ ok: false, error: "Falta identificar el curso." }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    guardarVisto({ sitio, curso, items });
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    return new Response(JSON.stringify({ ok: false, error: err.message }), {
+      status: 500,
+      headers: corsHeaders,
+    });
+  }
+}
+

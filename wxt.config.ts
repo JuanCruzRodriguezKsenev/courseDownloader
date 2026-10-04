@@ -56,6 +56,13 @@ export default defineConfig({
       // --- Portal 3: Google Classroom ---
       'https://classroom.google.com/*',                                    // inyección del escaneo
       'https://drive.usercontent.google.com/*',                            // descarga de archivos de Drive
+      // --- Portal 4: Moodle LINTI ---
+      'https://catedras.linti.unlp.edu.ar/*',
+      // --- Portal 5: Google Sites Mate C ---
+      'https://sites.google.com/ing.unlp.edu.ar/matec',
+      'https://sites.google.com/ing.unlp.edu.ar/matec/*',
+      // --- Portal 6: Moodle Asignaturas (UNLP) ---
+      'https://asignaturas.info.unlp.edu.ar/*',
       // --- Backend local ---
       'http://localhost:3001/*',
     ],

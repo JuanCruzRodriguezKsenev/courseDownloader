@@ -30,6 +30,18 @@ import '../../sitio/google-classroom/config.ts';
 import '../../sitio/google-classroom/parserTitulos.js';
 import '../../sitio/google-classroom/scraper.js';
 
+import '../../sitio/moodle-linti/config.ts';
+import '../../sitio/moodle-linti/parserTitulos.js';
+import '../../sitio/moodle-linti/scraper.js';
+
+import '../../sitio/sites-matec/config.ts';
+import '../../sitio/sites-matec/parserTitulos.js';
+import '../../sitio/sites-matec/scraper.js';
+
+import '../../sitio/moodle-asignaturas/config.ts';
+import '../../sitio/moodle-asignaturas/parserTitulos.js';
+import '../../sitio/moodle-asignaturas/scraper.js';
+
 // Núcleo compartido.
 import '../../core/backend/bunClient.ts';
 // Composición: acá se instancian y se publican los globals de los módulos ya desacoplados

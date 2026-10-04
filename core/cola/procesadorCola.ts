@@ -1,8 +1,15 @@
 /**
- * PROCESADOR DE LA COLA DE DESCARGA (V1.3.0)
+ * PROCESADOR DE LA COLA DE DESCARGA (V1.4.0)
  * ==========================================================================
  * Capa 1. Salió de `background.js` en la Fase 6b — es el bloque de lógica más grande que
  * tenía el service worker, y el más sensible del proyecto.
+ *
+ * CHANGELOG v1.4.0:
+ * - [DESTINO CORTE 2b-3] `ItemCola.destino` opcional (ruta, nombre, claveCurso, original) (D-1).
+ * - [DESTINO CORTE 2b-3] `SitioDeDescarga.destinoPorIndice` opcional (D-2).
+ * - [DESTINO CORTE 2b-3] `descargarAdjunto` envía destino y fileName = destino.nombre cuando
+ *   está presente; exige destino en portales con `destinoPorIndice`; propaga `resultadoDestino`
+ *   a la clase persistida y a `clase_guardada_ok` (D-4); mapea códigos de error del backend (D-3).
  *
  * CHANGELOG v1.3.0:
  * - [CLASSROOM CORTE 1] `SitioDeDescarga.credencialesAdjunto` opcional ("omit" | "include").
@@ -118,6 +125,19 @@ const motivosPausa = (nombreSitio: string): Record<string, string> => ({
 const TIPOS_CON_AUTOHEAL = ["servidor", "internet", "desconocido"];
 
 /**
+ * [DESTINO CORTE 2b-3] Mapa único de códigos de error del backend hacia mensajes para el usuario (D-3).
+ * `INDICE_ILEGIBLE` produce tipoPortal = "bloqueo" (pausa sin alarma); los otros cuatro producen
+ * tipoPortal = "rechazo" (se saltea sólo el ítem y la cola sigue).
+ */
+export const textoDeCodigo: Record<string, string> = {
+  DESTINO_OCUPADO: "ya hay un archivo distinto con ese nombre en la carpeta de destino",
+  MATERIA_INEXISTENTE: "la carpeta de la materia no existe en la raíz",
+  RUTA_INSEGURA: "la ruta de destino no es válida",
+  DESTINO_REQUERIDO: "el ítem no tiene destino: re-escaneá el curso",
+  INDICE_ILEGIBLE: "no se pudo leer .course-downloader.json",
+};
+
+/**
  * Lo único que el bucle necesita de un adaptador de sitio. Es un subconjunto estructural de
  * `PuertoSitio` a propósito: mantiene los dobles de los tests chicos y deja explícito que el
  * procesador no conoce el resto del contrato del portal.
@@ -153,6 +173,7 @@ export interface SitioDeDescarga {
     credenciales?: Record<string, string>
   ): Promise<string>;
   readonly credencialesAdjunto?: "omit" | "include";
+  readonly destinoPorIndice?: boolean;
 }
 
 /**
@@ -164,6 +185,7 @@ interface ErrorTipado extends Error {
   tipoConexion?: string;
   tipoPortal?: "rechazo" | "bloqueo";
   httpStatus?: number;
+  codigoBackend?: string;
 }
 
 export interface ItemCola {
@@ -189,11 +211,19 @@ export interface ItemCola {
   idArchivo?: string;
   /** Sólo en adjuntos: el peso declarado en el escaneo. Sirve de respaldo del `Content-Length`. */
   bytes?: number;
+  /** [DESTINO CORTE 2b-3] Destino resuelto para el backend según el índice del portal (D-1). */
+  destino?: {
+    ruta: string;
+    nombre: string;
+    claveCurso: string;
+    original: string;
+  };
 }
 
 export interface ClasePersistida {
   titulo: string;
   estado?: string;
+  resultadoDestino?: string;
   [k: string]: unknown;
 }
 
@@ -289,9 +319,17 @@ export interface DependenciasCola {
       sessionId?: string;
       /** Nombre final con extensión, para lo que NO es un `.mp4`. Ver `bunClient`. */
       fileName?: string;
+      /** [DESTINO CORTE 2b-3] Metadatos de destino para el índice del portal en el backend. */
+      destino?: {
+        portal: string;
+        ruta: string;
+        claveArchivo: string;
+        claveCurso: string;
+        original: string;
+      };
     },
     signal?: AbortSignal
-  ): Promise<unknown>;
+  ): Promise<{ resultado?: string } | void>;
   /** Capa 3, camino legacy no-Turbo: volcar el blob a disco. */
   guardarBlobLegacy(blob: Blob, subRuta: string): Promise<void>;
   /** Espejo liviano de progreso que lee el popup. */
@@ -374,7 +412,8 @@ export function crearProcesadorCola(deps: DependenciasCola) {
     listaCompleta: ClasePersistida[],
     claveItem: string,
     tituloInmutable: string,
-    sitioDelItem: SitioDeDescarga
+    sitioDelItem: SitioDeDescarga,
+    resultadoDestino?: string
   ): Promise<void> {
     const postWriteState = await sesion.get();
     if (!postWriteState.rafagaCorriendo) return;
@@ -388,7 +427,12 @@ export function crearProcesadorCola(deps: DependenciasCola) {
     );
 
     const objPersistente = listaCompleta.find((c) => identidad.misma(c, esteItem));
-    if (objPersistente) objPersistente.estado = "downloaded";
+    if (objPersistente) {
+      objPersistente.estado = "downloaded";
+      if (resultadoDestino) {
+        objPersistente.resultadoDestino = resultadoDestino;
+      }
+    }
 
     const estadosUpdate = await recuperarEstados();
     delete estadosUpdate[claveItem];
@@ -419,6 +463,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
       modulo: esteItem.modulo,
       tipo: esteItem.tipo,
       suaveFrenado: postWriteState.frenadoSuaveSolicitado,
+      ...(resultadoDestino ? { resultadoDestino } : {}),
     });
 
     void sitioDelItem;
@@ -455,8 +500,17 @@ export function crearProcesadorCola(deps: DependenciasCola) {
     subcarpeta: string;
     sessionId: string;
     signal: AbortSignal;
-  }): Promise<void> {
+  }): Promise<{ resultado?: string } | void> {
     const { item, sitio, credencialesDelPortal, titulo, subcarpeta, sessionId, signal } = args;
+
+    // [DESTINO CORTE 2b-3] Validación temprana de destino (D-2)
+    if (sitio.destinoPorIndice && !item.destino) {
+      const e: ErrorTipado = new Error(
+        "este ítem no tiene destino: re-escaneá el curso y asociá la materia"
+      );
+      e.tipoPortal = "rechazo";
+      throw e;
+    }
 
     if (typeof sitio.resolverAdjunto !== "function") {
       // Determinístico y de este ítem: el portal no sabe bajar adjuntos. Se saltea.
@@ -512,6 +566,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
     await sesion.set({ totalFragmentosEnVideoActual: totalBloques });
 
     const inicio = (await sesion.get()).tiempoInicioVideoActual;
+    let ultimoResultado: string | undefined;
 
     for (let i = 0; i < totalBloques; i++) {
       const estadoActual = await sesion.get();
@@ -520,7 +575,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
       const desde = i * TAMANO_BLOQUE_ADJUNTO;
       const bloque = buffer.slice(desde, Math.min(desde + TAMANO_BLOQUE_ADJUNTO, bytesReales));
 
-      await enviarBloqueAdjunto(
+      const resBloque = await enviarBloqueAdjunto(
         bloque,
         {
           videoTitle: titulo,
@@ -529,14 +584,26 @@ export function crearProcesadorCola(deps: DependenciasCola) {
           targetFolder: subcarpeta,
           siteFolder: sitio.id,
           sessionId,
-          // El título de un adjunto YA es un nombre de archivo con su extensión (`Atlas.pdf`),
-          // así que se manda tal cual. Sin esto el backend le pega `.mp4` y queda `Atlas.pdf.mp4`
-          // — un PDF válido con un nombre que ningún visor abre (riesgo R9, confirmado en el
-          // navegador el 2026-08-07).
-          fileName: titulo,
+          // Con destino resuelto, el nombre de archivo es destino.nombre (no el título crudo)
+          fileName: item.destino ? item.destino.nombre : titulo,
+          ...(item.destino
+            ? {
+                destino: {
+                  portal: sitio.id,
+                  ruta: item.destino.ruta,
+                  claveArchivo: `${sitio.id}:${item.idArchivo}`,
+                  claveCurso: item.destino.claveCurso,
+                  original: item.destino.original,
+                },
+              }
+            : {}),
         },
         signal
       );
+
+      if (resBloque && typeof resBloque === "object" && resBloque.resultado) {
+        ultimoResultado = resBloque.resultado;
+      }
 
       const bytesAcumulados = Math.min(desde + bloque.byteLength, bytesReales);
       const progreso = calcularMetricas(bytesAcumulados, i + 1, totalBloques, inicio);
@@ -582,6 +649,8 @@ export function crearProcesadorCola(deps: DependenciasCola) {
         `⚠️ [SW] "${titulo}" pesaba ${bytesTotales} según el listado y llegaron ${bytesReales} bytes.`
       );
     }
+
+    return { resultado: ultimoResultado };
   }
 
   async function notificarFrenoSuaveExitoso(): Promise<void> {
@@ -595,7 +664,8 @@ export function crearProcesadorCola(deps: DependenciasCola) {
     tipoError: string,
     titulo: string,
     nombreSitio?: string,
-    sitioId?: string
+    sitioId?: string,
+    motivoPersonalizado?: string
   ): Promise<void> {
     await sesion.set({
       colaPausadaPorError: true,
@@ -608,7 +678,12 @@ export function crearProcesadorCola(deps: DependenciasCola) {
     // El nombre sale del portal DEL ÍTEM, no de uno fijo. El fallback genérico cubre el caso
     // en que se pausa sin ítem resuelto: mejor "el portal" que un nombre equivocado.
     const motivos = motivosPausa(nombreSitio ?? "el portal");
-    void registrarFallo(tipoError, titulo, motivos[tipoError] || "error de conexión", sitioId);
+    void registrarFallo(
+      tipoError,
+      titulo,
+      motivoPersonalizado || motivos[tipoError] || "error de conexión",
+      sitioId
+    );
 
     // Auto-heal sólo para fallas que el daemon PUEDE detectar recuperadas (TIPOS_CON_AUTOHEAL).
     // "sesion" y "bloqueo" quedan afuera: el daemon ve la red OK, así que la alarma reintentaría
@@ -617,7 +692,12 @@ export function crearProcesadorCola(deps: DependenciasCola) {
       programador.programar(ALARMA_AUTOHEAL, { periodoMin: PERIODO_AUTOHEAL_MIN });
     }
 
-    mensajeria.notificar({ action: "cola_pausada_por_error", errorType: tipoError, titulo });
+    mensajeria.notificar({
+      action: "cola_pausada_por_error",
+      errorType: tipoError,
+      titulo,
+      ...(motivoPersonalizado ? { motivo: motivoPersonalizado } : {}),
+    });
   }
 
   async function reanudar(): Promise<void> {
@@ -816,7 +896,7 @@ export function crearProcesadorCola(deps: DependenciasCola) {
         //
         // El default es video: `tipo` ausente es todo lo persistido antes de este corte.
         if (elementoActual.tipo === "adjunto") {
-          await descargarAdjunto({
+          const resDescarga = await descargarAdjunto({
             item: elementoActual,
             sitio: sitioDelItem,
             credencialesDelPortal,
@@ -829,7 +909,14 @@ export function crearProcesadorCola(deps: DependenciasCola) {
           const trasAdjunto = await sesion.get();
           if (!trasAdjunto.rafagaCorriendo) return;
 
-          await finalizarItemDescargado(esteItem, listaCompleta, claveItem, tituloInmutableVideo, sitioDelItem);
+          await finalizarItemDescargado(
+            esteItem,
+            listaCompleta,
+            claveItem,
+            tituloInmutableVideo,
+            sitioDelItem,
+            resDescarga?.resultado
+          );
           return;
         }
 
@@ -945,7 +1032,15 @@ export function crearProcesadorCola(deps: DependenciasCola) {
           sitioDelItem
         );
       } catch (errDescarga) {
-        const err = errDescarga as { name?: string; message?: string; tipoConexion?: string; tipoBackend?: string; tipoPortal?: string; httpStatus?: number };
+        const err = errDescarga as {
+          name?: string;
+          message?: string;
+          tipoConexion?: string;
+          tipoBackend?: string;
+          tipoPortal?: "rechazo" | "bloqueo";
+          httpStatus?: number;
+          codigoBackend?: string;
+        };
         const estadoTrasFallo = await sesion.get();
 
         // (1) SÓLO el flag explícito marca cancelación del usuario. NO usar `signal.aborted`
@@ -956,6 +1051,17 @@ export function crearProcesadorCola(deps: DependenciasCola) {
         if (estadoTrasFallo.abortadoPorUsuario) {
           console.log(`🛑 [SW] Descarga de "${tituloInmutableVideo}" abortada por el usuario de forma limpia.`);
           return;
+        }
+
+        // [DESTINO CORTE 2b-3] Mapa de errores del backend (D-3).
+        // INDICE_ILEGIBLE es bloqueo sistémico (pausa); los demás son rechazos por ítem (salteo).
+        if (err?.codigoBackend) {
+          if (err.codigoBackend === "INDICE_ILEGIBLE") {
+            err.tipoPortal = "bloqueo";
+          } else {
+            err.tipoPortal = "rechazo";
+          }
+          delete err.tipoBackend;
         }
 
         // (2) Sesión no iniciada: la página de la clase redirigió al login. No es red ni
@@ -984,8 +1090,13 @@ export function crearProcesadorCola(deps: DependenciasCola) {
         // cambia es quién rechaza, y por eso el motivo que ve el usuario nombra al portal.
         if (err?.tipoPortal === "rechazo") {
           const detalle = err.httpStatus ? ` (HTTP ${err.httpStatus})` : "";
-          console.warn(`⛔ [SW] ${sitioDelItem.nombre} rechazó "${tituloInmutableVideo}"${detalle}. Se salta la clase y la cola continúa.`);
-          await saltearClaseYSeguir(`${sitioDelItem.nombre} rechazó esta clase${detalle}`);
+          const motivo =
+            (err.codigoBackend && textoDeCodigo[err.codigoBackend]) ||
+            (err.httpStatus
+              ? `${sitioDelItem.nombre} rechazó esta clase${detalle}`
+              : err.message || `${sitioDelItem.nombre} rechazó esta clase`);
+          console.warn(`⛔ [SW] ${sitioDelItem.nombre} rechazó "${tituloInmutableVideo}"${detalle}: ${motivo}. Se salta la clase y la cola continúa.`);
+          await saltearClaseYSeguir(motivo);
           return;
         }
 
@@ -994,8 +1105,11 @@ export function crearProcesadorCola(deps: DependenciasCola) {
         // a una, en silencio, hasta dejarla en cero sin que el usuario sepa por qué. Sin alarma
         // porque el daemon no puede ver que esto se recuperó: la red nunca estuvo caída.
         if (err?.tipoPortal === "bloqueo") {
-          console.warn(`🚧 [SW] ${sitioDelItem.nombre} bloqueó la descarga de "${tituloInmutableVideo}" (HTTP ${err.httpStatus ?? "s/d"}): ${err.message}`);
-          await pausarPorError("bloqueo", tituloInmutableVideo, sitioDelItem.nombre, elementoActual.sitioId);
+          const motivo =
+            (err.codigoBackend && textoDeCodigo[err.codigoBackend]) ||
+            undefined;
+          console.warn(`🚧 [SW] ${sitioDelItem.nombre} bloqueó la descarga de "${tituloInmutableVideo}" (HTTP ${err.httpStatus ?? "s/d"}): ${motivo || err.message}`);
+          await pausarPorError("bloqueo", tituloInmutableVideo, sitioDelItem.nombre, elementoActual.sitioId, motivo);
           return;
         }
 

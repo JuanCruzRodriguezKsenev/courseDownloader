@@ -30,10 +30,89 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **50 archivos, 862 tests**, todo en verde |
+| `pnpm test` | **78 archivos, 1140 tests**, todo en verde |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 1140** (2026-10-04, plan `17 - Boton Heredar carpeta en las tarjetas de tema del editor`). Son los 1139 de abajo más **+1** test en `core/destino/vistas.test.ts` (suite de `destinoPropio` vacío que no se persiste en `nuevoCurso.carpetas` al heredar la carpeta del tema P-2; 17 → 18 tests).
+
+**Sobre el plan 19** (2026-10-04, plan `19 - Borrador local del editor en lugar del aviso al cerrar`): no agrega tests a la suite de Vitest (el conteo se mantiene en 78 archivos / 1140 tests); sus 7 aserciones se ejercitan en el script de humo en jsdom (`bun backend/adopcion/humo-editor-indice.js`) cubriendo ausencia de `beforeunload`, debounce de 500 ms, borrado al revertir o guardar, banner interactivo de restauración, descarte por base distinta y tolerancia a `localStorage` inaccesible.
+
+**De dónde sale el 1139** (2026-10-04, plan `16 - Correcciones de los planes 08b-15 contra el codigo`). Son los 1129 de abajo más **+10** tests:
+- **+2** en `sitio/sites-matec/descargarAdjunto.test.js` (suite de `drive.usercontent.google.com` con `confirm=t`, `authuser` y codificación de id D-1; 6 → 8 tests),
+- **+1** en `sitio/sites-matec/config.test.js` (suite de cobertura de `patronPestañas` y manifiesto D-2; 7 → 8 tests),
+- **+2** en `sitio/inyeccion.test.js` (suite de inyección sobre DOM real con JSDOM y fixtures para `sites-matec` y `moodle-asignaturas` D-4; 14 → 16 tests),
+- **+3** en `core/destino/vistas.test.ts` (suite de `esMateriaSintacticamenteSegura` y validación en `filasEditorAIndice` D-5; 14 → 17 tests),
+- **+1** en `backend/adopcion/editor.test.js` (suite de `POST /api/guardar?modo=indice` con materia nueva segura sin crear carpeta en disco D-5; 9 → 10 tests),
+- **+1** en `backend/destino/escritura.test.js` (suite de creación de carpeta de materia inexistente al escribir primer archivo D-5; 11 → 12 tests).
+
+**De dónde sale el 1129** (2026-10-02, plan `15 - Scrapers inyectables autocontenidos en Sites Mate C y Moodle Asignaturas`). Son los 1122 de abajo más **+7** tests en `sitio/inyeccion.test.js` (suite de ejecución en sandbox limpio `node:vm` para los 6 portales y control negativo ante variables libres; 7 → 14 tests).
+
+**De dónde sale el 1122** (2026-10-02, plan `14b - Integracion y registro central de portales`). Son los 1049 de abajo más **+73** tests repartidos en **+12** archivos nuevos:
+- **+21** tests en los 4 archivos de `sitio/moodle-linti/` (`config.test.ts` 4, `descargarAdjunto.test.js` 6, `parserTitulos.test.js` 2, `scraper.test.js` 9; plan 10),
+- **+21** tests en los 4 archivos de `sitio/sites-matec/` (`config.test.js` 7, `descargarAdjunto.test.js` 6, `parserTitulos.test.js` 2, `scraper.test.js` 6; plan 11),
+- **+25** tests en los 4 archivos de `sitio/moodle-asignaturas/` (`config.test.ts` 6, `descargarAdjunto.test.js` 7, `parserTitulos.test.js` 3, `scraper.test.js` 9; plan 13),
+- **+3** en `sitio/registro.test.ts` (resolución de URL y disyunción estricta de los 6 portales; 22 → 25 tests),
+- y **+3** en `sitio/inyeccion.test.js` (expansión dinámica de serialización de escaneo para los 3 nuevos portales; 4 → 7 tests).
+
+**De dónde sale el 1049** (2026-10-02, plan `09 - Moodle-1 Lo genérico del destino que hoy dice Classroom`). Son los 1034 de abajo más **+15** tests repartidos en **+2** archivos nuevos:
+- **+6** en el archivo nuevo `backend/destino/portales.test.js` (suite de `PORTALES_VALIDOS` y `PORTALES_CON_DESTINO_INDICE`, y resolución pura de `resolverRaizDeDestino` con raíces configuradas y defaults D-1/D-2),
+- **+4** en el archivo nuevo `core/destino/accesoMd.test.ts` (suite de `accesoADataUri` isomórfica pura para accesos Markdown con URLs complejas, títulos con dos puntos, codificación UTF-8 e igualdad byte a byte D-3),
+- **+4** en `core/destino/propuesta.test.ts` (suite de formas de ítem de Moodle en G-4: tema sin tema / ítem sin tema a la raíz con `sinAsignar: false`, id con `/` y espacios con clave estable, resolución de choques con sufijo de publicación RN-16, y prefijo estricto de `sitioId`; 12 → 16 tests),
+- y **+1** en `backend/destino/estado.test.js` (suite de Moodle en G-4: `sitio: "moodle-linti"` devuelve pendientes y marca curso `asociado: false` si no figura en el índice; 7 → 8 tests).
+
+**De dónde sale el 1034** (2026-10-02, planes 08d a 08h corte 2c). Son los 1029 de abajo más **+5** tests en editor web y layout (64 archivos / 1034 tests).
+
+**De dónde sale el 1029** (2026-10-01, plan `08b - 2c-3 Resaltado, orden y filtro de temas sin asignar`). Son los 1022 de abajo más **+7** tests:
+- **+1** en `popup/features/listaClases.preact.test.js` (suite de FilaClase: nota con `onNotaClick` lleva clase clickable y dispara callback al clickear D-4; 45 → 46 tests),
+- **+3** en `popup/features/destino.test.js` (suite de `compararPrioridadDestino` en D-2: antepone ítems con `sinAsignar: true` frente a normales, ordena array flotando sinAsignar primero, y desempata dentro de curso manteniendo sinAsignar arriba; 28 → 31 tests),
+- y **+3** en `popup/features/filters.test.js` (suite de filtro Sin asignar en D-3/D-4: filtra exclusivamente clases con `sinAsignar: true`, unión OR de `sin-asignar` con otro estado, y `activarFiltroSinAsignar()` aisla ítems sin asignar y actualiza pills UI; 56 → 59 tests).
+
+**De dónde sale el 1022** (2026-10-01, plan `08 - 2c-2 Asociar desde el popup y cierre del 2c`). Son los 1010 de abajo más **+12** tests:
+- **+3** en `core/backend/bunClient.test.ts` (suite de `registrarCursoVisto`: forma del pedido con payload de cursos D-3, error aplicativo devuelto sin lanzar y error de red lanzado; 34 → 37 tests),
+- y **+9** en `popup/features/destino.test.js` (suite de `armarVistos` en D-3: portal sin `destinoPorIndice` devuelve null D-1, agrupación por cursoId con omisión y conteo de huérfanas en `sinCurso`, sin clases vacío; suite de `cursoParaEditor` en D-2: portal sin `destinoPorIndice` devuelve null D-1, curso único abre ése D-2, lista de «todos» abre primer curso sin asociar, lista de «todos» asociados abre el primero, clases sin `cursoId` ignoradas, y sin cursos devuelve null; 19 → 28 tests).
+
+**De dónde sale el 1010** (2026-10-01, plan `07 - 2c-1 Editor web sobre el índice real`). Son los 988 de abajo más **+22** tests repartidos en **+2** archivos nuevos:
+- **+3** en `core/destino/propuesta.test.ts` (suite de `curso.nombres` en D-3: prefiere `curso.nombres?.[clave]` sobre propuesta si no está descargado, no altera nombre con `renombrarChoques`, y no pisa archivo ya descargado en disco; 8 → 11 tests),
+- **+11** en el archivo nuevo `core/destino/vistas.test.ts` (funciones puras para el editor web: `invertirCarpeta` pura y simétrica D-6, `indiceAFilasEditor` con orden y formato, `filasEditorAIndice` con ida y vuelta byte-idéntica D-6, rechazo de cambio de materia en curso ya asociado D-4, preservación de carpetas manuales no editables, omitidos y `curso.nombres`),
+- y **+8** en el archivo nuevo `backend/adopcion/editor.test.js` (suite de adopción y modo índice: `GET /api/datos` con y sin `modo=indice`, `vacio: true` sin vistos D-2, `POST /api/guardar` con modificación atómica de índice, 409 con índice ilegible, `POST /api/ensayo` con filas resultantes D-8, y compatibilidad con TSV tradicional).
+
+**De dónde sale el 988** (2026-10-01). Son los 987 de abajo más **+1** test en `sitio/google-classroom/scraper.test.js` (test 5e: ignora enlaces a meet.google.com porque son reuniones efímeras; 42 → 43 tests).
+
+**De dónde sale el 987** (2026-10-01, plan `06 - 2b-6 Cierre del corte 2b`). Son los 981 de abajo más **+6** tests y **+1** archivo nuevo en `backend/adopcion/migrar-omitidos.test.js` (suite de migrar-omitidos: agrega el tema '-' y los omitidos; idempotente con 0 cambios y archivo byte-idéntico; clave_curso desconocido aborta sin escribir; tema que ya tiene carpeta no se pisa; --ensayo no escribe; campos y entradas existentes quedan intactos; 0 → 6 tests).
+
+**De dónde sale el 981** (2026-10-01, plan `05 - 2b-5 Lo que ve el dueño en la lista`). Son los 968 de abajo más **+13** tests:
+**+6** en `popup/features/listaClases.preact.test.js` (suite de FilaClase con destino y bloqueos: render sin destino ni bloqueo idéntico al previo, fila con destino mostrando nombre, title con original/ruta y pastilla con dos segmentos D-1, sinAsignar con prefijo ⚠ y clase chip-sin-asignar D-2/AC-9, bloqueo omitido con checkbox disabled y pastilla omitido D-3, bloqueo sin-asociar con checkbox disabled y click inerte RN-2, y resultadoDestino descartado con title «Ya lo tenías» D-6/A3; 39 → 45 tests),
+y **+7** en `popup/features/destino.test.js` (suite de notasDeDestino: vacío sin cursos sin asociar ni temas sin asignar, combinación en una línea con ' · ' D-4, plural y singular en cursos y temas, y curso con <b> literal; suite de cardIndiceIlegible: tipo error con icono ⛔ y texto «El archivo no se tocó» D-5, escape seguro de <script> y & U-4, y saltos de línea convertidos a <br>; 12 → 19 tests).
+
+**De dónde sale el 968** (2026-10-01, plan `04 - 2b-4 El curso viaja con cada adjunto y el popup pide el estado al backend`). Son los 945 de abajo más **+23** tests y **+1** archivo nuevo:
+**+1** en `sitio/google-classroom/scraper.test.js` (test 5d: los enlaces conservan cursoId, cursoNombre y tema, D-1; 41 → 42 tests),
+**+8** en `core/backend/bunClient.test.ts` (suite de destino por índice: seleccionarCarpeta con y sin query portal, indiceDestino con resultado, índice ilegible y fallo de red, estadoDestino con respuesta, índice ilegible y fallo de red; 26 → 34 tests),
+**+2** en `popup/features/queue.test.js` (filtrado con puedeBajar en encolarItemsEnCaliente: ítems todos bloqueados no encolan ni cambian estado, y mixtos sólo encolan los permitidos, D-4; 23 → 25 tests),
+y **+12** en el archivo nuevo `popup/features/destino.test.js` (suite de aplicarEstadoDestino: portal sin destinoPorIndice sin pedidos D-2, curso asociado con descargados y pendientes, curso sin asociar RN-2, ítem omitido, tema nuevo con sinAsignar AC-9, índice ilegible AC-7, clase en process no se pisa, clase sin cursoId, error de red relanzado, dos cursos en paralelo D-6; bloquearSeleccion D-4; puedeBajar D-4).
+
+**De dónde sale el 945** (2026-10-01, plan `03 - 2b-3 Cola de la extensión baja a destino`). Son los 931 de abajo más **+14** tests:
+**+1** en `core/cola/identidadClase.test.ts` (dos ítems que sólo difieren en `destino` son la misma clase, D-1; 21 → 22 tests),
+**+1** en `sitio/registro.test.ts` (`destinoPorIndice === true` en Classroom y `undefined` en Ramón Net y Anatomy, D-2; 21 → 22 tests),
+**+4** en `core/backend/bunClient.test.ts` (cabeceras `x-destino-*` con y sin destino, 409 con `{ error, codigo }` fijando `codigoBackend`, y fallback 4xx sin cuerpo JSON; 22 → 26 tests),
+**+6** en `core/cola/procesadorCola.test.ts` (adjunto con destino con cabeceras y `fileName` de destino, resultado "descartado" persistiendo `resultadoDestino`, rechazo temprano por ítem sin destino en portal con `destinoPorIndice`, `INDICE_ILEGIBLE` pausando sin alarma, `DESTINO_OCUPADO` salteando el ítem, y no regresión en Anatomy sin cabeceras de destino; 42 → 48 tests),
+**+1** en `popup/features/queue.test.js` (propagación de `destino` al ítem encolado y `undefined` sin destino, RN-20; 22 → 23 tests),
+y **+1** en `sitio/google-classroom/descargarAdjunto.test.js` (fecha del frontmatter en día local a las 23:30 sin saltar a UTC, D-5; 4 → 5 tests).
+
+**De dónde sale el 931** (2026-10-01, plan `02 - 2b-2 Backend escritura a destino y decisión al guardar`). Son los 910 de abajo más **+21** tests repartidos en **+3** archivos nuevos:
+**+5** en `backend/accumulator.test.js` (preservarDestino NFR-4, gancho alFinalizar con stream cerrado, manejo de fallos y borrado seguro de .part sin tocar archivo final),
+**+11** en `backend/destino/escritura.test.js` (validación de destino con saneo de nombres, comprobación de materia en disco D-3 y decisiones de finalización AC-1, AC-2, AC-3, AC-6, AC-12, AC-13, rechazo por DESTINO_OCUPADO D-7 y filtro de hashes por tamaño D-8),
+y **+5** en `backend/handlersBypass.test.js` (comportamiento tradicional para ramonnet, 400 DESTINO_REQUERIDO en Classroom D-9, guardado en ruta con mayúsculas y espacios, 409 INDICE_ILEGIBLE sin tocar disco y cancelación en modo destino E-5).
+
+**De dónde sale el 910** (2026-09-30, plan `01 - 2b-1 Backend raíz por portal y servicio del índice`). Son los 862 de abajo más **+48** tests repartidos en **+7** archivos nuevos:
+**+7** en `backend/destino/rutas.test.js` (validación pura de rutas bajo la raíz, traversal, hermanos y disco pelado D:\ en Windows),
+**+13** en `core/destino/decidir.test.ts` (tabla de decisión decidirAntes filas 0, 0b, 1, 2, 3, 4 y decidirDespues filas 0, 5, 6 y rechazo, más orden estricto RN-29a/RN-30),
+**+2** en `backend/destino/md5.test.js` (cálculo MD5 por stream y cache en memoria por ruta|tamaño|mtime D-4),
+**+5** en `backend/destino/recorrido.test.js` (búsqueda por MD5 ignorando Wiki, Mis notas, Clases, carpetas ocultas y symlinks; detección de archivo movido a otra materia AC-5b),
+**+6** en `backend/destino/indiceServicio.test.js` (lectura sin crear archivo, JSON inválido byte-idéntico, modificación atómica con candado por raíz y reflejo de cambios a mano RN-26),
+**+8** en `core/destino/propuesta.test.ts` (propuesta de carpeta y nombres, omitidos D-7, temas nuevos AC-9, Novedades sin marca y resolución de choques RN-16/RN-16a),
+y **+7** en `backend/destino/estado.test.js` (cálculo de estado contra índice y disco, AC-5, AC-5b, AC-7, AC-10, fila 0 .md editado y fila 1 sin hashear).
 
 **De dónde sale el 862** (2026-09-28, plan `classroom-destino-2a-boveda`). Son los 859 de abajo más **+3** tests en `core/destino/carpetas.test.ts` (dos en temas reales para "Notas de evaluaciones" y "Resultados", y uno en publicaciones para mayoría de notas; 20 → 23 tests; el de DESTINOS se renombra sin sumar).
 
