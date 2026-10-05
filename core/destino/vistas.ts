@@ -344,6 +344,20 @@ export function indiceAFilasEditor({
 }
 
 /**
+ * Normaliza la carpeta de un archivo para comparar ocupación en el editor.
+ * Remueve el prefijo de materia si está presente y limpia barras finales.
+ */
+export function normalizarCarpetaOcupacion(carpeta: string | undefined | null, materia: string): string {
+  let c = (carpeta || "").trim().replace(/\/+$/, "");
+  const m = (materia || "").trim().replace(/\/+$/, "");
+  if (m && (c === m || c.startsWith(`${m}/`))) {
+    c = c.slice(m.length).replace(/^\/+/, "");
+  }
+  if (!c || c === ".") return ".";
+  return c;
+}
+
+/**
  * Traduce las filas editadas de vuelta al índice (H-3).
  * Valida formatos, rechaza cambios prohibidos y preserva campos no editados.
  */
@@ -598,6 +612,16 @@ export function filasEditorAIndice({
       ? { ...cursoExistente.nombres }
       : {};
 
+    const mapaOcupacion = new Map<string, string[]>();
+    for (const a of archivosCurso) {
+      if (a.accion === "omitir") continue;
+      const cNorm = normalizarCarpetaOcupacion(a.carpeta, nuevoCurso.materia);
+      const claveOcupacion = `${cNorm}/${a.nombre}`.toLowerCase();
+      const arr = mapaOcupacion.get(claveOcupacion) || [];
+      arr.push(a.clave);
+      mapaOcupacion.set(claveOcupacion, arr);
+    }
+
     for (const a of archivosCurso) {
       if (a.accion === "ya-esta") continue;
       const propBase =
@@ -605,6 +629,16 @@ export function filasEditorAIndice({
         proponerNombre({ original: a.original, tema: a.tema, docente: nuevoCurso.docente });
 
       if (a.nombre !== propBase) {
+        const cNorm = normalizarCarpetaOcupacion(a.carpeta, nuevoCurso.materia);
+        const claveOcupacion = `${cNorm}/${a.nombre}`.toLowerCase();
+        const ocupantes = mapaOcupacion.get(claveOcupacion) || [];
+        const chocaConOtra = ocupantes.some((k) => k !== a.clave);
+
+        if (chocaConOtra) {
+          delete nombresFinales[a.clave];
+          continue;
+        }
+
         nombresFinales[a.clave] = a.nombre;
       } else {
         delete nombresFinales[a.clave];

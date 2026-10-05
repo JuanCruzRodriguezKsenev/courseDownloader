@@ -30,10 +30,15 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **79 archivos, 1165 tests**, todo en verde |
+| `pnpm test` | **79 archivos, 1173 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 1173** (2026-10-04, plan `21 - Nombres que chocan en cursos sin asociar y al guardar`): Son los 1165 de abajo más **+8** tests:
+- **+4** en `core/destino/propuesta.test.ts` (suite de resolución de choques en cursos sin asociar con RN-16 y RN-16a; 16 → 20 tests),
+- **+4** en `core/destino/vistas.test.ts` (suite de no congelar nombres que chocan al guardar en `filasEditorAIndice` con RN-14 y normalización de ocupación; 25 → 29 tests).
+Las colisiones en el editor sin md5 se ejercitan en el script de humo en jsdom (`bun backend/adopcion/humo-editor-indice.js`).
 
 **De dónde sale el 1165** (2026-10-04, plan `20 - Subcarpeta por tema en la carpeta destino`, Partes I y II): Son los 1140 de abajo más **+25** tests (+1 archivo):
 - **+15** en `core/destino/carpetas.test.ts` (suites de `nombreSubcarpetaTema` con AC-5 y temas reservados, y `resolverCarpeta` con AC-1..4 y RN-9; 23 → 38 tests),

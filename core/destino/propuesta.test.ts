@@ -283,4 +283,114 @@ describe("core/destino/propuesta.ts", () => {
       expect(props[0]!.clave.startsWith("moodle-linti:")).toBe(true);
     });
   });
+
+  describe("resolución de choques en cursos sin asociar (Plan 21, RN-16, RN-16a)", () => {
+    it("cinco ítems de Novedades en curso sin asociar reciben nombres distintos e iguales al caso asociado", () => {
+      const itemsMC2 = [
+        {
+          idArchivo: "mc2_0",
+          original: "MC2- 2025- 2do cuatrimestre - MC2.pdf",
+          tema: "Novedades",
+          anuncio: "Notas finales de la materia con el acta cerrada.",
+        },
+        {
+          idArchivo: "mc2_1",
+          original: "MC2- 2025- 2do cuatrimestre - MC2 (1).pdf",
+          tema: "Novedades",
+          anuncio: "Notas del recuperatorio y para les que ya promocionaron.",
+        },
+        {
+          idArchivo: "mc2_2",
+          original: "MC2- 2025- 2do cuatrimestre - MC2 (2).pdf",
+          tema: "Novedades",
+          anuncio: "Notas del parcial y lo que les queda pendiente.",
+        },
+        {
+          idArchivo: "mc2_3",
+          original: "MC2- 2025- 2do cuatrimestre - MC2 (3).pdf",
+          tema: "Novedades",
+          anuncio: "Notas del recuperatorio del primer modulo que rindieron.",
+        },
+        {
+          idArchivo: "mc2_4",
+          original: "MC2- 2025- 2do cuatrimestre - MC2 (4).pdf",
+          tema: "Novedades",
+          anuncio: "Notas del primer parcial mod i corregidas.",
+        },
+      ];
+
+      const propsSinAsociar = proponerParaCurso({ curso: null, items: itemsMC2 });
+      const propsAsociado = proponerParaCurso({ curso: cursoBase, items: itemsMC2 });
+
+      expect(propsSinAsociar).toHaveLength(5);
+      const nombresSinAsociar = propsSinAsociar.map((p) => p.nombre);
+      const setNombres = new Set(nombresSinAsociar);
+      expect(setNombres.size).toBe(5);
+
+      for (let i = 0; i < 5; i++) {
+        expect(propsSinAsociar[i]!.carpeta).toBeNull();
+        expect(propsSinAsociar[i]!.nombre).toBe(propsAsociado[i]!.nombre);
+      }
+    });
+
+    it("dos ítems con el mismo anuncio donde el segundo es (1) resuelve residuo con _1", () => {
+      const itemsMC3 = [
+        {
+          idArchivo: "mc3_0",
+          original: "MC3_2023.pdf",
+          tema: "Novedades",
+          anuncio: "Múltiple choice para practicar.",
+        },
+        {
+          idArchivo: "mc3_1",
+          original: "MC3_2023 (1).pdf",
+          tema: "Novedades",
+          anuncio: "Múltiple choice para practicar.",
+        },
+      ];
+
+      const props = proponerParaCurso({ curso: null, items: itemsMC3 });
+      expect(props[0]!.nombre).toBe("multiple_choice_para_practicar.pdf");
+      expect(props[1]!.nombre).toBe("multiple_choice_para_practicar_1.pdf");
+    });
+
+    it("dos temas distintos del curso sin asociar con el mismo nombre no se tocan", () => {
+      const itemsDosTemas = [
+        { idArchivo: "t1", original: "programa.pdf", tema: "Teoría" },
+        { idArchivo: "t2", original: "programa.pdf", tema: "Práctica" },
+      ];
+      const props = proponerParaCurso({ curso: null, items: itemsDosTemas });
+
+      expect(props[0]!.nombre).toBe("programa.pdf");
+      expect(props[1]!.nombre).toBe("programa.pdf");
+      expect(props[0]!.carpeta).toBeNull();
+      expect(props[1]!.carpeta).toBeNull();
+    });
+
+    it("carpeta === null sólo ocurre en omitidos y en !curso", () => {
+      const items = [
+        { idArchivo: "norm1", original: "apunte.pdf", tema: "Clases Teóricas" },
+        { idArchivo: "raiz1", original: "crono.pdf", tema: "Novedades" },
+        { idArchivo: "st1", original: "intro.pdf", tema: "Sin tema" },
+        { idArchivo: "omitTema", original: "crono_omit.pdf", tema: "Cronogramas" },
+        { idArchivo: "archivo-omitido-1", original: "excluido.pdf", tema: "Guías de TP" },
+      ];
+
+      const propsAsociado = proponerParaCurso({ curso: cursoBase, items });
+      for (const p of propsAsociado) {
+        if (p.omitido) {
+          expect(p.carpeta).toBeNull();
+        } else {
+          expect(p.carpeta).not.toBeNull();
+          expect(typeof p.carpeta).toBe("string");
+        }
+      }
+
+      const propsSinAsociar = proponerParaCurso({ curso: null, items });
+      for (const p of propsSinAsociar) {
+        expect(p.carpeta).toBeNull();
+        expect(p.omitido).toBe(false);
+      }
+    });
+  });
 });

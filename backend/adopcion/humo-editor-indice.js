@@ -324,6 +324,52 @@ try {
     errores.push(`AC-15: q2 y q8_clash no deberían chocar porque sus subcarpetas difieren (Teoria vs Laboratorio), obtenido q2=${choqueQ2}, q8=${choqueQ8}`);
   }
 
+  // Plan 21: Choques de nombre sin md5 en la misma ruta
+  const nomOrigQ1 = dom.window.eval("DATOS.archivos.find(a => a.clave === 'google-classroom:q1')?.nombre");
+  const nomOrigQ2 = dom.window.eval("DATOS.archivos.find(a => a.clave === 'google-classroom:q2')?.nombre");
+  const md5OrigQ1 = dom.window.eval("DATOS.archivos.find(a => a.clave === 'google-classroom:q1')?.md5");
+  const md5OrigQ2 = dom.window.eval("DATOS.archivos.find(a => a.clave === 'google-classroom:q2')?.md5");
+
+  // 1. Mismo nombre, sin md5 -> choque (2 filas)
+  dom.window.eval(`
+    const a1 = DATOS.archivos.find(a => a.clave === 'google-classroom:q1');
+    const a2 = DATOS.archivos.find(a => a.clave === 'google-classroom:q2');
+    a1.nombre = 'mismo_nombre.pdf';
+    a2.nombre = 'mismo_nombre.pdf';
+    a1.md5 = '';
+    a2.md5 = '';
+    recalcularChoques();
+  `);
+  const choquesSinMd5 = dom.window.eval("FILAS_CON_CHOQUE.has('google-classroom:q1') && FILAS_CON_CHOQUE.has('google-classroom:q2')");
+  const countChoquesSinMd5 = dom.window.eval("FILAS_CON_CHOQUE.size");
+  if (!choquesSinMd5 || countChoquesSinMd5 !== 2) {
+    errores.push(`Plan 21: dos archivos sin md5 con misma ruta deben chocar (esperado 2, obtenido ${countChoquesSinMd5})`);
+  }
+
+  // 2. Mismo nombre, con igual md5 -> no es choque (0 filas)
+  dom.window.eval(`
+    const a1 = DATOS.archivos.find(a => a.clave === 'google-classroom:q1');
+    const a2 = DATOS.archivos.find(a => a.clave === 'google-classroom:q2');
+    a1.md5 = 'md5_identico_123';
+    a2.md5 = 'md5_identico_123';
+    recalcularChoques();
+  `);
+  const countChoquesConMismoMd5 = dom.window.eval("FILAS_CON_CHOQUE.size");
+  if (countChoquesConMismoMd5 !== 0) {
+    errores.push(`Plan 21: dos archivos con mismo md5 y misma ruta no deben chocar (esperado 0, obtenido ${countChoquesConMismoMd5})`);
+  }
+
+  // Restaurar
+  dom.window.eval(`
+    const a1 = DATOS.archivos.find(a => a.clave === 'google-classroom:q1');
+    const a2 = DATOS.archivos.find(a => a.clave === 'google-classroom:q2');
+    a1.nombre = ${JSON.stringify(nomOrigQ1)};
+    a2.nombre = ${JSON.stringify(nomOrigQ2)};
+    a1.md5 = ${JSON.stringify(md5OrigQ1 || "")};
+    a2.md5 = ${JSON.stringify(md5OrigQ2 || "")};
+    recalcularChoques();
+  `);
+
   // AC-14: Paridad editor vs core
   const casosParidad = [
     { dest: "Teorias", doc: "Gomez", tema: "Series" },

@@ -4,6 +4,7 @@ import {
   indiceAFilasEditor,
   filasEditorAIndice,
   esMateriaSintacticamenteSegura,
+  normalizarCarpetaOcupacion,
 } from "./vistas";
 import type { VistoCurso } from "./vistas";
 import { serializarIndice } from "./indice";
@@ -901,6 +902,222 @@ describe("core/destino/vistas.ts", () => {
       if (!res.ok) return;
 
       expect(res.indice.cursos["google-classroom:c1"]?.temas["Series"]).toBe("Carpetas/Manuales");
+    });
+  });
+
+  describe("no congelar nombres que chocan al guardar (Plan 21, RN-14)", () => {
+    it("(a) guardar un curso cuyas filas traen nombres repetidos en la misma carpeta deja nombres vacío e indice.archivos intacto", () => {
+      const indice: Indice = {
+        version: 1,
+        cursos: {
+          "google-classroom:c1": {
+            nombre: "Curso 1",
+            materia: "Ingenieria/Matematica C",
+            docente: "Rey Grange",
+            temas: { Novedades: "." },
+          },
+        },
+        archivos: {
+          "google-classroom:ya1": {
+            curso: "google-classroom:c1",
+            nombre: "ya.pdf",
+            ruta: "ya.pdf",
+            md5: "abc12345",
+            original: "ya.pdf",
+          },
+        },
+      };
+
+      const vistos: VistoCurso[] = [
+        {
+          sitio: "google-classroom",
+          idCurso: "c1",
+          nombre: "Curso 1",
+          items: [
+            { idArchivo: "f1", original: "archivo1.pdf", tema: "Novedades" },
+            { idArchivo: "f2", original: "archivo2.pdf", tema: "Novedades" },
+          ],
+        },
+      ];
+
+      const filas = indiceAFilasEditor({ indice, vistos });
+      const a1 = filas.archivos.find((a) => a.clave === "google-classroom:f1")!;
+      const a2 = filas.archivos.find((a) => a.clave === "google-classroom:f2")!;
+      a1.nombre = "repetido.pdf";
+      a2.nombre = "repetido.pdf";
+
+      const res = filasEditorAIndice({ indice, filas, vistos, materiasValidas: new Set(["Ingenieria/Matematica C"]) });
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+
+      const curso = res.indice.cursos["google-classroom:c1"]!;
+      expect(curso.nombres).toBeUndefined();
+      expect(res.indice.archivos).toEqual(indice.archivos);
+    });
+
+    it("(b) una edición legítima de un nombre que no choca se persiste", () => {
+      const indice: Indice = {
+        version: 1,
+        cursos: {
+          "google-classroom:c1": {
+            nombre: "Curso 1",
+            materia: "Ingenieria/Matematica C",
+            docente: "Rey Grange",
+            temas: { Novedades: "." },
+          },
+        },
+        archivos: {},
+      };
+
+      const vistos: VistoCurso[] = [
+        {
+          sitio: "google-classroom",
+          idCurso: "c1",
+          nombre: "Curso 1",
+          items: [
+            { idArchivo: "f1", original: "archivo1.pdf", tema: "Novedades" },
+          ],
+        },
+      ];
+
+      const filas = indiceAFilasEditor({ indice, vistos });
+      const a1 = filas.archivos.find((a) => a.clave === "google-classroom:f1")!;
+      a1.nombre = "edicion_legitima.pdf";
+
+      const res = filasEditorAIndice({ indice, filas, vistos, materiasValidas: new Set(["Ingenieria/Matematica C"]) });
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+
+      const curso = res.indice.cursos["google-classroom:c1"]!;
+      expect(curso.nombres).toEqual({
+        "google-classroom:f1": "edicion_legitima.pdf",
+      });
+    });
+
+    it("(c) una fila ya-esta con el mismo nombre que una copiar hace que copiar no persista y ya-esta quede intacta", () => {
+      const indice: Indice = {
+        version: 1,
+        cursos: {
+          "google-classroom:c1": {
+            nombre: "Curso 1",
+            materia: "Ingenieria/Matematica C",
+            docente: "Rey Grange",
+            temas: { Novedades: "." },
+          },
+        },
+        archivos: {
+          "google-classroom:ya_descargado": {
+            curso: "google-classroom:c1",
+            nombre: "ocupado.pdf",
+            ruta: "Ingenieria/Matematica C",
+            md5: "abc12345",
+            original: "ocupado.pdf",
+          },
+        },
+      };
+
+      const vistos: VistoCurso[] = [
+        {
+          sitio: "google-classroom",
+          idCurso: "c1",
+          nombre: "Curso 1",
+          items: [
+            { idArchivo: "ya_descargado", original: "ocupado.pdf", tema: "Novedades" },
+            { idArchivo: "nuevo", original: "otro.pdf", tema: "Novedades" },
+          ],
+        },
+      ];
+
+      const filas = indiceAFilasEditor({ indice, vistos });
+      const fNuevo = filas.archivos.find((a) => a.clave === "google-classroom:nuevo")!;
+      fNuevo.nombre = "ocupado.pdf";
+
+      const res = filasEditorAIndice({ indice, filas, vistos, materiasValidas: new Set(["Ingenieria/Matematica C"]) });
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+
+      const curso = res.indice.cursos["google-classroom:c1"]!;
+      expect(curso.nombres).toBeUndefined();
+      expect(res.indice.archivos).toEqual(indice.archivos);
+      expect(res.indice.archivos["google-classroom:ya_descargado"]!.nombre).toBe("ocupado.pdf");
+    });
+
+    it("(d) carpeta con prefijo de materia vs sin prefijo se compara bien", () => {
+      const materia = "Ingenieria/Matematica C";
+      expect(normalizarCarpetaOcupacion("Ingenieria/Matematica C/Novedades", materia)).toBe("Novedades");
+      expect(normalizarCarpetaOcupacion("Novedades", materia)).toBe("Novedades");
+      expect(normalizarCarpetaOcupacion("Ingenieria/Matematica C", materia)).toBe(".");
+      expect(normalizarCarpetaOcupacion(".", materia)).toBe(".");
+      expect(normalizarCarpetaOcupacion("", materia)).toBe(".");
+      expect(normalizarCarpetaOcupacion("Teorias/Rey Grange/", materia)).toBe("Teorias/Rey Grange");
+      expect(normalizarCarpetaOcupacion("Ingenieria/Matematica C/Teorias/Rey Grange/", materia)).toBe("Teorias/Rey Grange");
+
+      const indice: Indice = {
+        version: 1,
+        cursos: {
+          "google-classroom:c1": {
+            nombre: "Curso 1",
+            materia,
+            docente: "Rey Grange",
+            temas: { Teoria: "Teorias" },
+          },
+        },
+        archivos: {
+          "google-classroom:arch_ya": {
+            curso: "google-classroom:c1",
+            nombre: "colision.pdf",
+            ruta: "Teorias/colision.pdf",
+            md5: "abc12345",
+            original: "colision.pdf",
+          },
+        },
+      };
+
+      const filas = {
+        cursos: [
+          {
+            clave_curso: "google-classroom:c1",
+            nombre_curso: "Curso 1",
+            materia,
+            docente: "Rey Grange",
+          },
+        ],
+        temas: [
+          {
+            clave_curso: "google-classroom:c1",
+            tema: "Teoria",
+            destino: "Teorias",
+            editable: true,
+          },
+        ],
+        archivos: [
+          {
+            clave: "google-classroom:arch_ya",
+            clave_curso: "google-classroom:c1",
+            tema: "Teoria",
+            original: "colision.pdf",
+            nombre: "colision.pdf",
+            carpeta: "Ingenieria/Matematica C/Teorias",
+            accion: "ya-esta" as const,
+          },
+          {
+            clave: "google-classroom:arch_copiar",
+            clave_curso: "google-classroom:c1",
+            tema: "Teoria",
+            original: "otro.pdf",
+            nombre: "colision.pdf",
+            carpeta: "Teorias",
+            accion: "copiar" as const,
+          },
+        ],
+      };
+
+      const res = filasEditorAIndice({ indice, filas, vistos: [], materiasValidas: new Set([materia]) });
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+
+      const curso = res.indice.cursos["google-classroom:c1"]!;
+      expect(curso.nombres).toBeUndefined();
     });
   });
 });
