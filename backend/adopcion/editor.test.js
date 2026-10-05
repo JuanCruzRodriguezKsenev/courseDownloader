@@ -356,4 +356,56 @@ describe("backend/adopcion/editor.js (modo=indice y modo TSV)", () => {
     expect(json.carpetasPorMateria["Ingenieria/Fisica 2"]).toContain("Teorias");
     expect(json.destinos).not.toContain("Talleres");
   });
+
+  it("AC-3: GET ?modo=indice con archivo movido devuelve ruta y nombre de disco y movido: true (RN-1, RN-10)", async () => {
+    const crypto = await import("node:crypto");
+    const contenido = "Contenido de guia movida";
+    const hash = crypto.createHash("md5").update(contenido).digest("hex").toLowerCase();
+
+    const claveC = "google-classroom:c1";
+    const claveA = "google-classroom:a1";
+    const indiceInicial = {
+      version: 1,
+      cursos: {
+        [claveC]: {
+          nombre: "Física II",
+          materia: "Ingenieria/Fisica 2",
+          docente: "Palacio",
+          temas: { "Teoría": "Teorias/Palacio" },
+        },
+      },
+      archivos: {
+        [claveA]: {
+          curso: claveC,
+          nombre: "05_capacitores.pdf",
+          ruta: "Ingenieria/Fisica 2/Teorias/Palacio",
+          md5: hash,
+          original: "05_capacitores.pdf",
+        },
+      },
+    };
+    await fs.writeFile(path.join(dirRaiz, NOMBRE_INDICE), JSON.stringify(indiceInicial), "utf8");
+
+    // En disco se movió y renombró a Practicas
+    await fs.mkdir(path.join(dirRaiz, "Ingenieria/Fisica 2/Practicas"), { recursive: true });
+    await fs.writeFile(path.join(dirRaiz, "Ingenieria/Fisica 2/Practicas/05_renombrado.pdf"), contenido, "utf8");
+
+    guardarVisto({
+      sitio: "google-classroom",
+      curso: { id: "c1", nombre: "Física II" },
+      items: [{ idArchivo: "a1", original: "05_capacitores.pdf", tema: "Teoría" }],
+    });
+
+    const req = new Request("http://127.0.0.1:3002/adopcion/api/datos?modo=indice");
+    const res = await manejar(req, new URL(req.url));
+    expect(res.status).toBe(200);
+
+    const json = await res.json();
+    const fArch = json.archivos.find((a) => a.clave === claveA);
+    expect(fArch).toBeDefined();
+    expect(fArch.accion).toBe("ya-esta");
+    expect(fArch.nombre).toBe("05_renombrado.pdf");
+    expect(fArch.carpeta).toBe("Ingenieria/Fisica 2/Practicas");
+    expect(fArch.movido).toBe(true);
+  });
 });

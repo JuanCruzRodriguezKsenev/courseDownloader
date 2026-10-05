@@ -381,5 +381,113 @@ describe("backend/destino/escritura.js", () => {
       expect(fsSync.existsSync(path.join(carpetaAbs, "teoria1.pdf"))).toBe(true);
       expect(await fs.readFile(path.join(carpetaAbs, "teoria1.pdf"), "utf8")).toBe("contenido_algoritmos");
     });
+
+    it("AC-4: id desconocido ya presente en otra materia -> descartado y anotado con ruta y nombre de disco (RN-5)", async () => {
+      const rutaMateria1 = "Ingenieria/Fisica 1/Teorias/Lucila";
+      const carpetaMat1 = path.join(raiz, rutaMateria1);
+      await fs.mkdir(carpetaMat1, { recursive: true });
+      const contenidoComun = "contenido_guia_fisica_1";
+      await fs.writeFile(path.join(carpetaMat1, "mod1_01.pdf"), contenidoComun, "utf8");
+
+      const rutaDestinoRel = "Ingenieria/Fisica 2/Teorias/Palacio";
+      const carpetaAbs = path.join(raiz, rutaDestinoRel);
+      await fs.mkdir(carpetaAbs, { recursive: true });
+
+      const parcial = path.join(carpetaAbs, "descarga.part");
+      await fs.writeFile(parcial, contenidoComun, "utf8");
+
+      const res = await finalizarEnDestino({
+        raiz,
+        parcial,
+        carpetaAbs,
+        archivoAbs: path.join(carpetaAbs, "mod1_01_propuesto.pdf"),
+        nombreFinal: "mod1_01_propuesto.pdf",
+        claveArchivo: "google-classroom:id_desconocido",
+        claveCurso: "google-classroom:f2",
+        original: "Guia Fisica 1 Original.pdf",
+        rutaRelativa: rutaDestinoRel,
+      });
+
+      expect(res).toBe("descartado");
+      expect(fsSync.existsSync(path.join(carpetaAbs, "mod1_01_propuesto.pdf"))).toBe(false);
+      expect(fsSync.existsSync(parcial)).toBe(false);
+
+      const indice = await leerIndice(raiz);
+      const entrada = indice.archivos["google-classroom:id_desconocido"];
+      expect(entrada).toBeDefined();
+      expect(entrada.ruta).toBe("Ingenieria/Fisica 1/Teorias/Lucila");
+      expect(entrada.nombre).toBe("mod1_01.pdf");
+    });
+
+    it("AC-10: destino ocupado con otro contenido pero md5 ya en raíz -> descartar sin error (RN-5 sobre D-7)", async () => {
+      const rutaMateria1 = "Ingenieria/Fisica 1/Teorias/Lucila";
+      const carpetaMat1 = path.join(raiz, rutaMateria1);
+      await fs.mkdir(carpetaMat1, { recursive: true });
+      const contenidoExistente = "contenido_original_ya_guardado";
+      await fs.writeFile(path.join(carpetaMat1, "mod1_01.pdf"), contenidoExistente, "utf8");
+
+      const rutaDestinoRel = "Ingenieria/Fisica 2/Teorias/Palacio";
+      const carpetaAbs = path.join(raiz, rutaDestinoRel);
+      await fs.mkdir(carpetaAbs, { recursive: true });
+
+      // Destino ocupado por OTRO contenido
+      const archivoAbs = path.join(carpetaAbs, "01_clase.pdf");
+      const contenidoOcupante = "contenido_diferente_en_destino";
+      await fs.writeFile(archivoAbs, contenidoOcupante, "utf8");
+
+      const parcial = path.join(carpetaAbs, "descarga.part");
+      await fs.writeFile(parcial, contenidoExistente, "utf8");
+
+      const res = await finalizarEnDestino({
+        raiz,
+        parcial,
+        carpetaAbs,
+        archivoAbs,
+        nombreFinal: "01_clase.pdf",
+        claveArchivo: "google-classroom:nuevo_id",
+        claveCurso: "google-classroom:f2",
+        original: "Clase 1.pdf",
+        rutaRelativa: rutaDestinoRel,
+      });
+
+      expect(res).toBe("descartado");
+      expect(fsSync.existsSync(parcial)).toBe(false);
+      // El archivo en destino conserva su contenido previo
+      expect(await fs.readFile(archivoAbs, "utf8")).toBe(contenidoOcupante);
+
+      const indice = await leerIndice(raiz);
+      const entrada = indice.archivos["google-classroom:nuevo_id"];
+      expect(entrada).toBeDefined();
+      expect(entrada.ruta).toBe("Ingenieria/Fisica 1/Teorias/Lucila");
+      expect(entrada.nombre).toBe("mod1_01.pdf");
+    });
+
+    it("Trampa 1: descargar un archivo nuevo que no existe en ningún lado NO se descarta (.part no se encuentra a sí mismo)", async () => {
+      const rutaRel = "Ingenieria/Fisica 2/Teorias";
+      const carpetaAbs = path.join(raiz, rutaRel);
+      await fs.mkdir(carpetaAbs, { recursive: true });
+
+      const parcial = path.join(carpetaAbs, "archivo_nuevo.part");
+      const contenidoUnico = "contenido_totalmente_nuevo_y_unico";
+      await fs.writeFile(parcial, contenidoUnico, "utf8");
+
+      const archivoAbs = path.join(carpetaAbs, "archivo_nuevo.pdf");
+
+      const res = await finalizarEnDestino({
+        raiz,
+        parcial,
+        carpetaAbs,
+        archivoAbs,
+        nombreFinal: "archivo_nuevo.pdf",
+        claveArchivo: "google-classroom:nuevo_total",
+        claveCurso: "google-classroom:f2",
+        original: "Archivo Nuevo.pdf",
+        rutaRelativa: rutaRel,
+      });
+
+      expect(res).toBe("escrito");
+      expect(fsSync.existsSync(archivoAbs)).toBe(true);
+      expect(fsSync.existsSync(parcial)).toBe(false);
+    });
   });
 });

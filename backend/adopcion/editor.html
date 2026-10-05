@@ -849,6 +849,21 @@ button {
   user-select: none;
 }
 
+.file-badge-movido {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-weight: 500;
+  cursor: help;
+  user-select: none;
+}
+
 .file-orig {
   color: var(--text-main);
   font-family: var(--font-mono);
@@ -2237,6 +2252,7 @@ button {
                         <td style="text-align: center;">
                           ${isDownloaded ? `
                             <span class="file-badge-en-disco" title="Ya descargado en disco físico: inmutable desde este editor (para renombrarlo o moverlo hacelo en tus carpetas)">🔒 en disco</span>
+                            ${arch.movido ? `\n                            <span class="file-badge-movido" title="Movido: se tomó la ruta y el nombre que hay en disco">movido</span>` : ""}
                           ` : `
                             <label class="file-check-wrapper" title="${arch.accion !== 'omitir' ? 'Desmarcar para omitir' : 'Marcar para copiar'}">
                               <input type="checkbox" class="file-check" 

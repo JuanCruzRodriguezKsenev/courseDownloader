@@ -118,4 +118,72 @@ describe("backend/destino/recorrido.js", () => {
     const todos = await recorrerRaiz(raiz);
     expect(todos.length).toBe(0);
   });
+
+  it("varias copias con distinto mtime: gana la más reciente (AC-5, RN-4)", async () => {
+    const dir1 = path.join(raiz, "Ingenieria", "Fisica 1", "Practicas");
+    const dir2 = path.join(raiz, "Ingenieria", "Fisica 2", "Parciales");
+    await fs.mkdir(dir1, { recursive: true });
+    await fs.mkdir(dir2, { recursive: true });
+
+    const contenido = "Mismo contenido en dos lugares";
+    const hash = crypto.createHash("md5").update(contenido).digest("hex").toLowerCase();
+
+    const rutaVieja = path.join(dir1, "a.pdf");
+    const rutaNueva = path.join(dir2, "a.pdf");
+
+    await fs.writeFile(rutaVieja, contenido, "utf8");
+    await fs.writeFile(rutaNueva, contenido, "utf8");
+
+    // Modificar mtime explícitamente: rutaVieja = 1000s, rutaNueva = 2000s
+    await fs.utimes(rutaVieja, 1000, 1000);
+    await fs.utimes(rutaNueva, 2000, 2000);
+
+    const encontrado = await buscarPorMd5(raiz, hash);
+    expect(encontrado).toBe("Ingenieria/Fisica 2/Parciales/a.pdf");
+  });
+
+  it("varias copias con igual mtime: desempata por ruta alfabética menor (RN-4 determinista)", async () => {
+    const dirZ = path.join(raiz, "Z_Carpeta");
+    const dirA = path.join(raiz, "A_Carpeta");
+    await fs.mkdir(dirZ, { recursive: true });
+    await fs.mkdir(dirA, { recursive: true });
+
+    const contenido = "Contenido idéntico para empate de mtime";
+    const hash = crypto.createHash("md5").update(contenido).digest("hex").toLowerCase();
+
+    const rutaZ = path.join(dirZ, "copia.pdf");
+    const rutaA = path.join(dirA, "copia.pdf");
+
+    await fs.writeFile(rutaZ, contenido, "utf8");
+    await fs.writeFile(rutaA, contenido, "utf8");
+
+    await fs.utimes(rutaZ, 1500, 1500);
+    await fs.utimes(rutaA, 1500, 1500);
+
+    const encontrado = await buscarPorMd5(raiz, hash);
+    expect(encontrado).toBe("A_Carpeta/copia.pdf");
+  });
+
+  it("opciones.tamano: no hashea archivos cuyo tamaño difiere", async () => {
+    const dir = path.join(raiz, "Materia");
+    await fs.mkdir(dir, { recursive: true });
+
+    const contenidoBuscado = "12345"; // 5 bytes
+    const hash = crypto.createHash("md5").update(contenidoBuscado).digest("hex").toLowerCase();
+
+    await fs.writeFile(path.join(dir, "distinto_tamano.pdf"), "12345678901234567890", "utf8"); // 20 bytes
+    await fs.writeFile(path.join(dir, "mismo_tamano.pdf"), contenidoBuscado, "utf8"); // 5 bytes
+
+    let llamadasHasher = 0;
+    const hasherSpy = async (r) => {
+      llamadasHasher++;
+      const buf = await fs.readFile(r);
+      return crypto.createHash("md5").update(buf).digest("hex").toLowerCase();
+    };
+
+    const encontrado = await buscarPorMd5(raiz, hash, { tamano: 5, hasher: hasherSpy });
+    expect(encontrado).toBe("Materia/mismo_tamano.pdf");
+    // Solo debe haber hasheado el archivo de tamaño 5
+    expect(llamadasHasher).toBe(1);
+  });
 });

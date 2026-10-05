@@ -303,6 +303,13 @@
     max-width: 14ch;
   }
 
+  &.chip-movido {
+    --color-portal: var(--text-muted);
+    opacity: 1;
+    font-weight: var(--font-bold);
+    max-width: 14ch;
+  }
+
   &.bloqueado {
     --color-portal: var(--text-muted);
     border-style: dashed;

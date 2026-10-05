@@ -30,10 +30,22 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **81 archivos, 1220 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
+| `pnpm test` | **81 archivos, 1239 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 1239** (2026-10-05, plan `22 - Lo que está en disco manda`, rama `disco-manda`): son los 1220 de abajo más **+19** tests:
+- **+2** en `backend/destino/md5.test.js` (concurrencia de cálculo y reintento tras fallo),
+- **+3** en `backend/destino/recorrido.test.js` (desempate por mtime más reciente, orden alfabético y filtro por tamaño),
+- **+4** en `backend/destino/estado.test.js` (AC-1/AC-8 ciclo de marca movido, AC-2/RN-6 nombre tal cual, AC-9 raíz inaccesible, AC-12 curso desasociado),
+- **+2** en `core/destino/decidir.test.ts` (fila 5b y descarte antes de rechazo en AC-10),
+- **+3** en `backend/destino/escritura.test.js` (AC-4 id desconocido existente en raíz, AC-10 destino ocupado con md5 en raíz, Trampa 1 exclusión de `.part`),
+- **+1** en `popup/features/destino.test.js` (asignación de `c.movido`),
+- **+1** en `popup/features/listaClases.preact.test.js` (renderizado de `.chip-movido` y sufijo en title),
+- **+2** en `core/destino/vistas.test.ts` (asignación de `movido: true` en `indiceAFilasEditor` e ignorado en `filasEditorAIndice`),
+- **+1** en `backend/adopcion/editor.test.js` (AC-3: GET ?modo=indice con archivo movido devuelve ruta/nombre de disco y `movido: true`).
+Los 4 scripts de humo (`humo-editor.js`, `humo-editor-indice.js`, `humo-editor-videollamadas-raiz.js`, `humo-editor-filtros-orden.js`) reportan 0 errores.
 
 **De dónde sale el 1220** (2026-10-05, plan `25 - Videollamadas omitidas por defecto y popup al dia con el editor`, rama `videollamadas-omitidas-defecto`): son los 1203 de abajo más **+17** tests (+1 archivo nuevo `popup/features/refrescoEditor.test.js`):
 - **+1** en `core/destino/indice.test.ts` (ida y vuelta conserva `videollamadasPermitidas`),

@@ -9,11 +9,96 @@ import { md5Archivo } from "./md5.js";
 
 export { ErrorIndiceIlegible };
 
+async function resolverContraDisco({ raiz, archivoEnIndice, esAcceso, opciones = {} }) {
+  let estaEnRutaAnotada = false;
+  if (archivoEnIndice) {
+    const rutaAnotadaAbs = path.join(raiz, archivoEnIndice.ruta, archivoEnIndice.nombre);
+    try {
+      const st = await fs.stat(rutaAnotadaAbs);
+      if (st.isFile()) estaEnRutaAnotada = true;
+    } catch {}
+  }
+
+  let md5EncontradoEnRaiz = null;
+  if (!esAcceso && !estaEnRutaAnotada && archivoEnIndice && archivoEnIndice.md5) {
+    md5EncontradoEnRaiz = await buscarPorMd5(raiz, archivoEnIndice.md5, opciones);
+  }
+
+  const decision = decidirAntes({
+    enIndice: true,
+    esAcceso,
+    estaEnRutaAnotada,
+    md5EncontradoEnRaiz: Boolean(md5EncontradoEnRaiz),
+    destinoMdExiste: false,
+  });
+
+  let estado = "pendiente";
+  let rutaDestino = archivoEnIndice ? archivoEnIndice.ruta : "";
+  let nombre = archivoEnIndice ? archivoEnIndice.nombre : "";
+  let correccion = null;
+
+  if (decision.fila === "0b" || decision.fila === "1") {
+    estado = "descargado";
+    if (archivoEnIndice) {
+      rutaDestino = archivoEnIndice.ruta;
+      nombre = archivoEnIndice.nombre;
+    }
+  } else if (decision.fila === "2") {
+    estado = "descargado";
+    if (md5EncontradoEnRaiz) {
+      const nuevaCarpeta = path.dirname(md5EncontradoEnRaiz);
+      const nuevoNombre = path.basename(md5EncontradoEnRaiz);
+      rutaDestino = nuevaCarpeta === "." ? "" : nuevaCarpeta;
+      nombre = nuevoNombre;
+
+      if (archivoEnIndice && (archivoEnIndice.ruta !== rutaDestino || archivoEnIndice.nombre !== nombre)) {
+        correccion = {
+          ruta: rutaDestino,
+          nombre,
+        };
+      }
+    }
+  } else if (decision.fila === "3") {
+    estado = "pendiente";
+    if (archivoEnIndice) {
+      rutaDestino = archivoEnIndice.ruta;
+      nombre = archivoEnIndice.nombre;
+    }
+  }
+
+  return {
+    estado,
+    fila: decision.fila,
+    rutaDestino,
+    nombre,
+    correccion,
+  };
+}
+
 /**
  * Calcula el estado de los ítems de un curso contra el índice y el disco (B-8).
  * Pure Node.js, recibe la raíz por parámetro (D-3).
  */
 export async function calcularEstado({ raiz, sitio = "google-classroom", curso, items = [], opciones = {} }) {
+  try {
+    const stRaiz = await fs.stat(raiz);
+    if (!stRaiz.isDirectory()) {
+      return {
+        ok: false,
+        indiceIlegible: true,
+        raizInaccesible: true,
+        error: `La carpeta raíz no está accesible: ${raiz}`,
+      };
+    }
+  } catch {
+    return {
+      ok: false,
+      indiceIlegible: true,
+      raizInaccesible: true,
+      error: `La carpeta raíz no está accesible: ${raiz}`,
+    };
+  }
+
   let indice;
   try {
     indice = await leerIndice(raiz);
@@ -35,18 +120,59 @@ export async function calcularEstado({ raiz, sitio = "google-classroom", curso, 
       sitioId: sitio,
     });
 
-    const itemsRes = items.map((it, idx) => {
-      const prop = propuestas[idx];
-      return {
-        idArchivo: it.idArchivo,
-        estado: "pendiente",
-        fila: "4",
-        rutaDestino: null,
-        nombre: prop ? prop.nombre : null,
-        sinAsignar: false,
-        omitido: false,
-      };
-    });
+    const itemsRes = [];
+    const correccionesRuta = [];
+
+    for (let idx = 0; idx < items.length; idx++) {
+      const it = items[idx];
+      const claveA = claveArchivo(sitio, it.idArchivo);
+      const archivoEnIndice = indice.archivos[claveA];
+
+      if (archivoEnIndice) {
+        const esAcceso = it.idArchivo.startsWith("acceso:") || claveA.startsWith(`${sitio}:acceso:`);
+        const res = await resolverContraDisco({ raiz, archivoEnIndice, esAcceso, opciones });
+        if (res.correccion) {
+          correccionesRuta.push({
+            clave: claveA,
+            ...res.correccion,
+          });
+        }
+        itemsRes.push({
+          idArchivo: it.idArchivo,
+          estado: res.estado,
+          fila: res.fila,
+          rutaDestino: res.rutaDestino,
+          nombre: res.nombre,
+          sinAsignar: false,
+          omitido: false,
+          movido: res.fila === "2" && Boolean(res.correccion),
+        });
+      } else {
+        const prop = propuestas[idx];
+        itemsRes.push({
+          idArchivo: it.idArchivo,
+          estado: "pendiente",
+          fila: "4",
+          rutaDestino: null,
+          nombre: prop ? prop.nombre : null,
+          sinAsignar: false,
+          omitido: false,
+          movido: false,
+        });
+      }
+    }
+
+    if (correccionesRuta.length > 0) {
+      await modificarIndice(raiz, (ind) => {
+        for (const c of correccionesRuta) {
+          const a = ind.archivos[c.clave];
+          if (a) {
+            a.ruta = c.ruta;
+            a.nombre = c.nombre;
+          }
+        }
+      });
+    }
 
     return {
       ok: true,
@@ -86,6 +212,7 @@ export async function calcularEstado({ raiz, sitio = "google-classroom", curso, 
         nombre: null,
         sinAsignar: false,
         omitido: true,
+        movido: false,
       });
       continue;
     }
@@ -107,34 +234,7 @@ export async function calcularEstado({ raiz, sitio = "google-classroom", curso, 
       } catch {}
     }
 
-    let estaEnRutaAnotada = false;
-    if (enIndice && archivoEnIndice) {
-      const rutaAnotadaAbs = path.join(raiz, archivoEnIndice.ruta, archivoEnIndice.nombre);
-      try {
-        const st = await fs.stat(rutaAnotadaAbs);
-        if (st.isFile()) estaEnRutaAnotada = true;
-      } catch {}
-    }
-
-    let md5EncontradoEnRaiz = null;
-    if (enIndice && !esAcceso && !estaEnRutaAnotada && !destinoMdExiste && archivoEnIndice) {
-      md5EncontradoEnRaiz = await buscarPorMd5(raiz, archivoEnIndice.md5, opciones);
-    }
-
-    const decision = decidirAntes({
-      enIndice,
-      esAcceso,
-      estaEnRutaAnotada,
-      md5EncontradoEnRaiz: Boolean(md5EncontradoEnRaiz),
-      destinoMdExiste,
-    });
-
-    let estado = "pendiente";
-    let rutaDestinoFinal = rutaDestinoCarpeta;
-    let nombreFinal = nombrePropuesto;
-
-    if (decision.fila === "0") {
-      estado = "descargado";
+    if (destinoMdExiste) {
       if (!enIndice) {
         const md5Md = await md5Archivo(path.join(raiz, rutaDestinoCarpeta, nombrePropuesto), opciones);
         anotacionesMd.push({
@@ -148,47 +248,49 @@ export async function calcularEstado({ raiz, sitio = "google-classroom", curso, 
           },
         });
       }
-    } else if (decision.fila === "0b" || decision.fila === "1") {
-      estado = "descargado";
-      if (archivoEnIndice) {
-        rutaDestinoFinal = archivoEnIndice.ruta;
-        nombreFinal = archivoEnIndice.nombre;
-      }
-    } else if (decision.fila === "2") {
-      estado = "descargado";
-      if (md5EncontradoEnRaiz) {
-        const nuevaCarpeta = path.dirname(md5EncontradoEnRaiz);
-        const nuevoNombre = path.basename(md5EncontradoEnRaiz);
-        rutaDestinoFinal = nuevaCarpeta === "." ? "" : nuevaCarpeta;
-        nombreFinal = nuevoNombre;
-
-        if (archivoEnIndice && (archivoEnIndice.ruta !== rutaDestinoFinal || archivoEnIndice.nombre !== nombreFinal)) {
-          correccionesRuta.push({
-            clave: claveA,
-            ruta: rutaDestinoFinal,
-            nombre: nombreFinal,
-          });
-        }
-      }
-    } else if (decision.fila === "3") {
-      estado = "pendiente";
-      if (archivoEnIndice) {
-        rutaDestinoFinal = archivoEnIndice.ruta;
-        nombreFinal = archivoEnIndice.nombre;
-      }
-    } else {
-      estado = "pendiente";
+      itemsRes.push({
+        idArchivo: it.idArchivo,
+        estado: "descargado",
+        fila: "0",
+        rutaDestino: rutaDestinoCarpeta,
+        nombre: nombrePropuesto,
+        sinAsignar: prop.sinAsignar,
+        omitido: false,
+        movido: false,
+      });
+      continue;
     }
 
-    itemsRes.push({
-      idArchivo: it.idArchivo,
-      estado,
-      fila: decision.fila,
-      rutaDestino: rutaDestinoFinal,
-      nombre: nombreFinal,
-      sinAsignar: prop.sinAsignar,
-      omitido: false,
-    });
+    if (enIndice) {
+      const res = await resolverContraDisco({ raiz, archivoEnIndice, esAcceso, opciones });
+      if (res.correccion) {
+        correccionesRuta.push({
+          clave: claveA,
+          ...res.correccion,
+        });
+      }
+      itemsRes.push({
+        idArchivo: it.idArchivo,
+        estado: res.estado,
+        fila: res.fila,
+        rutaDestino: res.rutaDestino,
+        nombre: res.nombre,
+        sinAsignar: prop.sinAsignar,
+        omitido: false,
+        movido: res.fila === "2" && Boolean(res.correccion),
+      });
+    } else {
+      itemsRes.push({
+        idArchivo: it.idArchivo,
+        estado: "pendiente",
+        fila: "4",
+        rutaDestino: rutaDestinoCarpeta,
+        nombre: nombrePropuesto,
+        sinAsignar: prop.sinAsignar,
+        omitido: false,
+        movido: false,
+      });
+    }
   }
 
   if (correccionesRuta.length > 0 || anotacionesMd.length > 0) {

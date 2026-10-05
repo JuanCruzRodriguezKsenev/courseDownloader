@@ -54,6 +54,7 @@ export interface DecidirDespuesEntrada {
   destinoEsMd: boolean;
   existeDestino: boolean;
   md5ExisteEnCarpetaDestino: boolean;
+  md5ExisteEnRaiz?: boolean;
   existeDestinoConOtroContenido?: boolean;
 }
 
@@ -66,14 +67,14 @@ export function decidirDespues(entrada: DecidirDespuesEntrada): AccionDespues {
     return "no-escribir";
   }
 
+  // Fila 5 (5a y 5b): md5 idéntico ya existe en la carpeta destino o en la raíz -> descartar sin escribir (RN-5)
+  if (entrada.md5ExisteEnCarpetaDestino || entrada.md5ExisteEnRaiz) {
+    return "descartar";
+  }
+
   // Rechazo por destino ocupado con otro contenido (D-7 del plan 02, NFR-4)
   if (entrada.existeDestinoConOtroContenido) {
     return "rechazar";
-  }
-
-  // Fila 5: md5 idéntico ya existe en la carpeta destino -> descartar sin escribir
-  if (entrada.md5ExisteEnCarpetaDestino) {
-    return "descartar";
   }
 
   // Fila 6: no existe -> escribir con el nombre propuesto

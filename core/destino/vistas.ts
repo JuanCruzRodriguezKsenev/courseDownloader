@@ -46,6 +46,7 @@ export interface FilaArchivoEditor {
   origen: string;
   md5: string;
   destinoPropio?: string;
+  movido?: boolean;
 }
 
 export interface FilasEditor {
@@ -80,6 +81,7 @@ export interface OpcionesIndiceAFilas {
   vistos: VistosInput;
   claveCursoActivo?: string;
   sitioIdPorDefecto?: string;
+  movidos?: Set<string>;
 }
 
 export interface OpcionesFilasAIndice {
@@ -177,6 +179,7 @@ export function indiceAFilasEditor({
   vistos,
   claveCursoActivo: _claveCursoActivo,
   sitioIdPorDefecto = "google-classroom",
+  movidos,
 }: OpcionesIndiceAFilas): FilasEditor {
   const mapaVistos = normalizarVistos(vistos);
   const cursos: FilaCursoEditor[] = [];
@@ -333,6 +336,7 @@ export function indiceAFilasEditor({
         original,
         origen,
         md5,
+        movido: Boolean(movidos && movidos.has(clave)),
       };
       if (destinoPropio !== undefined) {
         filaArch.destinoPropio = destinoPropio;

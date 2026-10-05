@@ -16,6 +16,14 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## 🚧 En revisión
 
+- `disco-manda`: Plan 22 (`~/Boveda/Proyectos/courseDownloader/Planes/22 - Lo que esta en disco manda.md`).
+  Specs: `docs/specs/disco-manda/spec.md`, `docs/specs/classroom-destino/spec.md`.
+  Compuerta: 81 archivos / 1239 tests; humos: `humo-editor.js`, `humo-editor-indice.js`, `humo-editor-videollamadas-raiz.js`, `humo-editor-filtros-orden.js` (errores: 0).
+  - ⬜ **M-1** — Escanear **Física I** en el popup: `mod1_01_variables_cinematicas.pdf` aparece como «ya está» con el nombre `Cinematica (clase 1).pdf`, la ruta `Ingenieria/Fisica 1/Practicas` y el chip «movido»; no se baja nada. Los otros archivos de Física I no cambian.
+  - ⬜ **M-2** — Escanear **Física I** de nuevo: el mismo archivo sin el chip. Abrir 🗂️: la fila del archivo muestra la ruta y el nombre nuevos, con el candado «en disco» y sin campos editables.
+  - ⬜ **M-3 (RN-5)** — Con MC2 ya descargado en la copia: sacar del índice **sólo** la entrada de `mc_2025_series_1.pdf` (`jq` por `.nombre`, dejando el archivo en disco) y moverlo a `Ingenieria/Fisica 2/Notas/`. Bajar ese adjunto desde el popup: no aparece ningún archivo nuevo en `Matematica C/`, el popup dice «Ya lo tenías», y el índice tiene esa clave con ruta `Ingenieria/Fisica 2/Notas`.
+  - ⬜ **M-4 (RN-12)** — Renombrar `~/Descargas/facultad-prueba` a `facultad-prueba-off` y escanear cualquier curso: el popup muestra el aviso de raíz inaccesible y no marca nada como pendiente ni sin asociar. Volver a poner el nombre. El índice no cambió (`diff` contra `../indice-facultad-prueba-pre-22.json` más las correcciones esperadas de M-1).
+  - ⬜ **M-5 (tiempo)** — Reiniciar el servidor y escanear con varios cursos a la vez: ninguna llamada de estado supera los 15 s del popup y no aparece el mensaje de servidor sin respuesta.
 - `videollamadas-omitidas-defecto`: Plan 25 (`~/Boveda/Proyectos/courseDownloader/Planes/25 - Videollamadas omitidas por defecto y popup al dia con el editor.md`).
   Specs: `docs/specs/editor-ignorar-y-raiz/spec.md`, `docs/specs/classroom-destino/spec.md`.
   Compuerta: 81 archivos / 1220 tests; humos: `humo-editor.js`, `humo-editor-indice.js`, `humo-editor-videollamadas-raiz.js`, `humo-editor-filtros-orden.js` (errores: 0).

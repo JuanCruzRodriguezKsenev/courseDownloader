@@ -4,6 +4,7 @@ import { esRutaBajo } from "./rutas.js";
 import { md5Archivo } from "./md5.js";
 import { modificarIndice } from "./indiceServicio.js";
 import { sanitizarNombreArchivo } from "../utils.js";
+import { recorrerRaiz } from "./recorrido.js";
 import { decidirDespues } from "../../core/destino/decidir.ts";
 import { PORTALES_CON_DESTINO_INDICE } from "./portales.js";
 
@@ -149,10 +150,48 @@ export async function finalizarEnDestino({
     }
   }
 
+  let md5ExisteEnRaiz = false;
+  if (!destinoEsMd && !md5ExisteEnCarpetaDestino) {
+    const archivos = await recorrerRaiz(raiz);
+    const coincidencias = [];
+
+    for (const rel of archivos) {
+      if (rel.endsWith(".part")) continue;
+      const rutaAbs = path.join(raiz, rel);
+      if (rutaAbs === parcial) continue;
+
+      try {
+        const statHijo = await fs.stat(rutaAbs);
+        if (statHijo.size === statParcial.size) {
+          const md5Hijo = await md5Archivo(rutaAbs, opciones);
+          if (md5Hijo === md5Parcial) {
+            coincidencias.push({ rel, mtimeMs: statHijo.mtimeMs });
+          }
+        }
+      } catch {}
+    }
+
+    if (coincidencias.length > 0) {
+      coincidencias.sort((a, b) => {
+        if (b.mtimeMs !== a.mtimeMs) {
+          return b.mtimeMs - a.mtimeMs;
+        }
+        return a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0;
+      });
+
+      const mejor = coincidencias[0].rel;
+      md5ExisteEnRaiz = true;
+      archivoExistenteNombre = path.basename(mejor);
+      const dirRel = path.dirname(mejor);
+      archivoExistenteRuta = dirRel === "." ? "" : dirRel;
+    }
+  }
+
   const accion = decidirDespues({
     destinoEsMd,
     existeDestino,
     md5ExisteEnCarpetaDestino,
+    md5ExisteEnRaiz,
     existeDestinoConOtroContenido,
   });
 

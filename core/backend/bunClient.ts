@@ -119,11 +119,13 @@ export interface ItemEstadoDestino {
   nombre?: string | null;
   sinAsignar?: boolean;
   omitido?: boolean;
+  movido?: boolean;
 }
 
 export interface RespuestaEstadoDestino {
   ok: boolean;
   indiceIlegible?: boolean;
+  raizInaccesible?: boolean;
   error?: string;
   raiz?: string;
   curso?: {

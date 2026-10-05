@@ -24,20 +24,28 @@ export async function md5Archivo(ruta, opciones = {}) {
     return cacheMd5.get(claveCache);
   }
 
-  let hashHex = "";
-  if (typeof opciones.hasher === "function") {
-    hashHex = await opciones.hasher(ruta);
-  } else {
-    hashHex = await new Promise((resolve, reject) => {
-      const hash = crypto.createHash("md5");
-      const stream = fs.createReadStream(ruta);
-      stream.on("data", (chunk) => hash.update(chunk));
-      stream.on("end", () => resolve(hash.digest("hex").toLowerCase()));
-      stream.on("error", (err) => reject(err));
-    });
-  }
+  const promesaCalculo = (async () => {
+    let hashHex = "";
+    if (typeof opciones.hasher === "function") {
+      hashHex = await opciones.hasher(ruta);
+    } else {
+      hashHex = await new Promise((resolve, reject) => {
+        const hash = crypto.createHash("md5");
+        const stream = fs.createReadStream(ruta);
+        stream.on("data", (chunk) => hash.update(chunk));
+        stream.on("end", () => resolve(hash.digest("hex").toLowerCase()));
+        stream.on("error", (err) => reject(err));
+      });
+    }
+    return hashHex.toLowerCase();
+  })();
 
-  const resultado = hashHex.toLowerCase();
-  cacheMd5.set(claveCache, resultado);
-  return resultado;
+  cacheMd5.set(claveCache, promesaCalculo);
+
+  try {
+    return await promesaCalculo;
+  } catch (err) {
+    cacheMd5.delete(claveCache);
+    throw err;
+  }
 }

@@ -118,19 +118,18 @@ transformación de texto.
 
 ### Qué ya está descargado
 
-> **Ampliado por [`docs/specs/disco-manda/spec.md`](../disco-manda/spec.md)** (draft, 2026-10-04): RN-19 pasa a ser un principio para popup, editor y descarga; la fila 5 de la tabla se parte en 5a y 5b (RN-20 mira toda la raíz); y entre varias copias gana la más reciente.
+> **Ampliado por [`docs/specs/disco-manda/spec.md`](../disco-manda/spec.md)** (implementada, 2026-10-05): RN-19 pasa a ser un principio para popup, editor y descarga; la fila 5 de la tabla se parte en 5a y 5b (RN-20 mira toda la raíz); y entre varias copias gana la más reciente.
 
 - **RN-18** — Antes de bajar, la extensión consulta el índice por **id de archivo** (id de Drive
   para los adjuntos, `acceso:<url>:<título>` para los accesos — RN-29). Si el id figura y
   el archivo está en la ruta anotada, está descargado y no se baja.
-- **RN-19** — Si el id figura pero el archivo no está en la ruta anotada, y **su md5 aparece en otro
-  lugar de la raíz** (la raíz entera, salvo las carpetas `Wiki/`, `Mis notas/` y `Clases/` en cualquier nivel), la
-  ruta del índice se corrige sola y no se baja. Mover o renombrar un archivo a mano, **también a otra
-  materia**, es una orden, no un error. *(Dueño, 2026-09-27: antes decía "de la misma materia", y un
-  archivo movido a otra materia se volvía a bajar duplicado. Las carpetas excluidas son de notas, no guardan adjuntos (D-6 de `docs/plan-classroom-destino-2a-boveda.md`).)*
+- **RN-19** — **El disco manda (principio general):** Si el id figura pero el archivo no está en la ruta anotada, y **su md5 aparece en otro
+  lugar de la raíz** (la raíz entera, salvo las carpetas `Wiki/`, `Mis notas/` y `Clases/` en cualquier nivel), el nombre y la ruta del disco mandan: la
+  ruta del índice se corrige sola, se marca «movido» en el primer escaneo y no se baja. Mover o renombrar un archivo a mano, **también a otra
+  materia**, es una orden, no un error. *(Dueño, 2026-09-27; generalizado por Plan 22).*
 - **RN-20** — Si el id no figura en el índice, se baja, se calcula su md5 y **si ya existe un archivo
-  de contenido idéntico en la carpeta destino, se descarta sin escribir** y se anota en el índice
-  como descargado. Esto es lo que reconoce lo que el dueño puso a mano.
+  de contenido idéntico en cualquier lugar de la raíz** (con las exclusiones de RN-19), se descarta sin escribir y se anota en el índice
+  con la ruta y el nombre del disco (filas 5a y 5b). Esto es lo que reconoce lo que el dueño puso a mano.
 - **RN-21** — Nunca se compara por nombre. El saneo del backend (`#`→`_`, `º`→`_`) y los renombres
   del dueño hacen que el nombre no sea identidad.
 - **RN-22** — Si el id figura y su md5 no está en ningún lado de la raíz (con las exclusiones de
@@ -185,18 +184,20 @@ transformación de texto.
 
 Se evalúa en este orden; la primera fila que coincide, decide.
 
-| # | ¿id en el índice? | ¿está en la ruta anotada? | ¿md5 en la raíz? (filas 2–3, RN-19) / ¿en la carpeta destino? (fila 5) | Acción |
+| # | ¿id en el índice? | ¿está en la ruta anotada? | ¿md5 en la raíz? | Acción |
 |---|---|---|---|---|
 | 0 | — | sí, y el destino es un `.md` | — | **No escribir.** Anotar en el índice si falta (RN-30). |
 | 0b | sí, y es un acceso (`acceso:…`) | — | — | **No escribir** (RN-29a). |
 | 1 | sí | sí | — | No bajar. Marcar descargado. |
-| 2 | sí | no | sí | No bajar. **Corregir la ruta en el índice.** |
+| 2 | sí | no | sí, en 1 lugar | No bajar. **Usar nombre y ruta del disco, corregir el índice, marcar «movido»** (RN-19). |
+| 2b | sí | no | sí, en 2 o más lugares | Igual que la 2, con la copia **más reciente** (RN-4 de disco-manda). |
 | 3 | sí | no | no | Bajar con el nombre del índice. |
-| 4 | no | — | — | Bajar, calcular md5 → fila 5 o 6. |
-| 5 | no | — | sí, en la carpeta destino | **Descartar sin escribir.** Anotar en el índice. |
+| 4 | no | — | — | Bajar, calcular md5 → fila 5a, 5b o 6. |
+| 5a | no | — | sí, en la carpeta destino | **Descartar sin escribir.** Anotar en el índice. |
+| 5b | no | — | sí, fuera de la carpeta destino pero dentro de la raíz | **Descartar sin escribir. Anotar con la ruta y el nombre del disco** (RN-20). |
 | 6 | no | — | no | Escribir con el nombre propuesto. Anotar en el índice. |
 
-La fila 5 es la que reconoce los 4 archivos de `Fisica 2/Laboratorios/` que el dueño puso a mano
+La fila 5 (5a/5b) es la que reconoce los 4 archivos de `Fisica 2/Laboratorios/` que el dueño puso a mano
 (md5 idéntico, nombre con `#` en vez de `_`) y las 9 teorías de Física 1 que el dueño renombró.
 
 La fila 0 va **antes** que todas porque un `.md` editado a mano tiene md5 propio: sin ella caería
@@ -226,8 +227,8 @@ La fila 0b va antes que la 2 y la 3 porque un acceso editado tiene otro md5: sin
 |---|---|---|
 | A1 | El índice no parsea | Se avisa y no se baja nada de ninguna materia (RN-25) |
 | A2 | Aparece un tema nuevo después de asociar | Sus adjuntos van a la raíz de la materia, marcados como sin asignar (RN-9) |
-| A3 | El archivo ya está en disco con otro nombre | Se descarta sin escribir y se anota como descargado (RN-20) |
-| A4 | El dueño movió o renombró un archivo a mano, aun a otra materia | La ruta del índice se corrige sola (RN-19) |
+| A3 | El archivo ya está en disco con otro nombre o en otra materia | Se descarta sin escribir y se anota con la ruta y el nombre del disco (RN-20) |
+| A4 | El dueño movió o renombró un archivo a mano, aun a otra materia | El nombre y la ruta del disco mandan, el índice se corrige solo y se marca movido (RN-19) |
 | A5 | El dueño borró un archivo | Se vuelve a bajar con el nombre del índice (RN-22) |
 | A6 | Dos archivos distintos chocan de nombre | Todos los del grupo llevan `_<material>` (RN-16; en Novedades, RN-16a) |
 | A7 | Dos adjuntos del mismo curso son el mismo archivo | El segundo se descarta por md5 (RN-20). Ver **PA-2** |

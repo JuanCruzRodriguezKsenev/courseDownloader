@@ -795,5 +795,32 @@ describe('Isla Preact: ListaClases — la alerta comparte contenedor', () => {
       const fila = root.querySelector('.video-item');
       expect(fila.getAttribute('title')).toContain('Ya lo tenías: no se escribió nada');
     });
+
+    it('clase.movido: true → title con «Movido» y chip .chip-movido renderizado (RN-10)', async () => {
+      puente.render({
+        modo: 'lista',
+        items: [{
+          id: 107,
+          titulo: 'Palacio - Clase 5 - Capacitores.pdf',
+          tipo: 'adjunto',
+          estado: 'downloaded',
+          movido: true,
+          destino: {
+            nombre: 'Capacitores.pdf',
+            ruta: 'Ingenieria/Fisica 2/Practicas',
+            original: 'Palacio - Clase 5 - Capacitores.pdf',
+          },
+        }],
+        ctx: ctxBase(),
+      });
+      await flush();
+
+      const fila = root.querySelector('.video-item');
+      expect(fila.getAttribute('title')).toContain('Movido: se tomó la ruta y el nombre que hay en disco');
+
+      const chipMovido = root.querySelector('.chip-movido');
+      expect(chipMovido).not.toBeNull();
+      expect(chipMovido.textContent).toBe('movido');
+    });
   });
 });

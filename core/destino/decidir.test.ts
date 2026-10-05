@@ -136,5 +136,26 @@ describe("core/destino/decidir.ts", () => {
       });
       expect(res).toBe("no-escribir");
     });
+
+    it("fila 5b: md5 existe en raíz -> descartar (RN-5)", () => {
+      const res = decidirDespues({
+        destinoEsMd: false,
+        existeDestino: false,
+        md5ExisteEnCarpetaDestino: false,
+        md5ExisteEnRaiz: true,
+      });
+      expect(res).toBe("descartar");
+    });
+
+    it("orden (AC-10): destino ocupado pero md5 en raíz -> descartar sin error (descartar antes que rechazar)", () => {
+      const res = decidirDespues({
+        destinoEsMd: false,
+        existeDestino: true,
+        md5ExisteEnCarpetaDestino: false,
+        md5ExisteEnRaiz: true,
+        existeDestinoConOtroContenido: true,
+      });
+      expect(res).toBe("descartar");
+    });
   });
 });
