@@ -1,6 +1,6 @@
 # Traza de supuestos — «lo que está en disco manda»
 
-Estado de la spec: **sin escribir**. Se actualiza al terminar cada respuesta del dueño.
+Estado de la spec: **aprobada** (2026-10-04). Los supuestos de esta tabla son los que la spec recoge, con la corrección del 2 (CLI) y las mediciones M-1 y M-2 cerradas.
 La carpeta se llamó `descarga-en-bruto` en la primera versión de la idea; desde que se escribió la spec es `disco-manda`.
 
 **Historia (dueño, 2026-10-04, versión final):** olvidarse de «aprender», de la carpeta bruta y de la verificación nueva. Antes de proponer nombres, la extensión mira si esos archivos se movieron o renombraron. Si es así, no «piensa» el nombre: pone el que está escrito en disco, y su ruta. «Es algo que ya casi se aplica.»

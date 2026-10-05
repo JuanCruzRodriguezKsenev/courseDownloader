@@ -1,6 +1,6 @@
 # Lo que está en disco manda: nombre y ruta de un archivo movido o renombrado
 
-**Estado:** `draft` (falta medir M-1, el arranque en frío real; no bloquea ninguna regla). **Fecha:** 2026-10-04.
+**Estado:** `aprobada` por el dueño el 2026-10-04. M-1 y M-2 medidos (abajo). **Fecha:** 2026-10-04.
 **Origen:** pedido del dueño, 2026-10-04, tras verificar el plan 20.
 **Traza:** `docs/specs/disco-manda/assumptions.md`.
 **Extiende, no reemplaza:** `docs/specs/classroom-destino/spec.md` (RN-18 a RN-22, RN-30, tabla de decisión «Qué ya está descargado»). Cuando esta spec dice «classroom-destino RN-19» se refiere a esa. Si hay contradicción, **gana ésta, y sólo en lo que dice expresamente que cambia** (marcado con **Cambia** abajo).
@@ -212,7 +212,7 @@ AC-10 — Un .md editado a mano sigue como hoy
 
 ## Requisitos no funcionales
 
-- **NFR-1 — Costo de la búsqueda.** Medido el 2026-10-04 en `~/Boveda/Areas/Facultad` (1651 archivos, 1,0 GB sin `Wiki`, `Mis notas` ni `Clases`): recorrer el árbol 34 ms; calcular el md5 de todos la **primera** vez después de levantar el servidor 4955 ms; con la caché en memoria 42 ms. Por eso no se agrega índice de disco ni campo de tamaño. Si el árbol creciera mucho, los caminos conocidos son filtrar por tamaño y persistir la caché; quedan fuera de esta spec.
+- **NFR-1 — Costo de la búsqueda.** Medido el 2026-10-04 en `~/Boveda/Areas/Facultad` (1651 archivos, 1,0 GB sin `Wiki`, `Mis notas` ni `Clases`): recorrer el árbol 34 ms; calcular el md5 de todos la **primera** vez después de levantar el servidor 4955 ms; con la caché en memoria 42 ms. Por eso no se agrega índice de disco ni campo de tamaño. **M-1 (2026-10-04):** con los archivos sacados de la caché del sistema (`posix_fadvise DONTNEED` sobre los 1661) tardó **4890 ms**, igual que antes: el costo es de CPU, no de disco. Si el árbol creciera mucho, los caminos conocidos son filtrar por tamaño y persistir la caché; quedan fuera de esta spec.
 - **NFR-2 — El árbol del dueño es inmutable** (classroom-destino NFR-4): ninguna regla de esta spec escribe, mueve o renombra un archivo suyo. Lo único que se escribe es el índice.
 - **NFR-3 — Sin migración.** El índice sigue en `version: 1` con los mismos campos.
 
@@ -233,12 +233,12 @@ AC-10 — Un .md editado a mano sigue como hoy
 - **PA-2 — ¿Se alinea el CLI `generar`?** Hoy compara por md5 sólo dentro de las materias de su semilla y con código propio. Alinearlo con esta spec (buscar en toda la raíz, con las mismas exclusiones y el desempate de RN-4) cambiaría una herramienta de adopción que ya se usó. **Recomendación:** dejarlo como está; es una corrida única y su resultado lo revisa el dueño a mano en las tablas.
 - **PA-3 — RN-9 casi no se ejerce.** Un curso sin asociar casi nunca tiene ids en el índice. Se deja escrito porque un curso desasociado después sí puede tenerlos.
 
-## Mediciones pendientes
+## Mediciones
 
 | # | Qué medir | Cómo | Qué decide |
 | :-- | :-- | :-- | :-- |
-| M-1 | Arranque en frío real de la búsqueda por md5 | Vaciar la caché de disco del sistema (`echo 3 > /proc/sys/vm/drop_caches`, con permisos) y repetir `bun` con `recorrerRaiz` + `md5Archivo` sobre la Bóveda | Si pasa de ~15 s, NFR-1 deja de valer y habría que persistir la caché |
-| M-2 | Si el escaneo de Classroom o Drive entrega `md5` o `bytes` antes de bajar | Mirar un escaneo real: los campos `md5` y `bytes` de los items en `/adopcion/api/datos` | Si lo entrega, la fila 4 podría resolver sin bajar y RN-5 dejaría de costar un ancho de banda; hoy casi siempre viene vacío |
+| M-1 ✅ | Arranque en frío real de la búsqueda por md5 | `posix_fadvise DONTNEED` sobre cada archivo de la Bóveda y repetir `recorrerRaiz` + `md5Archivo` | **4890 ms** en frío (límite de la spec: 15 s). NFR-1 vale. |
+| M-2 ✅ | Si el escaneo de Classroom entrega `md5` o `bytes` antes de bajar | Buscar en `sitio/google-classroom` y mirar los items en vivo de `/adopcion/api/datos` | **No entrega ninguno** (el scraper no tiene esos campos; 0 de 5 filas con md5). RN-5 siempre cuesta bajar el archivo; no hay forma de evitarlo desde el escaneo. |
 
 ## Dependencias
 
@@ -247,5 +247,5 @@ AC-10 — Un .md editado a mano sigue como hoy
 
 ## Secciones condicionales
 
-**Incluidas:** tabla de decisión (expuso las filas 2b y 5b), wireframes (la marca «movido»), contrato de interfaz (el campo `movido`), dependencias y mediciones pendientes.
+**Incluidas:** tabla de decisión (expuso las filas 2b y 5b), wireframes (la marca «movido»), contrato de interfaz (el campo `movido`), dependencias y mediciones.
 **Descartadas:** diagrama de estados (no hay máquina de estados real, sólo una tabla de decisión) y glosario (los términos son los de classroom-destino).
