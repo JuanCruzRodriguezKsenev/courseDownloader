@@ -20,3 +20,4 @@
 - [Plan 23 videollamadas y raíz](project_editor_videollamadas_raiz_plan23.md) — spec+plan listos; rama editor-videollamadas-raiz; va antes del 22
 - [Plan 24 filtros y orden](project_editor_filtros_orden_plan24.md) — spec+plan listos; rama sale de main tras mergear el 23; editor.html ya tenía chips y búsqueda
 - [Plan 25 videollamadas omitidas](project_videollamadas_omitidas_plan25.md) — omitidas por defecto + refresco del popup; rama videollamadas-omitidas-defecto
+- [Plan 26/27 marca Resaltador](project_marca_resaltador_planes.md) — dos planes escritos 2026-10-05; decisiones del dueño; rama marca-resaltador en el repo principal
