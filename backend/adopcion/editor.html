@@ -1040,6 +1040,7 @@ button {
               <datalist id="docentesList"></datalist>
               <div class="ruta-teorias-info" id="infoTeorias"></div>
             </div>
+            <div class="setting-group" id="grupoVideollamadas"></div>
           </div>
         </section>
 
@@ -1307,6 +1308,50 @@ button {
     }
 
 
+    function temaSinDestino(tema) {
+      return Boolean(tema) && tema.destino !== "-" && (tema.regla === "no" || !tema.destino);
+    }
+
+    // Copia de core/destino/videollamada.ts; la paridad la prueba humo-editor-videollamadas-raiz.js
+    const DOMINIOS_VIDEOLLAMADA = [
+      "meet.google.com",
+      "zoom.us",
+      "teams.microsoft.com",
+      "teams.live.com",
+      "webex.com",
+      "meet.jit.si",
+      "jitsi.net",
+    ];
+
+    function esEnlaceVideollamada(url) {
+      if (!url) return false;
+      try {
+        const h = new URL(url).host.toLowerCase();
+        return DOMINIOS_VIDEOLLAMADA.some((d) => h === d || h.endsWith("." + d));
+      } catch {
+        return /(?:^|\/\/|\.)(?:meet\.google\.com|zoom\.us|teams\.microsoft\.com|teams\.live\.com|webex\.com|meet\.jit\.si|jitsi\.net)(?:\/|:|$)/i.test(url);
+      }
+    }
+
+    function esFilaVideollamada(arch) {
+      if (!arch || !arch.clave) return false;
+      const match = /^[^:]+:acceso:([^:]+):/.exec(arch.clave);
+      if (!match || !match[1]) return false;
+      try {
+        const url = decodeURIComponent(match[1]);
+        return esEnlaceVideollamada(url);
+      } catch {
+        return false;
+      }
+    }
+
+    function videollamadasDelCurso(curso) {
+      if (!curso) return [];
+      return (DATOS.archivos || []).filter(
+        (a) => a.clave_curso === curso.clave_curso && esFilaVideollamada(a)
+      );
+    }
+
     function getEffectiveDest(tema, arch) {
       if (arch && arch.destinoPropio !== undefined && arch.destinoPropio !== "") {
         return arch.destinoPropio;
@@ -1423,7 +1468,7 @@ button {
           const temasDelCurso = DATOS.temas.filter((t) => t.clave_curso === curso.clave_curso);
           const conProblemas = temasDelCurso.filter((t) => {
             const archivosTema = DATOS.archivos.filter((a) => a.clave_curso === curso.clave_curso && a.tema === t.tema);
-            return t.regla === "no" || !t.destino || t.destino === "." || archivosTema.some((f) => FILAS_CON_CHOQUE.has(f.clave));
+            return temaSinDestino(t) || archivosTema.some((f) => FILAS_CON_CHOQUE.has(f.clave));
           });
           if (conProblemas.length > 0) {
             conProblemas.forEach((t) => expandedTemas.add(t.tema));
@@ -1457,7 +1502,7 @@ button {
           (a) => a.clave_curso === c.clave_curso && FILAS_CON_CHOQUE.has(a.clave)
         );
         const tieneSinRegla = DATOS.temas.some(
-          (t) => t.clave_curso === c.clave_curso && (t.regla === "no" || !t.destino || t.destino === ".")
+          (t) => t.clave_curso === c.clave_curso && temaSinDestino(t)
         );
         if (tieneChoques || tieneSinRegla) {
           CURSO_ACTIVO = c.clave_curso;
@@ -1490,7 +1535,7 @@ button {
       courseListEl.innerHTML = filtered.map((c) => {
         const totalFiles = DATOS.archivos.filter((a) => a.clave_curso === c.clave_curso).length;
         const temasDelCurso = DATOS.temas.filter((t) => t.clave_curso === c.clave_curso);
-        const unassignedTemas = temasDelCurso.filter((t) => t.regla === "no" || !t.destino || t.destino === ".").length;
+        const unassignedTemas = temasDelCurso.filter((t) => temaSinDestino(t)).length;
         const isActive = c.clave_curso === CURSO_ACTIVO;
         const hasNovedades = temasDelCurso.some(
           (t) => t.tema.toLowerCase().includes("novedad") || t.tema.toLowerCase().includes("sin tema")
@@ -1560,9 +1605,11 @@ button {
       const bannerTitleEl = document.getElementById("bannerTitle");
       const bannerSubtitleEl = document.getElementById("bannerSubtitle");
       const selectMateriaEl = document.getElementById("selectMateria");
+      const grupoVideollamadasEl = document.getElementById("grupoVideollamadas");
       if (!curso) {
         bannerTitleEl.textContent = "Sin cursos";
         bannerSubtitleEl.textContent = "";
+        if (grupoVideollamadasEl) grupoVideollamadasEl.innerHTML = "";
         return;
       }
 
@@ -1589,6 +1636,35 @@ button {
       }
 
       actualizarDocentes();
+
+      if (grupoVideollamadasEl) {
+        const vDelCurso = videollamadasDelCurso(curso);
+        if (vDelCurso.length === 0) {
+          grupoVideollamadasEl.innerHTML = "";
+        } else {
+          const temasMap = new Map(
+            DATOS.temas.filter((t) => t.clave_curso === curso.clave_curso).map((t) => [t.tema, t])
+          );
+          const filasOmitir = vDelCurso.filter((a) => {
+            if (a.accion !== "copiar") return false;
+            const t = temasMap.get(a.tema);
+            return !(t && t.destino === "-");
+          });
+          const filasReofrecer = vDelCurso.filter((a) => a.accion === "omitir");
+          const n = filasOmitir.length;
+          const m = filasReofrecer.length;
+
+          let html = "";
+          if (n > 0) {
+            html += `<button class="secondary-btn" id="btnOmitirVideollamadas">Omitir ${n} videollamada${n === 1 ? "" : "s"}</button>`;
+          }
+          if (m > 0) {
+            if (html) html += " ";
+            html += `<button class="secondary-btn" id="btnReofrecerVideollamadas">Volver a ofrecerlas</button> <span class="videollamadas-omitidas-txt">${m} videollamada${m === 1 ? "" : "s"} omitida${m === 1 ? "" : "s"}</span>`;
+          }
+          grupoVideollamadasEl.innerHTML = html;
+        }
+      }
     }
 
     function actualizarDocentes() {
@@ -1630,7 +1706,7 @@ button {
       let reviewFiles = 0;
 
       archivosCurso.forEach((a) => {
-        const tema = temasMap.get(a.tema) || { destino: "." };
+        const tema = temasMap.get(a.tema) || { destino: ".", regla: "no" };
         const dest = getEffectiveDest(tema, a);
         const esChoque = FILAS_CON_CHOQUE.has(a.clave);
 
@@ -1638,7 +1714,7 @@ button {
           omittedFiles++;
         } else if (esChoque) {
           reviewFiles++;
-        } else if (!dest || dest === ".") {
+        } else if (!dest || (!a.destinoPropio && temaSinDestino(tema))) {
           unassignedFiles++;
         } else {
           readyFiles++;
@@ -1689,7 +1765,7 @@ button {
           ? archivosSinTema
           : archivosCurso.filter((a) => a.tema === tema.tema);
 
-        const isUnassigned = !tema.destino || tema.destino === ".";
+        const isUnassigned = temaSinDestino(tema);
         const isOmitted = tema.destino === "-" || tema.destino === "- (no bajar)";
         const hasClash = archivosTema.some((f) => FILAS_CON_CHOQUE.has(f.clave));
 
@@ -1724,7 +1800,7 @@ button {
           : archivosCurso.filter((a) => a.tema === tema.tema);
 
         const isTopicOmitted = tema.destino === "-";
-        const isSinRegla = !isTopicOmitted && (tema.regla === "no" || !tema.destino || tema.destino === ".");
+        const isSinRegla = temaSinDestino(tema);
         const choquesEnTema = archivosTema.filter((f) => FILAS_CON_CHOQUE.has(f.clave)).length;
         const activeFiles = archivosTema.filter((f) => f.accion === "copiar" || f.accion === "ya-esta");
         const copiedCount = activeFiles.length;
@@ -1772,7 +1848,7 @@ button {
                     ${tema.tema}
                     ${isTopicOmitted ? `<span class="badge neutral">Omitido</span>` : `
                       ${isNovedades ? `<span class="badge root-folder">Tablón de Novedades</span>` : ""}
-                      ${isSinRegla ? `<span class="badge warn">Sin destino</span>` : `<span class="badge ready">✓ Asignado</span>`}
+                      ${isSinRegla ? `<span class="badge warn">Sin destino</span>` : `<span class="badge ready">${tema.destino === "." ? "✓ Asignado · Raíz de la materia" : "✓ Asignado"}</span>`}
                       ${choquesEnTema > 0 ? `<span class="badge danger">${choquesEnTema} choque${choquesEnTema > 1 ? "s" : ""}</span>` : ""}
                     `}
                   </div>
@@ -1785,9 +1861,10 @@ button {
               <div class="topic-right">
                 <span class="topic-dest-label">${isNovedades ? "Destino base:" : "Destino carpeta:"}</span>
                 <select class="topic-dest-select" data-tema="${tema.tema}" ${isTopicOmitted ? "disabled" : ""}>
-                  <option value="." ${destinoSeleccionado === "." ? "selected" : ""}>. (raíz del curso)</option>
+                  ${isSinRegla ? `<option value="" disabled selected>— elegir carpeta —</option>` : ""}
+                  <option value="." ${!isSinRegla && destinoSeleccionado === "." ? "selected" : ""}>Raíz de la materia</option>
                   ${destinosDisponibles.filter((d) => d !== "." && d !== "-").map((d) => `
-                    <option value="${d}" ${destinoSeleccionado === d ? "selected" : ""}>${d}</option>
+                    <option value="${d}" ${!isSinRegla && destinoSeleccionado === d ? "selected" : ""}>${d}</option>
                   `).join("")}
                   <option value="__nueva__">+ Nueva carpeta...</option>
                 </select>
@@ -1849,6 +1926,7 @@ button {
                                  ${isOmitted || isDownloaded ? "disabled" : ""} />
                           ${isClash ? `<span class="clash-warning">⚠ Choque: mismo nombre que otro archivo en este destino</span>` : ""}
                           ${arch.accion === "duplicado" ? `<span class="badge neutral" style="margin-top:2px;">duplicado</span>` : ""}
+                          ${esFilaVideollamada(arch) ? '<span class="badge neutral" style="margin-top:2px;" title="enlace de videollamada sincrónica, posiblemente inactivo">📹 Videollamada</span>' : ""}
                         </td>
                         <td>
                           <select class="file-dest-select ${isOverridden ? "is-overridden" : ""}" 
@@ -1858,7 +1936,7 @@ button {
                             <option value="" ${!arch.destinoPropio ? "selected" : ""}>
                               (Hereda: ${tema.destino || "."})
                             </option>
-                            <option value="." ${arch.destinoPropio === "." ? "selected" : ""}>. (raíz)</option>
+                            <option value="." ${arch.destinoPropio === "." ? "selected" : ""}>Raíz de la materia</option>
                             ${destinosDisponibles.filter((d) => d !== "." && d !== "-").map((d) => `
                               <option value="${d}" ${arch.destinoPropio === d ? "selected" : ""}>${d}</option>
                             `).join("")}
@@ -2369,7 +2447,7 @@ button {
       if (curso) {
         const temas = DATOS.temas.filter((t) => t.clave_curso === curso.clave_curso);
         temas.forEach((t) => {
-          if (!t.destino || t.destino === ".") {
+          if (temaSinDestino(t)) {
             const nom = t.tema.toLowerCase();
             if (nom.includes("teoria") || nom.includes("clase")) t.destino = "Teorias";
             else if (nom.includes("practica") || nom.includes("guia")) t.destino = "Practicas";
@@ -2385,6 +2463,48 @@ button {
         renderAll();
       }
     });
+
+    // Handlers para videollamadas delegados sobre #grupoVideollamadas (Paso 5)
+    const grupoVideoEl = document.getElementById("grupoVideollamadas");
+    if (grupoVideoEl) {
+      grupoVideoEl.addEventListener("click", (e) => {
+        const btnOmitir = e.target.closest("#btnOmitirVideollamadas");
+        const btnReofrecer = e.target.closest("#btnReofrecerVideollamadas");
+        const curso = getActiveCurso();
+        if (!curso) return;
+
+        if (btnOmitir) {
+          const vDelCurso = videollamadasDelCurso(curso);
+          const temasMap = new Map(
+            DATOS.temas.filter((t) => t.clave_curso === curso.clave_curso).map((t) => [t.tema, t])
+          );
+          const filasOmitir = vDelCurso.filter((a) => {
+            if (a.accion !== "copiar") return false;
+            const t = temasMap.get(a.tema);
+            return !(t && t.destino === "-");
+          });
+          if (filasOmitir.length === 0) return;
+          filasOmitir.forEach((arch) => {
+            arch.accion = "omitir";
+          });
+          marcarCambio();
+          const n = filasOmitir.length;
+          showToast(`${n} videollamada(s) omitida(s)`);
+          renderAll();
+        } else if (btnReofrecer) {
+          const vDelCurso = videollamadasDelCurso(curso);
+          const filasReofrecer = vDelCurso.filter((a) => a.accion === "omitir");
+          if (filasReofrecer.length === 0) return;
+          filasReofrecer.forEach((arch) => {
+            arch.accion = "copiar";
+          });
+          marcarCambio();
+          const m = filasReofrecer.length;
+          showToast(`${m} videollamada(s) reofrecida(s)`);
+          renderAll();
+        }
+      });
+    }
 
 
     // GUARDAR CAMBIOS (POST api/guardar)
