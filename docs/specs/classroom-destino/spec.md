@@ -172,6 +172,7 @@ transformación de texto.
 ### Enlaces de videollamada
 
 - **RN-32** — **Enlaces de videollamada**: los enlaces a salas sincrónicas (`meet.google.com`, `zoom.us` y subdominios, `teams.microsoft.com` y `teams.live.com`, `webex.com` y subdominios, `meet.jit.si` y `*.jitsi.net`) no se descartan en el escaneo; se clasifican como accesos directos (`tipo: "acceso"` con `esVideollamada: true`).
+  - **Omisión masiva en el editor**: ver [`../editor-ignorar-y-raiz/spec.md`](../editor-ignorar-y-raiz/spec.md) (botón «Omitir N videollamadas» por curso).
   - **Ubicación**: en el listado del popup, dentro de cada curso, las videollamadas se listan fijadas arriba de todo (primeras filas del curso).
   - **Indicador visual**: se renderizan con un chip distintivo "Videollamada" (o icono 📹) que advierte su naturaleza sincrónica/potencialmente inactiva.
   - **Selección**: vienen marcadas por defecto para descarga (igual que el resto de los elementos).
