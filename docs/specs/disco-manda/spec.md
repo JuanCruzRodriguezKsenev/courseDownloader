@@ -83,6 +83,7 @@ Como dueño que reordena a mano el árbol de la facultad, quiero que la extensi�
 | A7 | La raíz está en un disco desmontado | No se corrige nada y se avisa (RN-12) |
 | A8 | Escaneás dos veces seguidas | La marca «movido» sólo aparece en el primero (RN-10) |
 | A9 | Editaste a mano un `.md` | Sin cambios: classroom-destino RN-30 va antes que todo |
+| A10 | El id no figura, el nombre de destino ya está ocupado por **otro** contenido, y el md5 del archivo bajado ya existe en otra parte de la raíz | Se descarta sin escribir y **sin error**: el contenido ya está en el árbol, así que no hay nada que escribir y por lo tanto no hay conflicto (RN-5 va antes del rechazo `DESTINO_OCUPADO`) |
 
 ## Tabla de decisión
 
@@ -204,10 +205,25 @@ AC-9 — La raíz inaccesible no corrige nada
     y el índice no cambia
     y ningún archivo figura como pendiente por "no encontrado"
 
-AC-10 — Un .md editado a mano sigue como hoy
+AC-10 — Destino ocupado, pero el contenido ya está en otra parte
+  Dado un adjunto cuyo id no figura en el índice
+    y cuyo contenido ya existe en "Ingenieria/Fisica 1/Teorias/Lucila/mod1_01.pdf"
+    y un archivo distinto llamado igual que su destino en "Ingenieria/Fisica 2/Teorias/Palacio"
+  Cuando el dueño lo descarga hacia "Ingenieria/Fisica 2/Teorias/Palacio"
+  Entonces no se produce ningún error de destino ocupado
+    y no se escribe nada
+    y el índice anota la ruta "Ingenieria/Fisica 1/Teorias/Lucila"
+
+AC-11 — Un .md editado a mano sigue como hoy
   Dado un destino ".md" que el dueño editó
   Cuando el dueño escanea el curso
   Entonces no se escribe, se anota si faltaba y no se compara por contenido
+AC-12 — Un curso desasociado mira el disco para los ids que figuran
+  Dado un curso que ya no está asociado en el índice
+    y un archivo suyo con id en el índice que el dueño movió
+  Cuando el dueño escanea el curso
+  Entonces el archivo muestra la ruta y el nombre del disco
+    y los archivos sin id en el índice siguen sin carpeta propuesta
 ```
 
 ## Requisitos no funcionales
