@@ -18,3 +18,4 @@
 - [Plan 22 disco manda](project_disco_manda_plan22.md) — spec aprobada y plan escrito; el disco manda sobre nombre y ruta; rama aún no creada
 - [Loader en tarjetas](project_loader_tarjetas.md) — rama loader-tarjetas: tarjetas + cancelar escaneo; planes para obra, cómo revisarlos
 - [Plan 23 videollamadas y raíz](project_editor_videollamadas_raiz_plan23.md) — spec+plan listos; rama editor-videollamadas-raiz; va antes del 22
+- [Plan 24 filtros y orden](project_editor_filtros_orden_plan24.md) — spec+plan listos; rama sale de main tras mergear el 23; editor.html ya tenía chips y búsqueda

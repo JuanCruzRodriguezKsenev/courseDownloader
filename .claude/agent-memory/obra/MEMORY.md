@@ -45,4 +45,6 @@
 - [Choques de nombre en cursos sin asociar y al guardar (Plan 21)](project_choques_nombre_plan21.md) — resolución de choques en cursos sin asociar agrupando por tema (RN-16/16a), descarte de nombres que chocan al guardar (RN-14) y discriminante md5 || clave en editor; compuerta en 79 archivos / 1173 tests y humos en verde
 - [Loader en tarjetas](project_loader_tarjetas.md) — presentación en tarjetas con íconos SVG, acento azul temático, VistaLoader estructurada y contadores de recorrido
 - [Classroom: Cancelar escaneo](project_classroom_cancelar_escaneo.md) — botón Cancelar en fila Escaneando… del loader, oyente en scraper, guarda en recorridoTodos y timeout de seguridad
+- [Editor: Omitir videollamadas y raíz decidida (Plan 23)](project_editor_videollamadas_raiz_plan23.md) — omisión en bloque de videollamadas con chip 📹 en editor, selector con opción vacía inicial y raíz decidida con '.', humo en verde y compuerta en 80 archivos / 1203 tests
+- [Parada previa al Plan 24 (filtros y orden)](project_editor_filtros_orden_plan24_parada.md) — parada por precondición no cumplida: rama no creada, árbol sucio y plan 23 no mergeado
 
