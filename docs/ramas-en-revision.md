@@ -16,6 +16,14 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## 🚧 En revisión
 
+- `editor-filtros-orden`: Plan 24 (`~/Boveda/Proyectos/courseDownloader/Planes/24 - Filtros y orden en el editor de adopcion.md`).
+  Spec: `docs/specs/editor-filtros-orden/spec.md`.
+  Compuerta: 80 archivos / 1203 tests; humos: `humo-editor.js`, `humo-editor-indice.js`, `humo-editor-videollamadas-raiz.js`, `humo-editor-filtros-orden.js` (errores: 0).
+  - ⬜ **M-1** — Dueño: en «Mostrar» elegí «📹 Videollamadas»: sólo se ven las videollamadas, los temas sin ninguna desaparecen y los otros quedan expandidos. «Limpiar filtros» lo deshace.
+  - ⬜ **M-2** — Dueño: probá «Tipo» (pdf), luego combinalo con «A copiar» y con el chip «Revisar». Los seis contadores de arriba no se mueven.
+  - ⬜ **M-3** — Dueño: ordená temas por «A→Z» y «Problemas primero»; ordená archivos por «Nombre original». Editá el nombre de una fila: **no** salta de lugar. Resolvé un tema sin destino con «Problemas primero» activo: baja de lugar (esperado, D-3).
+  - ⬜ **M-4** — Dueño: en la barra lateral, «Más para revisar primero» sube el curso con más pendientes; al cambiar de curso el orden de la barra se mantiene y los filtros del curso se reinician. F5 lo reinicia todo.
+  - ⬜ **M-5** — Tanda: tras usar todos los controles, «Cambios sin guardar» no aparece por eso; guardar y comprobar con `jq` que el índice es igual que sin tocar filtros.
 - `editor-videollamadas-raiz`: Plan 23 (`~/Boveda/Proyectos/courseDownloader/Planes/23 - Omitir videollamadas en bloque y raiz decidida en el editor.md`).
   Spec: `docs/specs/editor-ignorar-y-raiz/spec.md`.
   Compuerta: 80 archivos / 1203 tests; humos: `humo-editor.js`, `humo-editor-indice.js`, `humo-editor-videollamadas-raiz.js` (errores: 0).
