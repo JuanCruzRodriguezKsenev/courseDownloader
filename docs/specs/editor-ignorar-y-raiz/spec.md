@@ -29,9 +29,7 @@ Como dueño que adopta cursos desde el editor web, quiero **omitir todas las vid
 - Elegir `.` en el selector de un tema cuenta como decisión.
 
 **No incluye**
-- Controles nuevos en el popup (sigue mostrando «omitido» como hoy, RN-31).
-- Una regla persistente que omita videollamadas de cursos futuros o de re-escaneos.
-- Cambios al formato de `.course-downloader.json` ni migración.
+- Controles nuevos en el popup (sigue mostrando «omitido» como hoy, RN-31, y refresca automáticamente tras el editor).
 - Cambiar qué sugiere `sugerirDestino` ni cuándo devuelve `regla: false`.
 
 ## Actores
@@ -47,7 +45,9 @@ Como dueño que adopta cursos desde el editor web, quiero **omitir todas las vid
 - **RN-2** — Cada curso con al menos una videollamada muestra el botón «Omitir N videollamadas», con N = filas de videollamada cuya acción no es `omitir`. Sin videollamadas, el botón no aparece. *(A3, A6)*
 - **RN-3** — «Omitir N videollamadas» pone `accion = "omitir"` en cada fila de videollamada del curso **salvo** las `ya-esta`, que no cambian nunca (RN-31, RN-5 de disco-manda). *(A3, A8)*
 - **RN-4** — Si el curso tiene alguna videollamada omitida, aparece «Volver a ofrecerlas», que pasa a `copiar` todas las videollamadas con `accion = "omitir"` del curso. *(A5)*
-- **RN-5** — La omisión masiva es una **acción puntual**, no una regla: no se guarda nada más que `cursos.<clave>.omitidos` (RN-31). Una videollamada que aparezca en un re-escaneo posterior llega sin omitir. *(A2, A4)*
+- **RN-5** — **Videollamadas omitidas por defecto (RN-A / RN-B, Plan 25)**:
+  - **RN-A**: toda fila de videollamada llega **omitida por defecto** al popup y al editor salvo que: (1) su clave esté en `curso.videollamadasPermitidas`, o (2) ya esté descargada en disco (`clave ∈ archivos`). La omisión explícita (`curso.omitidos`, tema `-`) sigue mandando.
+  - **RN-B**: al guardar en el editor, una videollamada con acción `copiar` se agrega a `curso.videollamadasPermitidas` y se quita de `omitidos`; con acción `omitir` se quita de `videollamadasPermitidas` y queda en `omitidos`; con `ya-esta` no se toca. Si `videollamadasPermitidas` queda vacío, el campo se borra del índice.
 - **RN-6** — Las filas de videollamada llevan en el editor la misma chip que el popup (`listaClases.preact.js` ~L194). *(A9)*
 - **RN-7** — **Tema sin destino** = el tema no está omitido (`-`) y (`regla === "no"` o `destino` vacío). `destino === "."` **no** alcanza para ser «sin destino». Esta definición vive en **una** función y la usan los cuatro lugares de «Contexto». *(A10, A11, A14)*
 - **RN-8** — Un tema con `destino === "."` y `regla === "si"` se muestra «✓ Asignado» y con la etiqueta de destino «Raíz de la materia». Incluye los temas guardados en el índice y los que una regla manda a `.` (Novedades, Cronograma). *(A11)*
@@ -69,7 +69,7 @@ Como dueño que adopta cursos desde el editor web, quiero **omitir todas las vid
 | A1 | El curso no tiene videollamadas | No hay botón. |
 | A2 | Hay videollamadas `ya-esta` y otras no | N cuenta sólo las no `ya-esta`; las `ya-esta` no cambian. |
 | A3 | Todas las videollamadas ya están omitidas | No hay «Omitir…»; sólo «Volver a ofrecerlas». |
-| A4 | Un re-escaneo trae una videollamada nueva | Llega sin omitir; el botón vuelve a mostrar «Omitir 1 videollamada» (la anterior sigue omitida). |
+| A4 | Un re-escaneo trae una videollamada nueva | Llega omitida por defecto (RN-A); el botón muestra «Volver a ofrecerlas». Si una videollamada se había re-ofrecido previamente, se conserva en `videollamadasPermitidas` y llega a copiar. |
 | A5 | Tema nuevo, sin regla, destino `.` | «Sin destino» hasta que el dueño elija; elegir `.` lo da por decidido. |
 | A6 | El dueño elige `.` y no guarda | El badge pasa a «Asignado» en el acto; el índice sólo cambia al guardar. |
 | A7 | URL de acceso con host fuera de la lista (p. ej. `youtube.com`) | No es videollamada: ni chip ni cuenta en el botón. |
@@ -148,11 +148,11 @@ AC-4 — Volver a ofrecerlas (RN-4)
   Entonces las 3 vuelven a copiar
     y el botón vuelve a decir "Omitir 3 videollamadas"
 
-AC-5 — No es una regla (RN-5)
-  Dado un curso con sus 3 videollamadas omitidas y guardadas
-  Cuando un re-escaneo trae una videollamada nueva
-  Entonces la nueva llega con acción copiar
-    y las 3 anteriores siguen omitidas
+AC-5 — Videollamadas nuevas omitidas por defecto (RN-A, Plan 25)
+  Dado un curso asociado
+  Cuando un re-escaneo trae una videollamada nueva no presente en videollamadasPermitidas
+  Entonces la nueva llega con acción omitir
+    y las videollamadas re-ofrecidas previamente (en videollamadasPermitidas) conservan acción copiar
 
 AC-6 — Reconocer sólo videollamadas (RN-1, A7, A8)
   Esquema del escenario
@@ -209,7 +209,7 @@ AC-12 — Rótulo (RN-11)
 
 ## Datos
 
-Sin campos nuevos. Usa `cursos.<clave>.omitidos` (RN-31, ya existente) y `cursos.<clave>.temas.<tema>` con `"."`. El estado `regla` es sólo de sesión y sale de `vistas.ts` L246-261; RN-10 lo cambia en memoria del editor, no en el índice.
+Usa `cursos.<clave>.omitidos` (RN-31), `cursos.<clave>.videollamadasPermitidas` (lista de claves de videollamadas que el dueño decidió copiar, Plan 25) y `cursos.<clave>.temas.<tema>` con `"."`. El estado `regla` es sólo de sesión y sale de `vistas.ts` L246-261; RN-10 lo cambia en memoria del editor, no en el índice.
 
 ## Requisitos no funcionales
 
@@ -221,7 +221,7 @@ Sin campos nuevos. Usa `cursos.<clave>.omitidos` (RN-31, ya existente) y `cursos
 
 | Supuesto | Decisión | Por qué |
 |---|---|---|
-| Acción masiva vs regla persistente | Puntual (A4) | Evita estado nuevo en el índice; una videollamada nueva rara vez hace falta ocultarla otra vez. |
+| Acción masiva vs regla persistente | Omitidas por defecto con excepción persistente (Plan 25, revierte A4) | El dueño decidió que toda videollamada llegue omitida y que re-ofrecerla sea persistente vía `videollamadasPermitidas`. |
 | Marca por bandera vs por dominio | Por dominio de la URL en la clave (A7) | El editor recibe `vistos` sin `esVideollamada`; no hay que tocar el contrato. |
 | `.` como faltante vs destino válido | Válido si `regla = "si"` (A10, A11) | `vistas.ts` ya lo trata así; el defecto es del editor. |
 | Elegir `.` es decisión | Sí, en el acto (A13) | El handler ya lo hace, pero un tema que llega en `.` ya lo muestra seleccionado y no hay evento de cambio. |

@@ -16,6 +16,12 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## 🚧 En revisión
 
+- `videollamadas-omitidas-defecto`: Plan 25 (`~/Boveda/Proyectos/courseDownloader/Planes/25 - Videollamadas omitidas por defecto y popup al dia con el editor.md`).
+  Specs: `docs/specs/editor-ignorar-y-raiz/spec.md`, `docs/specs/classroom-destino/spec.md`.
+  Compuerta: 81 archivos / 1220 tests; humos: `humo-editor.js`, `humo-editor-indice.js`, `humo-editor-videollamadas-raiz.js`, `humo-editor-filtros-orden.js` (errores: 0).
+  - ⬜ **M-1** — Dueño: re-escanear un curso con Meet, abrir el editor sin tocar nada: todas las videollamadas nacen en «omitir». «Volver a ofrecerlas» → guardar → `jq '.cursos[].videollamadasPermitidas' <índice>` las lista.
+  - ⬜ **M-2** — Dueño: con el popup abierto, abrir el editor (🗂️), re-ofrecer una videollamada, guardar, volver al popup **sin re-escanear**: pasa de «omitido» a seleccionable en pocos segundos. Lo tildado a mano **antes** de abrir el editor puede perderse (esperado, ver Paso 3); lo tildado en el popup sin haber abierto el editor no se toca al cambiar de pestaña.
+  - ⬜ **M-3** — Dueño: re-escanear después: las re-ofrecidas siguen ofrecidas; una videollamada nueva llega omitida.
 - `editor-filtros-orden`: Plan 24 (`~/Boveda/Proyectos/courseDownloader/Planes/24 - Filtros y orden en el editor de adopcion.md`).
   Spec: `docs/specs/editor-filtros-orden/spec.md`.
   Compuerta: 80 archivos / 1203 tests; humos: `humo-editor.js`, `humo-editor-indice.js`, `humo-editor-videollamadas-raiz.js`, `humo-editor-filtros-orden.js` (errores: 0).

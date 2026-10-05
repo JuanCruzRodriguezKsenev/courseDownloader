@@ -30,10 +30,19 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **80 archivos, 1203 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
+| `pnpm test` | **81 archivos, 1220 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 1220** (2026-10-05, plan `25 - Videollamadas omitidas por defecto y popup al dia con el editor`, rama `videollamadas-omitidas-defecto`): son los 1203 de abajo más **+17** tests (+1 archivo nuevo `popup/features/refrescoEditor.test.js`):
+- **+1** en `core/destino/indice.test.ts` (ida y vuelta conserva `videollamadasPermitidas`),
+- **+6** en `core/destino/propuesta.test.ts` (suite RN-A de videollamadas omitidas por defecto: ítems (a) a (f)),
+- **+4** en `core/destino/vistas.test.ts` (suite RN-B de persistencia de `videollamadasPermitidas` al guardar, actualización de AC-5),
+- **+1** en `backend/destino/estado.test.js` (videollamada omitida por defecto en curso asociado),
+- **+1** en `popup/features/destino.test.js` (ítem de videollamada omitida bloqueado como 'omitido'),
+- **+4** en el archivo nuevo `popup/features/refrescoEditor.test.js` (refresco al volver del editor, consumo de bandera y prevención de doble disparo).
+Los 4 scripts de humo (`humo-editor.js`, `humo-editor-indice.js`, `humo-editor-videollamadas-raiz.js`, `humo-editor-filtros-orden.js`) reportan 0 errores.
 
 **Sobre el plan 24** (2026-10-05, plan `24 - Filtros y orden en el editor de adopcion`, rama `editor-filtros-orden`): no agrega tests a la suite de Vitest (el conteo se mantiene en 80 archivos / 1203 tests); sus 16 criterios (AC-1 a AC-16) se ejercitan en el script de humo nuevo en jsdom (`bun backend/adopcion/humo-editor-filtros-orden.js`), sumándose a los humos `humo-editor.js`, `humo-editor-indice.js` y `humo-editor-videollamadas-raiz.js`.
 

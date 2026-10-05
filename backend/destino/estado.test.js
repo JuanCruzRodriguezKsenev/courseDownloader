@@ -337,4 +337,35 @@ describe("backend/destino/estado.js", () => {
     expect(res.items[0].estado).toBe("pendiente");
     expect(res.items[0].rutaDestino).toBeNull();
   });
+
+  it("un ítem de videollamada de un curso asociado vuelve con omitido: true y rutaDestino: null (RN-A)", async () => {
+    const claveC = "google-classroom:c1";
+    const indiceInicial = {
+      version: 1,
+      cursos: {
+        [claveC]: {
+          nombre: "Física II",
+          materia: "Ingenieria/Fisica 2",
+          docente: "Palacio",
+          temas: { "Clases Teóricas": "Teorias/Palacio" },
+        },
+      },
+      archivos: {},
+    };
+    await fs.writeFile(path.join(raiz, NOMBRE_INDICE), serializarIndice(indiceInicial), "utf8");
+
+    const meetId = "acceso:" + encodeURIComponent("https://meet.google.com/abc-defg-hij") + ":Clase%20Meet";
+    const res = await calcularEstado({
+      raiz,
+      sitio: "google-classroom",
+      curso: { id: "c1", nombre: "Física II" },
+      items: [{ idArchivo: meetId, tema: "Clases Teóricas", original: "Clase Meet" }],
+    });
+
+    expect(res.ok).toBe(true);
+    expect(res.items.length).toBe(1);
+    expect(res.items[0].idArchivo).toBe(meetId);
+    expect(res.items[0].omitido).toBe(true);
+    expect(res.items[0].rutaDestino).toBeNull();
+  });
 });

@@ -53,6 +53,35 @@ describe("core/destino/indice.ts", () => {
     }
   });
 
+  it("ida y vuelta serializar -> parsear conserva videollamadasPermitidas", () => {
+    const indiceOriginal: Indice = {
+      version: 1,
+      cursos: {
+        "google-classroom:CURSO1": {
+          nombre: "Física II",
+          materia: "Ingenieria/Fisica 2",
+          docente: "Palacio",
+          temas: {},
+          videollamadasPermitidas: [
+            "google-classroom:acceso:https%3A%2F%2Fmeet.google.com%2Fabc-defg-hij:Clase%20Meet",
+          ],
+        },
+      },
+      archivos: {},
+    };
+
+    const texto = serializarIndice(indiceOriginal);
+    const parseado = parsearIndice(texto);
+
+    expect(parseado.ok).toBe(true);
+    if (parseado.ok) {
+      expect(parseado.indice).toEqual(indiceOriginal);
+      expect(parseado.indice.cursos["google-classroom:CURSO1"]?.videollamadasPermitidas).toEqual([
+        "google-classroom:acceso:https%3A%2F%2Fmeet.google.com%2Fabc-defg-hij:Clase%20Meet",
+      ]);
+    }
+  });
+
   it("serializarIndice emite claves ordenadas de cursos y archivos con salto de línea al final", () => {
     const indice: Indice = {
       version: 1,
