@@ -13,3 +13,7 @@ Plan `~/Boveda/Proyectos/courseDownloader/Planes/21 - Nombres que chocan en curs
 - Los `nombres` repetidos no existen en la Bóveda real (medido); sólo en la copia `~/Descargas/facultad-prueba`. Por eso el plan no limpia datos viejos.
 - **La idea grande del dueño (descargar todo a una carpeta bruta, verificar, «aprender») se achicó** a «lo que está en disco manda»: ver [[project-disco-manda-plan22]]. Ya no hay carpeta bruta ni aprendizaje.
 - El plan 21 va primero porque el 22 toca los mismos archivos (`vistas.ts`, `propuesta.ts`).
+
+**Estado 2026-10-04 noche:** `obra` terminó (rama `choques-nombre`, `bdf955d`). M-1 (11 nombres distintos), M-2 (aviso de choque en ambas filas), M-3 (`nombres` null) y M-4 (25/25 en disco, 0 «ya existe») verificados con el dueño. Falta sólo decidir el merge a `main`; luego plan 22.
+- Para M-2 hay que sacar 2 archivos del índice **y** del disco: los que están en disco salen bloqueados («en disco») y no se renombran en el editor.
+- El dueño preguntó por una carpeta «Autoevaluaciones» que el escaneo de MC2 no trae (los multiple choice están en «Novedades»); sin respuesta aún si es el escáner o un tema a crear a mano.
