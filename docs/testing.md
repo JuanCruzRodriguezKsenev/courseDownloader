@@ -35,6 +35,8 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
 
+**Sobre el plan 24** (2026-10-05, plan `24 - Filtros y orden en el editor de adopcion`, rama `editor-filtros-orden`): no agrega tests a la suite de Vitest (el conteo se mantiene en 80 archivos / 1203 tests); sus 16 criterios (AC-1 a AC-16) se ejercitan en el script de humo nuevo en jsdom (`bun backend/adopcion/humo-editor-filtros-orden.js`), sumándose a los humos `humo-editor.js`, `humo-editor-indice.js` y `humo-editor-videollamadas-raiz.js`.
+
 **De dónde sale el 1203** (2026-10-04, plan `23 - Omitir videollamadas en bloque y raiz decidida en el editor`, rama `editor-videollamadas-raiz`): son los 1191 de abajo más **+12** tests (+1 archivo):
 - **+11** en el archivo nuevo `core/destino/videollamada.test.ts` (test de deriva contra `scraper.js` de Classroom y suite de `esEnlaceVideollamada` y `claveEsVideollamada` con AC-6),
 - **+1** en `core/destino/vistas.test.ts` (test de AC-5 / RN-5: videollamadas omitidas previamente conservan accion omitir y una nueva llega como copiar).

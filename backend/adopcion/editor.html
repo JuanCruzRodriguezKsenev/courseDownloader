@@ -550,10 +550,40 @@ button {
   flex-wrap: wrap;
 }
 
-.toolbar-left, .toolbar-right {
+.toolbar-left {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar-select-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: var(--font-medium);
+}
+
+.toolbar-select {
+  background: var(--bg-main);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 4px 6px;
+  color: var(--text-main);
+  font-size: 12px;
+}
+
+.toolbar-select:focus {
+  outline: none;
+  border-color: var(--text-muted);
 }
 
 .searchbox {
@@ -1009,6 +1039,11 @@ button {
       <aside class="sidebar" aria-label="Cursos disponibles">
         <div class="sidebar-head">
           <div class="eyebrow">CURSOS DETECTADOS</div>
+          <select id="selOrdenCursos" class="sidebar-search" style="margin-bottom: 6px;">
+            <option value="vienen">Como vienen</option>
+            <option value="az">A→Z</option>
+            <option value="revisar">Más para revisar primero</option>
+          </select>
           <input type="text" id="courseSearch" class="sidebar-search" placeholder="Buscar curso..." />
         </div>
         <nav class="course-list" id="courseList"></nav>
@@ -1074,6 +1109,41 @@ button {
               <input type="text" id="filtro-texto-archivos" placeholder="Buscar carpeta o archivo..." />
             </label>
             <button class="filter-toggle" id="btnOnlyProblems">⚠ Solo problemas</button>
+            <label class="toolbar-select-label" for="selMostrar">
+              Mostrar
+              <select id="selMostrar" class="toolbar-select">
+                <option value="todas">Todas</option>
+                <option value="copiar">A copiar</option>
+                <option value="omitidas">Omitidas</option>
+                <option value="ya-esta">Ya en disco</option>
+                <option value="videollamadas">📹 Videollamadas</option>
+              </select>
+            </label>
+            <label class="toolbar-select-label" for="selTipo">
+              Tipo
+              <select id="selTipo" class="toolbar-select">
+                <option value="">Todos</option>
+              </select>
+            </label>
+            <label class="toolbar-select-label" for="selOrdenTemas">
+              Temas
+              <select id="selOrdenTemas" class="toolbar-select">
+                <option value="vienen">Como vienen</option>
+                <option value="az">A→Z</option>
+                <option value="za">Z→A</option>
+                <option value="mas-archivos">Más archivos primero</option>
+                <option value="problemas">Problemas primero</option>
+              </select>
+            </label>
+            <label class="toolbar-select-label" for="selOrdenArchivos">
+              Archivos
+              <select id="selOrdenArchivos" class="toolbar-select">
+                <option value="vienen">Como vienen</option>
+                <option value="nombre">Nombre original A→Z</option>
+                <option value="tipo">Tipo</option>
+              </select>
+            </label>
+            <button class="ghost-btn" id="btnLimpiarVista" hidden>✕ Limpiar filtros</button>
           </div>
           <div class="toolbar-right">
             <button class="ghost-btn" id="btnExpandAll">Expandir todos</button>
@@ -1112,6 +1182,11 @@ button {
     let expandedTemas = new Set();
     let FILAS_CON_CHOQUE = new Set();
     const destinosPrevios = new Map();
+    let filtroMostrar = "todas";      // todas | copiar | omitidas | ya-esta | videollamadas
+    let filtroTipo = "";              // "" = todos; si no, extensión en minúsculas o "\u0000sin" para «(sin extensión)»
+    let ordenTemas = "vienen";        // vienen | az | za | mas-archivos | problemas
+    let ordenArchivos = "vienen";     // vienen | nombre | tipo
+    let ordenCursos = "vienen";       // vienen | az | revisar
 
     // TOAST NOTIFICACIONES
     function showToast(msg) {
@@ -1352,6 +1427,199 @@ button {
       );
     }
 
+    // FILTROS Y ORDEN DE VISTA (Plan 24, RN-3, RN-4, RN-8..RN-11)
+    function extensionDe(arch) {
+      if (!arch || !arch.original) return "";
+      const orig = String(arch.original).trim();
+      const idx = orig.lastIndexOf(".");
+      if (idx <= 0 || idx >= orig.length - 1) return "";
+      return orig.slice(idx + 1).toLowerCase();
+    }
+
+    function comparar(a, b) {
+      return String(a).localeCompare(String(b), "es", { numeric: true, sensitivity: "base" });
+    }
+
+    function ordenEstable(lista, cmp) {
+      return (lista || [])
+        .map((item, idx) => ({ item, idx }))
+        .sort((a, b) => cmp(a.item, b.item) || (a.idx - b.idx))
+        .map((x) => x.item);
+    }
+
+    function filaPasaFiltros(arch, tema) {
+      if (!arch) return false;
+      if (filtroMostrar === "todas" && filtroTipo === "") return true;
+
+      if (filtroMostrar !== "todas") {
+        if (arch.accion === "duplicado") return false;
+
+        const isDownloaded = arch.accion === "ya-esta";
+        const temaDestOmitido = Boolean(tema && (tema.destino === "-" || tema.destino === "- (no bajar)"));
+        const isOmitted = (arch.accion === "omitir" || temaDestOmitido) && !isDownloaded;
+
+        if (filtroMostrar === "copiar") {
+          if (arch.accion !== "copiar" || isOmitted) return false;
+        } else if (filtroMostrar === "omitidas") {
+          if (!isOmitted) return false;
+        } else if (filtroMostrar === "ya-esta") {
+          if (!isDownloaded) return false;
+        } else if (filtroMostrar === "videollamadas") {
+          if (!esFilaVideollamada(arch)) return false;
+        }
+      }
+
+      if (filtroTipo !== "") {
+        const ext = extensionDe(arch);
+        if (filtroTipo === "\u0000sin") {
+          if (ext !== "") return false;
+        } else {
+          if (ext !== filtroTipo) return false;
+        }
+      }
+
+      return true;
+    }
+
+    function hayFiltroDeFila() {
+      return filtroMostrar !== "todas" || filtroTipo !== "";
+    }
+
+    function tiposDelCurso(curso) {
+      if (!curso) return [];
+      const archivos = (DATOS.archivos || []).filter((a) => a.clave_curso === curso.clave_curso);
+      const tiposSet = new Set();
+      let haySinExt = false;
+      for (const a of archivos) {
+        const ext = extensionDe(a);
+        if (ext) {
+          tiposSet.add(ext);
+        } else {
+          haySinExt = true;
+        }
+      }
+      const lista = Array.from(tiposSet);
+      lista.sort((a, b) => comparar(a, b));
+      if (haySinExt) {
+        lista.push("\u0000sin");
+      }
+      return lista;
+    }
+
+    function ordenarTemas(temas, archivosPorTema) {
+      if (!temas || temas.length <= 1) return temas || [];
+      if (ordenTemas === "vienen") return [...temas];
+      if (ordenTemas === "az") {
+        return ordenEstable(temas, (a, b) => comparar(a.tema, b.tema));
+      }
+      if (ordenTemas === "za") {
+        return ordenEstable(temas, (a, b) => comparar(b.tema, a.tema));
+      }
+      if (ordenTemas === "mas-archivos") {
+        return ordenEstable(temas, (a, b) => {
+          const cantA = (archivosPorTema && archivosPorTema.get(a.tema)) ? archivosPorTema.get(a.tema).length : 0;
+          const cantB = (archivosPorTema && archivosPorTema.get(b.tema)) ? archivosPorTema.get(b.tema).length : 0;
+          return cantB - cantA;
+        });
+      }
+      if (ordenTemas === "problemas") {
+        const esProblema = (t) => {
+          if (temaSinDestino(t)) return true;
+          const archs = (archivosPorTema && archivosPorTema.get(t.tema)) || [];
+          return archs.some((f) => FILAS_CON_CHOQUE.has(f.clave));
+        };
+        return ordenEstable(temas, (a, b) => {
+          const pA = esProblema(a) ? 1 : 0;
+          const pB = esProblema(b) ? 1 : 0;
+          return pB - pA;
+        });
+      }
+      return [...temas];
+    }
+
+    function ordenarArchivos(filas) {
+      if (!filas || filas.length <= 1) return filas || [];
+      if (ordenArchivos === "vienen") return [...filas];
+      if (ordenArchivos === "nombre") {
+        return ordenEstable(filas, (a, b) => comparar(a.original, b.original));
+      }
+      if (ordenArchivos === "tipo") {
+        return ordenEstable(filas, (a, b) => {
+          const extA = extensionDe(a);
+          const extB = extensionDe(b);
+          const cmpExt = comparar(extA, extB);
+          if (cmpExt !== 0) return cmpExt;
+          return comparar(a.original, b.original);
+        });
+      }
+      return [...filas];
+    }
+
+    function cursosOrdenados(cursos) {
+      if (!cursos || cursos.length <= 1) return cursos || [];
+      if (ordenCursos === "vienen") return [...cursos];
+      if (ordenCursos === "az") {
+        return ordenEstable(cursos, (a, b) => comparar(a.nombre, b.nombre));
+      }
+      if (ordenCursos === "revisar") {
+        const peso = (c) => {
+          const temasSinRegla = (DATOS.temas || []).filter(
+            (t) => t.clave_curso === c.clave_curso && temaSinDestino(t)
+          ).length;
+          const choques = (DATOS.archivos || []).filter(
+            (a) => a.clave_curso === c.clave_curso && FILAS_CON_CHOQUE.has(a.clave)
+          ).length;
+          return temasSinRegla + choques;
+        };
+        return ordenEstable(cursos, (a, b) => peso(b) - peso(a));
+      }
+      return [...cursos];
+    }
+
+    function vistaActiva() {
+      return (
+        activeFilter !== "all" ||
+        onlyProblems ||
+        Boolean(searchTerm.trim()) ||
+        filtroMostrar !== "todas" ||
+        filtroTipo !== "" ||
+        ordenTemas !== "vienen" ||
+        ordenArchivos !== "vienen"
+      );
+    }
+
+    function limpiarVista() {
+      activeFilter = "all";
+      onlyProblems = false;
+      searchTerm = "";
+      filtroMostrar = "todas";
+      filtroTipo = "";
+      ordenTemas = "vienen";
+      ordenArchivos = "vienen";
+
+      const inpSearch = document.getElementById("filtro-texto-archivos");
+      if (inpSearch) inpSearch.value = "";
+
+      document.querySelectorAll(".stat-chip").forEach((chip) => {
+        chip.classList.toggle("active", chip.dataset.filter === "all");
+      });
+
+      const btnProb = document.getElementById("btnOnlyProblems");
+      if (btnProb) btnProb.classList.remove("active");
+
+      const sMostrar = document.getElementById("selMostrar");
+      if (sMostrar) sMostrar.value = "todas";
+
+      const sTipo = document.getElementById("selTipo");
+      if (sTipo) sTipo.value = "";
+
+      const sOrdenTemas = document.getElementById("selOrdenTemas");
+      if (sOrdenTemas) sOrdenTemas.value = "vienen";
+
+      const sOrdenArchivos = document.getElementById("selOrdenArchivos");
+      if (sOrdenArchivos) sOrdenArchivos.value = "vienen";
+    }
+
     function getEffectiveDest(tema, arch) {
       if (arch && arch.destinoPropio !== undefined && arch.destinoPropio !== "") {
         return arch.destinoPropio;
@@ -1531,8 +1799,9 @@ button {
       const filtered = DATOS.cursos.filter(
         (c) => !q || c.nombre.toLowerCase().includes(q) || (c.materia && c.materia.toLowerCase().includes(q))
       );
+      const listaCursos = cursosOrdenados(filtered);
 
-      courseListEl.innerHTML = filtered.map((c) => {
+      courseListEl.innerHTML = listaCursos.map((c) => {
         const totalFiles = DATOS.archivos.filter((a) => a.clave_curso === c.clave_curso).length;
         const temasDelCurso = DATOS.temas.filter((t) => t.clave_curso === c.clave_curso);
         const unassignedTemas = temasDelCurso.filter((t) => temaSinDestino(t)).length;
@@ -1569,6 +1838,7 @@ button {
 
       courseListEl.querySelectorAll(".course-item").forEach((el) => {
         el.addEventListener("click", () => {
+          limpiarVista();
           CURSO_ACTIVO = el.dataset.clave;
           expandedTemas.clear();
           const curso = getActiveCurso();
@@ -1730,17 +2000,27 @@ button {
       document.getElementById("cntClash").textContent = choquesCurso;
     }
 
-    // RENDER TEMAS Y ARCHIVOS
-    function renderTopics() {
-      const curso = getActiveCurso();
-      const topicsContainerEl = document.getElementById("topicsContainer");
-      if (!curso) return;
+    function poblarSelectorTipos(curso) {
+      const selTipoEl = document.getElementById("selTipo");
+      if (!selTipoEl || !curso) return;
+      const tipos = tiposDelCurso(curso);
+      if (filtroTipo !== "" && !tipos.includes(filtroTipo)) {
+        filtroTipo = "";
+      }
+      const opts = [`<option value="" ${filtroTipo === "" ? "selected" : ""}>Todos</option>`];
+      for (const t of tipos) {
+        const label = t === "\u0000sin" ? "(sin extensión)" : t;
+        opts.push(`<option value="${t}" ${filtroTipo === t ? "selected" : ""}>${label}</option>`);
+      }
+      selTipoEl.innerHTML = opts.join("");
+      selTipoEl.value = filtroTipo;
+    }
 
-      const destinosDisponibles = obtenerDestinosParaCurso(curso);
+    // CALCULAR TEMAS VISIBLES (Plan 24, RN-5, RN-6, Paso 3.1)
+    function calcularTemasVisibles(curso) {
+      if (!curso) return { temas: [], archivosCurso: [], archivosSinTema: [], todosLosTemas: [] };
 
-      recalcularChoques();
       const q = searchTerm.toLowerCase().trim();
-
       const temasDelCurso = DATOS.temas.filter((t) => t.clave_curso === curso.clave_curso);
       const nombresTemasSet = new Set(temasDelCurso.map((t) => t.tema));
 
@@ -1782,18 +2062,67 @@ button {
           const matchFile = archivosTema.some(
             (f) => (f.original || "").toLowerCase().includes(q) || (f.nombre || "").toLowerCase().includes(q)
           );
-          if (!matchTema && !matchFile) return false;
+          const destResuelto = (tema.destino && tema.destino !== "." && tema.destino !== "-" && tema.destino !== "- (no bajar)")
+            ? resolverCarpeta(tema.destino, curso ? curso.docente : "", tema.subcarpeta === "si" ? tema.tema : null)
+            : "";
+          const matchDestino =
+            Boolean(tema.destino && tema.destino !== "." && tema.destino !== "-" && tema.destino !== "- (no bajar)" && tema.destino.toLowerCase().includes(q)) ||
+            Boolean(destResuelto && destResuelto !== "." && destResuelto.toLowerCase().includes(q)) ||
+            archivosTema.some((f) => {
+              const dest = getEffectiveDest(tema, f);
+              const destPropioResuelto = (dest && dest !== "." && dest !== "-" && dest !== "- (no bajar)")
+                ? resolverCarpeta(dest, curso ? curso.docente : "", null)
+                : "";
+              return Boolean(
+                (dest && dest !== "." && dest !== "-" && dest !== "- (no bajar)" && dest.toLowerCase().includes(q)) ||
+                (destPropioResuelto && destPropioResuelto !== "." && destPropioResuelto.toLowerCase().includes(q))
+              );
+            });
+          if (!matchTema && !matchFile && !matchDestino) return false;
+        }
+
+        if (hayFiltroDeFila()) {
+          const algunaFilaPasa = archivosTema.some((f) => filaPasaFiltros(f, tema));
+          if (!algunaFilaPasa) return false;
         }
 
         return true;
       });
+
+      return { temas: filteredTemas, archivosCurso, archivosSinTema, todosLosTemas };
+    }
+
+    // RENDER TEMAS Y ARCHIVOS
+    function renderTopics() {
+      const curso = getActiveCurso();
+      const topicsContainerEl = document.getElementById("topicsContainer");
+      if (!curso) return;
+
+      poblarSelectorTipos(curso);
+      const btnLimpiar = document.getElementById("btnLimpiarVista");
+      if (btnLimpiar) {
+        btnLimpiar.hidden = !vistaActiva();
+      }
+
+      const destinosDisponibles = obtenerDestinosParaCurso(curso);
+      recalcularChoques();
+
+      const { temas: filteredTemas, archivosCurso, archivosSinTema, todosLosTemas } = calcularTemasVisibles(curso);
 
       if (filteredTemas.length === 0) {
         topicsContainerEl.innerHTML = `<div style="text-align:center; padding: 40px; color: var(--text-muted);">No hay carpetas ni archivos que coincidan con los filtros.</div>`;
         return;
       }
 
-      topicsContainerEl.innerHTML = filteredTemas.map((tema) => {
+      const archivosPorTema = new Map();
+      for (const t of todosLosTemas) {
+        const archs = t.esHuerfano ? archivosSinTema : archivosCurso.filter((a) => a.tema === t.tema);
+        archivosPorTema.set(t.tema, archs);
+      }
+
+      const temasOrdenados = ordenarTemas(filteredTemas, archivosPorTema);
+
+      topicsContainerEl.innerHTML = temasOrdenados.map((tema) => {
         const isExpanded = expandedTemas.has(tema.tema);
         const archivosTema = tema.esHuerfano
           ? archivosSinTema
@@ -1832,6 +2161,11 @@ button {
         const disabledSubcarpeta = !esTemaElegibleSubcarpeta;
         const isSubcarpetaChecked = tema.subcarpeta === "si";
 
+        const filasVisibles = ordenarArchivos(archivosTema.filter((f) => filaPasaFiltros(f, tema)));
+        const textoMostrando = (filasVisibles.length !== archivosTema.length)
+          ? ` · mostrando ${filasVisibles.length} de ${archivosTema.length} archivos`
+          : "";
+
         return `
           <article class="topic-card ${isSinRegla ? "has-warning" : ""} ${choquesEnTema > 0 ? "has-clash" : ""}" data-tema="${tema.tema}">
             <div class="topic-header">
@@ -1853,7 +2187,7 @@ button {
                     `}
                   </div>
                   <div class="topic-meta">
-                    ${copiedCount} de ${archivosTema.length} archivos marcados para descargar
+                    ${copiedCount} de ${archivosTema.length} archivos marcados para descargar${textoMostrando}
                   </div>
                 </div>
               </div>
@@ -1891,7 +2225,7 @@ button {
                   </tr>
                 </thead>
                 <tbody>
-                  ${archivosTema.map((arch) => {
+                  ${filasVisibles.map((arch) => {
                     const isClash = FILAS_CON_CHOQUE.has(arch.clave);
                     const isDownloaded = arch.accion === "ya-esta";
                     const isOmitted = (arch.accion === "omitir" || tema.destino === "-") && !isDownloaded;
@@ -1959,7 +2293,7 @@ button {
       }).join("");
 
       // Estado indeterminado en checkboxes maestros
-      filteredTemas.forEach((tema) => {
+      temasOrdenados.forEach((tema) => {
         const escTema = (window.CSS && window.CSS.escape) ? window.CSS.escape(tema.tema) : tema.tema.replace(/"/g, '\\"');
         const chk = document.querySelector(`.topic-check[data-tema="${escTema}"]`);
         if (chk) {
@@ -2380,6 +2714,10 @@ button {
     // Búsqueda
     document.getElementById("filtro-texto-archivos").addEventListener("input", (e) => {
       searchTerm = e.target.value;
+      const curso = getActiveCurso();
+      if (curso && searchTerm.trim() !== "") {
+        calcularTemasVisibles(curso).temas.forEach((t) => expandedTemas.add(t.tema));
+      }
       renderTopics();
     });
     document.getElementById("courseSearch").addEventListener("input", renderSidebar);
@@ -2390,6 +2728,63 @@ button {
       document.getElementById("btnOnlyProblems").classList.toggle("active", onlyProblems);
       renderTopics();
     });
+
+    // Selectores y controles de vista (Plan 24, RN-12, RN-13, RN-16)
+    const selMostrarEl = document.getElementById("selMostrar");
+    if (selMostrarEl) {
+      selMostrarEl.addEventListener("change", (e) => {
+        filtroMostrar = e.target.value;
+        const curso = getActiveCurso();
+        if (curso && filtroMostrar !== "todas") {
+          calcularTemasVisibles(curso).temas.forEach((t) => expandedTemas.add(t.tema));
+        }
+        renderTopics();
+      });
+    }
+
+    const selTipoEl = document.getElementById("selTipo");
+    if (selTipoEl) {
+      selTipoEl.addEventListener("change", (e) => {
+        filtroTipo = e.target.value;
+        const curso = getActiveCurso();
+        if (curso && filtroTipo !== "") {
+          calcularTemasVisibles(curso).temas.forEach((t) => expandedTemas.add(t.tema));
+        }
+        renderTopics();
+      });
+    }
+
+    const selOrdenTemasEl = document.getElementById("selOrdenTemas");
+    if (selOrdenTemasEl) {
+      selOrdenTemasEl.addEventListener("change", (e) => {
+        ordenTemas = e.target.value;
+        renderTopics();
+      });
+    }
+
+    const selOrdenArchivosEl = document.getElementById("selOrdenArchivos");
+    if (selOrdenArchivosEl) {
+      selOrdenArchivosEl.addEventListener("change", (e) => {
+        ordenArchivos = e.target.value;
+        renderTopics();
+      });
+    }
+
+    const selOrdenCursosEl = document.getElementById("selOrdenCursos");
+    if (selOrdenCursosEl) {
+      selOrdenCursosEl.addEventListener("change", (e) => {
+        ordenCursos = e.target.value;
+        renderSidebar();
+      });
+    }
+
+    const btnLimpiarVistaEl = document.getElementById("btnLimpiarVista");
+    if (btnLimpiarVistaEl) {
+      btnLimpiarVistaEl.addEventListener("click", () => {
+        limpiarVista();
+        renderTopics();
+      });
+    }
 
     // Expandir / Colapsar todos
     document.getElementById("btnExpandAll").addEventListener("click", () => {
