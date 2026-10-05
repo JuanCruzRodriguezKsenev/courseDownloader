@@ -5,7 +5,7 @@ import crypto from "node:crypto";
 import { sanitizarNombreArchivo } from "../utils.js";
 import { sanearNombreCarpeta } from "../../core/util/texto.ts";
 import { claveCurso, claveArchivo } from "../../core/destino/indice.ts";
-import { sugerirDestino, resolverCarpeta } from "../../core/destino/carpetas.ts";
+import { sugerirDestino, resolverCarpeta, nombreSubcarpetaTema } from "../../core/destino/carpetas.ts";
 import { proponerNombre } from "../../core/destino/nombres.ts";
 import { buscarChoques, renombrarChoquesNovedades } from "../../core/destino/choques.ts";
 import { leerUltimoValor } from "./leerStorage.js";
@@ -206,7 +206,7 @@ export function ejecutarGenerar(opts = parseArgs()) {
     "# Semántica de edición:",
     "# - Podés editar 'destino' (uno de DESTINOS: ., Teorias, Practicas, Laboratorios, Parciales, Finales, Bibliografia, Notas)",
     "# - O fijar destino en '-' para omitir el tema completo.",
-    "clave_curso\ttema\tdestino\tregla\titems",
+    "clave_curso\ttema\tdestino\tregla\titems\tsubcarpeta",
   ];
 
   const paresTemaCurso = new Map();
@@ -230,9 +230,10 @@ export function ejecutarGenerar(opts = parseArgs()) {
   for (const [parKey, { cant, publicaciones }] of paresTemaCurso.entries()) {
     const [cKey, tema] = parKey.split("\t");
     const sugerencia = sugerirDestino(tema, publicaciones);
-    sugerenciasPorPar.set(parKey, sugerencia);
+    const sub = nombreSubcarpetaTema(tema) !== "" && sugerencia.destino !== "." ? "si" : "no";
+    sugerenciasPorPar.set(parKey, { ...sugerencia, sub });
     if (!sugerencia.regla) temasSinRegla++;
-    lineasTemas.push(`${cKey}\t${tema}\t${sugerencia.destino}\t${sugerencia.regla ? "si" : "no"}\t${cant}`);
+    lineasTemas.push(`${cKey}\t${tema}\t${sugerencia.destino}\t${sugerencia.regla ? "si" : "no"}\t${cant}\t${sub}`);
   }
 
   fs.writeFileSync(path.join(opts.salida, "temas.tsv"), lineasTemas.join("\n") + "\n", "utf8");
@@ -258,7 +259,7 @@ export function ejecutarGenerar(opts = parseArgs()) {
     const parKey = `${cKey}\t${tema}`;
     const clave = claveArchivo(item.sitioId || "google-classroom", item.idArchivo);
     const sem = SEMILLA[item.carpeta] || { materia: "", docente: "" };
-    const { destino } = sugerenciasPorPar.get(parKey) || { destino: ".", regla: false };
+    const { destino, sub } = sugerenciasPorPar.get(parKey) || { destino: ".", regla: false, sub: "no" };
 
     let accion = "";
     let carpeta = "";
@@ -286,12 +287,12 @@ export function ejecutarGenerar(opts = parseArgs()) {
     } else if (/cronograma/i.test(tema)) {
       // 3. omitir
       accion = "omitir";
-      carpeta = resolverCarpeta(destino, sem.docente);
+      carpeta = resolverCarpeta(destino, sem.docente, sub === "si" ? tema : null);
       nombre = proponerNombre({ original: item.titulo, tema, docente: sem.docente });
     } else {
       // 4. copiar
       accion = "copiar";
-      carpeta = resolverCarpeta(destino, sem.docente);
+      carpeta = resolverCarpeta(destino, sem.docente, sub === "si" ? tema : null);
       nombre = proponerNombre({ original: item.titulo, tema, docente: sem.docente });
     }
 

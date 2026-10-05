@@ -125,6 +125,7 @@ export function ejecutarAplicar(opts = parseArgs()) {
   }
 
   const mapTemas = new Map();
+  const mapSubcarpetas = new Map();
   const setDestinosPermitidos = new Set([...DESTINOS, "-"]);
   for (const t of datosTemas.filas) {
     // Cada destino de temas.tsv está en DESTINOS o es -
@@ -133,7 +134,9 @@ export function ejecutarAplicar(opts = parseArgs()) {
         `Destino inválido '${t.destino}' en temas.tsv para el tema '${t.tema}' del curso '${t.clave_curso}'.`
       );
     }
-    mapTemas.set(`${t.clave_curso}\t${t.tema}`, t.destino);
+    const parKey = `${t.clave_curso}\t${t.tema}`;
+    mapTemas.set(parKey, t.destino);
+    mapSubcarpetas.set(parKey, t.subcarpeta === "si" ? "si" : "no");
   }
 
   // Re-indexar md5 del árbol para verificar que 'ya-esta' y 'duplicado' coincidan con la realidad
@@ -165,9 +168,11 @@ export function ejecutarAplicar(opts = parseArgs()) {
     if (fila.accion === "copiar") {
       const curso = mapCursos.get(fila.clave_curso);
       if (curso && curso.materia) {
-        const destinoTema = mapTemas.get(`${fila.clave_curso}\t${fila.tema}`);
+        const parKey = `${fila.clave_curso}\t${fila.tema}`;
+        const destinoTema = mapTemas.get(parKey);
         if (destinoTema && destinoTema !== "-") {
-          const carpeta = resolverCarpeta(destinoTema, curso.docente);
+          const sub = mapSubcarpetas.get(parKey) === "si";
+          const carpeta = resolverCarpeta(destinoTema, curso.docente, sub ? fila.tema : null);
           destinosPropios.add(path.join(curso.materia, carpeta, fila.nombre));
         }
       }
@@ -198,7 +203,9 @@ export function ejecutarAplicar(opts = parseArgs()) {
       );
     }
 
-    const destinoTema = mapTemas.get(`${fila.clave_curso}\t${fila.tema}`);
+    const parKey = `${fila.clave_curso}\t${fila.tema}`;
+    const destinoTema = mapTemas.get(parKey);
+    const sub = mapSubcarpetas.get(parKey) === "si";
     if (destinoTema === undefined) {
       errores.push(`Tema '${fila.tema}' del curso '${fila.clave_curso}' no figura en temas.tsv.`);
     }
@@ -277,7 +284,7 @@ export function ejecutarAplicar(opts = parseArgs()) {
       if (destinoTema === "-") {
         accionFinal = "omitir";
       } else if (destinoTema) {
-        carpetaRecalculada = resolverCarpeta(destinoTema, curso.docente);
+        carpetaRecalculada = resolverCarpeta(destinoTema, curso.docente, sub ? fila.tema : null);
       }
     }
 
@@ -441,7 +448,8 @@ export function ejecutarAplicar(opts = parseArgs()) {
         const [cKey, tema] = parKey.split("\t");
         if (cKey === claveCurso) {
           if (destino !== "-") {
-            temasCurso[tema] = resolverCarpeta(destino, curso.docente);
+            const sub = mapSubcarpetas.get(parKey) === "si";
+            temasCurso[tema] = resolverCarpeta(destino, curso.docente, sub ? tema : null);
           }
         }
       }

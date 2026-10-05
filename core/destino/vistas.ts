@@ -6,7 +6,7 @@
  * Pura, sin fs (D-1, D-2, D-3, D-4, D-6, D-7).
  */
 
-import { DESTINOS, resolverCarpeta, sugerirDestino } from "./carpetas";
+import { DESTINOS, resolverCarpeta, sugerirDestino, nombreSubcarpetaTema } from "./carpetas";
 import { claveCurso } from "./indice";
 import type { Indice, CursoIndice } from "./indice";
 import { proponerParaCurso } from "./propuesta";
@@ -30,7 +30,9 @@ export interface FilaTemaEditor {
   regla: "si" | "no";
   items: string;
   editable?: boolean;
+  subcarpeta?: "si" | "no";
 }
+
 
 export interface FilaArchivoEditor {
   clave: string;
@@ -98,18 +100,27 @@ export type ResultadoFilasAIndice =
  */
 export function invertirCarpeta(
   carpeta: string,
-  docente?: string | null
-): { destino: string; editable: boolean } {
+  docente?: string | null,
+  tema?: string | null
+): { destino: string; editable: boolean; subcarpeta: boolean } {
   if (carpeta === "-") {
-    return { destino: "-", editable: true };
+    return { destino: "-", editable: true, subcarpeta: false };
   }
   for (const d of DESTINOS) {
     if (resolverCarpeta(d, docente) === carpeta) {
-      return { destino: d, editable: true };
+      return { destino: d, editable: true, subcarpeta: false };
     }
   }
-  return { destino: carpeta, editable: false };
+  if (tema) {
+    for (const d of DESTINOS) {
+      if (resolverCarpeta(d, docente, tema) === carpeta) {
+        return { destino: d, editable: true, subcarpeta: true };
+      }
+    }
+  }
+  return { destino: carpeta, editable: false, subcarpeta: false };
 }
+
 
 export function esDestinoSeguro(destino: string): boolean {
   if (destino === "-" || destino === ".") return true;
@@ -228,23 +239,27 @@ export function indiceAFilasEditor({
       let destino: string;
       let regla: "si" | "no";
       let editable = true;
+      let subcarpeta: "si" | "no" = "no";
 
       if (cursoIndice && cursoIndice.temas && nombreTema in cursoIndice.temas) {
         const carpIndice = cursoIndice.temas[nombreTema]!;
-        if (carpIndice === "-") {
-          destino = "-";
+        if (carpIndice === "-" || carpIndice === ".") {
+          destino = carpIndice;
           regla = "si";
+          subcarpeta = nombreSubcarpetaTema(nombreTema) !== "" ? "si" : "no";
         } else {
-          const inv = invertirCarpeta(carpIndice, cursoIndice.docente);
+          const inv = invertirCarpeta(carpIndice, cursoIndice.docente, nombreTema);
           destino = inv.destino;
           regla = "si";
           editable = inv.editable;
+          subcarpeta = inv.subcarpeta ? "si" : "no";
         }
       } else {
         const pubs = itemsDelTema.map((it) => it.publicacion || it.anuncio || "").filter(Boolean);
         const sug = sugerirDestino(nombreTema, pubs);
         destino = sug.destino;
         regla = sug.regla ? "si" : "no";
+        subcarpeta = nombreSubcarpetaTema(nombreTema) !== "" ? "si" : "no";
       }
 
       temas.push({
@@ -254,6 +269,7 @@ export function indiceAFilasEditor({
         regla,
         items: String(itemsDelTema.length),
         editable,
+        subcarpeta,
       });
     }
 
@@ -287,12 +303,14 @@ export function indiceAFilasEditor({
             proponerNombre({ original, tema: temaStr, docente: cursoIndice?.docente });
           const temaFila = temas.find((t) => t.clave_curso === claveC && t.tema === temaStr);
           const destTema = temaFila && temaFila.destino !== "-" ? temaFila.destino : ".";
-          carpeta = resolverCarpeta(destTema, cursoIndice?.docente);
+          const subTema = temaFila && temaFila.subcarpeta === "si" ? temaStr : null;
+          carpeta = resolverCarpeta(destTema, cursoIndice?.docente, subTema);
         } else {
           accion = "copiar";
           nombre = prop.nombre || proponerNombre({ original, tema: temaStr, docente: cursoIndice?.docente });
           carpeta = prop.carpeta || ".";
         }
+
 
         if (cursoIndice?.carpetas?.[clave]) {
           carpeta = cursoIndice.carpetas[clave];
@@ -387,8 +405,9 @@ export function filasEditorAIndice({
     const temaOriginal = cursoExistente?.temas?.[t.tema];
     const esOriginalNoEditable =
       Boolean(temaOriginal &&
-      !invertirCarpeta(temaOriginal, cursoExistente?.docente).editable &&
+      !invertirCarpeta(temaOriginal, cursoExistente?.docente, t.tema).editable &&
       destino === temaOriginal);
+
 
     if (!esOriginalNoEditable && destino !== "-" && !esDestinoSeguro(destino)) {
       errores.push(`Tema '${nombreCurso} › ${t.tema}': destino inválido '${destino}'.`);
@@ -466,14 +485,18 @@ export function filasEditorAIndice({
       const temaOriginal = cursoExistente?.temas?.[t.tema];
       if (
         temaOriginal &&
-        !invertirCarpeta(temaOriginal, cursoExistente?.docente).editable
+        !invertirCarpeta(temaOriginal, cursoExistente?.docente, t.tema).editable
       ) {
         // Conservar carpeta no editable
         nuevoCurso.temas[t.tema] = temaOriginal;
       } else if (t.destino === "-") {
         nuevoCurso.temas[t.tema] = "-";
       } else {
-        nuevoCurso.temas[t.tema] = resolverCarpeta(t.destino, nuevoCurso.docente);
+        nuevoCurso.temas[t.tema] = resolverCarpeta(
+          t.destino,
+          nuevoCurso.docente,
+          t.subcarpeta === "si" ? t.tema : null
+        );
       }
     }
 
@@ -513,12 +536,8 @@ export function filasEditorAIndice({
       const carpetaTema = nuevoCurso.temas[a.tema] || ".";
       let carpetaArchivo = carpetaTema;
 
-      if (a.destinoPropio !== undefined) {
-        if (a.destinoPropio !== "") {
-          carpetaArchivo = a.destinoPropio === "." ? "." : resolverCarpeta(a.destinoPropio, nuevoCurso.docente);
-        }
-      } else if (a.carpeta && a.carpeta !== "") {
-        carpetaArchivo = a.carpeta === "." ? "." : resolverCarpeta(a.carpeta, nuevoCurso.docente);
+      if (a.destinoPropio !== undefined && a.destinoPropio !== "") {
+        carpetaArchivo = a.destinoPropio === "." ? "." : resolverCarpeta(a.destinoPropio, nuevoCurso.docente);
       }
 
       if (carpetaArchivo !== carpetaTema) {
@@ -527,6 +546,7 @@ export function filasEditorAIndice({
         delete carpetasFinales[a.clave];
       }
     }
+
 
     if (Object.keys(carpetasFinales).length > 0) {
       nuevoCurso.carpetas = carpetasFinales;

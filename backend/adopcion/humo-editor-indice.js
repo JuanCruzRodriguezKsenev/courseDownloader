@@ -8,6 +8,8 @@ import os from "node:os";
 import { crearManejadorEditor } from "./editor.js";
 import { guardarVisto, limpiarVistos } from "../destino/vistos.js";
 import { NOMBRE_INDICE, serializarIndice } from "../../core/destino/indice.ts";
+import { resolverCarpeta as resolverCarpetaCore, nombreSubcarpetaTema as nombreSubcarpetaTemaCore } from "../../core/destino/carpetas.ts";
+
 
 const dirModulo = import.meta.dir || import.meta.dirname || path.dirname(new URL(import.meta.url).pathname);
 const rutaHtml = path.join(dirModulo, "editor.html");
@@ -68,8 +70,11 @@ try {
       { idArchivo: "q4_h2", original: "apunte2.pdf", tema: "Teoría" },
       { idArchivo: "q5_ya", original: "ya_descargado.pdf", tema: "Teoría" },
       { idArchivo: "q6_om", original: "otro_omitido.pdf", tema: "Teoría" },
+      { idArchivo: "q7_nov", original: "cronograma.pdf", tema: "Novedades" },
+      { idArchivo: "q8_clash", original: "cuestionario.pdf", tema: "Laboratorio", publicacion: "Laboratorio 1" },
     ],
   });
+
 
   const manejar = crearManejadorEditor({ raiz: dirRaiz, salida: dirSalida, puerto: 3002 }, "/adopcion");
 
@@ -176,12 +181,13 @@ try {
   const archQ5Post = dom.window.eval("DATOS.archivos.find(a => a.clave === 'google-classroom:q5_ya')");
   const archQ6Post = dom.window.eval("DATOS.archivos.find(a => a.clave === 'google-classroom:q6_om')");
 
-  if (archQ3Post?.destinoPropio !== "" || archQ3Post?.carpeta !== "Teorias") {
-    errores.push(`q3_h1 tras heredar: esperado destinoPropio="" y carpeta="Teorias", obtenido destinoPropio="${archQ3Post?.destinoPropio}", carpeta="${archQ3Post?.carpeta}"`);
+  if (archQ3Post?.destinoPropio !== "" || archQ3Post?.carpeta !== "Teorias/Teoria") {
+    errores.push(`q3_h1 tras heredar: esperado destinoPropio="" y carpeta="Teorias/Teoria", obtenido destinoPropio="${archQ3Post?.destinoPropio}", carpeta="${archQ3Post?.carpeta}"`);
   }
-  if (archQ4Post?.destinoPropio !== "" || archQ4Post?.carpeta !== "Teorias") {
-    errores.push(`q4_h2 tras heredar: esperado destinoPropio="" y carpeta="Teorias", obtenido destinoPropio="${archQ4Post?.destinoPropio}", carpeta="${archQ4Post?.carpeta}"`);
+  if (archQ4Post?.destinoPropio !== "" || archQ4Post?.carpeta !== "Teorias/Teoria") {
+    errores.push(`q4_h2 tras heredar: esperado destinoPropio="" y carpeta="Teorias/Teoria", obtenido destinoPropio="${archQ4Post?.destinoPropio}", carpeta="${archQ4Post?.carpeta}"`);
   }
+
   if (archQ5Post?.accion !== "ya-esta") {
     errores.push(`q5_ya alterado tras heredar: accion="${archQ5Post?.accion}"`);
   }
@@ -219,7 +225,147 @@ try {
     topicDestSelect.dispatchEvent(new dom.window.Event("change"));
   }
 
+  // 1d. Comprobación Plan 20: Subcarpeta por tema (AC-8, AC-11..15)
+  // AC-8: Casilla encendida por defecto y ruta en vivo con /Teoria/
+  const subCheckTeoria = doc.querySelector(".topic-subfolder-check[data-tema='Teoría']");
+  if (!subCheckTeoria) {
+    errores.push("No se encontró .topic-subfolder-check para Teoría");
+  } else {
+    if (!subCheckTeoria.checked || subCheckTeoria.disabled) {
+      errores.push(`AC-8: casilla subcarpeta de Teoría debería estar encendida y habilitada, obtenido checked=${subCheckTeoria.checked}, disabled=${subCheckTeoria.disabled}`);
+    }
+    const rutaInicialQ1 = dom.window.eval("computeLivePath(getActiveCurso(), DATOS.temas.find(t => t.clave_curso === 'google-classroom:c_nuevo' && t.tema === 'Teoría'), DATOS.archivos.find(a => a.clave === 'google-classroom:q1'))");
+    if (!rutaInicialQ1.includes("/Teoria/")) {
+      errores.push(`AC-8: ruta en vivo inicial debería incluir /Teoria/, obtenido "${rutaInicialQ1}"`);
+    }
+
+    // Apagar la casilla
+    subCheckTeoria.checked = false;
+    subCheckTeoria.dispatchEvent(new dom.window.Event("change"));
+    const rutaSinSubQ1 = dom.window.eval("computeLivePath(getActiveCurso(), DATOS.temas.find(t => t.clave_curso === 'google-classroom:c_nuevo' && t.tema === 'Teoría'), DATOS.archivos.find(a => a.clave === 'google-classroom:q1'))");
+    if (rutaSinSubQ1.includes("/Teoria/")) {
+      errores.push(`AC-8: ruta en vivo con casilla apagada no debería incluir /Teoria/, obtenido "${rutaSinSubQ1}"`);
+    }
+
+    // Reencender la casilla
+    const subCheckTeoriaRe = doc.querySelector(".topic-subfolder-check[data-tema='Teoría']");
+    if (subCheckTeoriaRe) {
+      subCheckTeoriaRe.checked = true;
+      subCheckTeoriaRe.dispatchEvent(new dom.window.Event("change"));
+    }
+    const rutaConSubQ1 = dom.window.eval("computeLivePath(getActiveCurso(), DATOS.temas.find(t => t.clave_curso === 'google-classroom:c_nuevo' && t.tema === 'Teoría'), DATOS.archivos.find(a => a.clave === 'google-classroom:q1'))");
+    if (!rutaConSubQ1.includes("/Teoria/")) {
+      errores.push(`AC-8: ruta en vivo tras reencender debería incluir /Teoria/, obtenido "${rutaConSubQ1}"`);
+    }
+  }
+
+  // AC-12: Interruptor del curso
+  const subCheckNov = doc.querySelector(".topic-subfolder-check[data-tema='Novedades']");
+  if (!subCheckNov || !subCheckNov.disabled) {
+    errores.push("AC-12: casilla de Novedades con destino '.' debería estar deshabilitada");
+  }
+  const btnToggleSub = doc.getElementById("btnToggleSubcarpetasCurso");
+  if (!btnToggleSub) {
+    errores.push("AC-12: no se encontró #btnToggleSubcarpetasCurso");
+  } else {
+    // Todos los elegibles están encendidos -> clic los apaga a todos
+    btnToggleSub.click();
+    const temaTeoriaOff = dom.window.eval("DATOS.temas.find(t => t.clave_curso === 'google-classroom:c_nuevo' && t.tema === 'Teoría')");
+    const temaLabOff = dom.window.eval("DATOS.temas.find(t => t.clave_curso === 'google-classroom:c_nuevo' && t.tema === 'Laboratorio')");
+    if (temaTeoriaOff?.subcarpeta !== "no" || temaLabOff?.subcarpeta !== "no") {
+      errores.push(`AC-12: interruptor debería haber apagado los temas elegibles, obtenidos Teoria=${temaTeoriaOff?.subcarpeta}, Lab=${temaLabOff?.subcarpeta}`);
+    }
+    const subCheckNovTrasOff = doc.querySelector(".topic-subfolder-check[data-tema='Novedades']");
+    if (!subCheckNovTrasOff || !subCheckNovTrasOff.disabled) {
+      errores.push("AC-12: casilla de Novedades sigue debiendo estar deshabilitada tras toggle");
+    }
+
+    // Clic de nuevo -> los enciende
+    btnToggleSub.click();
+    const temaTeoriaOn = dom.window.eval("DATOS.temas.find(t => t.clave_curso === 'google-classroom:c_nuevo' && t.tema === 'Teoría')");
+    const temaLabOn = dom.window.eval("DATOS.temas.find(t => t.clave_curso === 'google-classroom:c_nuevo' && t.tema === 'Laboratorio')");
+    if (temaTeoriaOn?.subcarpeta !== "si" || temaLabOn?.subcarpeta !== "si") {
+      errores.push(`AC-12: interruptor debería haber reencendido los temas elegibles, obtenidos Teoria=${temaTeoriaOn?.subcarpeta}, Lab=${temaLabOn?.subcarpeta}`);
+    }
+  }
+
+  // AC-13: Omitir y des-omitir
+  const chkLab = doc.querySelector(".topic-check[data-tema='Laboratorio']");
+  if (!chkLab) {
+    errores.push("AC-13: no se encontró .topic-check para Laboratorio");
+  } else {
+    // Omitir tema
+    chkLab.checked = false;
+    chkLab.dispatchEvent(new dom.window.Event("change"));
+    const temaLabOmitido = dom.window.eval("DATOS.temas.find(t => t.clave_curso === 'google-classroom:c_nuevo' && t.tema === 'Laboratorio')");
+    if (temaLabOmitido?.destino !== "-") {
+      errores.push(`AC-13: esperado destino='-' al omitir tema, obtenido '${temaLabOmitido?.destino}'`);
+    }
+    const subCheckLabOmitido = doc.querySelector(".topic-subfolder-check[data-tema='Laboratorio']");
+    if (!subCheckLabOmitido?.disabled) {
+      errores.push("AC-13: casilla de subcarpeta debería estar deshabilitada con tema omitido");
+    }
+
+    // Des-omitir tema
+    chkLab.checked = true;
+    chkLab.dispatchEvent(new dom.window.Event("change"));
+    const temaLabActivo = dom.window.eval("DATOS.temas.find(t => t.clave_curso === 'google-classroom:c_nuevo' && t.tema === 'Laboratorio')");
+    if (temaLabActivo?.destino !== "Laboratorios" || temaLabActivo?.subcarpeta !== "si") {
+      errores.push(`AC-13: tema debería recuperar destino='Laboratorios' y subcarpeta='si', obtenido destino='${temaLabActivo?.destino}', subcarpeta='${temaLabActivo?.subcarpeta}'`);
+    }
+  }
+
+
+  // AC-15: Choques con ruta completa (q2 en Teoría vs q8_clash en Laboratorio, mismo nombre 'cuestionario.pdf')
+  dom.window.eval("recalcularChoques()");
+  const choqueQ2 = dom.window.eval("FILAS_CON_CHOQUE.has('google-classroom:q2')");
+  const choqueQ8 = dom.window.eval("FILAS_CON_CHOQUE.has('google-classroom:q8_clash')");
+  if (choqueQ2 || choqueQ8) {
+    errores.push(`AC-15: q2 y q8_clash no deberían chocar porque sus subcarpetas difieren (Teoria vs Laboratorio), obtenido q2=${choqueQ2}, q8=${choqueQ8}`);
+  }
+
+  // AC-14: Paridad editor vs core
+  const casosParidad = [
+    { dest: "Teorias", doc: "Gomez", tema: "Series" },
+    { dest: "Teorias", doc: "", tema: "Series" },
+    { dest: "Teorias", doc: null, tema: "Series" },
+    { dest: "Practicas", doc: null, tema: "Guía 1" },
+    { dest: ".", doc: null, tema: "Series" },
+    { dest: "-", doc: null, tema: "Series" },
+    { dest: "Teorias", doc: null, tema: "Novedades" },
+    { dest: "Teorias", doc: null, tema: "Sin tema" },
+    { dest: "Teorias", doc: null, tema: "???" },
+    { dest: "Teorias", doc: "Rey Grange", tema: "Clases teóricas - Módulo I" },
+    { dest: "Practicas", doc: null, tema: "TP 1: Límites / Derivadas" },
+    { dest: "Teorias", doc: null, tema: ".." },
+  ];
+  for (const c of casosParidad) {
+    const resCore = resolverCarpetaCore(c.dest, c.doc, c.tema);
+    const resEditor = dom.window.eval(`resolverCarpeta(${JSON.stringify(c.dest)}, ${JSON.stringify(c.doc)}, ${JSON.stringify(c.tema)})`);
+    if (resEditor !== resCore) {
+      errores.push(`AC-14 fallo de paridad resolverCarpeta: dest=${c.dest}, doc=${c.doc}, tema=${c.tema} -> editor="${resEditor}" vs core="${resCore}"`);
+    }
+  }
+
+  const temasParidad = [
+    "series",
+    "Clases teóricas - Módulo I",
+    "TP 1: Límites / Derivadas",
+    "..",
+    "Novedades",
+    "Sin tema",
+    "???",
+  ];
+  for (const t of temasParidad) {
+    const subCore = nombreSubcarpetaTemaCore(t);
+    const subEditor = dom.window.eval(`nombreSubcarpetaTema(${JSON.stringify(t)})`);
+    if (subEditor !== subCore) {
+      errores.push(`AC-14 fallo de paridad nombreSubcarpetaTema: "${t}" -> editor="${subEditor}" vs core="${subCore}"`);
+    }
+  }
+
   // 2. Elegir materia y docente
+
   const selectMateria = doc.querySelector(".tabla-curso-cabecera select");
   if (!selectMateria) {
     errores.push("No se encontró selectMateria");
@@ -287,9 +433,10 @@ try {
     if (cursoNuevo.docente !== "Gomez") {
       errores.push(`Docente esperado Gomez, obtenido: ${cursoNuevo.docente}`);
     }
-    if (cursoNuevo.temas["Teoría"] !== "Teorias/Gomez") {
-      errores.push(`Tema Teoría esperado Teorias/Gomez, obtenido: ${cursoNuevo.temas["Teoría"]}`);
+    if (cursoNuevo.temas["Teoría"] !== "Teorias/Gomez/Teoria") {
+      errores.push(`Tema Teoría esperado Teorias/Gomez/Teoria, obtenido: ${cursoNuevo.temas["Teoría"]}`);
     }
+
     if (!cursoNuevo.nombres || cursoNuevo.nombres["google-classroom:q1"] !== "01_tabla_periodica_personalizada.pdf") {
       errores.push(`Nombre editado no figura en curso.nombres: ${JSON.stringify(cursoNuevo.nombres)}`);
     }

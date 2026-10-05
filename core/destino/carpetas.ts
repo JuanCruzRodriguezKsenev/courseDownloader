@@ -72,10 +72,46 @@ export function sugerirDestino(
   return { destino: ".", regla: false };
 }
 
-export function resolverCarpeta(destino: string, docente?: string | null): string {
-  const d = (docente || "").trim();
-  if (destino === "Teorias" && d.length > 0) {
-    return `Teorias/${d}`;
+/**
+ * Sanea y capitaliza el nombre de un tema para usarlo como subcarpeta (RN-1..3, RN-6..8).
+ */
+export function nombreSubcarpetaTema(tema?: string | null): string {
+  const t = (tema || "").trim();
+  if (!t || /^(novedades|sin tema)$/i.test(t)) {
+    return "";
   }
-  return destino;
+
+  const s = t
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\\/:*?"<>|]|[\0-\x1f\x7f]/g, "-")
+    .replace(/\.{2,}/g, ".")
+    .replace(/\s+/g, " ")
+    .replace(/^[\s.-]+|[\s.-]+$/g, "");
+
+  if (!s || s === "." || s === ".." || /^[-.]+$/.test(s)) {
+    return "";
+  }
+
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
+
+export function resolverCarpeta(
+  destino: string,
+  docente?: string | null,
+  subcarpetaTema?: string | null
+): string {
+  const d = (docente || "").trim();
+  let base = destino;
+  if (destino === "Teorias" && d.length > 0) {
+    base = `Teorias/${d}`;
+  }
+  if (destino !== "." && destino !== "-" && subcarpetaTema) {
+    const sub = nombreSubcarpetaTema(subcarpetaTema);
+    if (sub.length > 0) {
+      return `${base}/${sub}`;
+    }
+  }
+  return base;
+}
+
