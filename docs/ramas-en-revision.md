@@ -14,6 +14,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ---
 
+
 ## 🚧 En revisión
 Integración de portales Moodle y Google Sites en curso en la rama `moodle-linti`:
 - **Planes**: `~/Boveda/Proyectos/courseDownloader/Planes/09 - Moodle-1 Lo genérico del destino que hoy dice Classroom.md`, `10 - Moodle-2 Adaptador puro Moodle LINTI.md`, `11 - Google Sites Mate C adaptador puro.md`, `13 - Moodle Asignaturas UNLP adaptador puro.md`, `14b - Integracion y registro central de portales.md`, `15 - Scrapers inyectables autocontenidos en Sites Mate C y Moodle Asignaturas.md`, `16 - Correcciones de los planes 08b-15 contra el codigo.md`, `17 - Boton Heredar carpeta en las tarjetas de tema del editor.md` y `19 - Borrador local del editor en lugar del aviso al cerrar.md`.
