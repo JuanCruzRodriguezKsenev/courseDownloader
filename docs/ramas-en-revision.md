@@ -22,17 +22,18 @@ Subcarpeta por tema en la carpeta destino en curso en la rama `subcarpeta-tema`:
 - **Spec**: `docs/specs/classroom-destino/spec.md` (ampliación RN-6 y descripción de `cursos.<clave>.temas.<tema>`).
 - **Compuerta**: 79 archivos / 1165 tests (ver `docs/testing.md` §Baseline).
 - **Humo jsdom**: `humo-editor.js` y `humo-editor-indice.js` en verde (errores: 0).
-- **Estado**: Partes I y II ejecutadas por `obra`. Pendiente verificación en navegador (M-1..M-8).
+- **Estado**: Partes I y II ejecutadas por `obra`. M-1..M-8 verificados en navegador el 2026-10-04 (dueño + tanda), sobre una copia con `HOME` falso; lista para mergear.
 
-### Checklist de verificación M de subcarpeta por tema (dueño + tanda)
-- ⬜ **M-1** — Un curso nuevo con temas «Series» y «Prácticas»: cada uno con destino de carpeta muestra la casilla encendida y la ruta en vivo con `…/Series/archivo`.
-- ⬜ **M-2** — Apagar la casilla de un tema: la ruta pierde la subcarpeta; guardar y reabrir: sigue apagada.
-- ⬜ **M-3** — Guardar con la casilla encendida y reabrir: sigue encendida; el índice (`.course-downloader.json`) trae `Teorias/<docente>/Series` y **ninguna** entrada nueva en `carpetas`.
-- ⬜ **M-4** — Un tema ya descargado: encender la casilla no mueve nada en disco; un archivo nuevo del tema baja a la subcarpeta.
-- ⬜ **M-5** — Un archivo con carpeta propia no lleva la subcarpeta; «↺ Que hereden» lo manda a `…/Series`.
-- ⬜ **M-6** — El interruptor de la toolbar enciende y apaga todos los temas elegibles; los de destino `.` y «Novedades» quedan deshabilitados.
-- ⬜ **M-7** — Omitir un tema y volver a marcarlo: recupera destino y subcarpeta.
-- ⬜ **M-8** — Una descarga real de un PDF de un tema con subcarpeta llega a `Materia/Teorias/<docente>/<Tema>/`.
+### Checklist de verificación M de subcarpeta por tema (dueño + tanda) — completo 2026-10-04
+M-4 comparado contra foto de disco e índice (170 archivos de Física I sin cambios). M-8: 20 archivos de MC2 en `Practicas/<Tema>/` y `Novedades/`; los 5 que faltan eran colisiones de nombre dentro de «Novedades» (deuda §29), no del plan 20.
+- ✅ **M-1** — Un curso nuevo con temas «Series» y «Prácticas»: cada uno con destino de carpeta muestra la casilla encendida y la ruta en vivo con `…/Series/archivo`.
+- ✅ **M-2** — Apagar la casilla de un tema: la ruta pierde la subcarpeta; guardar y reabrir: sigue apagada.
+- ✅ **M-3** — Guardar con la casilla encendida y reabrir: sigue encendida; el índice (`.course-downloader.json`) trae `Teorias/<docente>/Series` y **ninguna** entrada nueva en `carpetas`.
+- ✅ **M-4** — Un tema ya descargado: encender la casilla no mueve nada en disco; un archivo nuevo del tema baja a la subcarpeta.
+- ✅ **M-5** — Un archivo con carpeta propia no lleva la subcarpeta; «↺ Que hereden» lo manda a `…/Series`.
+- ✅ **M-6** — El interruptor de la toolbar enciende y apaga todos los temas elegibles; los de destino `.` y «Novedades» quedan deshabilitados.
+- ✅ **M-7** — Omitir un tema y volver a marcarlo: recupera destino y subcarpeta.
+- ✅ **M-8** — Una descarga real de un PDF de un tema con subcarpeta llega a `Materia/Teorias/<docente>/<Tema>/`.
 
 ---
 

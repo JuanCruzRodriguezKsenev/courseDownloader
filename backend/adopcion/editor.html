@@ -1798,10 +1798,6 @@ button {
                 <button class="secondary-btn btn-heredar-carpeta" data-tema="${tema.tema}" ${disabledHeredar ? "disabled" : ""} title="${titleHeredar}">
                   ↺ Que hereden
                 </button>
-
-                <button class="secondary-btn btn-drilldown-toggle" data-tema="${tema.tema}">
-                  ${isExpanded ? "Ocultar archivos" : `Ver ${archivosTema.length} archivos`}
-                </button>
               </div>
             </div>
 
@@ -1937,7 +1933,7 @@ button {
       if (!curso) return;
 
       // Toggle expandir / colapsar
-      document.querySelectorAll(".topic-toggle-btn, .btn-drilldown-toggle").forEach((btn) => {
+      document.querySelectorAll(".topic-toggle-btn").forEach((btn) => {
         btn.addEventListener("click", () => {
           const temaNombre = btn.dataset.tema;
           if (expandedTemas.has(temaNombre)) {

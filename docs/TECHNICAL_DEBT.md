@@ -14,9 +14,9 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 ## 🔴 Abierto
 
-> ## Estado al 2026-10-04: **VEINTISÉIS** entradas abiertas
+> ## Estado al 2026-10-04: **TREINTA Y UNA** entradas abiertas
 >
-> Re-contadas, no sumadas al número anterior (3 🔴, 3 🟠, 20 ⚪):
+> Re-contadas, no sumadas al número anterior (3 🔴, 3 🟠, 25 ⚪):
 >
 > 1. 🔴 **El mecanismo de popovers sin tests** (hallado 2026-08-05).
 > 2. 🔴 **El loader del popup no tiene dueño**: tokens y demora pendientes (hallado 2026-08-12).
@@ -45,6 +45,11 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 > 25. ⚪ **Los vistos del editor viven en memoria: un reinicio del backend obliga a reabrir desde el popup (D-2 del plan 07)**.
 > 26. ✅ **`inyeccion.test.js`: prueba sobre DOM real y contexto VM aislado** (cerrada 2026-10-04, Plan 16 D-4).
 > 27. ⚪ **Vitest no ignora `.worktrees/`: worktrees concurrentes en la raíz ejecutan tests duplicados salvo remoción o exclusión explícita** (hallado 2026-10-02, Plan 14-b).
+> 28. ⚪ **El editor de adopción tiene la raíz fija en `RAIZ_FACULTAD` e ignora `raices` de `config_usuario.json`** (hallado 2026-10-04, verificación del plan 20).
+> 29. ⚪ **El editor no ve choques de nombre cuando el scan no trae `md5`: el servidor los rechaza recién al descargar** (hallado 2026-10-04, verificación del plan 20).
+> 30. ⚪ **CSS de la tarjeta de tema del editor: ruta calculada cortada, título en tres líneas, botones partidos** (hallado 2026-10-04).
+> 31. ⚪ **Los tests de humo del editor deben filtrar `DATOS.temas` por `clave_curso`: agrupa temas de todos los cursos** (hallado 2026-10-04).
+> 32. ⚪ **`indiceAFilasEditor` marca `subcarpeta: "si"` en temas con destino `-` o `.`, donde la casilla va deshabilitada** (hallado 2026-10-04, `core/destino/vistas.ts:249`).
 >
 > ### Lo que se cerró el 2026-10-04 (Plan 16)
 >
@@ -445,6 +450,39 @@ Llegaron acá al mergear la tanda del toolbar (2026-08-13): vivían en
   que esa regla realmente anima.
 - **Estado**: ⚪ abierto, cosmético y sin síntoma vivo. Es el candidato natural para acompañar
   cualquier otro corte de CSS.
+
+### ⚪ El editor de adopción edita siempre el índice de la Bóveda
+
+- **Dónde**: `backend/adopcion/raiz.js` (`RAIZ_FACULTAD = ~/Boveda/Areas/Facultad`) y `opcionesPorDefecto()` en `backend/adopcion/editor.js:11`.
+- **Qué pasa**: la raíz por portal (`raices` de `backend/config_usuario.json`) sólo gobierna las **descargas**. El editor lee y escribe el índice de la bóveda real, sin override. Para verificar sin tocar datos reales hay que arrancar el servidor con un `HOME` falso (`HOME=<dir> bun run server.js`, con `<dir>/Boveda/Areas/Facultad` apuntando a una copia). Costó una vuelta de verificación del plan 20: la «copia» no tenía efecto sobre el editor y un «Guardar» habría escrito el índice real.
+- **Fix propuesto**: que el editor tome la raíz de `raizDeDestino("google-classroom")`, o una variable de entorno, respetando ADR-0018.
+- **Estado**: ⚪ abierto. Mientras tanto, verificar siempre con `HOME` falso.
+
+### ⚪ Choques de nombre invisibles para el editor
+
+- **Dónde**: `recalcularChoques()` en `backend/adopcion/editor.html` (~1350): sólo marca choque si el grupo de una misma ruta tiene más de un `md5` distinto.
+- **Qué pasa**: un scan de Classroom casi nunca trae `md5`, así que el grupo tiene un solo valor vacío y no hay choque. Medido en MC2 el 2026-10-04: 11 archivos de «Novedades» colapsan a 6 nombres (`MC2- 2025- 2do cuatrimestre - MC2 (1..4).pdf` y el sin número → `mc2_2025_2do_cuatrimestre_mc2.pdf`; los dos `MC3_2023` → `mc3.pdf`). El editor mostró **0 choques**. El servidor rechazó 5 con `El archivo destino ya existe con otro contenido.` y el usuario los vio como «los salta el sistema».
+- **Fix propuesto**: tratar como choque dos filas distintas del mismo curso con la misma ruta y `md5` vacío o distinto.
+- **Estado**: ⚪ abierto, anterior al plan 20 (Novedades no lleva subcarpeta).
+
+### ⚪ CSS de la tarjeta de tema del editor
+
+- **Dónde**: `backend/adopcion/editor.html`, `.topic-card` y la fila de acciones (`.topic-right`).
+- **Qué pasa** (captura 2026-10-04, ventana de ~1250 px): la «Ruta calculada en vivo» se corta (`Ingenieria/Matemat…`) y es justo lo que M-1 pide leer; el título del tema se parte en tres líneas; «↺ Que hereden» se parte en dos y la casilla «📁 Subcarpeta del tema» queda encajonada entre el selector y los botones.
+- **Fix propuesto**: plan chico de CSS. Candidato natural para acompañar cualquier otro corte del editor.
+- **Estado**: ⚪ abierto. El botón «Ocultar archivos» ya se quitó el 2026-10-04 (duplicaba el chevron).
+
+### ⚪ Tests de humo: `DATOS.temas` mezcla los cursos
+
+- **Qué pasa**: `DATOS.temas` agrupa los temas de todos los cursos en memoria. Un test de humo que busque `t.tema === ...` sin filtrar por `t.clave_curso === curso.clave_curso` da falsos positivos con temas homónimos entre cursos.
+- **Fix propuesto**: filtrar siempre por las dos claves en `humo-editor*.js`.
+- **Estado**: ⚪ abierto, bajo riesgo.
+
+### ⚪ `subcarpeta: "si"` en destinos `-` y `.`
+
+- **Dónde**: `core/destino/vistas.ts:249`: con `carpIndice === "-" || "."` pone `subcarpeta = "si"` si el nombre es válido.
+- **Qué pasa**: el editor deshabilita la casilla en esos destinos, así que el valor no se ve ni se aplica, pero viaja en `DATOS` (API devolvió `Cuestiones administrativas -> destino=-, sub=si`).
+- **Estado**: ⚪ abierto, sin síntoma visible.
 
 ---
 
