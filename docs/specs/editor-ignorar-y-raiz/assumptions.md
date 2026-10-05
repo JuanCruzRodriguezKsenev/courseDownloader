@@ -22,6 +22,7 @@ Todos los supuestos se **resolvieron** por aprobación íntegra del dueño («ap
 | A14 | Una sola definición de «sin destino» para badge de curso, badge de tema, filtro y contador | resuelto |
 | A15 | El selector rotula `.` como «Raíz de la materia» | resuelto |
 | A16 | «Solo problemas» deja de incluir los temas a raíz decididos | resuelto |
+| A18 | Un tema sin destino arranca su selector en «— elegir carpeta —» y `.` es elegible (el dueño eligió esta de cuatro opciones, 2026-10-04) | resuelto |
 | A17 | El humo `humo-editor-indice.js` cubre las dos funciones | resuelto |
 
 ## Hechos hallados al leer el código (no eran supuestos)
@@ -31,3 +32,10 @@ Todos los supuestos se **resolvieron** por aprobación íntegra del dueño («ap
 - `core/destino/carpetas.ts` L16-17 manda Novedades y Cronograma a `.` con `regla: si`, y hoy el editor igual los marca.
 - La lista de dominios de videollamada vive dentro de `esEnlaceVideollamada` en `sitio/google-classroom/scraper.js` (~L520), código inyectado que el editor no puede importar.
 - El selector hoy rotula `.` como «. (raíz del curso)» (L1788) y «. (raíz)» por archivo (L1861), aunque `.` es la raíz de la materia.
+
+## Hallazgos al planificar (2026-10-04)
+
+- El handler del selector (`editor.html` L2150-2155) **ya** pone `regla = "si"`; lo que faltaba era poder disparar el evento con `.`. Ajustó A13 y dio origen a A18.
+- `editor.html` tiene más copias de «`.` = sin asignar» que las cuatro de la spec: L1426 (temas a expandir), L1460 (curso inicial), L1493, L1640-1645, L1692, L1727 y el pseudo-tema huérfano L1681 (`regla: "no"`).
+- «Aplicar reglas automáticas» (L2372) pisa todo tema en `.`: dio origen a RN-13 y AC-13.
+- Guardar un tema sin destino sin tocarlo lo deja en `.` y al reabrir sale Asignado (RN-14).

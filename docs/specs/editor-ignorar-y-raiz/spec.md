@@ -51,10 +51,12 @@ Como dueño que adopta cursos desde el editor web, quiero **omitir todas las vid
 - **RN-6** — Las filas de videollamada llevan en el editor la misma chip que el popup (`listaClases.preact.js` ~L194). *(A9)*
 - **RN-7** — **Tema sin destino** = el tema no está omitido (`-`) y (`regla === "no"` o `destino` vacío). `destino === "."` **no** alcanza para ser «sin destino». Esta definición vive en **una** función y la usan los cuatro lugares de «Contexto». *(A10, A11, A14)*
 - **RN-8** — Un tema con `destino === "."` y `regla === "si"` se muestra «✓ Asignado» y con la etiqueta de destino «Raíz de la materia». Incluye los temas guardados en el índice y los que una regla manda a `.` (Novedades, Cronograma). *(A11)*
-- **RN-9** — Un tema nuevo con `destino === "."` y `regla === "no"` sigue «Sin destino» hasta que el dueño elija un destino en su selector, **incluido** `.`. *(A12)*
-- **RN-10** — Al elegir cualquier destino en el selector de un tema, el editor pone `regla = "si"` de inmediato, sin necesidad de guardar. *(A13)*
+- **RN-9** — Un tema **sin destino** (RN-7) muestra su selector arrancado en una opción vacía «— elegir carpeta —»; `.` («Raíz de la materia») pasa a ser una opción más, elegible. Un tema con destino decidido no muestra la opción vacía. *(A12, A18; decisión del dueño, 2026-10-04)*
+- **RN-10** — Al elegir cualquier destino en el selector de un tema, incluido `.`, el editor pone `regla = "si"` de inmediato, sin guardar (el handler ya lo hace, `editor.html` L2150-2155; RN-9 es lo que permite que `.` dispare el evento). *(A13)*
 - **RN-11** — El selector rotula la opción `.` como «Raíz de la materia» (hoy dice «. (raíz del curso)»; el destino `.` es la raíz de la **materia**, no del curso). La opción por archivo (L1861) pasa a decir lo mismo. *(A15)*
 - **RN-12** — El filtro «Solo problemas», el filtro `unassigned`, el filtro `review` y el contador «Sin regla» cuentan sólo temas y archivos **sin destino** según RN-7. *(A14, A16)*
+- **RN-13** — «Aplicar reglas automáticas» sólo propone destino a los temas **sin destino** (RN-7); un tema a raíz decidido no se toca. Hoy el handler (L2372) pisa todo tema en `.` con Teorías, Prácticas, etc. *(contraste con el código, no estaba en los supuestos)*
+- **RN-14** — Guardar sin tocar un tema sin destino lo deja en `.` en el índice; al reabrir, `vistas.ts` L246-251 lo devuelve con `regla: "si"` y se muestra «✓ Asignado · Raíz de la materia». Guardar equivale a aceptar la propuesta. *(consecuencia de RN-7 y RN-8; el dueño debe saberlo)*
 
 ## Flujos
 
@@ -82,7 +84,7 @@ Se evalúa en este orden; gana la primera fila que coincide.
 | 1 | `-` | cualquiera | — | Omitido |
 | 2 | vacío | cualquiera | no | Sin destino |
 | 3 | cualquiera | `no` | no | Sin destino |
-| 4 | cualquiera | `no` | sí (RN-10 ya puso `si`) | Asignado |
+| 4 | cualquiera | `no` | sí (RN-10 ya puso `si`; para `.` se elige en la opción de RN-9) | Asignado |
 | 5 | `.` | `si` | — | Asignado · Raíz de la materia |
 | 6 | otro | `si` | — | Asignado |
 
@@ -175,16 +177,24 @@ AC-8 — Tema guardado a raíz no se marca (RN-7, RN-8)
   Entonces la tarjeta de "Novedades" muestra "Asignado" y "Raíz de la materia"
     y el curso no cuenta a Novedades en "a revisar"
 
-AC-9 — Un tema nuevo sin regla sigue pidiendo decisión (RN-9)
+AC-9 — Un tema nuevo sin regla sigue pidiendo decisión (RN-7, RN-9)
   Dado un tema nuevo "Anuncios varios" sin regla (destino ".", regla "no")
   Entonces la tarjeta muestra "Sin destino"
+    y su selector muestra "— elegir carpeta —"
     y el curso cuenta 1 "a revisar"
 
-AC-10 — Elegir "." es decidir (RN-10, A6)
-  Dado el tema "Anuncios varios" con "Sin destino"
+AC-10 — Elegir "." es decidir (RN-9, RN-10, A6)
+  Dado el tema "Anuncios varios" con "Sin destino" y su selector en "— elegir carpeta —"
   Cuando el dueño elige "Raíz de la materia" en su selector, sin guardar
   Entonces la tarjeta pasa a "Asignado"
+    y el selector ya no ofrece "— elegir carpeta —"
     y el curso ya no cuenta a ese tema en "a revisar"
+
+AC-13 — Aplicar reglas automáticas respeta la raíz decidida (RN-13)
+  Dado un curso con "Novedades" (destino ".", regla "si") y "Anuncios varios" (destino ".", regla "no")
+  Cuando el dueño toca "Aplicar reglas automáticas"
+  Entonces "Anuncios varios" recibe una carpeta sugerida
+    y "Novedades" sigue en "."
 
 AC-11 — Una sola definición en todos los lugares (RN-7, RN-12)
   Dado un tema a raíz decidido (regla "si", destino ".")
@@ -205,7 +215,7 @@ Sin campos nuevos. Usa `cursos.<clave>.omitidos` (RN-31, ya existente) y `cursos
 
 - **NFR-1** — La condición «sin destino» existe en **un** lugar de `editor.html`; ninguno de los cuatro sitios la reimplementa.
 - **NFR-2** — Reconocer videollamadas no agrega un tercer listado de dominios: se reutiliza el de RN-32 o se extrae a un módulo común (decisión del plan; hoy vive dentro de `esEnlaceVideollamada` en `sitio/google-classroom/scraper.js` ~L520, que va inyectado y no se puede importar).
-- **NFR-3** — El humo `backend/adopcion/humo-editor-indice.js` cubre AC-1, AC-3, AC-4, AC-8, AC-9 y AC-10.
+- **NFR-3** — El humo `backend/adopcion/humo-editor-indice.js` cubre AC-1, AC-3, AC-4, AC-8, AC-9, AC-10 y AC-13.
 
 ## Supuestos resueltos
 
@@ -214,11 +224,12 @@ Sin campos nuevos. Usa `cursos.<clave>.omitidos` (RN-31, ya existente) y `cursos
 | Acción masiva vs regla persistente | Puntual (A4) | Evita estado nuevo en el índice; una videollamada nueva rara vez hace falta ocultarla otra vez. |
 | Marca por bandera vs por dominio | Por dominio de la URL en la clave (A7) | El editor recibe `vistos` sin `esVideollamada`; no hay que tocar el contrato. |
 | `.` como faltante vs destino válido | Válido si `regla = "si"` (A10, A11) | `vistas.ts` ya lo trata así; el defecto es del editor. |
-| Elegir `.` es decisión | Sí, en el acto (A13) | Si no, el dueño no tiene cómo cerrar un tema nuevo a raíz. |
+| Elegir `.` es decisión | Sí, en el acto (A13) | El handler ya lo hace, pero un tema que llega en `.` ya lo muestra seleccionado y no hay evento de cambio. |
+| Cómo confirmar `.` en un tema sin destino | Opción vacía «— elegir carpeta —» al tope (A18, el dueño eligió esta de cuatro) | No agrega botones y quita el engaño de mostrar `.` como si ya estuviera elegido. |
 
 ## Preguntas abiertas
 
-- **PA-1** — Si el curso tiene un tema ya omitido por completo (`-`) con videollamadas adentro, ¿cuenta para N? **Propuesta**: no (están omitidas por el tema); se decide al plan, no cambia el comportamiento visible salvo el conteo.
+Ninguna. **PA-1 cerrada en el plan**: un tema omitido entero (`-`) no cuenta sus videollamadas para el N del botón, porque ya están omitidas por el tema.
 
 ## Dependencias
 
