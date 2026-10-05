@@ -5,6 +5,7 @@ import { sanitizarNombreArchivo } from "../utils.js";
 import { DESTINOS } from "../../core/destino/carpetas.ts";
 import { RAIZ_FACULTAD } from "./raiz.js";
 import { leerIndice, modificarIndice, ErrorIndiceIlegible } from "../destino/indiceServicio.js";
+import { calcularEstado } from "../destino/estado.js";
 import { leerVistos } from "../destino/vistos.js";
 import { indiceAFilasEditor, filasEditorAIndice } from "../../core/destino/vistas.ts";
 
@@ -201,6 +202,44 @@ export function crearManejadorEditor(opts, prefijo = "") {
             });
           }
 
+          const movidos = new Set();
+          for (const [claveCurso, visto] of mapaVistos.entries()) {
+            const sitio = visto.sitio || "google-classroom";
+            const id = claveCurso.startsWith(`${sitio}:`)
+              ? claveCurso.slice(sitio.length + 1)
+              : (visto.id || claveCurso);
+            const items = (visto.items || []).map((it) => ({
+              idArchivo: it.idArchivo,
+              original: it.original || it.texto || it.titulo || "",
+              tema: it.tema,
+              publicacion: it.publicacion,
+              anuncio: it.anuncio,
+              tipo: it.tipo,
+            }));
+
+            const resEstado = await calcularEstado({
+              raiz: opts.raiz,
+              sitio,
+              curso: { id, nombre: visto.nombre || "" },
+              items,
+            });
+
+            if (!resEstado.ok && (resEstado.indiceIlegible || resEstado.raizInaccesible)) {
+              return Response.json(
+                { ok: false, indiceIlegible: true, error: resEstado.error },
+                { status: 409 }
+              );
+            }
+
+            if (resEstado.ok && Array.isArray(resEstado.items)) {
+              for (const it of resEstado.items) {
+                if (it.movido) {
+                  movidos.add(`${sitio}:${it.idArchivo}`);
+                }
+              }
+            }
+          }
+
           let indice;
           try {
             indice = await leerIndice(opts.raiz);
@@ -218,7 +257,7 @@ export function crearManejadorEditor(opts, prefijo = "") {
           const docentes = obtenerDocentes(opts.raiz, materias);
           const carpetasPorMateria = obtenerCarpetasExistentes(opts.raiz, materias);
           const claveCursoActivo = url.searchParams.get("curso") || undefined;
-          const filas = indiceAFilasEditor({ indice, vistos: mapaVistos, claveCursoActivo });
+          const filas = indiceAFilasEditor({ indice, vistos: mapaVistos, claveCursoActivo, movidos });
 
           const destinos = Array.from(new Set(DESTINOS));
 

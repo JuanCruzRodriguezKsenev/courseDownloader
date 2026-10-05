@@ -351,7 +351,8 @@ También viven acá `core/backend/bunClient.ts` (wrapper fino de todos los endpo
 Bun: `/api/escanear-disco`, `/api/bypass-stream`, `/api/actualizar-consola`,
 `/api/seleccionar-carpeta` —con `{ portal }` opcional—, `/api/health`, `/api/cancelar-descarga`,
 `/api/destino/indice` y `/api/destino/estado`; desde el Corte 2b-3
-envía cabeceras `x-destino-*` y parsea `{ error, codigo }` en respuestas fallidas) y
+envía cabeceras `x-destino-*` y parsea `{ error, codigo }` en respuestas fallidas;
+desde el Plan 22 `/api/destino/estado` tipa el campo `movido` en los ítems y `raizInaccesible` en la respuesta de error) y
 `core/historial/historialFallos.ts` (factory `crearHistorialFallos(puerto)`, no singleton:
 historial acotado —últimos 50, más nuevo primero— de fallos terminales de la cola bajo la
 clave local `historialFallos`, que respalda la campanita; lo escribe el SW en `registrarFallo`
@@ -371,9 +372,9 @@ en el adaptador ni releer call-sites buscando cuál quedó en la unidad vieja.
 auto-heal). De esa distinción depende el fix del bug 400.
 
 **`core/destino/` agrupa la lógica pura de indexación y destino del árbol del usuario**:
-- **`core/destino/decidir.ts`**: dos funciones puras (`decidirAntes`, `decidirDespues`) que implementan la tabla de decisión de la spec para determinar si un adjunto se descarga, descarta o escribe.
+- **`core/destino/decidir.ts`**: dos funciones puras (`decidirAntes`, `decidirDespues`) que implementan la tabla de decisión de la spec para determinar si un adjunto se descarga, descarta o escribe (ampliada por el Plan 22 con `md5ExisteEnRaiz` y descarte previo a rechazo en destino ocupado).
 - **`core/destino/propuesta.ts`**: `proponerParaCurso`, asignación pura de carpeta destino, resolución de nombres y detección de choques (RN-16/16a).
-- **`core/destino/vistas.ts`**: `indiceAFilasEditor` y `filasEditorAIndice`, conversión bidireccional pura entre el índice `.course-downloader.json` y las tres tablas del editor web (`cursos`, `temas`, `archivos`), con inversión de carpetas (D-6) y validaciones de guardado.
+- **`core/destino/vistas.ts`**: `indiceAFilasEditor` y `filasEditorAIndice`, conversión bidireccional pura entre el índice `.course-downloader.json` y las tres tablas del editor web (`cursos`, `temas`, `archivos`), con inversión de carpetas (D-6), soporte de marca `movido` efímera (Plan 22) y validaciones de guardado.
 - **`core/destino/accesoMd.ts`**: `accesoADataUri(idArchivo, fecha)`, formateo isomórfico puro de accesos Markdown con frontmatter `tipo: acceso` y `revisado` (D-3, RN-9).
 
 ### Capa 3 — `plataforma/`

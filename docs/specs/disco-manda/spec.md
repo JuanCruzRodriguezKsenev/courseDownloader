@@ -1,6 +1,6 @@
 # Lo que está en disco manda: nombre y ruta de un archivo movido o renombrado
 
-**Estado:** `aprobada` por el dueño el 2026-10-04. M-1 y M-2 medidos (abajo). **Fecha:** 2026-10-04.
+**Estado:** `implementada` el 2026-10-05 (aprobada por el dueño el 2026-10-04). M-1 y M-2 medidos (abajo). **Fecha:** 2026-10-05.
 **Origen:** pedido del dueño, 2026-10-04, tras verificar el plan 20.
 **Traza:** `docs/specs/disco-manda/assumptions.md`.
 **Extiende, no reemplaza:** `docs/specs/classroom-destino/spec.md` (RN-18 a RN-22, RN-30, tabla de decisión «Qué ya está descargado»). Cuando esta spec dice «classroom-destino RN-19» se refiere a esa. Si hay contradicción, **gana ésta, y sólo en lo que dice expresamente que cambia** (marcado con **Cambia** abajo).

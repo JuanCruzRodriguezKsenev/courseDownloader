@@ -123,6 +123,7 @@ export async function aplicarEstadoDestino({ backend, sitio, clases }) {
         c.bloqueo = "sin-asociar";
         c.destino = undefined;
         c.sinAsignar = false;
+        c.movido = false;
         c.seleccionado = false;
         if (c.estado !== "process") {
           c.estado = "pending";
@@ -142,6 +143,7 @@ export async function aplicarEstadoDestino({ backend, sitio, clases }) {
         c.bloqueo = "omitido";
         c.destino = undefined;
         c.sinAsignar = false;
+        c.movido = false;
         c.seleccionado = false;
         if (c.estado !== "process") {
           c.estado = "pending";
@@ -151,6 +153,7 @@ export async function aplicarEstadoDestino({ backend, sitio, clases }) {
 
       c.bloqueo = undefined;
       c.sinAsignar = Boolean(itRes && itRes.sinAsignar);
+      c.movido = Boolean(itRes && itRes.movido);
       c.destino = {
         ruta: itRes ? itRes.rutaDestino : null,
         nombre: itRes ? itRes.nombre : null,

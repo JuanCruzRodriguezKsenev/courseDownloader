@@ -214,6 +214,59 @@ describe("popup/features/destino.js", () => {
       expect(clases[0].seleccionado).toBe(false);
     });
 
+    it("asigna c.movido = true cuando itRes.movido es true, y false en cualquier otro caso (AC-1, RN-10)", async () => {
+      const backend = {
+        estadoDestino: vi.fn().mockResolvedValue({
+          ok: true,
+          curso: { asociado: true, materia: "Fisica I" },
+          items: [
+            {
+              idArchivo: "att-1",
+              estado: "descargado",
+              rutaDestino: "Fisica I/Practicas",
+              nombre: "Capacitores.pdf",
+              sinAsignar: false,
+              omitido: false,
+              movido: true,
+            },
+            {
+              idArchivo: "att-2",
+              estado: "descargado",
+              rutaDestino: "Fisica I/Teorias",
+              nombre: "Teoria.pdf",
+              sinAsignar: false,
+              omitido: false,
+              movido: false,
+            },
+          ],
+        }),
+      };
+
+      const clases = [
+        {
+          id: 1,
+          sitioId: "google-classroom",
+          cursoId: "c100",
+          cursoNombre: "Física I",
+          idArchivo: "att-1",
+          titulo: "05_capacitores.pdf",
+        },
+        {
+          id: 2,
+          sitioId: "google-classroom",
+          cursoId: "c100",
+          cursoNombre: "Física I",
+          idArchivo: "att-2",
+          titulo: "Teoria.pdf",
+        },
+      ];
+
+      await aplicarEstadoDestino({ backend, sitio: sitioClassroom, clases });
+
+      expect(clases[0].movido).toBe(true);
+      expect(clases[1].movido).toBe(false);
+    });
+
     it("ítem de videollamada vuelve con omitido: true -> bloqueo 'omitido', sin destino y deseleccionada (RN-A)", async () => {
       const meetId = "acceso:" + encodeURIComponent("https://meet.google.com/abc-defg-hij") + ":Clase%20Meet";
       const backend = {

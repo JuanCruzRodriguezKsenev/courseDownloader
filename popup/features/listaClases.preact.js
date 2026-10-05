@@ -195,6 +195,11 @@ export function FilaClase({ clase, ctx }) {
     ? html`<span class="chip-videollamada" title="enlace de videollamada sincrónica, posiblemente inactivo">📹 Videollamada</span>`
     : null;
 
+  // [PLAN 22 / RN-10] Chip de archivo movido en disco
+  const chipMovido = clase.movido
+    ? html`<span class="chip-materia chip-movido" title="Movido: se tomó la ruta y el nombre que hay en disco">movido</span>`
+    : null;
+
   // ── Etiqueta y Título de la fila ──────────────────────────────────────────────────────────
   // Con destino (D-1): la etiqueta muestra destino.nombre y el title el nombre original y ruta.
   // Descartado / existente (D-6): el title incluye «Ya lo tenías: no se escribió nada».
@@ -212,6 +217,11 @@ export function FilaClase({ clase, ctx }) {
     titleFila = titleFila
       ? `${titleFila} · Ya lo tenías: no se escribió nada`
       : 'Ya lo tenías: no se escribió nada';
+  }
+  if (clase.movido) {
+    titleFila = titleFila
+      ? `${titleFila} · Movido: se tomó la ruta y el nombre que hay en disco`
+      : 'Movido: se tomó la ruta y el nombre que hay en disco';
   }
 
   const esActivo = clase.titulo === videoActivo && enCurso;
@@ -255,6 +265,7 @@ export function FilaClase({ clase, ctx }) {
         <span class="video-label">${etiquetaTexto}</span>
         ${chipVideollamada}
         ${chipMateria}
+        ${chipMovido}
         <span class="badge ${badgeCls}">${badgeTxt}</span>
       </div>`;
   }
@@ -268,6 +279,7 @@ export function FilaClase({ clase, ctx }) {
       <span class="video-label" style=${`cursor:${(tieneCheckbox && !estaBloqueado) ? 'pointer' : 'default'}`}>${etiquetaTexto}</span>
       ${chipVideollamada}
       ${chipMateria}
+      ${chipMovido}
       ${esActivo
         ? html`<span class="badge process">Bajando</span>`
         : html`<button class="btn-row-action remove-action"

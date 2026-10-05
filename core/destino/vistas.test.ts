@@ -1348,4 +1348,87 @@ describe("core/destino/vistas.ts", () => {
       expect(curso?.nombres?.[vClave]).toBeUndefined();
     });
   });
+
+  describe("movidos en el editor (Plan 22 / RN-10)", () => {
+    const cursoClave = "google-classroom:c1";
+    const archClave1 = "google-classroom:a1";
+    const archClave2 = "google-classroom:a2";
+
+    const indiceMovidos: Indice = {
+      version: 1,
+      cursos: {
+        [cursoClave]: {
+          nombre: "Física I",
+          materia: "Ingenieria/Fisica 1",
+          docente: "Docente",
+          temas: { "Teorías": "Teorias" },
+        },
+      },
+      archivos: {
+        [archClave1]: {
+          curso: cursoClave,
+          nombre: "01_movido.pdf",
+          ruta: "Teorias",
+          md5: "md5_a1",
+          original: "01_teoria.pdf",
+        },
+        [archClave2]: {
+          curso: cursoClave,
+          nombre: "02_normal.pdf",
+          ruta: "Teorias",
+          md5: "md5_a2",
+          original: "02_teoria.pdf",
+        },
+      },
+    };
+
+    const vistosMovidos: VistoCurso[] = [
+      {
+        sitio: "google-classroom",
+        idCurso: "c1",
+        nombre: "Física I",
+        items: [
+          { idArchivo: "a1", original: "01_teoria.pdf", tema: "Teorías" },
+          { idArchivo: "a2", original: "02_teoria.pdf", tema: "Teorías" },
+        ],
+      },
+    ];
+
+    it("indiceAFilasEditor asigna movido: true sólo a las claves incluidas en el Set movidos", () => {
+      const movidos = new Set([archClave1]);
+      const filas = indiceAFilasEditor({
+        indice: indiceMovidos,
+        vistos: vistosMovidos,
+        movidos,
+      });
+
+      const f1 = filas.archivos.find((a) => a.clave === archClave1);
+      const f2 = filas.archivos.find((a) => a.clave === archClave2);
+
+      expect(f1?.movido).toBe(true);
+      expect(f2?.movido).toBe(false);
+    });
+
+    it("filasEditorAIndice ignora el campo movido y no lo persiste en el índice (RN-10)", () => {
+      const movidos = new Set([archClave1]);
+      const filas = indiceAFilasEditor({
+        indice: indiceMovidos,
+        vistos: vistosMovidos,
+        movidos,
+      });
+
+      const res = filasEditorAIndice({
+        indice: indiceMovidos,
+        filas,
+        vistos: vistosMovidos,
+      });
+
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+
+      // El índice no guarda ninguna propiedad 'movido'
+      expect("movido" in (res.indice.archivos[archClave1] ?? {})).toBe(false);
+      expect("movido" in (res.indice.cursos[cursoClave] ?? {})).toBe(false);
+    });
+  });
 });
