@@ -1,6 +1,10 @@
 /**
- * PUERTO DE SITIO (V1.9.0)
+ * PUERTO DE SITIO (V1.10.0)
  * ==========================================================================
+ * CHANGELOG v1.10.0:
+ * - [CANCELAR ESCANEO] Miembro nuevo `escaneoCancelable?: boolean;` (opcional):
+ *   indica si el escaneo inyectado atiende `cancelar_escaneo`.
+ *
  * CHANGELOG v1.9.0:
  * - [DESTINO CORTE 2b-4] Campos opcionales en `EnlaceListado`: `cursoId`, `cursoNombre` y `tema`.
  *   Permiten al popup consultar el estado de cada curso al backend sin desarmar `modulo` (RN-2, D-1).
@@ -288,6 +292,13 @@ export interface PuertoSitio {
    * Corre en el popup, no en la pestaña.
    */
   esPortada?(url: string | undefined): boolean;
+
+  /**
+   * [CANCELAR ESCANEO] `true` si el escaneo inyectado atiende `cancelar_escaneo`
+   * (`chrome.runtime.onMessage` dentro de `escanearListado`). Lo lee el popup
+   * para mostrar el botón Cancelar.
+   */
+  escaneoCancelable?: boolean;
 
   /** Patrón de match para `chrome.tabs.query`. */
   readonly patronPestañas: string;

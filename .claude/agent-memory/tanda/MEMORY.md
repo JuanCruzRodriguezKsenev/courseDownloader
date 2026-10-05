@@ -16,3 +16,4 @@
 - [Plan 21 choques de nombre](project_choques_nombre_plan21.md) — causa en 3 eslabones, rama choques-nombre; va antes del plan 22
 - [Explicar simple](feedback_explicar_simple.md) — pasos exactos con nombres reales, causa en palabras simples, no adivinar
 - [Plan 22 disco manda](project_disco_manda_plan22.md) — spec aprobada y plan escrito; el disco manda sobre nombre y ruta; rama aún no creada
+- [Loader en tarjetas](project_loader_tarjetas.md) — rama loader-tarjetas: tarjetas + cancelar escaneo; planes para obra, cómo revisarlos

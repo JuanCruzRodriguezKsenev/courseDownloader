@@ -41,14 +41,14 @@ pesado hecho. **Medido, no supuesto**:
 | `plataforma/` | **No** |
 | `sitio/<portal>/` | Es lo que se escribe por portal — el trabajo esperado |
 
-`PuertoSitio` (`core/puertos/sitio.ts`) ya es un contrato de **14 miembros** que `tsc` hace cumplir
-(**14 desde el 2026-09-25**, tras sumar `instruccionEscaneo`, `topeEscaneoMs`, `claveDeListado?` y `esPortada?`):
+`PuertoSitio` (`core/puertos/sitio.ts`) ya es un contrato de **19 miembros** que `tsc` hace cumplir
+(**19 desde el 2026-09-28**, tras sumar `instruccionEscaneo`, `topeEscaneoMs`, `claveDeListado?`, `esPortada?` y `escaneoCancelable?`):
 un adaptador incompleto **no compila**. Esa es la red de este proyecto.
 
 Los miembros principales: `id`, `nombre`, `urlSondeoInternet`, `esPaginaDelSitio`, `patronPestañas`,
 `urlListado`, `instruccionEscaneo`, `topeEscaneoMs`, `escanearListado`, `parsearTitulo`, `clasificarCarpeta`,
 `resolverManifiesto`, `faceta` (DescriptorFaceta) y los miembros opcionales `credencialesAdjunto?`,
-`descargarAdjunto?`, `claveDeListado?` y `esPortada?(url)` (predicado de portada multi-curso).
+`resolverAdjunto?`, `claveDeListado?`, `esPortada?(url)` (predicado de portada multi-curso) y `escaneoCancelable?`.
 **El hogar canónico del contrato es la interfaz**, no este doc: si el número no coincide, gana `sitio.ts`.
 
 ## El problema real: el sitio es un singleton, y tiene que ser un dato
@@ -405,7 +405,7 @@ exista, hay que mirarlo de verdad:
 ## Lo que NO se toca, y es la prueba de que la re-arquitectura sirvió
 
 La UI entera, `plataforma/` completa, y de `core/` sólo los dos módulos citados. Un portal nuevo
-es: `sitio/<portal>/config.ts` (14 miembros desde el 2026-09-25, con el compilador de árbitro), sus tres hermanos y
+es: `sitio/<portal>/config.ts` (19 miembros desde el 2026-09-28, con el compilador de árbitro), sus tres hermanos y
 su `rules.json`.
 
 **La regla que más fácil se rompe al escribir un adaptador nuevo**: `escanearListado` se inyecta
@@ -609,7 +609,7 @@ hasta que exista un segundo portal—.
 
 **Qué hace falta para el corte 7** (o sea: cómo se suma un portal nuevo) está arriba en este
 mismo doc: §El registro, §El manifest y §Lo que NO se toca. En una línea: `sitio/<portal>/`
-con su `config.ts` (14 miembros desde el 2026-09-25, el compilador de árbitro) y sus tres hermanos, sumarlo al
+con su `config.ts` (19 miembros desde el 2026-09-28, el compilador de árbitro) y sus tres hermanos, sumarlo al
 array de `sitio/registro.ts`, y en `wxt.config.ts` los `host_permissions` + su ruleset dNR.
 **La regla que más fácil se rompe** —`escanearListado` se inyecta serializada y no puede tocar
 ninguna global ni constante propia— no la detecta nada salvo el navegador.

@@ -1,7 +1,13 @@
 /**
- * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.32.0)
+ * CLON DOWNLOADHELPER - ORQUESTADOR DE INTERFAZ GENERAL (V5.33.0)
  * ARCHIVO COMPLETO — LECTURA DE DISCO UNIFICADA HÍBRIDA (CHROME SEARCH / BUN LÓGICO)
  * ==========================================================================
+ * CHANGELOG v5.33.0:
+ * - [CANCELAR ESCANEO] Cancelación de escaneo en recorrido multi-curso y en un curso:
+ *   - En recorrido: `pedirCancelacionRecorrido` envía `cancelar_escaneo` a la pestaña con timeout de 3 s a `fin` cortado.
+ *   - En un curso: habilita Cancelar si `portal.escaneoCancelable`, frena inyección, desiste y restaura lista o card informativa.
+ *   - Tarjeta informativa `cancelado` en `cards` de `escaneoMuerto` con icono ⏹️ y tipo info.
+ *
  * CHANGELOG v5.32.0:
  * - [DESTINO CORTE 2c-2] Cableado de #ui-link-adopcion (🗂️): si el portal usa destino por índice
  *   y hay clases, previene navegación, envía cursos vistos al backend con registrarCursoVisto
@@ -579,6 +585,30 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     let loaderEsDelRecorrido = false;
     let desdeEscaneoActual = null;
     let ultimoNombreCursoEscaneado = null;
+    let cancelacionRecorridoPedida = null;
+
+    function pedirCancelacionRecorrido() {
+      if (!recorrido || recorrido.estado !== "escaneando" || cancelacionRecorridoPedida === recorrido.idRecorrido) {
+        return;
+      }
+      const { idRecorrido, tabId, sitioId } = recorrido;
+      cancelacionRecorridoPedida = idRecorrido;
+      LoaderDetalle.marcarCancelando();
+      chrome.tabs.sendMessage(tabId, { action: "cancelar_escaneo", idRecorrido }, () => void chrome.runtime.lastError);
+      setTimeout(() => {
+        if (recorrido?.idRecorrido === idRecorrido && recorrido.estado === "escaneando") {
+          mensajeria.enviar({
+            action: "recorrido_evento",
+            idRecorrido,
+            tabId,
+            sitioId,
+            tipo: "fin",
+            estado: "cortado",
+            motivoCorte: "cancelado",
+          });
+        }
+      }, 3000);
+    }
 
     function sincronizarLoaderRecorrido() {
       const debe = Boolean(
@@ -596,6 +626,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       if (debe) {
         const portalNombre = (sitios.obtener(recorrido.sitioId || "google-classroom") || sitioActivo).nombre;
         LoaderDetalle.mostrar(vistaLoaderRecorrido(recorrido, portalNombre));
+        LoaderDetalle.habilitarCancelar(pedirCancelacionRecorrido);
       } else if (loaderEsDelRecorrido) {
         ocultarLoader();
       }
@@ -1403,6 +1434,15 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       ejecutarPaso2SincronizarDiscoVeloz();
     }
 
+    function restaurarTrasCancelar() {
+      if (appState.listadoClasesGlobal.length > 0) { mostrarListaGuardada(); return; }   // RN-14
+      escaneoMuerto = { motivo: 'cancelado' };                                            // RN-15
+      sincronizarBloqueosDeAlerta();
+      configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
+      ocultarLoader();
+      renderizarListadoInterfaz();
+    }
+
     async function materializarRecorrido() {
       if (!recorrido) return;
       const portal = sitios.obtener(recorrido.sitioId || "google-classroom") || sitioActivo;
@@ -1639,7 +1679,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       mostrarLoader("Escaneando la pestaña...");
       desdeEscaneoActual = Date.now();
       ultimoNombreCursoEscaneado = null;
-      LoaderDetalle.mostrar({ lineas: [], cursos: [], pie: [], desde: desdeEscaneoActual });
+      LoaderDetalle.mostrar({ desde: desdeEscaneoActual });
       // Ocultar badge de cátedra al iniciar un nuevo escaneo para evitar estados inconsistentes
       nodos.facetaBadge.style.display = "none";
 
@@ -1739,6 +1779,27 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
         }, portal.topeEscaneoMs);
 
+        let cancelacionPedida = false;
+        let timerCancelacion = null;
+        const cerrarPorCancelacion = () => {
+          if (fueAbandonado()) return;            // ya cerró el callback o el timer
+          clearTimeout(safetyTimeout);
+          clearTimeout(timerCancelacion);
+          generacionEscaneo++;                    // abandona: progreso y callback tardíos se callan (RN-7)
+          escaneoEnCurso = false;
+          restaurarTrasCancelar();
+        };
+        if (portal.escaneoCancelable) {
+          LoaderDetalle.habilitarCancelar(() => {
+            if (cancelacionPedida) return;
+            cancelacionPedida = true;
+            clearTimeout(safetyTimeout);          // que el watchdog no pinte "tardó demasiado" en la ventana de 3 s
+            LoaderDetalle.marcarCancelando();
+            chrome.tabs.sendMessage(tab.id, { action: "cancelar_escaneo", idEscaneo: miGeneracion }, () => void chrome.runtime.lastError);
+            timerCancelacion = setTimeout(cerrarPorCancelacion, 3000);
+          });
+        }
+
         // Preservar en memoria los elementos que están en la cola de descarga activa
         const itemsEnCola = appState.listadoClasesGlobal.filter(c => c.estado === 'process');
         appState.sincronizacionDiscoCompletada = false;
@@ -1759,6 +1820,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             console.warn("🕰️ [ESCANEO] Llegó un resultado de una corrida ya abandonada; se descarta.");
             return;
           }
+          if (cancelacionPedida) { cerrarPorCancelacion(); return; }
           terminarEscaneo();
 
           // Controlar de forma resiliente si ocurrió un error de inyección (ej: permisos de host o página de sistema)
@@ -2298,10 +2360,9 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // El botón sigue diciendo "Re-escanear" en los dos casos, y la tarjeta es la que dice
       // qué pasa: es la regla del §3 de alertas-y-bloqueo-diseno.md.
       if (escaneoMuertoDominaLaPestaña()) {
-        // Las tres formas de morir del escaneo, con copy propia cada una porque la acción del
-        // usuario es distinta: al timeout se le reintenta; a la inyección rechazada hay que
-        // cambiarle la pestaña; y sin portal, directamente hay que ir a abrir uno. El botón
-        // dice "Re-escanear" en los tres casos y la tarjeta dice qué pasa (§3).
+        // Las formas de morir del escaneo (timeout, inyección, sin-portal, portal), con copy propia cada una
+        // porque la acción del usuario es distinta. 'cancelado' no es una muerte sino la quinta entrada,
+        // informativa. El botón dice "Re-escanear" y la tarjeta dice qué pasa (§3).
         const cards = {
           timeout: {
             titulo: 'El escaneo tardó demasiado',
@@ -2322,6 +2383,12 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
             titulo: 'El escaneo no trajo clases',
             descripcion: `${escaneoMuerto.detalle}<br>Probá <strong>Re-escanear</strong>.`,
             icono: '👁️',
+          },
+          cancelado: {
+            tipo: 'info',
+            titulo: 'Escaneo cancelado',
+            descripcion: 'Tocá <strong>Re-escanear</strong> para volver a buscar.',
+            icono: '⏹️',
           },
         };
         ListaClases.render({ modo: 'card', card: { tipo: 'error', ...cards[escaneoMuerto.motivo] } });

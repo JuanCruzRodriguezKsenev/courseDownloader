@@ -30,10 +30,12 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **79 archivos, 1173 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
+| `pnpm test` | **79 archivos, 1185 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 1185** (2026-10-04, merge de `loader-tarjetas`): son los 1173 de abajo más **+12** tests: **+11** de cancelar escaneo (`recorridoTodos.test.ts` +4, `scraper.test.js` +4, `loaderDetalle.preact.test.js` +3) y **+1** del loader en tarjetas (contadores en `loaderDetalle.preact.test.js`).
 
 **De dónde sale el 1173** (2026-10-04, plan `21 - Nombres que chocan en cursos sin asociar y al guardar`): Son los 1165 de abajo más **+8** tests:
 - **+4** en `core/destino/propuesta.test.ts` (suite de resolución de choques en cursos sin asociar con RN-16 y RN-16a; 16 → 20 tests),

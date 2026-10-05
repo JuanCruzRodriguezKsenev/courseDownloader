@@ -43,3 +43,6 @@
 - [Borrador local del editor (Plan 19)](project_borrador_local_editor_plan19.md) — borrador en localStorage con debounce 500ms, banner Restaurar/Descartar, descarte con toast ante cambios y remoción de beforeunload; compuerta en 78 archivos / 1140 tests y humos en verde
 - [Subcarpeta por tema en carpeta destino (Plan 20)](project_subcarpeta_tema_plan20.md) — subcarpeta opcional en núcleo, editor web reactivo con casilla e interruptor masivo, y CLI generar/aplicar; compuerta en 79 archivos / 1165 tests y humos en verde
 - [Choques de nombre en cursos sin asociar y al guardar (Plan 21)](project_choques_nombre_plan21.md) — resolución de choques en cursos sin asociar agrupando por tema (RN-16/16a), descarte de nombres que chocan al guardar (RN-14) y discriminante md5 || clave en editor; compuerta en 79 archivos / 1173 tests y humos en verde
+- [Loader en tarjetas](project_loader_tarjetas.md) — presentación en tarjetas con íconos SVG, acento azul temático, VistaLoader estructurada y contadores de recorrido
+- [Classroom: Cancelar escaneo](project_classroom_cancelar_escaneo.md) — botón Cancelar en fila Escaneando… del loader, oyente en scraper, guarda en recorridoTodos y timeout de seguridad
+

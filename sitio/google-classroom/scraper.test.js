@@ -1437,6 +1437,161 @@ describe("ScraperClassroom.escanearListado", () => {
       scroller.remove();
     }
   });
+
+  function mockOnMessage() {
+    let oyenteRegistrado = null;
+    const addListener = vi.fn((fn) => {
+      oyenteRegistrado = fn;
+    });
+    const removeListener = vi.fn((fn) => {
+      if (oyenteRegistrado === fn) {
+        oyenteRegistrado = null;
+      }
+    });
+    globalThis.chrome = globalThis.chrome || {};
+    globalThis.chrome.runtime = globalThis.chrome.runtime || {};
+    globalThis.chrome.runtime.onMessage = { addListener, removeListener };
+    return {
+      addListener,
+      removeListener,
+      getOyente: () => oyenteRegistrado,
+      dispararCancelar: (msg, responder = vi.fn()) => {
+        if (oyenteRegistrado) {
+          oyenteRegistrado(msg, {}, responder);
+        }
+      },
+    };
+  }
+
+  it("41. S1: cancelar recorrido de 3 cursos en el latido de curso 1 corta y emite fin cortado cancelado", async () => {
+    const mockMsg = mockOnMessage();
+    const { mensajesEnviados, limpiar } = simularNavegacionClassroom();
+    const responder = vi.fn();
+    const originalSend = globalThis.chrome.runtime.sendMessage;
+
+    globalThis.chrome.runtime.sendMessage = vi.fn(async (msg) => {
+      await originalSend(msg);
+      if (msg.action === "recorrido_evento" && msg.tipo === "latido" && msg.indice === 1) {
+        mockMsg.dispararCancelar({ action: "cancelar_escaneo", idRecorrido: 100 }, responder);
+      }
+    });
+
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        modo: "todos",
+        idRecorrido: 100,
+        tiempos: TIEMPOS_TEST,
+      });
+
+      expect(res.cancelado).toBe(true);
+      const cursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+      expect(cursos).toHaveLength(1);
+      expect(cursos[0].indice).toBe(0);
+      expect(cursos[0].resultado).toBe("ok");
+      expect(cursos.some((c) => c.indice >= 1)).toBe(false);
+
+      const ultimo = mensajesEnviados.at(-1);
+      expect(ultimo.tipo).toBe("fin");
+      expect(ultimo.estado).toBe("cortado");
+      expect(ultimo.motivoCorte).toBe("cancelado");
+
+      expect(location.pathname.endsWith("/h")).toBe(false);
+      expect(mockMsg.removeListener).toHaveBeenCalledWith(mockMsg.addListener.mock.calls[0][0]);
+      expect(responder).toHaveBeenCalledWith({ ok: true });
+    } finally {
+      limpiar();
+      delete globalThis.chrome?.runtime?.onMessage;
+    }
+  });
+
+  it("42. S2: cancelar antes de que termine la enumeración envía fin cortado cancelado sin inicio", async () => {
+    const mockMsg = mockOnMessage();
+    const { mensajesEnviados, limpiar } = simularNavegacionClassroom();
+    mockMsg.addListener.mockImplementation((fn) => {
+      setTimeout(() => {
+        fn({ action: "cancelar_escaneo", idRecorrido: 200 }, {}, vi.fn());
+      }, 5);
+    });
+
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        modo: "todos",
+        idRecorrido: 200,
+        tiempos: TIEMPOS_TEST,
+      });
+
+      expect(res.cancelado).toBe(true);
+      const inicios = mensajesEnviados.filter((m) => m.tipo === "inicio");
+      expect(inicios).toHaveLength(0);
+
+      const fines = mensajesEnviados.filter((m) => m.tipo === "fin");
+      expect(fines).toHaveLength(1);
+      expect(fines[0].estado).toBe("cortado");
+      expect(fines[0].motivoCorte).toBe("cancelado");
+    } finally {
+      limpiar();
+      delete globalThis.chrome?.runtime?.onMessage;
+    }
+  });
+
+  it("43. S3: cancelar un curso con idEscaneo al primer escaneo_progreso resuelve en < 200 ms", async () => {
+    const mockMsg = mockOnMessage();
+    globalThis.chrome = globalThis.chrome || {};
+    globalThis.chrome.runtime = globalThis.chrome.runtime || {};
+    let tOrden = 0;
+    let tResolvio = 0;
+
+    globalThis.chrome.runtime.sendMessage = vi.fn(async (msg) => {
+      if (msg.action === "escaneo_progreso" && tOrden === 0) {
+        tOrden = Date.now();
+        mockMsg.dispararCancelar({ action: "cancelar_escaneo", idEscaneo: 7 });
+      }
+    });
+
+    try {
+      const p = ScraperClassroom.escanearListado({ idEscaneo: 7, tiempos: TIEMPOS_TEST });
+      const res = await p;
+      tResolvio = Date.now();
+      expect(res.cancelado).toBe(true);
+      expect(res.enlaces).toEqual([]);
+      expect(tOrden).toBeGreaterThan(0);
+      expect(tResolvio - tOrden).toBeLessThan(200);
+    } finally {
+      delete globalThis.chrome?.runtime?.onMessage;
+    }
+  });
+
+  it("44. S4: cancelar_escaneo con otro idRecorrido no hace nada", async () => {
+    const mockMsg = mockOnMessage();
+    const { mensajesEnviados, limpiar } = simularNavegacionClassroom();
+    const responder = vi.fn();
+    const originalSend = globalThis.chrome.runtime.sendMessage;
+
+    globalThis.chrome.runtime.sendMessage = vi.fn(async (msg) => {
+      await originalSend(msg);
+      if (msg.action === "recorrido_evento" && msg.tipo === "latido" && msg.indice === 1) {
+        mockMsg.dispararCancelar({ action: "cancelar_escaneo", idRecorrido: 99999 }, responder);
+      }
+    });
+
+    try {
+      const res = await ScraperClassroom.escanearListado({
+        modo: "todos",
+        idRecorrido: 300,
+        tiempos: TIEMPOS_TEST,
+      });
+
+      expect(responder).not.toHaveBeenCalled();
+      const ultimo = mensajesEnviados.at(-1);
+      expect(ultimo.tipo).toBe("fin");
+      expect(ultimo.estado).toBe("terminado");
+      expect(res.cancelado).toBeFalsy();
+    } finally {
+      limpiar();
+      delete globalThis.chrome?.runtime?.onMessage;
+    }
+  });
 });
+
 
 

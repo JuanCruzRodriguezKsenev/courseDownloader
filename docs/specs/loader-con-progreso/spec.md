@@ -1,6 +1,6 @@
 # Spec — Loader con progreso, vuelta a la portada y Estado primero en filtros
 
-**Estado**: `aprobada` (sin leer, ver aviso) · **Plan**: [`docs/plan-loader-con-progreso.md`](../../plan-loader-con-progreso.md) · **Fecha**: 2026-09-27 · **Rama**: `classroom-escanear-todas`
+**Estado**: `aprobada` (sin leer, ver aviso) · **Plan**: [`docs/plan-loader-con-progreso.md`](../../plan-loader-con-progreso.md) · **Enmienda**: presentación en tarjetas (§final, plan [`docs/plan-loader-tarjetas.md`](../../plan-loader-tarjetas.md)) · **Fecha**: 2026-09-27 · **Rama**: `classroom-escanear-todas`
 
 > ⚠️ **El dueño aprobó los 22 supuestos del listado sin leerlos** (2026-09-27). Los derivados
 > RN-20 a RN-22 (vuelta a la portada) los agregó la tanda sobre un pedido suyo y **no los vio**.
@@ -45,7 +45,7 @@ popover de filtros la sección **Estado** vaya siempre primera.
 - El loader pasa a tener un dueño único (componente propio).
 
 **No incluye**
-- Botón para cancelar el escaneo o el recorrido.
+- ~~Botón para cancelar el escaneo o el recorrido.~~ *(entró en [`../cancelar-escaneo/spec.md`](../cancelar-escaneo/spec.md), 2026-09-27)*
 - Que el escaneo de **un** curso sobreviva a cerrar el popup (sigue la deuda ⚪).
 - Cambios al resumen final del recorrido (nota sobre la lista, tarjeta "El recorrido no trajo material").
 - ~~El texto "unos 45 s por curso" de la tarjeta de oferta (espera M-1 del recorrido).~~ *(entró en el plan: B-3 ya midió ~18 s/curso, se actualizó a 20 s/curso)*
@@ -318,3 +318,27 @@ Ramón Net / Anatomy:
 3. **RN-20** mueve la pestaña del dueño sin que lo pida en ese momento. Si estaba mirando otra cosa
    en esa pestaña al final del recorrido… no puede: el recorrido exige la pestaña al frente y se
    corta si navega (RN-21).
+
+## Enmienda 2026-09-27 — presentación en tarjetas
+
+Pedido del dueño: que el loader con detalle se vea como la maqueta
+[`maqueta-loader.png`](./maqueta-loader.png). **No cambia ninguna regla de contenido** (RN-1 a RN-19
+siguen igual); cambia cómo se dispone. Plan: [`docs/plan-loader-tarjetas.md`](../../plan-loader-tarjetas.md).
+
+- **RN-24** — Con detalle, el loader deja de ir centrado: arriba el título con un ícono, y debajo,
+  en este orden y cada uno en su tarjeta, la lista de cursos (RN-13), el curso actual (posición y
+  nombre en una línea, fase e ítems debajo), los contadores (RN-11) en tres columnas, el tiempo
+  restante (RN-12) con el reloj debajo, una fila con spinner y "Escaneando…", y el pie (RN-15)
+  separado por una línea. Lo que no aplica a un escaneo (sin lista, sin contadores, sin estimación)
+  no se dibuja.
+- **RN-25** — Las marcas de RN-13 se dibujan como íconos: ✓ círculo verde con tilde, ○ anillo gris,
+  ✗ círculo rojo con cruz, ▸ triángulo sobre la fila resaltada, · punto gris. El curso actual va
+  resaltado con el color de acento de la app (naranja, `--accent-orange`).
+- **RN-26** — Sin detalle (conectando con el servidor, sincronizando) el loader queda como hoy:
+  spinner y texto centrados sobre el velo translúcido.
+- **RN-27** — Los colores salen de los tokens del proyecto (claro y oscuro); la maqueta fija la
+  disposición, no la paleta.
+- **AC-12** — Con el recorrido en el curso 6 de 7, el loader muestra de arriba abajo: título con
+  ícono, tarjeta de cursos con la fila del 6 resaltada, tarjeta "Curso 6 de 7 · <nombre>" con la
+  fase, tarjeta con Listos/Vacíos/Fallidos, "≈ N min restante(s)" con el reloj, "Escaneando…" con
+  spinner y el pie; todo dentro de 390×600 sin scroll de página (la lista puede scrollear sola).

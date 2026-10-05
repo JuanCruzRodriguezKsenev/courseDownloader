@@ -4,6 +4,8 @@
  * CHANGELOG v1.4.0:
  * - [DESTINO CORTE 2b-3] Declara `destinoPorIndice: true`: la descarga delega en el índice
  *   de destino del portal (`.course-downloader.json`) y exige que el ítem traiga `destino`.
+ * - [CANCELAR ESCANEO] Declara `escaneoCancelable: true`: el scraper inyectado
+ *   atiende la orden de cancelar.
  *
  * CHANGELOG v1.3.0:
  * - [CLASSROOM ESCANEAR TODAS] Portada y escaneo de todos los cursos:
@@ -90,6 +92,7 @@ const SitioGoogleClassroom: PuertoSitio = {
     "Escaneá desde un curso, o desde «Todas mis clases» para escanear todos. Dejá esa pestaña al frente hasta que termine: puede tardar varios minutos, y si cambiás de pestaña el escaneo se corta.",
 
   topeEscaneoMs: 180000,
+  escaneoCancelable: true,
 
   credencialesAdjunto: "include",
 
