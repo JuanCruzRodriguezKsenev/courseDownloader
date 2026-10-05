@@ -46,12 +46,36 @@ const globalesDelProyecto = {
   ParserTitulosAnatomy: "readonly",
   ScraperAnatomy: "readonly",
   DescargarAdjuntoAnatomy: "readonly",
+
+  // Portal 3: Google Classroom.
+  SitioGoogleClassroom: "readonly",
+  ScraperClassroom: "readonly",
+  ParserTitulosClassroom: "readonly",
+  DescargarAdjuntoClassroom: "readonly",
+
+  // Portal 4: Moodle LINTI.
+  SitioMoodleLinti: "readonly",
+  ScraperMoodleLinti: "readonly",
+  ParserTitulosMoodleLinti: "readonly",
+  DescargarAdjuntoMoodleLinti: "readonly",
+
+  // Portal 5: Google Sites Mate C.
+  SitioSitesMatec: "readonly",
+  ScraperSitesMatec: "readonly",
+  ParserTitulosSitesMatec: "readonly",
+  DescargarAdjuntoSitesMatec: "readonly",
+
+  // Portal 6: Moodle Asignaturas (UNLP).
+  SitioMoodleAsignaturas: "readonly",
+  ScraperMoodleAsignaturas: "readonly",
+  ParserTitulosMoodleAsignaturas: "readonly",
+  DescargarAdjuntoMoodleAsignaturas: "readonly",
 };
 
 module.exports = [
-  // No lintear dependencias, el PoC descartable, el vendor de Preact ni las salidas
-  // del bundler.
-  { ignores: ["node_modules/**", "prototype/**", "popup/vendor/**", ".output/**", ".wxt/**"] },
+  // No lintear dependencias, el PoC descartable, el vendor de Preact, las salidas
+  // del bundler ni los worktrees aislados de git.
+  { ignores: ["node_modules/**", "prototype/**", "popup/vendor/**", ".output/**", ".wxt/**", "docs/muestras/**", ".worktrees/**"] },
 
   // TypeScript (núcleo migrado + config del bundler). Mismas reglas que el JS: la red
   // es mínima a propósito. `no-undef` se apaga porque en TS lo cubre el compilador y

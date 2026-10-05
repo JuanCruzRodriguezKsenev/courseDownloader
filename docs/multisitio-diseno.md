@@ -41,17 +41,15 @@ pesado hecho. **Medido, no supuesto**:
 | `plataforma/` | **No** |
 | `sitio/<portal>/` | Es lo que se escribe por portal — el trabajo esperado |
 
-`PuertoSitio` (`core/puertos/sitio.ts`) ya es un contrato de 11 miembros que `tsc` hace cumplir
-(**12 desde el 2026-08-12**: `instruccionEscaneo`):
+`PuertoSitio` (`core/puertos/sitio.ts`) ya es un contrato de **19 miembros** que `tsc` hace cumplir
+(**19 desde el 2026-09-28**, tras sumar `instruccionEscaneo`, `topeEscaneoMs`, `claveDeListado?`, `esPortada?` y `escaneoCancelable?`):
 un adaptador incompleto **no compila**. Esa es la red de este proyecto.
 
-Los 11, para no tener que abrir el archivo: `id`, `nombre`, `urlSondeoInternet`,
-`esPaginaDelSitio`, `patronPestañas`, `urlListado`, `resolverManifiesto`, `escanearListado`,
-`parsearTitulo`, `clasificarCarpeta` y `faceta` — este último un `DescriptorFaceta` completo,
-que es el que más trabajo da. **El hogar canónico del contrato es la interfaz**, no este doc: si
-el número no coincide, gana `sitio.ts` y esta línea está vieja. *(Decía "12" desde que se
-escribió, y nadie los había contado. Ojo: ADR-0012 sacó `claveEstado`, pero ese miembro era de
-`DescriptorFaceta` —el objeto que cuelga de `faceta`—, no del puerto: el número no se movió.)*
+Los miembros principales: `id`, `nombre`, `urlSondeoInternet`, `esPaginaDelSitio`, `patronPestañas`,
+`urlListado`, `instruccionEscaneo`, `topeEscaneoMs`, `escanearListado`, `parsearTitulo`, `clasificarCarpeta`,
+`resolverManifiesto`, `faceta` (DescriptorFaceta) y los miembros opcionales `credencialesAdjunto?`,
+`resolverAdjunto?`, `claveDeListado?`, `esPortada?(url)` (predicado de portada multi-curso) y `escaneoCancelable?`.
+**El hogar canónico del contrato es la interfaz**, no este doc: si el número no coincide, gana `sitio.ts`.
 
 ## El problema real: el sitio es un singleton, y tiene que ser un dato
 
@@ -298,7 +296,7 @@ falta**. Es el corte 7. Los pasos son cinco y ninguno toca `core/`, `plataforma/
 
 | Archivo | Qué es |
 |---|---|
-| `config.ts` | El descriptor. Implementa `PuertoSitio` (**12 miembros** desde el 2026-08-12; eran 11 acá) y su `faceta` implementa `DescriptorFaceta` (**11 más**). |
+| `config.ts` | El descriptor. Implementa `PuertoSitio` (ver `core/puertos/sitio.ts`) y su `faceta` implementa `DescriptorFaceta` (ver `core/puertos/sitio.ts`). |
 | `scraper.js` | Lee el listado de clases del DOM. **Se inyecta serializado** — ver la trampa de abajo. |
 | `parserTitulos.js` | Título crudo → nombre de archivo canónico + a qué carpeta/faceta va. |
 | `resolverManifiesto.js` | HTML de la clase → URL del `.m3u8`. |
@@ -318,15 +316,22 @@ nombres. Usá `ParserTitulos<Portal>`, `Scraper<Portal>`, `ResolverManifiesto<Po
 en `globalesDelProyecto` de `eslint.config.js`, o `no-undef` los marca.
 
 **⚠️ Y una pregunta que hay que hacerse ANTES de creer que este corte no toca `core/`: ¿cómo se
-autentica el portal?** Si resuelve con la **cookie de sesión** del navegador (Ramón Net:
-`fetch(..., { credentials: "include" })`), no toca nada. Si pide un **token que vive dentro de la
-pestaña** —`localStorage`, un header propio—, entonces el dato nace en la pestaña y lo necesita el
-**service worker**, que por diseño no tiene ninguna (ADR-0010). Eso **sí es Capa 1**, y ya está
-resuelto de forma genérica: el scraper lo devuelve en `ResultadoEscaneo.credenciales`, se guarda
-**por portal** en `core/estado/credencialesPortal.ts` y le llega al adaptador como tercer
-parámetro de `resolverManifiesto`. Ver [ADR-0013](adr/0013-credenciales-por-portal.md). Un portal
-nuevo con auth por token **no** tiene que volver a diseñar esto, pero sí tiene que saber que
-existe — y que las credenciales son del **portal**, no de la clase.
+autentica el portal?** Hay tres casos:
+1. Si resuelve con la **cookie de sesión** del navegador en las llamadas de video (Ramón Net:
+   `fetch(..., { credentials: "include" })`), no toca nada.
+2. Si pide un **token que vive dentro de la pestaña** —`localStorage`, un header propio—, entonces
+   el dato nace en la pestaña y lo necesita el **service worker**, que por diseño no tiene ninguna
+   (ADR-0010). Eso **sí es Capa 1**, y ya está resuelto de forma genérica: el scraper lo devuelve en
+   `ResultadoEscaneo.credenciales`, se guarda **por portal** en `core/estado/credencialesPortal.ts` y
+   le llega al adaptador como tercer parámetro de `resolverManifiesto` o `resolverAdjunto`. Ver
+   [ADR-0013](adr/0013-credenciales-por-portal.md).
+3. Si la descarga de **adjuntos** necesita la cookie de Google del navegador (Google Classroom), el
+   descriptor declara `credencialesAdjunto: "include"` y el procesador de cola usa esas cookies en la
+   descarga del archivo (`procesadorCola.ts`). Anatomy y los portales sin adjuntos quedan con el
+   default `"omit"`.
+
+Un portal nuevo con auth por token o por cookie **no** tiene que volver a diseñar esto, pero sí
+tiene que saber que existe — y que las credenciales son del **portal**, no de la clase.
 
 Dos miembros que conviene mirar antes de escribir el resto:
 
@@ -400,7 +405,7 @@ exista, hay que mirarlo de verdad:
 ## Lo que NO se toca, y es la prueba de que la re-arquitectura sirvió
 
 La UI entera, `plataforma/` completa, y de `core/` sólo los dos módulos citados. Un portal nuevo
-es: `sitio/<portal>/config.ts` (12 miembros desde el 2026-08-12, con el compilador de árbitro), sus tres hermanos y
+es: `sitio/<portal>/config.ts` (19 miembros desde el 2026-09-28, con el compilador de árbitro), sus tres hermanos y
 su `rules.json`.
 
 **La regla que más fácil se rompe al escribir un adaptador nuevo**: `escanearListado` se inyecta
@@ -604,7 +609,7 @@ hasta que exista un segundo portal—.
 
 **Qué hace falta para el corte 7** (o sea: cómo se suma un portal nuevo) está arriba en este
 mismo doc: §El registro, §El manifest y §Lo que NO se toca. En una línea: `sitio/<portal>/`
-con su `config.ts` (12 miembros desde el 2026-08-12, el compilador de árbitro) y sus tres hermanos, sumarlo al
+con su `config.ts` (19 miembros desde el 2026-09-28, el compilador de árbitro) y sus tres hermanos, sumarlo al
 array de `sitio/registro.ts`, y en `wxt.config.ts` los `host_permissions` + su ruleset dNR.
 **La regla que más fácil se rompe** —`escanearListado` se inyecta serializada y no puede tocar
 ninguna global ni constante propia— no la detecta nada salvo el navegador.

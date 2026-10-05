@@ -8,9 +8,11 @@ Escrito principalmente por `AppState.respaldar()` (`core/estado/appState.ts`) de
 
 | Clave | Forma | Escrita por | Descripción |
 |---|---|---|---|
-| `listaPersistente` | `Clase[]` (ver abajo) | popup (`AppState.respaldar`), SW (varios handlers IPC) | Lista completa de clases scrapeadas de la última sesión, con su estado actual. |
+| `listaPersistente` | `Clase[]` (ver abajo) | popup (`AppState.respaldar`), SW (varios handlers IPC) | Lista completa de clases scrapeadas de la última sesión, con su estado actual. Se borra con `limpiarSesionLocal`, salvo al terminar la cola de un recorrido (`origenListado.clave === "todos"`), que usa `limpiarColaConservandoLista` y la conserva. |
 | `colaDescargas` | `ColaItem[]` (ver abajo) | popup, SW | Cola de descarga desacoplada — separada de `listaPersistente` para poder sobrevivir a cambios de materia/pestaña sin perder el progreso. **El array ES el orden de descarga** desde el corte 6d (ADR-0011): lo escribe el popup y el SW lo obedece. |
 | `faseDiscoOk` | `boolean` | popup | Si ya se corrió una sincronización con el disco (vía `escanear_carpeta_local`) en esta sesión. |
+| `origenListado` | `{ sitioId: string, clave: string } \| null` | popup | De qué listado salió `listaPersistente` (en Classroom, el id del curso, o `"todos"` si provino del recorrido multi-curso). Si coincide con la pestaña, el popup muestra la lista guardada en vez de escanear. Se borra con `listaPersistente` (`limpiarSesionLocal`), salvo al terminar la cola de un recorrido (`origenListado.clave === "todos"`), que usa `limpiarColaConservandoLista` y las conserva. Sin migración: si falta, se escanea. |
+| `recorridoTodos` | `RecorridoTodos \| null` (ver abajo y `core/estado/recorridoTodos.ts`) | SW (`manejadoresIPC.recorrido_evento`), popup (eventos terminales) | Estado agregado del recorrido multi-curso (Google Classroom). Lo escribe el SW a partir de los eventos del script inyectado en la pestaña, lo lee el popup vía `RecorridoTodos` (`crearLectorRecorrido`) para mostrar progreso o materializar el listado. Se borra con `limpiarSesionLocal`, salvo al terminar la cola de un recorrido (`origenListado.clave === "todos"`), que usa `limpiarColaConservandoLista` y las conserva. |
 | `facetasElegidas` | `Record<sitioId, string \| null>` | popup | El valor de faceta que el usuario eligió **en cada portal** (en Ramón Net: la cátedra A–D). No se lee directo: `AppState.facetaElegidaDe(sitioId)` / `.fijarFacetaElegida(...)`. **Era un valor único (`facetaElegida`) hasta el 2026-08-06** y eso vaciaba el listado al cambiar de portal — ver ADR-0012 y la nota de migración abajo. Antes todavía se llamó `catedraElegida` (hasta el 2026-08-03). |
 | `ocultarAdvExplorar` | `boolean` | popup | Preferencia: no volver a mostrar el aviso al explorar carpeta. |
 | `ocultarAdvAula` | `boolean` | popup | Preferencia: no volver a mostrar el aviso al cambiar de aula. |
@@ -20,7 +22,7 @@ Escrito principalmente por `AppState.respaldar()` (`core/estado/appState.ts`) de
 | `criterioOrdenDisponibles` | `"nombre" \| "faceta" \| "estado"` | popup | **Sólo pestaña Disponibles** (corte 6b). Sus ejes son otros que los de la Cola: no hay `llegada` —ese listado no se encoló, se escaneó— ni `portal`, porque sale del scrapeo de **una** pestaña. La faceta se lee con `faceta.leer` (campo ya parseado), no con `leerDeCola` (que re-deriva del título). **Sin migración**: el default `"nombre"` reproduce exactamente el orden por título que había antes, y el sentido lo sigue dando `ordenAscendente`. |
 | `tutorialCompletado` | `boolean` | popup | Si el onboarding ya se completó/saltó. |
 | `SW_ESTADOS_PROGRESO` | `Record<string, EstadoClase>` | SW (`persistirEstadoFondo`) | Mapa **`<sitioId>\|<titulo>` → estado** de progreso, espejo liviano para que el popup pueda reconciliar sin pedir el detalle completo. La clave era el título solo hasta el 2026-08-06 — ver §La identidad de una clase. Las claves viejas se migran **al leer**, prefijándolas con el portal legado. |
-| `credencialesPortal` | `Record<sitioId, Record<string, string>>` | popup (al escanear, vía `credencialesPortal.guardar`) | **Credenciales que un portal expone sólo dentro de su pestaña** y que su `resolverManifiesto` necesita después, desde el SW (corte 7: el `id_token` de la API de Hotmart Club). No se lee directo: `core/estado/credencialesPortal.ts` — el mismo módulo lo escribe el popup y lo lee el SW. **No viaja con la clase ni con el ítem de la cola**: es de la sesión del usuario en el portal, no de un video, así que se guarda una vez por portal y re-escanear renueva el token de toda la cola de ese portal. El contenido es **opaco** para el núcleo: qué claves lleva lo decide cada adaptador. **Sin migración**: la clave ausente se lee como `{}`, y un portal que no la use (Ramón Net) nunca la escribe. |
+| `credencialesPortal` | `Record<sitioId, Record<string, string>>` | popup (al escanear, vía `credencialesPortal.guardar`) | **Credenciales que un portal expone sólo dentro de su pestaña** y que su `resolverManifiesto` o `resolverAdjunto` necesita después, desde el SW (Anatomy: el `id_token` de la API de Hotmart Club; Classroom: `{ authuser }`). No se lee directo: `core/estado/credencialesPortal.ts` — el mismo módulo lo escribe el popup y lo lee el SW. **No viaja con la clase ni con el ítem de la cola**: es de la sesión del usuario en el portal, no de un video, así que se guarda una vez por portal y re-escanear renueva el token de toda la cola de ese portal. El contenido es **opaco** para el núcleo: qué claves lleva lo decide cada adaptador. **Sin migración**: la clave ausente se lee como `{}`, y un portal que no la use (Ramón Net) nunca la escribe. |
 | `historialFallos` | `HistorialFallo[]` (ver abajo) | SW (`registrarFallo` → `HistorialFallos.registrar`), popup (marcar leídas / limpiar) | Historial acotado (últimos 50, más-reciente-primero) de fallos terminales de descarga (rechazo 4xx / sesión / servidor / internet). Fuente de la campanita del popup; la escribe el SW aun con el popup cerrado. |
 
 ### Migración: `sitioId` en `Clase` y `ColaItem` (2026-08-04)
@@ -93,11 +95,26 @@ adopta la vieja, la borra al adoptarla, y con las dos presentes gana la nueva.
                                   // identidad, no destino: `carpeta` la puede pisar el override
                                   // del input y `modulo` NO. Ausente en portales de un nivel.
   tipo?: "video" | "adjunto",     // [ADR-0014] ausente = "video" (todo lo persistido de antes)
-  idArchivo?: string,             // sólo en adjuntos: el `fileMembershipId` con el que el portal
-                                  // entrega la URL firmada. Se resuelve al BAJAR, no al escanear
+  idArchivo?: string,             // sólo en adjuntos: el id de Drive / `fileMembershipId` con el que el
+                                  // portal entrega la URL firmada, o `acceso:<url>:<título>` en Classroom.
+                                  // Se resuelve al BAJAR, no al escanear
   bytes?: number,                 // sólo en adjuntos: peso declarado por el portal, para la UI
+  cursoId?: string,               // [Corte 2b-4] id del curso en el portal (Classroom, D-1)
+  cursoNombre?: string,           // [Corte 2b-4] nombre del curso en el portal (Classroom, D-1)
+  tema?: string,                  // [Corte 2b-4] tema del ítem dentro del curso (Classroom, D-1)
+  publicacion?: string,           // [Corte 2a] título de la publicación donde salió el adjunto (Classroom, RN-7a)
+  anuncio?: string,               // [Corte 2a] texto del anuncio en Novedades (Classroom, RN-16a)
   catedra?: "A"|"B"|"C"|"D"|"COMUN",
   estado: "pending" | "process" | "downloaded",
+  destino?: {                     // [Corte 2b-4] destino resuelto en el árbol del dueño
+    ruta: string | null,
+    nombre: string | null,
+    claveCurso: string,
+    original: string
+  },
+  bloqueo?: "sin-asociar" | "indice-ilegible" | "omitido", // [Corte 2b-4] impide selección y encolado (D-4, D-5)
+  sinAsignar?: boolean,           // [Corte 2b-4] true si el tema no tiene carpeta asignada en el índice (AC-9)
+  resultadoDestino?: "escrito" | "descartado" | "existente", // [Corte 2b-3] resultado del backend al guardar en destino (D-4)
   seleccionado: boolean,          // checkbox en la UI
   visible: boolean                // resultado del filtro activo (computado, no persistente en la práctica)
 }
@@ -116,8 +133,17 @@ adopta la vieja, la borra al adoptarla, y con las dos presentes gana la nueva.
   modulo?: string,                // [ADR-0014] hereda el de la clase. NO se deriva de `carpeta`:
                                   // con el override activo son valores distintos
   tipo?: "video" | "adjunto",     // [ADR-0014] ausente = "video"
-  idArchivo?: string,             // sólo en adjuntos
+  idArchivo?: string,             // sólo en adjuntos: id de Drive, membershipId, o `acceso:<url>:<título>`
   bytes?: number,                 // sólo en adjuntos
+  destino?: {                     // [Corte 2b-3] destino en el árbol del dueño (RN-20, D-1).
+                                  // NOTA: `destino` NO forma parte de la clave de identidad
+                                  // (ver ADR-0014): dos ítems que sólo difieren en destino son la misma clase.
+    portal: string,
+    ruta: string,                 // materia + subcarpeta
+    nombre: string,               // nombre final en disco
+    claveCurso: string,
+    original: string
+  },
   fechaEncolado: number,          // Date.now() al encolar. Desde ADR-0011 NO es la fuente del
                                   // orden: es el dato del criterio "de llegada" y el que
                                   // normaliza las colas anteriores al corte 6d.
@@ -149,6 +175,72 @@ antepone y recorta la lista a 50 (los más viejos se descartan). Concurrencia ac
 SW (que registra) y el popup (que marca leídas / limpia) hacen read-modify-write sobre la
 misma clave desde contextos distintos; una colisión exacta podría perder una escritura —
 mismo trade-off sin transacciones que el resto de las claves, y el dato es informativo.
+
+### `RecorridoTodos` (almacenado en `recorridoTodos`)
+
+```ts
+{
+  idRecorrido: number,           // Date.now() al lanzar el recorrido
+  tabId: number,                 // pestaña donde corre el scraper
+  sitioId: string,               // "google-classroom"
+  estado: "escaneando" | "terminado" | "cortado",
+  cursos: CursoRecorrido[],      // [{ id, nombre, resultado?, enlaces?, motivo?, duracionMs? }]
+  indice: number,                // índice del curso actual en proceso
+  ultimaSenal: number,           // Date.now() del último latido o evento
+  motivoCorte?: MotivoCorte,     // "visibilidad" | "navegacion" | "sin-cursos" | "sin-respuesta" | "cancelado"
+  materializado: boolean,        // true cuando el popup volcó los enlaces a listaPersistente
+  lanzadoEn?: number,            // Date.now() de cuando el usuario apretó el botón
+  actual?: {                     // progreso intra-curso vigente (reseteado en latido/curso)
+    fase: "trabajo" | "ver-mas" | "novedades",
+    verMas?: number,
+    publicaciones?: number,
+    archivos?: number
+  }
+}
+```
+
+Eventos de ciclo de vida (`EventoRecorrido` vía mensaje IPC `recorrido_evento` al SW):
+- `"inicio"`: `{ cursos, lanzadoEn? }`
+- `"latido"`: `{ indice }`
+- `"progreso"`: `{ indice, fase, verMas?, publicaciones?, archivos? }`
+- `"curso"`: `{ indice, resultado, enlaces?, motivo?, duracionMs? }`
+- `"fin"`: `{ estado, motivoCorte?, tabId?, sitioId? }`
+- `"materializado"`: `{}`
+
+Un `fin` con `tabId`/`sitioId` sin recorrido previo (o con uno más viejo) crea uno `cortado` con `cursos: []`; un `inicio` del mismo id sobre un terminal se ignora.
+
+Mensajes IPC directos:
+- `escaneo_progreso`: enviado por el scraper en modo un curso directamente al popup vía `chrome.runtime.sendMessage({ action: "escaneo_progreso", idEscaneo, fase, verMas, publicaciones, archivos, nombre? })` para actualizar el loader en vivo sin pasar por `storage`.
+- `cancelar_escaneo`: popup → pestaña por `chrome.tabs.sendMessage`, `{ idRecorrido }` o `{ idEscaneo }`. Atendido por el scraper inyectado.
+
+### Índice de destino (`.course-downloader.json`)
+
+Persistido en disco en la raíz de cada portal que soporte destino por índice (Google Classroom: `~/Boveda/Areas/Facultad/.course-downloader.json`, ADR-0017, ADR-0018). Gestionado por el backend Bun (`backend/destino/`) y consumido por la extensión vía `/api/destino/*`.
+
+```ts
+interface Indice {
+  version: 1;
+  cursos: Record<string, CursoIndice>;
+  archivos: Record<string, ArchivoIndice>;
+}
+
+interface CursoIndice {
+  nombre: string;
+  materia: string;
+  docente: string;
+  temas: Record<string, string>; // tema -> carpeta relativa a materia. "." es raíz; "-" indica tema omitido (RN-31)
+  omitidos?: string[];           // array de claves de archivo (<portal>:<id>) que no se descargan (RN-31)
+  nombres?: Record<string, string>; // mapa clave de archivo -> nombre editado por el dueño antes de bajar; no guarda nombres que chocan (RN-14, D-3)
+}
+
+interface ArchivoIndice {
+  curso: string;
+  nombre: string;
+  ruta: string;
+  md5: string;                   // 32 caracteres hex
+  original: string;
+}
+```
 
 ## `chrome.storage.session` — volátil, sobrevive a la suspensión del Service Worker pero no a un reinicio del navegador
 

@@ -692,14 +692,21 @@ describe("la rama del adjunto", () => {
   };
 
   /** Sitio doble que resuelve adjuntos, con el `fetch` global sirviendo los bytes. */
-  function montarConAdjuntos(bytes = 12, over: Record<string, any> = {}) {
+  function montarConAdjuntos(
+    bytes = 12,
+    over: Record<string, any> = {},
+    credencialesAdjunto?: "omit" | "include",
+    tipo = "application/pdf"
+  ) {
     const resolverAdjunto = vi.fn().mockResolvedValue("https://cdn/firmada.pdf");
     const enviarBloqueAdjunto = vi.fn().mockResolvedValue({ ok: true });
 
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      headers: { get: () => String(bytes) },
+      headers: {
+        get: (h: string) => (h.toLowerCase() === "content-type" ? tipo : String(bytes)),
+      },
       arrayBuffer: async () => new ArrayBuffer(bytes),
     }) as unknown as typeof fetch;
 
@@ -713,6 +720,7 @@ describe("la rama del adjunto", () => {
                 resolverAdjunto,
                 nombre: "Portal de Prueba",
                 id: "prueba",
+                ...(credencialesAdjunto ? { credencialesAdjunto } : {}),
               }
             : undefined,
       },
@@ -836,5 +844,318 @@ describe("la rama del adjunto", () => {
 
     // Determinístico: reintentarlo no lo arregla, así que la cola sigue en vez de pausarse.
     expect((await sesion.get()).colaPausadaPorError).toBeFalsy();
+  });
+
+  it("sin credencialesAdjunto, el fetch sale con credentials: 'omit'", async () => {
+    const { cola, almacenamiento, sesion } = montarConAdjuntos();
+    await sesion.set({ rafagaCorriendo: true, modoTurboBunActivo: true });
+    await almacenamiento.guardarLocal({ colaDescargas: [PDF], listaPersistente: [] });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "https://cdn/firmada.pdf",
+      expect.objectContaining({ credentials: "omit" })
+    );
+  });
+
+  it("con credencialesAdjunto: 'include', sale con 'include'", async () => {
+    const { cola, almacenamiento, sesion } = montarConAdjuntos(12, {}, "include");
+    await sesion.set({ rafagaCorriendo: true, modoTurboBunActivo: true });
+    await almacenamiento.guardarLocal({ colaDescargas: [PDF], listaPersistente: [] });
+
+    cola.arrancarSiNoCorre();
+    await esperar(120);
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "https://cdn/firmada.pdf",
+      expect.objectContaining({ credentials: "include" })
+    );
+  });
+
+  it("respuesta HTML con título .pdf es rechazo y no envía bloques al backend", async () => {
+    const { cola, almacenamiento, sesion, enviarBloqueAdjunto } = montarConAdjuntos(
+      12,
+      {},
+      undefined,
+      "text/html; charset=utf-8"
+    );
+    await sesion.set({ rafagaCorriendo: true, modoTurboBunActivo: true });
+    await almacenamiento.guardarLocal({ colaDescargas: [PDF], listaPersistente: [] });
+
+    cola.arrancarSiNoCorre();
+    await esperar(150);
+
+    expect(enviarBloqueAdjunto).not.toHaveBeenCalled();
+    expect((await sesion.get()).colaPausadaPorError).toBeFalsy();
+  });
+
+  it("respuesta HTML con título .html se baja normal", async () => {
+    const HTML_ITEM = {
+      ...PDF,
+      titulo: "pagina.html",
+    };
+    const { cola, almacenamiento, sesion, enviarBloqueAdjunto } = montarConAdjuntos(
+      12,
+      {},
+      undefined,
+      "text/html; charset=utf-8"
+    );
+    await sesion.set({ rafagaCorriendo: true, modoTurboBunActivo: true });
+    await almacenamiento.guardarLocal({ colaDescargas: [HTML_ITEM], listaPersistente: [] });
+
+    cola.arrancarSiNoCorre();
+    await esperar(150);
+
+    expect(enviarBloqueAdjunto).toHaveBeenCalled();
+  });
+
+  describe("descargarAdjunto con destino (corte 2b-3)", () => {
+    it("(a) ítem con destino: enviarBloqueAdjunto recibe los cinco campos y fileName = destino.nombre", async () => {
+      const itemConDestino = {
+        ...PDF,
+        sitioId: "prueba",
+        destino: {
+          ruta: "Fisica_I/Practicas",
+          nombre: "Guia_1.pdf",
+          claveCurso: "CURSO1",
+          original: "Yokochi 6ta ED.pdf",
+        },
+      };
+      const { cola, almacenamiento, sesion, enviarBloqueAdjunto } = montarConAdjuntos();
+      await sesion.set({ rafagaCorriendo: true, modoTurboBunActivo: true });
+      await almacenamiento.guardarLocal({ colaDescargas: [itemConDestino], listaPersistente: [] });
+
+      cola.arrancarSiNoCorre();
+      await esperar(120);
+
+      expect(enviarBloqueAdjunto).toHaveBeenCalledTimes(1);
+      const [, headers] = enviarBloqueAdjunto.mock.calls[0]!;
+      expect(headers.fileName).toBe("Guia_1.pdf");
+      expect(headers.destino).toEqual({
+        portal: "prueba",
+        ruta: "Fisica_I/Practicas",
+        claveArchivo: "prueba:uuid-1",
+        claveCurso: "CURSO1",
+        original: "Yokochi 6ta ED.pdf",
+      });
+      expect(headers.targetFolder).toBe("miembro_superior");
+      expect(headers.siteFolder).toBe("prueba");
+    });
+
+    it('(b) resultado: "descartado": el ítem sale de la cola, queda downloaded y resultadoDestino: "descartado" persistido', async () => {
+      const itemConDestino = {
+        ...PDF,
+        sitioId: "prueba",
+        destino: {
+          ruta: "Fisica_I/Practicas",
+          nombre: "Guia_1.pdf",
+          claveCurso: "CURSO1",
+          original: "Yokochi 6ta ED.pdf",
+        },
+      };
+      const { cola, almacenamiento, sesion, mensajeria } = montarConAdjuntos(12, {
+        enviarBloqueAdjunto: vi.fn().mockResolvedValue({ ok: true, resultado: "descartado" }),
+      });
+      await sesion.set({ rafagaCorriendo: true, modoTurboBunActivo: true });
+      await almacenamiento.guardarLocal({
+        colaDescargas: [itemConDestino],
+        listaPersistente: [{ ...itemConDestino, estado: "process" }],
+      });
+
+      cola.arrancarSiNoCorre();
+      await esperar(150);
+
+      const data = await almacenamiento.obtenerLocal<{
+        colaDescargas: unknown[];
+        listaPersistente: { titulo: string; estado?: string; resultadoDestino?: string }[];
+      }>(["colaDescargas", "listaPersistente"]);
+      expect(data.colaDescargas).toEqual([]);
+      const persistido = data.listaPersistente?.find((c) => c.titulo === itemConDestino.titulo);
+      expect(persistido?.estado).toBe("downloaded");
+      expect(persistido?.resultadoDestino).toBe("descartado");
+
+      const aviso = mensajeria.notificados.find((m: any) => m.action === "clase_guardada_ok");
+      expect(aviso).toMatchObject({
+        titulo: itemConDestino.titulo,
+        resultadoDestino: "descartado",
+      });
+    });
+
+    it("(c) ítem sin destino en portal con destinoPorIndice: se saltea con texto D-2 y no llama resolverAdjunto ni enviarBloqueAdjunto", async () => {
+      const resolverAdjunto = vi.fn().mockResolvedValue("https://cdn/firmada.pdf");
+      const enviarBloqueAdjunto = vi.fn().mockResolvedValue({ ok: true });
+      const { cola, almacenamiento, sesion, mensajeria } = montar({
+        enviarBloqueAdjunto,
+        sitios: {
+          obtener: (id: string | undefined) => ({
+            id: id || "classroom",
+            nombre: "Google Classroom",
+            destinoPorIndice: true,
+            resolverAdjunto,
+            resolverManifiesto: resolverManifiestoDoble,
+          }),
+        },
+        identidad: crearIdentidadClase({
+          obtener: (id?: string) => ({ id: id || "classroom" }),
+        }),
+      });
+
+      const itemSinDestino = {
+        ...PDF,
+        sitioId: "classroom",
+        destino: undefined,
+      };
+
+      await sesion.set({ rafagaCorriendo: true, modoTurboBunActivo: true });
+      await almacenamiento.guardarLocal({
+        colaDescargas: [itemSinDestino],
+        listaPersistente: [{ ...itemSinDestino, estado: "process" }],
+      });
+
+      cola.arrancarSiNoCorre();
+      await esperar(150);
+
+      expect(resolverAdjunto).not.toHaveBeenCalled();
+      expect(enviarBloqueAdjunto).not.toHaveBeenCalled();
+
+      const data = await almacenamiento.obtenerLocal<{ colaDescargas: unknown[] }>(["colaDescargas"]);
+      expect(data.colaDescargas).toEqual([]);
+
+      const aviso = mensajeria.notificados.find((m: any) => m.action === "clase_con_error");
+      expect(aviso).toMatchObject({
+        motivo: "este ítem no tiene destino: re-escaneá el curso y asociá la materia",
+      });
+      expect((await sesion.get()).colaPausadaPorError).toBeFalsy();
+    });
+
+    it("(d) INDICE_ILEGIBLE: la cola pausa sin alarma y el ítem sigue en la cola", async () => {
+      const errorIndice = Object.assign(new Error("No se pudo leer"), {
+        httpStatus: 500,
+        codigoBackend: "INDICE_ILEGIBLE",
+      });
+      const { cola, almacenamiento, sesion, programador, mensajeria } = montarConAdjuntos(12, {
+        enviarBloqueAdjunto: vi.fn().mockRejectedValue(errorIndice),
+      });
+
+      await sesion.set({ rafagaCorriendo: true, modoTurboBunActivo: true });
+      await almacenamiento.guardarLocal({
+        colaDescargas: [PDF],
+        listaPersistente: [{ ...PDF, estado: "process" }],
+      });
+
+      cola.arrancarSiNoCorre();
+      await esperar(150);
+
+      const estado = await sesion.get();
+      expect(estado.colaPausadaPorError).toBe(true);
+      expect(estado.tipoDeErrorConexion).toBe("bloqueo");
+
+      // Sin alarma de autoheal
+      expect(programador.estaProgramada("alarma_autoheal")).toBe(false);
+
+      // El ítem SIGUE en la cola
+      const data = await almacenamiento.obtenerLocal<{ colaDescargas: { titulo: string }[] }>(["colaDescargas"]);
+      expect(data.colaDescargas?.map((c) => c.titulo)).toContain("Yokochi 6ta ED.pdf");
+
+      const avisoPausa = mensajeria.notificados.find((m: any) => m.action === "cola_pausada_por_error");
+      expect(avisoPausa).toMatchObject({
+        errorType: "bloqueo",
+        motivo: "no se pudo leer .course-downloader.json",
+      });
+    });
+
+    it("(e) DESTINO_OCUPADO: se saltea sólo ese ítem y el siguiente se procesa", async () => {
+      const item1 = { ...PDF, titulo: "Yokochi 1.pdf" };
+      const item2 = { ...PDF, titulo: "Yokochi 2.pdf" };
+
+      const errorOcupado = Object.assign(new Error("Destino ocupado"), {
+        httpStatus: 409,
+        tipoBackend: "rechazo",
+        codigoBackend: "DESTINO_OCUPADO",
+      });
+
+      const enviarBloqueAdjunto = vi
+        .fn()
+        .mockRejectedValueOnce(errorOcupado)
+        .mockResolvedValueOnce({ ok: true });
+
+      const { cola, almacenamiento, sesion, mensajeria } = montarConAdjuntos(12, {
+        enviarBloqueAdjunto,
+      });
+
+      await sesion.set({ rafagaCorriendo: true, modoTurboBunActivo: true });
+      await almacenamiento.guardarLocal({
+        colaDescargas: [item1, item2],
+        listaPersistente: [
+          { ...item1, estado: "process" },
+          { ...item2, estado: "pending" },
+        ],
+      });
+
+      cola.arrancarSiNoCorre();
+      await esperar(200);
+
+      // item1 salteado (vuelve a pending), item2 procesado (downloaded)
+      const data = await almacenamiento.obtenerLocal<{
+        colaDescargas: { titulo: string }[];
+        listaPersistente: { titulo: string; estado?: string }[];
+      }>(["colaDescargas", "listaPersistente"]);
+      expect(data.colaDescargas).toEqual([]);
+      expect(data.listaPersistente?.find((c) => c.titulo === "Yokochi 1.pdf")?.estado).toBe("pending");
+      expect(data.listaPersistente?.find((c) => c.titulo === "Yokochi 2.pdf")?.estado).toBe("downloaded");
+
+      const avisoError = mensajeria.notificados.find(
+        (m: any) => m.action === "clase_con_error" && m.titulo === "Yokochi 1.pdf"
+      );
+      expect(avisoError).toMatchObject({
+        motivo: "ya hay un archivo distinto con ese nombre en la carpeta de destino",
+      });
+
+      const avisoOk = mensajeria.notificados.find(
+        (m: any) => m.action === "clase_guardada_ok" && m.titulo === "Yokochi 2.pdf"
+      );
+      expect(avisoOk).toBeDefined();
+      expect((await sesion.get()).colaPausadaPorError).toBeFalsy();
+    });
+
+    it("(f) ítem de Anatomy (sin destinoPorIndice, sin destino): headers sin campos de destino y fileName igual al título", async () => {
+      const itemAnatomy = {
+        ...PDF,
+        sitioId: "anatomy-by-chris",
+        destino: undefined,
+      };
+
+      const { cola, almacenamiento, sesion, enviarBloqueAdjunto } = montarConAdjuntos(12, {
+        sitios: {
+          obtener: (id: string | undefined) => ({
+            id: id || "anatomy-by-chris",
+            nombre: "Anatomy by Chris",
+            resolverAdjunto: vi.fn().mockResolvedValue("https://cdn/firmada.pdf"),
+            resolverManifiesto: resolverManifiestoDoble,
+          }),
+        },
+        identidad: crearIdentidadClase({
+          obtener: (id?: string) => ({ id: id || "anatomy-by-chris" }),
+        }),
+      });
+
+      await sesion.set({ rafagaCorriendo: true, modoTurboBunActivo: true });
+      await almacenamiento.guardarLocal({
+        colaDescargas: [itemAnatomy],
+        listaPersistente: [{ ...itemAnatomy, estado: "process" }],
+      });
+
+      cola.arrancarSiNoCorre();
+      await esperar(120);
+
+      expect(enviarBloqueAdjunto).toHaveBeenCalledTimes(1);
+      const [, headers] = enviarBloqueAdjunto.mock.calls[0]!;
+      expect(headers.fileName).toBe("Yokochi 6ta ED.pdf");
+      expect(headers.destino).toBeUndefined();
+      expect(headers.siteFolder).toBe("anatomy-by-chris");
+      expect(headers.targetFolder).toBe("miembro_superior");
+    });
   });
 });

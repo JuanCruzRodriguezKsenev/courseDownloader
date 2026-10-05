@@ -25,6 +25,233 @@
     font-weight: var(--font-bold);
     color: var(--text-main);
   }
+
+  /* Con detalle el loader dura minutos: fondo opaco y disposición en tarjetas (maqueta:
+     docs/specs/loader-con-progreso/maqueta-loader.png). Sin detalle, lo de arriba tal cual. */
+  &:has(.loader-detalle) {
+    background-color: var(--bg-main);
+    backdrop-filter: none;
+    justify-content: safe center;
+    align-items: stretch;
+    gap: var(--space-md);
+    padding: var(--space-lg);
+    box-sizing: border-box;
+    overflow-y: auto;
+
+    /* El spinner de arriba se muda a la fila "Escaneando…" de la isla. `>` a propósito: el de
+       la isla también es `.spinner` y tiene que seguir visible. */
+    > .spinner { display: none; }
+
+    /* El título (lo sigue escribiendo mostrarLoader, con su piso) pasa a ser la cabecera. */
+    > .loader-text {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.1rem;
+      font-weight: var(--font-bold);
+      text-align: left;
+
+      &::before {
+        content: "";
+        flex-shrink: 0;
+        width: 26px;
+        height: 26px;
+        background-color: var(--accent-orange);
+        mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z'/%3E%3Cpath d='M22 10v6'/%3E%3Cpath d='M6 12.5V16a6 3 0 0 0 12 0v-3.5'/%3E%3C/svg%3E") center / contain no-repeat;
+      }
+    }
+  }
+
+  .loader-detalle-host {
+    align-self: stretch;
+  }
+
+  .loader-detalle {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    font-size: var(--text-md);
+    color: var(--text-main);
+    text-align: left;
+  }
+
+  .loader-icono {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  .loader-tarjeta {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+  }
+
+  /* Lista de cursos (RN-13): scroll propio, el actual queda a la vista (ItemCurso). */
+  .loader-cursos-cabecera {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--border-color);
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .loader-cursos-lista {
+    list-style: none;
+    margin: 0;
+    padding: var(--space-xs) var(--space-sm);
+    max-height: 150px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .loader-curso {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    min-height: 26px;
+    padding: 0 var(--space-sm);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    color: var(--text-main);
+  }
+
+  .loader-curso.actual {
+    font-weight: var(--font-bold);
+    background: rgba(var(--accent-orange-rgb), var(--alpha-active));
+    border-color: rgba(var(--accent-orange-rgb), var(--alpha-border));
+    box-shadow: inset 3px 0 0 var(--accent-orange);
+  }
+
+  .loader-curso-nombre {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  /* Marcas (RN-25): la forma toma currentColor; el trazo interior, el fondo de la tarjeta. */
+  .loader-marca {
+    display: inline-flex;
+    flex-shrink: 0;
+
+    .loader-icono { width: 18px; height: 18px; }
+    .loader-icono-trazo { stroke: var(--bg-surface); }
+  }
+  .loader-marca-listo { color: var(--accent-green); }
+  .loader-marca-vacio { color: var(--text-muted); }
+  .loader-marca-fallido { color: var(--accent-error-visible); }
+  .loader-marca-actual { color: var(--text-main); }
+  .loader-marca-pendiente { color: var(--text-muted); }
+
+  /* Curso actual */
+  .loader-actual {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-md);
+    padding: var(--space-md);
+
+    > .loader-icono { width: 22px; height: 22px; color: var(--text-muted); }
+  }
+
+  .loader-actual-titulo {
+    font-weight: var(--font-bold);
+    word-break: break-word;
+  }
+
+  .loader-actual-detalle {
+    margin-top: 2px;
+    font-size: var(--text-base);
+    color: var(--text-muted);
+  }
+
+  /* Contadores */
+  .loader-contadores {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    padding: var(--space-md) 0;
+  }
+
+  .loader-contador {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-xs);
+
+    & + & { border-left: 1px solid var(--border-color); }
+  }
+
+  .loader-contador-etiqueta {
+    font-size: var(--text-base);
+    color: var(--text-muted);
+  }
+
+  .loader-contador-valor {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: 1.25rem;
+    font-weight: var(--font-bold);
+    font-variant-numeric: tabular-nums;
+
+    .loader-icono { width: 20px; height: 20px; }
+  }
+
+  /* Tiempo */
+  .loader-tiempo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .loader-tiempo-restante {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    color: var(--text-main);
+
+    .loader-icono { width: 16px; height: 16px; color: var(--text-muted); }
+  }
+
+  .loader-detalle-reloj {
+    font-size: 1rem;
+    font-weight: var(--font-bold);
+    font-variant-numeric: tabular-nums;
+    color: var(--accent-orange);
+  }
+
+  .loader-escaneando {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-md);
+    color: var(--text-main);
+
+    &:has(.loader-cancelar) { justify-content: flex-start; }
+    .loader-cancelar { flex: 0 0 auto; margin-left: auto; padding: 0.35rem 0.75rem; }
+
+    .spinner { width: 26px; height: 26px; border-width: 3px; }
+  }
+
+  .loader-pie {
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--border-color);
+    text-align: center;
+  }
+
+  .loader-detalle-pie {
+    font-size: var(--text-base);
+    color: var(--text-muted);
+    font-style: italic;
+  }
 }
 
 @keyframes spin-nitro {

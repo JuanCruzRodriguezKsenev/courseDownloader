@@ -51,7 +51,9 @@ en la extensión: **la pestaña del portal**, donde el popup inyecta `Scraper.es
 vía `chrome.scripting.executeScript`. Corre en el mundo aislado de la página y no comparte nada
 con las zonas de arriba — ni siquiera el módulo del que salió. La regla que impone está abajo,
 en §Capa 2 — `sitio/<portal>/`, y es de las pocas del proyecto que ninguna de las cuatro
-verificaciones detecta si se rompe.
+verificaciones detecta si se rompe. Excepción: durante el escaneo multi-curso de Classroom, el script
+inyectado habla directamente con el Service Worker vía `chrome.runtime.sendMessage` para reportar
+eventos del recorrido ([ADR-0016](adr/0016-escaneo-inyectado-avisa-al-sw.md)).
 
 Ver `docs/patterns.md` para el detalle de cómo se comunican estas zonas y qué patrones sostienen esa comunicación.
 
@@ -163,6 +165,7 @@ historia de qué se migró en qué fase no está acá: vive en `docs/rearquitect
   | `orden.js` (`OrdenFeature`) | Criterio de orden (llegada/nombre/faceta/portal) + sentido ↑↓ y su popover | Entró con el corte 6b del multi-sitio. En la Cola el orden que se ve **es** el orden en que se baja. |
   | `bloqueo.js` (`Bloqueo`) | El contrato de "este control no se puede usar ahora", en un solo lugar | Estaba copiado en tres funciones de `popup.js`. `pointer-events` **no** es un bloqueo: deja pasar el teclado. Las cuatro reglas → `docs/alertas-y-bloqueo-diseno.md` §2. |
   | `pisoVisible.js` (`crearPisoVisible`) | El mínimo de tiempo que un cartel de "estoy trabajando" se queda en pantalla | **No es dueño de ningún nodo**: resuelve el *cuándo*, no el *quién* — escribir el nodo por atrás lo saltea en silencio. La mitad que falta (la demora para aparecer) sigue en `docs/TECHNICAL_DEBT.md`. |
+  | `destino.js` | Consulta de estado y destino resuelto al backend por índice | Módulo puro de Capa 2: agrupa por curso, consulta POST `/api/destino/estado` en paralelo (D-6) y gestiona bloqueos ("sin-asociar", "omitido", "indice-ilegible") y `sinAsignar` (D-5). Expone `bloquearSeleccion` (embudo, D-4) y `puedeBajar` (cola, D-4). |
 
   No son features, pero viven en la misma carpeta y conviene no confundirlas: `capa.preact.js`
   (la superficie flotante compartida — un **componente**, no una isla) y los seis `*.preact.js`
@@ -264,7 +267,10 @@ caminos y cada uno existe por un bug real**: (1) cancelación del usuario, que n
 (2) `tipoConexion: "sesion"`, que pausa SIN alarma porque el daemon vería la red OK y el
 auto-heal reintentaría contra el login; (3) `tipoBackend: "rechazo"` (4xx), que **saltea sólo
 esa clase** — es el fix del bug 400; y (4) cualquier otro, que pausa CON alarma. **El orden
-importa**: los tres primeros se clasifican antes de consultar al daemon.
+importa**: los tres primeros se clasifican antes de consultar al daemon. Desde el Corte 2b-3,
+los errores con `codigo` del backend se mapean directamente (`INDICE_ILEGIBLE` a bloqueo sin alarma,
+`DESTINO_OCUPADO` / `MATERIA_INEXISTENTE` / `RUTA_INSEGURA` / `DESTINO_REQUERIDO` a rechazo), y los
+adjuntos con `destino` propagan cabeceras `x-destino-*`, usan `destino.nombre` y guardan `resultadoDestino`.
 
 `loopActivo` y el `AbortController` de la ráfaga eran variables de módulo compartidas entre el
 bucle y los handlers IPC; ahora son **estado privado** y se tocan por la API
@@ -316,6 +322,12 @@ lleva lo decide cada adaptador, y por eso Capa 1 no nombra ningún token. Decisi
 → ADR-0013; la parte de seguridad (es la primera credencial que la extensión guarda) →
 `docs/security.md`.
 
+**`core/estado/origenListado.ts` decide si al abrir el popup se debe usar la lista guardada o re-escanear**
+(Classroom corte 1). Función pura `decidirAlAbrir({ origen, sitioId, clave, hayItemsDelPortal })` y
+validador `esOrigenListado`. Sin clave (el portal no declara `claveDeListado`, o la URL no es de un listado)
+o sin origen guardado, siempre escanea; si el portal y la clave coinciden y hay ítems en memoria,
+reutiliza la lista persistente evitando minutos de escaneo redundante.
+
 Detalle de forma en `sincronizarConBackground()`: usa `enviar()` (es una consulta) **y además**
 conserva su timeout de rescate de 3s, porque el puerto sólo promete rechazar cuando no hay
 receptor — no cubre al receptor que acepta, promete responder async y nunca responde.
@@ -337,7 +349,10 @@ tests pasan una URL de fantasía.
 
 También viven acá `core/backend/bunClient.ts` (wrapper fino de todos los endpoints del backend
 Bun: `/api/escanear-disco`, `/api/bypass-stream`, `/api/actualizar-consola`,
-`/api/seleccionar-carpeta`, `/api/health`, `/api/cancelar-descarga`) y
+`/api/seleccionar-carpeta` —con `{ portal }` opcional—, `/api/health`, `/api/cancelar-descarga`,
+`/api/destino/indice` y `/api/destino/estado`; desde el Corte 2b-3
+envía cabeceras `x-destino-*` y parsea `{ error, codigo }` en respuestas fallidas;
+desde el Plan 22 `/api/destino/estado` tipa el campo `movido` en los ítems y `raizInaccesible` en la respuesta de error) y
 `core/historial/historialFallos.ts` (factory `crearHistorialFallos(puerto)`, no singleton:
 historial acotado —últimos 50, más nuevo primero— de fallos terminales de la cola bajo la
 clave local `historialFallos`, que respalda la campanita; lo escribe el SW en `registrarFallo`
@@ -355,6 +370,12 @@ en el adaptador ni releer call-sites buscando cuál quedó en la unidad vieja.
 **`ErrorBackend` convierte en tipo lo que era una convención en comentarios**:
 `tipoBackend: "rechazo"` marca **sólo** 4xx (saltear la clase), nunca 5xx (pausar +
 auto-heal). De esa distinción depende el fix del bug 400.
+
+**`core/destino/` agrupa la lógica pura de indexación y destino del árbol del usuario**:
+- **`core/destino/decidir.ts`**: dos funciones puras (`decidirAntes`, `decidirDespues`) que implementan la tabla de decisión de la spec para determinar si un adjunto se descarga, descarta o escribe (ampliada por el Plan 22 con `md5ExisteEnRaiz` y descarte previo a rechazo en destino ocupado).
+- **`core/destino/propuesta.ts`**: `proponerParaCurso`, asignación pura de carpeta destino, resolución de nombres y detección de choques (RN-16/16a).
+- **`core/destino/vistas.ts`**: `indiceAFilasEditor` y `filasEditorAIndice`, conversión bidireccional pura entre el índice `.course-downloader.json` y las tres tablas del editor web (`cursos`, `temas`, `archivos`), con inversión de carpetas (D-6), soporte de marca `movido` efímera (Plan 22) y validaciones de guardado.
+- **`core/destino/accesoMd.ts`**: `accesoADataUri(idArchivo, fecha)`, formateo isomórfico puro de accesos Markdown con frontmatter `tipo: acceso` y `revisado` (D-3, RN-9).
 
 ### Capa 3 — `plataforma/`
 
@@ -374,20 +395,22 @@ fuera de `entrypoints/` porque WXT trata cada archivo suelto de ahí como un ent
 
 ### Capa 2 — `sitio/<portal>/`
 
-**Hay dos portales desde el 2026-08-07** (corte 7): `sitio/ramonnet/` y
-`sitio/anatomy-by-chris/` (Hotmart Club). Cada uno son cuatro archivos —`config.ts` + tres
-hermanos `.js`— y su `rules.json` en `public/sitio/<portal>/`.
+**Hay tres portales desde el 2026-09-12** (Classroom corte 1): `sitio/ramonnet/`,
+`sitio/anatomy-by-chris/` (Hotmart Club) y `sitio/google-classroom/`. Los dos primeros tienen
+cuatro archivos —`config.ts` + tres hermanos `.js`— y su `rules.json` en `public/sitio/<portal>/`.
+Classroom son cuatro archivos —`config.ts` y tres `.js` (`scraper.js`, `parserTitulos.js`,
+`descargarAdjunto.js`)— sin `rules.json`.
 
 `sitio/<portal>/config.ts` exporta **su descriptor y nada más**: se declara implementación de
 `PuertoSitio`, así que a un adaptador de portal al que le falte una pieza lo caza el compilador
 y no la lectura.
 
-**Un miembro del puerto puede ser copy, y desde el 2026-08-12 hay uno**: `instruccionEscaneo`
-(el puerto pasó a **12 miembros**). Es la frase del onboarding que explica qué va a ver el
-usuario después de escanear, y entró porque **describe un flujo, no un hecho**: Ramón Net filtra
-por materia con un selector y un botón 👁️ mostrar, Anatomy trae el curso entero de una sola
-llamada y no tiene ninguno de los dos controles. Estaba hardcodeada con el flujo del primer
-portal, así que el tour del segundo describía una UI inexistente. Va **requerido y no opcional**
+**Un miembro del puerto puede ser copy**: `instruccionEscaneo` (ver `core/puertos/sitio.ts`).
+Es la frase del onboarding que explica qué va a ver el usuario después de escanear, y entró porque
+**describe un flujo, no un hecho**: Ramón Net filtra por materia con un selector y un botón 👁️
+mostrar, Anatomy trae el curso entero de una sola llamada y no tiene ninguno de los dos controles,
+y Classroom pide mantener la pestaña visible durante el escaneo. Estaba hardcodeada con el flujo
+del primer portal, así que el tour del segundo describía una UI inexistente. Va **requerido y no opcional**
 a propósito —con `?` el portal que la olvide compila igual y hereda un texto ajeno— y viaja como
 **texto plano**, porque la isla Preact que lo muestra escapa lo que recibe. Es la excepción
 razonada a la regla de abajo: no es una constante del portal que alguien lee, es copy genérica
@@ -396,17 +419,20 @@ que el portal completa.
 **⚠️ Los globals de los tres hermanos llevan nombre por portal.** Los de Ramón Net son los que
 quedaron sin calificar por haber sido el primero (`Scraper`, `ParserTitulos`,
 `ResolverManifiesto`); los del segundo son `ScraperAnatomy`, `ParserTitulosAnatomy`,
-`ResolverManifiestoAnatomy`. Compartir un nombre hace que **el último entrypoint evaluado le pise
-los tres al otro portal**, y el síntoma sería un portal escaneando o resolviendo con el adaptador
-ajeno — en silencio, y sin que lo vea el bundler, el lint, `tsc` ni la suite. Cada nombre nuevo va
-también a `globalesDelProyecto` en `eslint.config.js`.
+`ResolverManifiestoAnatomy`, `DescargarAdjuntoAnatomy`; los de Classroom son `ScraperClassroom`,
+`ParserTitulosClassroom`, `DescargarAdjuntoClassroom`. Compartir un nombre hace que **el último
+entrypoint evaluado le pise los tres al otro portal**, y el síntoma sería un portal escaneando o
+resolviendo con el adaptador ajeno — en silencio, y sin que lo vea el bundler, el lint, `tsc` ni la
+suite. Cada nombre nuevo va también a `globalesDelProyecto` en `eslint.config.js`.
 
 **Cómo se autentica el portal decide si el corte toca Capa 1.** Ramón Net resuelve con la cookie
 de sesión (`credentials: "include"`) y no necesita nada más. Anatomy by Chris necesita un
 `id_token` que sólo existe en el `localStorage` de su pestaña, y el service worker no tiene
 pestaña: por eso su scraper lo devuelve en `ResultadoEscaneo.credenciales`, se guarda **por
 portal** en `core/estado/credencialesPortal.ts` y le vuelve como tercer parámetro de
-`resolverManifiesto`. La decisión y sus alternativas → ADR-0013.
+`resolverManifiesto`. Google Classroom guarda el índice `authuser` y usa las cookies de Google del
+navegador para la descarga de adjuntos (`credencialesAdjunto: "include"`). La decisión y sus
+alternativas → ADR-0013.
 
 **Qué portal está activo NO lo decide este archivo**, y es un cambio del 2026-08-04 (corte 2 de
 `docs/multisitio-diseno.md`): acá vivía `const SitioActivo = SitioRamonNet`, o sea un portal
@@ -472,6 +498,13 @@ URL que devuelve vive **una hora**: pedirla al escanear la vencería antes de us
 **inyectado en la pestaña** y no en el SW: desde la pestaña sale con el origen de `hotmart.com` y
 el `id_token` de su `localStorage`, que el service worker no puede replicar. Ramón Net sigue
 devolviendo sincrónicamente y no se enteró.
+
+**Google Classroom tiene tres hermanos** (`sitio/google-classroom/`): `scraper.js` (`ScraperClassroom`,
+que escanea Trabajo en clase y Novedades e inyecta la lectura del DOM), `parserTitulos.js`
+(`ParserTitulosClassroom.clasificarCarpeta`, que clasifica por curso saneado) y `descargarAdjunto.js`
+(`DescargarAdjuntoClassroom.resolver`, que genera la URL con `authuser` para Drive o un data URI en
+base64 para accesos `.md` con frontmatter de fecha local). No implementa `resolverManifiesto.js` porque no tiene videos HLS (su
+descriptor rechaza esa llamada como red de seguridad).
 
 **Cómo resuelve `ResolverManifiesto.resolver`, y por qué es el primer sospechoso cuando una
 descarga trae el video equivocado.** El camino principal **no** parsea el manifiesto: extrae el
@@ -550,6 +583,19 @@ que el bundler no verifica: no llames a `Utils.*` en el top-level de un módulo.
 
 **No volver a meter vocabulario del sitio acá**: el parser de títulos vive en
 `sitio/ramonnet/parserTitulos.js` desde v6.0.0, y ésa es la frontera.
+
+### Backend — `backend/`
+
+El servidor complementario Bun aloja en `backend/destino/` los servicios puros de persistencia e indexación para el corte de destino:
+- **`backend/destino/rutas.js`**: `esRutaBajo(raiz, ruta)`, validación pura de pertenencia estricta a una carpeta raíz soportando discos pelados `D:\` en Windows.
+- **`backend/destino/md5.js`**: `md5Archivo(ruta)`, cálculo de hash MD5 por stream con cache en memoria indexado por `ruta|tamaño|mtime` (D-4).
+- **`backend/destino/recorrido.js`**: `recorrerRaiz(raiz)` y `buscarPorMd5(raiz, md5)`, recorrido del árbol ignorando notas (`Wiki/`, `Mis notas/`, `Clases/`), carpetas ocultas y symlinks.
+- **`backend/destino/indiceServicio.js`**: `leerIndice(raiz)` y `modificarIndice(raiz, fn)`, lectura no destructiva y modificación atómica con candado por raíz sobre `.course-downloader.json`.
+- **`backend/destino/estado.js`**: `calcularEstado({ raiz, sitio, curso, items })`, cálculo de estado contra disco e índice corrigiendo rutas movidas (RN-19).
+- **`backend/destino/escritura.js`**: `validarDestino({ raiz, ruta, nombre, materia })` y `finalizarEnDestino(...)`, gancho `alFinalizar` del acumulador que ejecuta la tabla de decisión (`decidirDespues`) al completar la descarga para escribir, descartar o rechazar por ocupado (D-6, D-7).
+- **`backend/destino/vistos.js`**: `guardarVisto`, `leerVistos` y `limpiarVistos`, almacén volátil en memoria para conservar los escaneos recientes de cursos y alimentar el modo índice del editor web (D-2).
+- **`backend/destino/portales.js`**: módulo puro (node-free) dueño de `PORTALES_VALIDOS`, `PORTALES_CON_DESTINO_INDICE` y `resolverRaizDeDestino({ portalId, raices, raizPorDefecto, raizFacultad })` (D-1, D-2).
+- **`backend/adopcion/editor.html`**: interfaz web monocroma del editor de adopción servida en `/adopcion/` para configurar materias, temas y archivos; incluye borrador local persistido en `localStorage` con debounce de 500 ms y banner interactivo de restauración ante cambios sin guardar, sin listener `beforeunload` para evitar cuelgues del navegador (Plan 19).
 
 ## Flujo de una descarga, de punta a punta
 

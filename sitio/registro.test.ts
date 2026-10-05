@@ -2,15 +2,19 @@ import { describe, it, expect } from "vitest";
 import { Sitios } from "./registro";
 import { SitioRamonNet } from "./ramonnet/config";
 import { SitioAnatomyByChris } from "./anatomy-by-chris/config";
+import { SitioGoogleClassroom } from "./google-classroom/config";
+import { SitioMoodleLinti } from "./moodle-linti/config";
+import { SitioSitesMatec } from "./sites-matec/config";
+import { SitioMoodleAsignaturas } from "./moodle-asignaturas/config";
 
 /**
- * Tests del registro de sitios (multi-sitio, corte 2; ampliado en el corte 7).
+ * Tests del registro de sitios (multi-sitio, corte 2; ampliado en el corte 7, classroom-corte-1 y plan 14-B).
  *
  * Lo que se afirma no es "encuentra Ramón Net" sino el contrato del que depende el bucle de
  * descarga: que un id desconocido devuelve `undefined` y NO cae al portal por defecto, que es
  * el bug que ADR-0010 previene.
  *
- * **Desde el corte 7 hay dos portales registrados**, y con eso una mitad del frente
+ * **Desde la integración hay seis portales registrados**, y con eso una mitad del frente
  * multiportal deja de tener sólo dobles: que los `esPaginaDelSitio` sean DISJUNTOS se puede
  * afirmar de verdad recién acá.
  */
@@ -18,6 +22,10 @@ describe("Sitios.obtener (por id, como viene de un ítem persistido)", () => {
   it("devuelve el adaptador cuyo id coincide", () => {
     expect(Sitios.obtener("ramonnet")).toBe(SitioRamonNet);
     expect(Sitios.obtener("anatomy-by-chris")).toBe(SitioAnatomyByChris);
+    expect(Sitios.obtener("google-classroom")).toBe(SitioGoogleClassroom);
+    expect(Sitios.obtener("moodle-linti")).toBe(SitioMoodleLinti);
+    expect(Sitios.obtener("sites-matec")).toBe(SitioSitesMatec);
+    expect(Sitios.obtener("moodle-asignaturas")).toBe(SitioMoodleAsignaturas);
   });
 
   it("un id desconocido devuelve undefined y NO cae al portal por defecto", () => {
@@ -45,6 +53,45 @@ describe("Sitios.resolverPorUrl (para la pestaña activa)", () => {
     ).toBe(SitioAnatomyByChris);
   });
 
+  it("reconoce Google Classroom por URL de curso en Trabajo en clase o Novedades", () => {
+    expect(
+      Sitios.resolverPorUrl("https://classroom.google.com/u/2/w/MjQzNjkyNDM0NTEw/t/all")
+    ).toBe(SitioGoogleClassroom);
+    expect(
+      Sitios.resolverPorUrl("https://classroom.google.com/c/MjQzNjkyNDM0NTEw")
+    ).toBe(SitioGoogleClassroom);
+  });
+
+  it("reconoce páginas de Classroom de cursos y de portada (/h o /h/archived)", () => {
+    expect(Sitios.resolverPorUrl("https://classroom.google.com/u/2/h")).toBe(
+      SitioGoogleClassroom
+    );
+    expect(Sitios.resolverPorUrl("https://classroom.google.com/u/2/h/archived")).toBe(
+      SitioGoogleClassroom
+    );
+  });
+
+  it("reconoce Moodle LINTI por URL de curso con id numérico", () => {
+    expect(
+      Sitios.resolverPorUrl("https://catedras.linti.unlp.edu.ar/course/view.php?id=301")
+    ).toBe(SitioMoodleLinti);
+  });
+
+  it("reconoce Google Sites Mate C por URL base o subsección", () => {
+    expect(
+      Sitios.resolverPorUrl("https://sites.google.com/ing.unlp.edu.ar/matec")
+    ).toBe(SitioSitesMatec);
+    expect(
+      Sitios.resolverPorUrl("https://sites.google.com/ing.unlp.edu.ar/matec/teorias")
+    ).toBe(SitioSitesMatec);
+  });
+
+  it("reconoce Moodle Asignaturas por URL de curso con id numérico", () => {
+    expect(
+      Sitios.resolverPorUrl("https://asignaturas.info.unlp.edu.ar/course/view.php?id=105")
+    ).toBe(SitioMoodleAsignaturas);
+  });
+
   it("una URL ajena no resuelve a ningún portal", () => {
     expect(Sitios.resolverPorUrl("https://www.google.com/")).toBeUndefined();
   });
@@ -59,12 +106,18 @@ describe("Sitios.resolverPorUrl (para la pestaña activa)", () => {
     ).toBeUndefined();
   });
 
-  it("los dos portales son DISJUNTOS: ninguno reclama la URL del otro", () => {
-    // La mitad "el otro portal no se ve afectado" del frente multiportal, que hasta el corte 7
-    // sólo tenía dobles.
+  it("los seis portales son DISJUNTOS: ninguno reclama la URL del otro", () => {
     const urls = [
       "https://ramonnet.com.ar/usuario/clases-grabadas",
       "https://hotmart.com/es/club/anatomy-by-chris/products/6083220/content/ABC",
+      "https://classroom.google.com/u/2/w/MjQzNjkyNDM0NTEw/t/all",
+      "https://classroom.google.com/c/MjQzNjkyNDM0NTEw",
+      "https://classroom.google.com/u/2/h",
+      "https://classroom.google.com/u/2/h/archived",
+      "https://catedras.linti.unlp.edu.ar/course/view.php?id=301",
+      "https://sites.google.com/ing.unlp.edu.ar/matec",
+      "https://sites.google.com/ing.unlp.edu.ar/matec/teorias",
+      "https://asignaturas.info.unlp.edu.ar/course/view.php?id=105",
     ];
     for (const url of urls) {
       const reclaman = Sitios.todos().filter((s) => s.esPaginaDelSitio(url));
@@ -143,5 +196,55 @@ describe("topeEscaneoMs: el techo del escaneo es una medición, no un default", 
     // Suena obvio y es la aserción que atrapa un copy-paste entre configs, que es como se
     // escribe un portal nuevo en este proyecto (§Cómo escribir un portal nuevo).
     expect(SitioAnatomyByChris.topeEscaneoMs).toBeGreaterThan(SitioRamonNet.topeEscaneoMs);
+  });
+
+  it("el tope de Classroom es >= 120000 y mayor que el de Anatomy", () => {
+    expect(SitioGoogleClassroom.topeEscaneoMs).toBeGreaterThanOrEqual(120000);
+    expect(SitioGoogleClassroom.topeEscaneoMs).toBeGreaterThan(SitioAnatomyByChris.topeEscaneoMs);
+  });
+
+  it("claveDeListado: Classroom devuelve el id del curso, 'todos' en portada, y los otros portales no la declaran", () => {
+    expect(
+      SitioGoogleClassroom.claveDeListado!(
+        "https://classroom.google.com/u/2/w/ODc0ODk1NDcwNTMw/t/all"
+      )
+    ).toBe("ODc0ODk1NDcwNTMw");
+    expect(
+      SitioGoogleClassroom.claveDeListado!(
+        "https://classroom.google.com/u/2/c/ODc0ODk1NDcwNTMw"
+      )
+    ).toBe("ODc0ODk1NDcwNTMw");
+    expect(
+      SitioGoogleClassroom.claveDeListado!("https://classroom.google.com/u/2/h")
+    ).toBe("todos");
+    expect(SitioGoogleClassroom.claveDeListado!(undefined)).toBeUndefined();
+    expect(SitioRamonNet.claveDeListado).toBeUndefined();
+    expect(SitioAnatomyByChris.claveDeListado).toBeUndefined();
+  });
+
+  it("esPortada: Classroom identifica /h, /h/st y /h/archived como portada, y no un curso ni portales ajenos", () => {
+    expect(SitioGoogleClassroom.esPortada!("https://classroom.google.com/u/2/h")).toBe(true);
+    expect(SitioGoogleClassroom.esPortada!("https://classroom.google.com/u/2/h/st")).toBe(true);
+    expect(SitioGoogleClassroom.esPortada!("https://classroom.google.com/u/2/h/archived")).toBe(true);
+    expect(
+      SitioGoogleClassroom.esPortada!("https://classroom.google.com/u/2/c/ODc0ODk1NDcwNTMw")
+    ).toBe(false);
+    expect(
+      SitioGoogleClassroom.esPortada!("https://classroom.google.com/u/2/w/ODc0ODk1NDcwNTMw/t/all")
+    ).toBe(false);
+    expect(SitioGoogleClassroom.esPortada!(undefined)).toBe(false);
+    expect(SitioRamonNet.esPortada).toBeUndefined();
+    expect(SitioAnatomyByChris.esPortada).toBeUndefined();
+  });
+
+  it("destinoPorIndice: Classroom, Moodle y Sites declaran true; Ramón Net y Anatomy no lo declaran", () => {
+    // [DESTINO CORTE 2b-3 y PLAN 14-B] Classroom, Moodle y Sites bajan al índice (.course-downloader.json) de la bóveda;
+    // los otros portales no delegan en índice (D-2).
+    expect(SitioGoogleClassroom.destinoPorIndice).toBe(true);
+    expect(SitioMoodleLinti.destinoPorIndice).toBe(true);
+    expect(SitioSitesMatec.destinoPorIndice).toBe(true);
+    expect(SitioMoodleAsignaturas.destinoPorIndice).toBe(true);
+    expect(SitioRamonNet.destinoPorIndice).toBeUndefined();
+    expect(SitioAnatomyByChris.destinoPorIndice).toBeUndefined();
   });
 });

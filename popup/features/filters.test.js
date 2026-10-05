@@ -514,7 +514,7 @@ describe('FilterFeature.renderizarFiltrosMenuPopover', () => {
     const titulos = [...nodos.filterMenu.querySelectorAll('.popover-section-title')].map(t => t.textContent);
     expect(titulos).toContain('Estado');
     const opciones = [...nodos.filterMenu.querySelectorAll('.popover-option span')].map(s => s.textContent);
-    expect(opciones).toEqual(expect.arrayContaining(['Pendientes', 'Descargados', 'En Fila']));
+    expect(opciones).toEqual(expect.arrayContaining(['Pendientes', 'Descargados', 'En Fila', 'Sin asignar']));
   });
 
   it('marcar una opción de Estado muta filtrosActivos y dispara el re-filtrado', () => {
@@ -548,6 +548,7 @@ describe('FilterFeature.renderizarFiltrosMenuPopover', () => {
 
     const titulos = [...nodos.filterMenu.querySelectorAll('.popover-section-title')].map(t => t.textContent);
     expect(titulos).toContain('Materia');
+    expect(titulos[0]).toBe('Estado');
     const opciones = [...nodos.filterMenu.querySelectorAll('.popover-option span')].map(s => s.textContent);
     // Ordenadas y sin repetir: Tórax aparece en dos clases y da UNA opción.
     expect(opciones.filter(o => o.startsWith('📁'))).toEqual(['📁 ABDOMEN', '📁 TORAX']);
@@ -969,5 +970,67 @@ describe('FilterFeature — el filtro de materia con módulos', () => {
     feature.aplicarFiltrosCruzados();
 
     expect(AppState.listadoClasesGlobal[0].visible).toBe(false);
+  });
+});
+
+describe('FilterFeature — filtro Sin asignar (D-3, D-4)', () => {
+  it('filtra exclusivamente las clases con sinAsignar: true cuando se activa sin-asignar', () => {
+    const { feature, filtrosActivos, nodos } = crearFeature();
+    AppState.pestañaActiva = 'disponibles';
+    nodos.folder.value = '';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'Asignado 1', carpeta: '', modulo: 'Fisica', estado: 'pending', sinAsignar: false },
+      { titulo: 'Sin asignar 1', carpeta: '', modulo: 'Fisica', estado: 'pending', sinAsignar: true },
+      { titulo: 'Descargado 1', carpeta: '', modulo: 'Fisica', estado: 'downloaded', sinAsignar: false },
+    ];
+
+    filtrosActivos.estados.add('sin-asignar');
+    feature.aplicarFiltrosCruzados();
+
+    expect(AppState.listadoClasesGlobal[0].visible).toBe(false);
+    expect(AppState.listadoClasesGlobal[1].visible).toBe(true);
+    expect(AppState.listadoClasesGlobal[2].visible).toBe(false);
+  });
+
+  it('unión OR: sin-asignar + downloaded muestra ambas', () => {
+    const { feature, filtrosActivos, nodos } = crearFeature();
+    AppState.pestañaActiva = 'disponibles';
+    nodos.folder.value = '';
+    AppState.listadoClasesGlobal = [
+      { titulo: 'Asignado 1', carpeta: '', modulo: 'Fisica', estado: 'pending', sinAsignar: false },
+      { titulo: 'Sin asignar 1', carpeta: '', modulo: 'Fisica', estado: 'pending', sinAsignar: true },
+      { titulo: 'Descargado 1', carpeta: '', modulo: 'Fisica', estado: 'downloaded', sinAsignar: false },
+    ];
+
+    filtrosActivos.estados.add('sin-asignar');
+    filtrosActivos.estados.add('downloaded');
+    feature.aplicarFiltrosCruzados();
+
+    expect(AppState.listadoClasesGlobal[0].visible).toBe(false);
+    expect(AppState.listadoClasesGlobal[1].visible).toBe(true);
+    expect(AppState.listadoClasesGlobal[2].visible).toBe(true);
+  });
+
+  it('activarFiltroSinAsignar() aisla ítems sin asignar y actualiza pills (D-4)', () => {
+    const { feature, filtrosActivos, nodos } = crearFeature();
+    AppState.pestañaActiva = 'disponibles';
+    nodos.folder.value = '';
+    filtrosActivos.estados.add('downloaded');
+
+    AppState.listadoClasesGlobal = [
+      { titulo: 'Asignado 1', carpeta: '', modulo: 'Fisica', estado: 'pending', sinAsignar: false },
+      { titulo: 'Sin asignar 1', carpeta: '', modulo: 'Fisica', estado: 'pending', sinAsignar: true },
+      { titulo: 'Descargado 1', carpeta: '', modulo: 'Fisica', estado: 'downloaded', sinAsignar: false },
+    ];
+
+    feature.activarFiltroSinAsignar();
+
+    expect(filtrosActivos.estados.has('downloaded')).toBe(false);
+    expect(filtrosActivos.estados.has('sin-asignar')).toBe(true);
+    expect(AppState.listadoClasesGlobal[0].visible).toBe(false);
+    expect(AppState.listadoClasesGlobal[1].visible).toBe(true);
+    expect(AppState.listadoClasesGlobal[2].visible).toBe(false);
+    expect(nodos.btnFilterPills.classList.contains('active')).toBe(true);
+    expect(nodos.btnFilterPills.querySelector('span').textContent).toBe('Filtros (1)');
   });
 });

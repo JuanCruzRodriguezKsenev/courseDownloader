@@ -26,6 +26,22 @@ import '../../sitio/anatomy-by-chris/config.ts';
 import '../../sitio/anatomy-by-chris/parserTitulos.js';
 import '../../sitio/anatomy-by-chris/scraper.js';
 
+import '../../sitio/google-classroom/config.ts';
+import '../../sitio/google-classroom/parserTitulos.js';
+import '../../sitio/google-classroom/scraper.js';
+
+import '../../sitio/moodle-linti/config.ts';
+import '../../sitio/moodle-linti/parserTitulos.js';
+import '../../sitio/moodle-linti/scraper.js';
+
+import '../../sitio/sites-matec/config.ts';
+import '../../sitio/sites-matec/parserTitulos.js';
+import '../../sitio/sites-matec/scraper.js';
+
+import '../../sitio/moodle-asignaturas/config.ts';
+import '../../sitio/moodle-asignaturas/parserTitulos.js';
+import '../../sitio/moodle-asignaturas/scraper.js';
+
 // Núcleo compartido.
 import '../../core/backend/bunClient.ts';
 // Composición: acá se instancian y se publican los globals de los módulos ya desacoplados
@@ -39,7 +55,7 @@ import '../../plataforma/composicion.ts';
 // `DOMContentLoaded` se registra en el mismo momento que antes — los módulos ES son
 // diferidos, así que todo esto corre antes de que el evento dispare.
 import { iniciarPopup } from '../../popup.js';
-import { AppState, Conexion, credencialesPortal, HistorialFallos, identidadClase, mensajeria, sitios, Utils } from '../../plataforma/composicion.ts';
+import { AppState, Conexion, credencialesPortal, HistorialFallos, identidadClase, mensajeria, sitios, Utils, RecorridoTodos } from '../../plataforma/composicion.ts';
 import BunClient from '../../core/backend/bunClient.ts';
 import crearRenderers from '../../renderers.js';
 
@@ -64,6 +80,7 @@ iniciarPopup({
   // [CORTE 7] Donde el escaneo deja las credenciales del portal para que las lea el SW.
   credencialesPortal,
   renderers: crearRenderers(Utils),
+  recorridoTodos: RecorridoTodos,
 });
 
 // Islas Preact.

@@ -1,6 +1,22 @@
 /**
- * NÚCLEO — CLIENTE DEL BACKEND BUN (V2.1.0)
+ * NÚCLEO — CLIENTE DEL BACKEND BUN (V2.4.0)
  * ==========================================================================
+ * CHANGELOG v2.4.0:
+ * - [DESTINO CORTE 2c-2] Método `registrarCursoVisto` (POST /api/destino/curso-visto, 15s).
+ *   Envía { sitio, cursos: [...] } para el editor web (D-2, D-3).
+ *   Errores de red/timeout se lanzan; respuesta { ok: false } se devuelve sin lanzar.
+ *
+ * CHANGELOG v2.3.0:
+ * - [DESTINO CORTE 2b-4] Métodos `estadoDestino` (POST /api/destino/estado, 15s) e `indiceDestino`
+ *   (GET /api/destino/indice, 4s). Errores de red/timeout se lanzan; `indiceIlegible` se devuelve.
+ * - [DESTINO CORTE 2b-4] `seleccionarCarpeta` acepta `{ portal }` opcional y agrega `?portal=`.
+ *
+ * CHANGELOG v2.2.0:
+ * - [DESTINO CORTE 2b-3] `HeadersFragmento.destino` opcional: cuando está presente,
+ *   `enviarFragmentoStream` envía los 5 headers `x-destino-*` con `encodeURIComponent`.
+ * - [DESTINO CORTE 2b-3] Ante `!res.ok`, lee `{ error, codigo }` de la respuesta JSON si está
+ *   presente y asigna `ErrorBackend.codigoBackend = codigo` y `message = error`.
+ *
  * CHANGELOG v2.1.0:
  * - [LOADERS — ítem 4] `escanearDisco` y `seleccionarCarpeta` ganaron timeout. Eran los dos
  *   únicos `fetch` del cliente sin techo, y la asimetría no era de diseño: sus vecinos lo
@@ -63,6 +79,17 @@ export interface HeadersFragmento {
    * Va URL-encodeado como `videoTitle`, por la misma razón: un header HTTP no lleva no-ASCII.
    */
   fileName?: string;
+  /**
+   * [DESTINO CORTE 2b-3] Metadatos de destino para el índice del portal en el backend.
+   * Cuando está presente, `enviarFragmentoStream` envía los 5 headers `x-destino-*` codificados.
+   */
+  destino?: {
+    portal: string;
+    ruta: string;
+    claveArchivo: string;
+    claveCurso: string;
+    original: string;
+  };
 }
 
 /** Telemetría que se empuja a la consola gráfica del servidor. */
@@ -74,6 +101,68 @@ export interface DatosConsola {
   velocidad: number;
   /** [MULTIPORTAL E] El backend lo necesita para saber de qué descarga es este progreso. */
   sitioId?: string;
+}
+
+export interface RespuestaIndiceDestino {
+  ok: boolean;
+  indiceIlegible?: boolean;
+  error?: string;
+  raiz?: string;
+  indice?: unknown;
+}
+
+export interface ItemEstadoDestino {
+  idArchivo: string;
+  estado: "descargado" | "pendiente";
+  fila?: string;
+  rutaDestino?: string | null;
+  nombre?: string | null;
+  sinAsignar?: boolean;
+  omitido?: boolean;
+  movido?: boolean;
+}
+
+export interface RespuestaEstadoDestino {
+  ok: boolean;
+  indiceIlegible?: boolean;
+  raizInaccesible?: boolean;
+  error?: string;
+  raiz?: string;
+  curso?: {
+    asociado: boolean;
+    materia?: string;
+    docente?: string;
+  };
+  items?: ItemEstadoDestino[];
+}
+
+export interface ItemCursoVisto {
+  idArchivo: string;
+  original: string;
+  tema?: string;
+  publicacion?: string;
+  anuncio?: string;
+  bytes?: number;
+  tipo?: string;
+  [key: string]: unknown;
+}
+
+export interface CursoVistoPayload {
+  id: string;
+  nombre?: string;
+  items?: ItemCursoVisto[];
+  [key: string]: unknown;
+}
+
+export interface PayloadCursoVisto {
+  sitio: string;
+  cursos: CursoVistoPayload[];
+}
+
+export interface RespuestaCursoVisto {
+  ok: boolean;
+  error?: string;
+  [key: string]: unknown;
 }
 
 /**
@@ -89,6 +178,7 @@ export interface DatosConsola {
 export interface ErrorBackend extends Error {
   httpStatus?: number;
   tipoBackend?: "rechazo";
+  codigoBackend?: string;
 }
 
 // Default de fábrica del backend Bun. Sobreescribible SIN editar código:
@@ -197,28 +287,49 @@ export const BunClient = {
     }
 
     try {
+      const reqHeaders: Record<string, string> = {
+        "Content-Type": "application/octet-stream",
+        "x-video-title":   encodeURIComponent(headers.videoTitle),
+        "x-chunk-index":   headers.chunkIndex.toString(),
+        "x-total-chunks":  headers.totalChunks.toString(),
+        "x-target-folder": headers.targetFolder,
+        "x-site-folder":   headers.siteFolder || "",
+        "x-session-id":    headers.sessionId || "",
+        // Vacío = "usá tu lógica de siempre" (`.mp4`). Ver `HeadersFragmento.fileName`.
+        "x-file-name":     headers.fileName ? encodeURIComponent(headers.fileName) : ""
+      };
+
+      if (headers.destino) {
+        reqHeaders["x-destino-portal"] = encodeURIComponent(headers.destino.portal);
+        reqHeaders["x-destino-ruta"] = encodeURIComponent(headers.destino.ruta);
+        reqHeaders["x-clave-archivo"] = encodeURIComponent(headers.destino.claveArchivo);
+        reqHeaders["x-clave-curso"] = encodeURIComponent(headers.destino.claveCurso);
+        reqHeaders["x-original"] = encodeURIComponent(headers.destino.original);
+      }
+
       const res = await fetch(`${this.baseUrl}/api/bypass-stream`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/octet-stream",
-          "x-video-title":   encodeURIComponent(headers.videoTitle),
-          "x-chunk-index":   headers.chunkIndex.toString(),
-          "x-total-chunks":  headers.totalChunks.toString(),
-          "x-target-folder": headers.targetFolder,
-          "x-site-folder":   headers.siteFolder || "",
-          "x-session-id":    headers.sessionId || "",
-          // Vacío = "usá tu lógica de siempre" (`.mp4`). Ver `HeadersFragmento.fileName`.
-          "x-file-name":     headers.fileName ? encodeURIComponent(headers.fileName) : ""
-        },
+        headers: reqHeaders,
         body: bloqueBinario,
         signal: timeoutController.signal
       });
 
       if (!res.ok) {
-        const err: ErrorBackend = new Error(
-          `El backend de Bun rechazó el fragmento con código: ${res.status}`
-        );
+        let mensajeError = `El backend de Bun rechazó el fragmento con código: ${res.status}`;
+        let codigoBackend: string | undefined;
+        try {
+          const cuerpo = (await res.json()) as { error?: string; codigo?: string };
+          if (cuerpo && typeof cuerpo === "object") {
+            if (cuerpo.error) mensajeError = cuerpo.error;
+            if (cuerpo.codigo) codigoBackend = cuerpo.codigo;
+          }
+        } catch {
+          // Si no es JSON o falla el parseo, mantiene el mensaje por omisión.
+        }
+
+        const err: ErrorBackend = new Error(mensajeError);
         err.httpStatus = res.status;
+        if (codigoBackend) err.codigoBackend = codigoBackend;
         // Un 4xx es un rechazo APLICATIVO determinístico con el server VIVO (/api/health
         // daría 200): reintentar el mismo fragmento no lo cura. Lo tipamos (mismo criterio
         // que err.tipoConexion="sesion") para que aguas arriba se salte SOLO esa clase sin
@@ -255,16 +366,105 @@ export const BunClient = {
    * queda girando para siempre. 3 min es "nadie está eligiendo una carpeta hace tres minutos".
    */
   async seleccionarCarpeta(
-    { timeoutMs = 180000 }: { timeoutMs?: number } = {}
+    { portal, timeoutMs = 180000 }: { portal?: string; timeoutMs?: number } = {}
   ): Promise<{ success?: boolean; ruta?: string }> {
+    const sufijoPortal = portal ? `?portal=${encodeURIComponent(portal)}` : "";
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetch(`${this.baseUrl}/api/seleccionar-carpeta`, { signal: controller.signal });
+      const res = await fetch(`${this.baseUrl}/api/seleccionar-carpeta${sufijoPortal}`, { signal: controller.signal });
       if (!res.ok) {
         throw new Error("El servidor local Bun no respondió correctamente.");
       }
       return await res.json();
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  },
+
+  /**
+   * Obtiene el índice de destino y la raíz resuelta para un portal.
+   * [DESTINO CORTE 2b-4] GET /api/destino/indice?portal=
+   */
+  async indiceDestino(
+    portal?: string,
+    { timeoutMs = 4000 }: { timeoutMs?: number } = {}
+  ): Promise<RespuestaIndiceDestino> {
+    const sufijoPortal = portal ? `?portal=${encodeURIComponent(portal)}` : "";
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(`${this.baseUrl}/api/destino/indice${sufijoPortal}`, {
+        signal: controller.signal,
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        if (data && typeof data === "object" && (data as RespuestaIndiceDestino).indiceIlegible) {
+          return data as RespuestaIndiceDestino;
+        }
+        throw new Error("El servidor local Bun no respondió correctamente.");
+      }
+      return data as RespuestaIndiceDestino;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  },
+
+  /**
+   * Consulta al backend el estado de los ítems de un curso contra el índice y disco.
+   * [DESTINO CORTE 2b-4] POST /api/destino/estado (RN-2, D-2).
+   */
+  async estadoDestino(
+    payload: unknown,
+    { timeoutMs = 15000 }: { timeoutMs?: number } = {}
+  ): Promise<RespuestaEstadoDestino> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(`${this.baseUrl}/api/destino/estado`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        if (data && typeof data === "object" && (data as RespuestaEstadoDestino).indiceIlegible) {
+          return data as RespuestaEstadoDestino;
+        }
+        throw new Error("El servidor local Bun no respondió correctamente.");
+      }
+      return data as RespuestaEstadoDestino;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  },
+
+  /**
+   * Envía al backend los cursos vistos con sus ítems para el editor web (corte 2c-2, D-2, D-3).
+   * POST /api/destino/curso-visto.
+   */
+  async registrarCursoVisto(
+    payload: PayloadCursoVisto,
+    { timeoutMs = 15000 }: { timeoutMs?: number } = {}
+  ): Promise<RespuestaCursoVisto> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(`${this.baseUrl}/api/destino/curso-visto`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        if (data && typeof data === "object" && typeof (data as RespuestaCursoVisto).ok === "boolean") {
+          return data as RespuestaCursoVisto;
+        }
+        throw new Error("El servidor local Bun no respondió correctamente.");
+      }
+      return (data && typeof data === "object") ? (data as RespuestaCursoVisto) : { ok: true };
     } finally {
       clearTimeout(timeoutId);
     }

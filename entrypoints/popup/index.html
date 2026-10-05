@@ -17,6 +17,7 @@
          genérica obligatoria (caso C de docs/copy-generico-diseno.md): acá todavía no hay
          portal resuelto que nombrar. -->
     <div class="loader-text" id="ui-loader-txt">Conectando con el servidor Bun...</div>
+    <div id="ui-loader-detalle" class="loader-detalle-host"></div>
   </div>
 
   <!-- Overlay del Tutorial de Bienvenida (Onboarding).
@@ -33,6 +34,9 @@
         <h4>Course Downloader</h4>
       </div>
       <div class="header-right">
+        <a id="ui-link-adopcion" class="btn-help-icon" href="http://127.0.0.1:3001/adopcion/"
+           target="_blank" rel="noopener"
+           title="Editor de adopción de Classroom (necesita el servidor Bun)">🗂️</a>
         <button id="ui-btn-help" class="btn-help-icon" title="Ver guía de uso y ayuda">❓</button>
         <!-- Isla Preact #5: la campanita de fallos la renderiza features/campanita.preact.js
              (derivada del módulo compartido HistorialFallos). display:contents => sin afectar el flex. -->
@@ -92,6 +96,8 @@
         </button>
         <div id="ui-sort-menu" class="filter-menu-popover" style="display: none;"></div>
       </div>
+
+      <button id="ui-btn-rescan" class="btn-sort" title="Volver a escanear esta pestaña" aria-label="Volver a escanear esta pestaña" disabled>🔄</button>
 
       <button id="ui-btn-toggle-select" class="btn-sort" style="display:none" title="Activar selección múltiple">
         Seleccionar

@@ -1,6 +1,15 @@
 /**
- * CLON DOWNLOADHELPER - FEATURE: FILTROS Y BÚSQUEDA (V2.4.0)
+ * CLON DOWNLOADHELPER - FEATURE: FILTROS Y BÚSQUEDA (V2.6.0)
  * ==========================================================================
+ * CHANGELOG v2.6.0:
+ * - [FILTROS — ESTADO PRIMERO] En Disponibles la sección Estado va antes que
+ *   Materia (RN-23, AC-10).
+ *
+ * CHANGELOG v2.5.0:
+ * - [CLASSROOM CORTE 1 — BOTÓN 🔄] `desbanearFiltros` re-habilita `nodos.btnRescan`
+ *   incondicionalmente junto con el buscador y filtros: es una salida, no actúa
+ *   sobre el resultado.
+ *
  * CHANGELOG v2.4.0:
  * - [LA SELECCIÓN SIGUE AL FILTRO] `aplicarFiltrosCruzados` deselecciona lo que deja de ser
  *   visible. Antes la selección sobrevivía al filtro sin verse: marcar "Todos" sin filtro y
@@ -190,7 +199,9 @@ const FilterFeature = {
              || filtrosActivos.materias.has((clase.carpeta || '').toUpperCase()))
           : (!clase.carpeta || (clase.carpeta.toLowerCase() === materiaActiva));
         const coincideTexto = clase.titulo.toLowerCase().includes(busqueda);
-        const coincideEstado = filtrosActivos.estados.size === 0 || filtrosActivos.estados.has(clase.estado);
+        const coincideEstado = filtrosActivos.estados.size === 0
+          || filtrosActivos.estados.has(clase.estado)
+          || (filtrosActivos.estados.has("sin-asignar") && Boolean(clase.sinAsignar));
         // [ESCANEO-API CORTE 5] El tipo es ORTOGONAL a la faceta y por eso vive en su propio
         // Set y no en `valoresFaceta`: la faceta es el eje DE UN PORTAL, con vocabulario propio
         // y elegido por portal (ADR-0012); el tipo es universal. Mezclarlos reabriría ese bug.
@@ -288,6 +299,7 @@ const FilterFeature = {
       // sacar el filtro que lo dejó así (§2.2 de alertas-y-bloqueo-diseno.md). Lo único que
       // los apaga es la COLECCIÓN vacía, y eso lo decide `bloquearToolbar` afuera.
       nodos.search.disabled = false;
+      if (nodos.btnRescan) nodos.btnRescan.disabled = false;
       nodos.btnFilterPills.disabled = false;
 
       // Ordenar y "Seleccionar" sí: actúan SOBRE el resultado y no sacan de ninguna parte.
@@ -363,6 +375,36 @@ const FilterFeature = {
       nodos.filterMenu.innerHTML = "";
 
       if (appState.pestañaActiva === "disponibles") {
+        // --- Sección Estado ---
+        const secEstado = document.createElement("div");
+        secEstado.className = "popover-section";
+
+        const titEstado = document.createElement("div");
+        titEstado.className = "popover-section-title";
+        titEstado.textContent = "Estado";
+        secEstado.appendChild(titEstado);
+
+        const estadosDisponibles = [
+          { key: "pending", label: "Pendientes" },
+          { key: "downloaded", label: "Descargados" },
+          { key: "process", label: "En Fila" },
+          { key: "sin-asignar", label: "Sin asignar" }
+        ];
+
+        estadosDisponibles.forEach(est => {
+          const opt = crearPopoverOptionDOM(est.label, filtrosActivos.estados.has(est.key), (checked) => {
+            if (checked) {
+              filtrosActivos.estados.add(est.key);
+            } else {
+              filtrosActivos.estados.delete(est.key);
+            }
+            actualizarPillsUIState();
+            aplicarFiltrosCruzados();
+          });
+          secEstado.appendChild(opt);
+        });
+        nodos.filterMenu.appendChild(secEstado);
+
         // --- Sección Materia (portales de dos niveles) ---
         // [ESCANEO-API CORTE 1, deuda] En un portal donde cada clase trae su propio módulo, la
         // carpeta dejó de salir del input de materia — y con eso Disponibles se quedó SIN eje de
@@ -397,35 +439,6 @@ const FilterFeature = {
           });
           nodos.filterMenu.appendChild(secMateria);
         }
-
-        // --- Sección Estado ---
-        const secEstado = document.createElement("div");
-        secEstado.className = "popover-section";
-
-        const titEstado = document.createElement("div");
-        titEstado.className = "popover-section-title";
-        titEstado.textContent = "Estado";
-        secEstado.appendChild(titEstado);
-
-        const estadosDisponibles = [
-          { key: "pending", label: "Pendientes" },
-          { key: "downloaded", label: "Descargados" },
-          { key: "process", label: "En Fila" }
-        ];
-
-        estadosDisponibles.forEach(est => {
-          const opt = crearPopoverOptionDOM(est.label, filtrosActivos.estados.has(est.key), (checked) => {
-            if (checked) {
-              filtrosActivos.estados.add(est.key);
-            } else {
-              filtrosActivos.estados.delete(est.key);
-            }
-            actualizarPillsUIState();
-            aplicarFiltrosCruzados();
-          });
-          secEstado.appendChild(opt);
-        });
-        nodos.filterMenu.appendChild(secEstado);
 
         // --- Sección Tipo (escaneo-api corte 5) ---
         // Sólo aparece si el portal escaneado trajo adjuntos: en Ramón Net todo es video y una
@@ -628,10 +641,25 @@ const FilterFeature = {
       return sec;
     }
 
+    /**
+     * Activa exclusivamente el filtro "sin-asignar" en Disponibles (D-4).
+     * Aisla los ítems pendientes de asignación de carpeta.
+     */
+    function activarFiltroSinAsignar() {
+      filtrosActivos.estados.clear();
+      filtrosActivos.estados.add("sin-asignar");
+      actualizarPillsUIState();
+      if (nodos.filterMenu && nodos.filterMenu.style.display !== "none") {
+        renderizarFiltrosMenuPopover();
+      }
+      aplicarFiltrosCruzados();
+    }
+
     return {
       coincideConFiltrosCola,
       aplicarFiltrosCruzados,
       desbanearFiltros,
+      activarFiltroSinAsignar,
       // Se exponen para poder testearlos solos: son los dos predicados de los que depende que
       // se apaguen "Todos" / "Ordenar", y su caso interesante (filtrar por descargados) no se
       // alcanza desde afuera. Van los dos porque la gracia es justamente que NO coinciden.

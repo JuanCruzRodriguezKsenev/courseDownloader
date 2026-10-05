@@ -85,6 +85,11 @@
     background-color: rgba(var(--accent-orange-rgb), 0.03);
   }
 
+  &.sin-asignar {
+    border-left-color: var(--accent-warning-visible);
+    background-color: rgba(245, 158, 11, 0.06);
+  }
+
   input[type="checkbox"] {
     flex-shrink: 0;
     opacity: 0;
@@ -156,6 +161,50 @@
   text-align: center;
   font-size: var(--text-sm);
   color: var(--text-muted);
+}
+
+/* [CLASSROOM ESCANEAR TODAS] Divisor de curso en lista multi-curso */
+.grupo-curso {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 4px 2px 2px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-color);
+  margin-top: var(--space-xs);
+
+  span {
+    font-size: var(--text-xs);
+    font-weight: var(--font-bold);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+}
+
+/* [CLASSROOM CORTE 1] Nota del escaneo arriba de las filas: algo quedó afuera, pero la lista
+   sirve. No es una .info-card (ésa ocupa la región entera y taparía el listado). */
+.lista-nota {
+  margin: 0 0 var(--space-xs);
+  padding: var(--space-sm);
+  border-left: 3px solid var(--accent-orange);
+  background-color: rgba(var(--accent-orange-rgb), 0.06);
+  border-radius: var(--radius-xs);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  white-space: pre-line;
+  flex-shrink: 0;
+
+  &.clickable {
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+
+    &:hover {
+      background-color: rgba(var(--accent-orange-rgb), 0.10);
+      color: var(--text-main);
+    }
+  }
 }
 
 /* Botón de acción interna de fila */
@@ -246,6 +295,39 @@
     opacity: 1;
     font-weight: var(--font-bold);
   }
+
+  &.chip-sin-asignar {
+    --color-portal: var(--accent-warning-visible);
+    opacity: 1;
+    font-weight: var(--font-bold);
+    max-width: 14ch;
+  }
+
+  &.chip-movido {
+    --color-portal: var(--text-muted);
+    opacity: 1;
+    font-weight: var(--font-bold);
+    max-width: 14ch;
+  }
+
+  &.bloqueado {
+    --color-portal: var(--text-muted);
+    border-style: dashed;
+    opacity: 0.7;
+    max-width: 14ch;
+  }
+}
+
+.chip-videollamada {
+  font-size: var(--font-xs);
+  padding: 2px var(--space-xs);
+  border: 1px solid var(--accent-orange);
+  border-radius: var(--radius-xs);
+  color: var(--accent-orange);
+  background-color: rgba(var(--accent-orange-rgb), 0.08);
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-weight: var(--font-bold);
 }
 
 /* Tarjeta de Error de Servidor Desconectado */

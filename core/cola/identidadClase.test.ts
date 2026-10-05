@@ -164,4 +164,36 @@ describe("crearIdentidadClase — las 7 colisiones reales de Anatomy by Chris", 
 
     expect(identidad.misma(enLista, encoladaConOverride)).toBe(true);
   });
+
+  it("dos ítems que sólo difieren en destino son la misma clase", () => {
+    // [DESTINO CORTE 2b-3] El destino no es identidad (D-1, ADR-0014): dos ítems que sólo difieren
+    // en la ruta o nombre de destino siguen siendo la misma clase.
+    const a = {
+      titulo: "TP1.pdf",
+      sitioId: "google-classroom",
+      modulo: "TPs",
+      tipo: "adjunto" as const,
+      destino: {
+        ruta: "Fisica_I/TPs",
+        nombre: "TP1.pdf",
+        claveCurso: "CURSO1",
+        original: "TP1.pdf",
+      },
+    };
+    const b = {
+      titulo: "TP1.pdf",
+      sitioId: "google-classroom",
+      modulo: "TPs",
+      tipo: "adjunto" as const,
+      destino: {
+        ruta: "Fisica_I/Practicas",
+        nombre: "TP1_renombrado.pdf",
+        claveCurso: "CURSO1",
+        original: "TP1.pdf",
+      },
+    };
+
+    expect(identidad.misma(a, b)).toBe(true);
+    expect(identidad.clave(a)).toBe(identidad.clave(b));
+  });
 });

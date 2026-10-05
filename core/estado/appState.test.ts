@@ -12,6 +12,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { crearAppState } from "./appState";
+import type { OrigenListado } from "./origenListado";
 import { AlmacenamientoEnMemoria } from "../puertos/almacenamientoEnMemoria";
 import { MensajeriaEnMemoria } from "../puertos/mensajeriaEnMemoria";
 
@@ -172,7 +173,7 @@ describe("AppState.inicializarSincronizacionStorage", () => {
 });
 
 describe("AppState.respaldar", () => {
-  it("persiste las 11 claves en UNA sola escritura (invariante multi-clave del puerto)", async () => {
+  it("persiste las 12 claves en UNA sola escritura (invariante multi-clave del puerto)", async () => {
     const spy = vi.spyOn(almacenamiento, "guardarLocal");
     app.listadoClasesGlobal = [{ titulo: "A" }];
     app.colaDescargas = [{ id: 7 }];
@@ -189,6 +190,7 @@ describe("AppState.respaldar", () => {
         "colaDescargas",
         "faseDiscoOk",
         "listaPersistente",
+        "origenListado",
         "ocultarAdvAula",
         "ocultarAdvExplorar",
         "ordenAscendente",
@@ -217,6 +219,39 @@ describe("AppState.respaldar", () => {
       "[AppState] Error al persistir estado:",
       expect.any(Error)
     );
+  });
+
+  it("origenListado se persiste, se hidrata validando la forma y se limpia", async () => {
+    app.origenListado = { sitioId: "google-classroom", clave: "X" };
+    app.respaldar();
+    await dejarCorrer();
+
+    expect(almacenamiento._volcar().local.origenListado).toEqual({
+      sitioId: "google-classroom",
+      clave: "X",
+    });
+
+    // Un AppState nuevo sobre ese storage lo relee igual
+    const nuevo = crearAppState(almacenamiento, mensajeria);
+    await nuevo.inicializarSincronizacionStorage();
+    expect(nuevo.origenListado).toEqual({
+      sitioId: "google-classroom",
+      clave: "X",
+    });
+
+    // Con origenListado inválido en storage carga null
+    await almacenamiento.guardarLocal({
+      origenListado: { sitioId: 5 } as unknown as OrigenListado,
+    });
+    const conInvalido = crearAppState(almacenamiento, mensajeria);
+    await conInvalido.inicializarSincronizacionStorage();
+    expect(conInvalido.origenListado).toBeNull();
+
+    // limpiarSesionLocal() lo deja en null y borra la clave
+    nuevo.limpiarSesionLocal();
+    await dejarCorrer();
+    expect(nuevo.origenListado).toBeNull();
+    expect(almacenamiento._volcar().local.origenListado).toBeUndefined();
   });
 });
 
@@ -249,6 +284,47 @@ describe("AppState.limpiarSesionLocal", () => {
     expect(local.colaDescargas).toBeUndefined();
     expect(local.faseDiscoOk).toBeUndefined();
     // La faceta elegida sobrevive a propósito: si no, la UI la vuelve a pedir al re-escanear.
+    expect(local.facetasElegidas).toEqual({ ramonnet: "B" });
+    expect(local.tutorialCompletado).toBe(true);
+  });
+});
+
+describe("AppState.limpiarColaConservandoLista", () => {
+  it("vacía la cola pero conserva la lista, el origen y el recorrido", async () => {
+    const listaInicial = [{ titulo: "A", sitioId: "google-classroom" }];
+    const origenInicial = { sitioId: "google-classroom", clave: "todos" };
+    await almacenamiento.guardarLocal({
+      listaPersistente: listaInicial,
+      origenListado: origenInicial,
+      colaDescargas: [{ id: 1 }],
+      faseDiscoOk: true,
+      recorridoTodos: { estado: "terminado" },
+      facetasElegidas: { ramonnet: "B" },
+      tutorialCompletado: true,
+    });
+    await app.inicializarSincronizacionStorage();
+    app.colaDescargas = [{ id: 1 }];
+    app.ráfagaEnCurso = true;
+    app.sincronizacionDiscoCompletada = true;
+    app.videoActualEnTransmisiónSW = "algo";
+
+    app.limpiarColaConservandoLista();
+    await dejarCorrer();
+
+    expect(app.colaDescargas).toEqual([]);
+    expect(app.ráfagaEnCurso).toBe(false);
+    expect(app.sincronizacionDiscoCompletada).toBe(false);
+    expect(app.videoActualEnTransmisiónSW).toBe("");
+    expect(app.listadoClasesGlobal).toHaveLength(1);
+    expect(app.listadoClasesGlobal[0]?.titulo).toBe("A");
+    expect(app.origenListado).toEqual(origenInicial);
+
+    const { local } = almacenamiento._volcar();
+    expect(local.colaDescargas).toBeUndefined();
+    expect(local.faseDiscoOk).toBeUndefined();
+    expect(local.listaPersistente).toEqual(listaInicial);
+    expect(local.origenListado).toEqual(origenInicial);
+    expect(local.recorridoTodos).toEqual({ estado: "terminado" });
     expect(local.facetasElegidas).toEqual({ ramonnet: "B" });
     expect(local.tutorialCompletado).toBe(true);
   });

@@ -1,0 +1,597 @@
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
+import { sanitizarNombreArchivo } from "../utils.js";
+import { DESTINOS } from "../../core/destino/carpetas.ts";
+import { RAIZ_FACULTAD } from "./raiz.js";
+import { leerIndice, modificarIndice, ErrorIndiceIlegible } from "../destino/indiceServicio.js";
+import { calcularEstado } from "../destino/estado.js";
+import { leerVistos } from "../destino/vistos.js";
+import { indiceAFilasEditor, filasEditorAIndice } from "../../core/destino/vistas.ts";
+
+export function opcionesPorDefecto() {
+  return {
+    raiz: RAIZ_FACULTAD,
+    salida: path.join(os.homedir(), "Descargas/adopcion-classroom"),
+    puerto: 3002,
+  };
+}
+
+function parseArgs() {
+  const args = process.argv.slice(2);
+  const opts = opcionesPorDefecto();
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--raiz" && args[i + 1]) {
+      opts.raiz = args[++i].replace(/^~(?=$|\/)/, os.homedir());
+    } else if (args[i] === "--salida" && args[i + 1]) {
+      opts.salida = args[++i].replace(/^~(?=$|\/)/, os.homedir());
+    } else if (args[i] === "--puerto" && args[i + 1]) {
+      opts.puerto = parseInt(args[++i], 10);
+    }
+  }
+
+  return opts;
+}
+
+export function leerTsvCrudo(rutaArchivo) {
+  if (!fs.existsSync(rutaArchivo)) {
+    throw new Error(`No se encontró el archivo TSV: ${rutaArchivo}`);
+  }
+  const contenido = fs.readFileSync(rutaArchivo, "utf8");
+  const lineas = contenido.split(/\r?\n/);
+  const comentarios = [];
+  let cabecera = null;
+  const filas = [];
+
+  for (const linea of lineas) {
+    if (cabecera === null) {
+      if (linea.startsWith("#")) {
+        comentarios.push(linea);
+      } else if (linea.length > 0) {
+        cabecera = linea.split("\t");
+      }
+    } else if (linea.length > 0) {
+      const valores = linea.split("\t");
+      const fila = {};
+      for (let j = 0; j < cabecera.length; j++) {
+        fila[cabecera[j]] = valores[j] !== undefined ? valores[j] : "";
+      }
+      filas.push(fila);
+    }
+  }
+
+  return { comentarios, cabecera: cabecera || [], filas };
+}
+
+export function escribirTsvCrudo(rutaArchivo, datos) {
+  const lineas = [...datos.comentarios, datos.cabecera.join("\t")];
+  for (const fila of datos.filas) {
+    lineas.push(
+      datos.cabecera.map((col) => (fila[col] !== undefined ? fila[col] : "")).join("\t")
+    );
+  }
+  const contenido = lineas.join("\n") + "\n";
+  const rutaTmp = `${rutaArchivo}.tmp`;
+  fs.writeFileSync(rutaTmp, contenido, "utf8");
+  fs.renameSync(rutaTmp, rutaArchivo);
+}
+
+function obtenerMaterias(raiz) {
+  const materias = [];
+  if (!fs.existsSync(raiz)) {
+    return materias;
+  }
+  try {
+    const nivel1 = fs.readdirSync(raiz, { withFileTypes: true });
+    for (const fac of nivel1) {
+      if (!fac.isDirectory() || fac.name.startsWith(".")) continue;
+      const dirFac = path.join(raiz, fac.name);
+      const nivel2 = fs.readdirSync(dirFac, { withFileTypes: true });
+      for (const mat of nivel2) {
+        if (!mat.isDirectory() || mat.name.startsWith(".")) continue;
+        materias.push(`${fac.name}/${mat.name}`);
+      }
+    }
+  } catch {
+    // Si la raíz no es accesible, devolver vacío
+  }
+  materias.sort();
+  return materias;
+}
+
+function obtenerDocentes(raiz, materias) {
+  const docentes = {};
+  for (const m of materias) {
+    docentes[m] = [];
+    const dirTeorias = path.join(raiz, m, "Teorias");
+    if (fs.existsSync(dirTeorias)) {
+      try {
+        const subs = fs.readdirSync(dirTeorias, { withFileTypes: true });
+        for (const sub of subs) {
+          if (sub.isDirectory() && !sub.name.startsWith(".")) {
+            docentes[m].push(sub.name);
+          }
+        }
+        docentes[m].sort();
+      } catch {
+        // Ignorar errores al leer subcarpetas
+      }
+    }
+  }
+  return docentes;
+}
+
+export function obtenerCarpetasDeMateria(raiz, materia) {
+  const carpetas = [];
+  const dirMat = path.join(raiz, materia);
+  if (!fs.existsSync(dirMat)) return carpetas;
+  try {
+    const subs = fs.readdirSync(dirMat, { withFileTypes: true });
+    for (const sub of subs) {
+      if (sub.isDirectory() && !sub.name.startsWith(".")) {
+        carpetas.push(sub.name);
+      }
+    }
+    carpetas.sort();
+  } catch {
+    // Si no se puede leer, devolver array vacío
+  }
+  return carpetas;
+}
+
+export function obtenerCarpetasExistentes(raiz, materias) {
+  const carpetasPorMateria = {};
+  for (const m of materias) {
+    carpetasPorMateria[m] = obtenerCarpetasDeMateria(raiz, m);
+  }
+  return carpetasPorMateria;
+}
+
+export function crearManejadorEditor(opts, prefijo = "") {
+  const rutaRaiz = `${prefijo}/`;
+  const rutaDatos = `${prefijo}/api/datos`;
+  const rutaGuardar = `${prefijo}/api/guardar`;
+  const rutaEnsayo = `${prefijo}/api/ensayo`;
+
+  return async function manejar(req, url) {
+    const esRutaEditor =
+      (prefijo !== "" && url.pathname === prefijo) ||
+      url.pathname === rutaRaiz ||
+      url.pathname === rutaDatos ||
+      url.pathname === rutaGuardar ||
+      url.pathname === rutaEnsayo;
+
+    if (!esRutaEditor) {
+      return null;
+    }
+
+    if (url.hostname !== "127.0.0.1" && url.hostname !== "localhost") {
+      return Response.json({ ok: false, errores: ["host no permitido"] }, { status: 403 });
+    }
+
+    if (prefijo !== "" && req.method === "GET" && url.pathname === prefijo) {
+      return new Response(null, {
+        status: 301,
+        headers: { location: `${prefijo}/` },
+      });
+    }
+
+    if (req.method === "GET" && url.pathname === rutaRaiz) {
+      const dirModulo = import.meta.dir || import.meta.dirname || path.dirname(new URL(import.meta.url).pathname);
+      const rutaHtml = path.join(dirModulo, "editor.html");
+      if (!fs.existsSync(rutaHtml)) {
+        return new Response("editor.html no encontrado", { status: 404 });
+      }
+      const html = fs.readFileSync(rutaHtml, "utf8");
+      return new Response(html, {
+        headers: { "content-type": "text/html; charset=utf-8" },
+      });
+    }
+
+    if (req.method === "GET" && url.pathname === rutaDatos) {
+      const modoIndice = url.searchParams.get("modo") === "indice";
+      if (modoIndice) {
+        try {
+          const mapaVistos = leerVistos();
+          if (!mapaVistos || mapaVistos.size === 0) {
+            return Response.json({
+              ok: false,
+              vacio: true,
+              error: "No hay cursos escaneados en memoria. Volvé a abrir esto desde el popup.",
+            });
+          }
+
+          const movidos = new Set();
+          for (const [claveCurso, visto] of mapaVistos.entries()) {
+            const sitio = visto.sitio || "google-classroom";
+            const id = claveCurso.startsWith(`${sitio}:`)
+              ? claveCurso.slice(sitio.length + 1)
+              : (visto.id || claveCurso);
+            const items = (visto.items || []).map((it) => ({
+              idArchivo: it.idArchivo,
+              original: it.original || it.texto || it.titulo || "",
+              tema: it.tema,
+              publicacion: it.publicacion,
+              anuncio: it.anuncio,
+              tipo: it.tipo,
+            }));
+
+            const resEstado = await calcularEstado({
+              raiz: opts.raiz,
+              sitio,
+              curso: { id, nombre: visto.nombre || "" },
+              items,
+            });
+
+            if (!resEstado.ok && (resEstado.indiceIlegible || resEstado.raizInaccesible)) {
+              return Response.json(
+                { ok: false, indiceIlegible: true, error: resEstado.error },
+                { status: 409 }
+              );
+            }
+
+            if (resEstado.ok && Array.isArray(resEstado.items)) {
+              for (const it of resEstado.items) {
+                if (it.movido) {
+                  movidos.add(`${sitio}:${it.idArchivo}`);
+                }
+              }
+            }
+          }
+
+          let indice;
+          try {
+            indice = await leerIndice(opts.raiz);
+          } catch (err) {
+            if (err instanceof ErrorIndiceIlegible) {
+              return Response.json(
+                { ok: false, indiceIlegible: true, error: err.mensaje },
+                { status: 409 }
+              );
+            }
+            throw err;
+          }
+
+          const materias = obtenerMaterias(opts.raiz);
+          const docentes = obtenerDocentes(opts.raiz, materias);
+          const carpetasPorMateria = obtenerCarpetasExistentes(opts.raiz, materias);
+          const claveCursoActivo = url.searchParams.get("curso") || undefined;
+          const filas = indiceAFilasEditor({ indice, vistos: mapaVistos, claveCursoActivo, movidos });
+
+          const destinos = Array.from(new Set(DESTINOS));
+
+          return Response.json({
+            cursos: filas.cursos,
+            temas: filas.temas,
+            archivos: filas.archivos,
+            destinos,
+            carpetasPorMateria,
+            materias,
+            docentes,
+            claveCursoActivo,
+          });
+        } catch (err) {
+          return Response.json({ ok: false, error: String(err) }, { status: 500 });
+        }
+      }
+
+      try {
+        const datosCursos = leerTsvCrudo(path.join(opts.salida, "cursos.tsv"));
+        const datosTemas = leerTsvCrudo(path.join(opts.salida, "temas.tsv"));
+        const datosArchivos = leerTsvCrudo(path.join(opts.salida, "archivos.tsv"));
+        const materias = obtenerMaterias(opts.raiz);
+        const docentes = obtenerDocentes(opts.raiz, materias);
+        const carpetasPorMateria = obtenerCarpetasExistentes(opts.raiz, materias);
+
+        const destinosSet = new Set(DESTINOS);
+        for (const carps of Object.values(carpetasPorMateria)) {
+          for (const c of carps) destinosSet.add(c);
+        }
+        const destinos = Array.from(destinosSet);
+
+        return Response.json({
+          cursos: datosCursos.filas,
+          temas: datosTemas.filas,
+          archivos: datosArchivos.filas,
+          destinos,
+          carpetasPorMateria,
+          materias,
+          docentes,
+        });
+      } catch (err) {
+        return Response.json({ ok: false, error: String(err) }, { status: 500 });
+      }
+    }
+
+    if (req.method === "POST" && url.pathname === rutaGuardar) {
+      const origin = req.headers.get("origin");
+      if (origin && origin !== url.origin) {
+        return Response.json({ ok: false, errores: ["origen no permitido"] }, { status: 403 });
+      }
+
+      const modoIndice = url.searchParams.get("modo") === "indice";
+      if (modoIndice) {
+        try {
+          const cuerpo = await req.json();
+          const { cursos, temas, archivos } = cuerpo || {};
+          const materias = obtenerMaterias(opts.raiz);
+
+          let erroresGuardado = null;
+          await modificarIndice(opts.raiz, (indiceActual) => {
+            const res = filasEditorAIndice({
+              indice: indiceActual,
+              filas: { cursos: cursos || [], temas: temas || [], archivos: archivos || [] },
+              vistos: leerVistos(),
+              materiasValidas: materias,
+            });
+            if (!res.ok) {
+              erroresGuardado = res.errores;
+              return indiceActual;
+            }
+            return res.indice;
+          });
+
+          if (erroresGuardado) {
+            return Response.json({ ok: false, errores: erroresGuardado });
+          }
+
+          return Response.json({ ok: true });
+        } catch (err) {
+          if (err instanceof ErrorIndiceIlegible) {
+            return Response.json(
+              { ok: false, indiceIlegible: true, error: err.mensaje },
+              { status: 409 }
+            );
+          }
+          return Response.json({ ok: false, errores: [String(err)] }, { status: 500 });
+        }
+      }
+
+      try {
+        const cuerpo = await req.json();
+        const { cursos, temas, archivos } = cuerpo;
+
+        const rutaCursos = path.join(opts.salida, "cursos.tsv");
+        const rutaTemas = path.join(opts.salida, "temas.tsv");
+        const rutaArchivos = path.join(opts.salida, "archivos.tsv");
+
+        const tsvCursos = leerTsvCrudo(rutaCursos);
+        const tsvTemas = leerTsvCrudo(rutaTemas);
+        const tsvArchivos = leerTsvCrudo(rutaArchivos);
+
+        const errores = [];
+        const materias = obtenerMaterias(opts.raiz);
+        const setMaterias = new Set(materias);
+
+        // Claves de cursos
+        const mapCursosDisco = new Map();
+        for (const c of tsvCursos.filas) {
+          mapCursosDisco.set(c.clave_curso, c);
+        }
+        const mapCursosCuerpo = new Map();
+        if (Array.isArray(cursos)) {
+          for (const c of cursos) {
+            mapCursosCuerpo.set(c.clave_curso, c);
+          }
+        }
+
+        // Claves de temas
+        const mapTemasDisco = new Map();
+        for (const t of tsvTemas.filas) {
+          mapTemasDisco.set(`${t.clave_curso}\t${t.tema}`, t);
+        }
+        const mapTemasCuerpo = new Map();
+        if (Array.isArray(temas)) {
+          for (const t of temas) {
+            mapTemasCuerpo.set(`${t.clave_curso}\t${t.tema}`, t);
+          }
+        }
+
+        // Claves de archivos
+        const mapArchivosDisco = new Map();
+        for (const a of tsvArchivos.filas) {
+          mapArchivosDisco.set(a.clave, a);
+        }
+        const mapArchivosCuerpo = new Map();
+        if (Array.isArray(archivos)) {
+          for (const a of archivos) {
+            mapArchivosCuerpo.set(a.clave, a);
+          }
+        }
+
+        // Validar estructura de filas (no se agregan ni se quitan)
+        if (!Array.isArray(cursos) || cursos.length !== tsvCursos.filas.length || mapCursosCuerpo.size !== mapCursosDisco.size) {
+          errores.push("Las filas de cursos no coinciden con las del disco (no se pueden agregar ni quitar filas).");
+        }
+        if (!Array.isArray(temas) || temas.length !== tsvTemas.filas.length || mapTemasCuerpo.size !== mapTemasDisco.size) {
+          errores.push("Las filas de temas no coinciden con las del disco (no se pueden agregar ni quitar filas).");
+        }
+        if (!Array.isArray(archivos) || archivos.length !== tsvArchivos.filas.length || mapArchivosCuerpo.size !== mapArchivosDisco.size) {
+          errores.push("Las filas de archivos no coinciden con las del disco (no se pueden agregar ni quitar filas).");
+        }
+
+        if (errores.length > 0) {
+          return Response.json({ ok: false, errores });
+        }
+
+        // Validar cursos
+        for (const cDisco of tsvCursos.filas) {
+          const cCuerpo = mapCursosCuerpo.get(cDisco.clave_curso);
+          if (!cCuerpo) {
+            errores.push(`Falta el curso ${cDisco.clave_curso} en los datos recibidos.`);
+            continue;
+          }
+          const materia = cCuerpo.materia !== undefined ? String(cCuerpo.materia) : "";
+          const docente = cCuerpo.docente !== undefined ? String(cCuerpo.docente) : "";
+
+          if (/[\t\r\n]/.test(materia) || /[\t\r\n]/.test(docente)) {
+            errores.push(`Curso '${cDisco.nombre}': contiene tabulaciones o saltos de línea.`);
+          }
+          if (materia !== "" && !setMaterias.has(materia)) {
+            errores.push(`Curso '${cDisco.nombre}': materia '${materia}' no existe.`);
+          }
+          if (docente.includes("/") || docente.includes("\\")) {
+            errores.push(`Curso '${cDisco.nombre}': docente contiene barras (/ o \\): '${docente}'.`);
+          }
+        }
+
+        // Validar temas
+        for (const tDisco of tsvTemas.filas) {
+          const claveT = `${tDisco.clave_curso}\t${tDisco.tema}`;
+          const tCuerpo = mapTemasCuerpo.get(claveT);
+          const cDisco = mapCursosDisco.get(tDisco.clave_curso);
+          const nombreCurso = cDisco ? cDisco.nombre : tDisco.clave_curso;
+
+          if (!tCuerpo) {
+            errores.push(`Falta el tema '${nombreCurso} › ${tDisco.tema}' en los datos recibidos.`);
+            continue;
+          }
+
+          const destino = tCuerpo.destino !== undefined ? String(tCuerpo.destino) : "";
+          if (/[\t\r\n]/.test(destino)) {
+            errores.push(`Tema '${nombreCurso} › ${tDisco.tema}': contiene tabulaciones o saltos de línea.`);
+          }
+          if (destino !== "-" && !DESTINOS.includes(destino)) {
+            errores.push(`Tema '${nombreCurso} › ${tDisco.tema}': destino inválido '${destino}'.`);
+          }
+        }
+
+        // Validar archivos
+        for (const aDisco of tsvArchivos.filas) {
+          const aCuerpo = mapArchivosCuerpo.get(aDisco.clave);
+          if (!aCuerpo) {
+            errores.push(`Falta el archivo con clave ${aDisco.clave} en los datos recibidos.`);
+            continue;
+          }
+
+          const accion = aCuerpo.accion !== undefined ? String(aCuerpo.accion) : "";
+          const nombre = aCuerpo.nombre !== undefined ? String(aCuerpo.nombre) : "";
+
+          if (aDisco.accion === "ya-esta" || aDisco.accion === "duplicado") {
+            if (accion !== aDisco.accion || nombre !== aDisco.nombre) {
+              errores.push(`la fila ${aDisco.clave} es '${aDisco.accion}' y no se edita`);
+            }
+            continue;
+          }
+
+          if (aDisco.accion === "copiar" || aDisco.accion === "omitir") {
+            if (/[\t\r\n]/.test(accion) || /[\t\r\n]/.test(nombre)) {
+              errores.push(`Archivo '${aDisco.original}': contiene tabulaciones o saltos de línea.`);
+            }
+            if (accion !== "copiar" && accion !== "omitir") {
+              errores.push(`Archivo '${aDisco.original}': acción '${accion}' inválida.`);
+            }
+            if (!nombre || nombre.trim().length === 0) {
+              errores.push(`Archivo '${aDisco.original}': tiene nombre vacío.`);
+            } else {
+              const sanitizado = sanitizarNombreArchivo(nombre);
+              if (nombre.includes("/") || nombre.includes("\\") || sanitizado !== nombre) {
+                errores.push(
+                  `Archivo '${aDisco.original}': nombre '${nombre}' no coincide con su sanitizado. Quedaría '${sanitizado}'.`
+                );
+              }
+            }
+          }
+        }
+
+        if (errores.length > 0) {
+          return Response.json({ ok: false, errores });
+        }
+
+        // Aplicar sólo los campos editables
+        for (const cDisco of tsvCursos.filas) {
+          const cCuerpo = mapCursosCuerpo.get(cDisco.clave_curso);
+          cDisco.materia = cCuerpo.materia !== undefined ? String(cCuerpo.materia) : "";
+          cDisco.docente = cCuerpo.docente !== undefined ? String(cCuerpo.docente) : "";
+        }
+
+        for (const tDisco of tsvTemas.filas) {
+          const claveT = `${tDisco.clave_curso}\t${tDisco.tema}`;
+          const tCuerpo = mapTemasCuerpo.get(claveT);
+          tDisco.destino = tCuerpo.destino !== undefined ? String(tCuerpo.destino) : "";
+        }
+
+        for (const aDisco of tsvArchivos.filas) {
+          if (aDisco.accion === "copiar" || aDisco.accion === "omitir") {
+            const aCuerpo = mapArchivosCuerpo.get(aDisco.clave);
+            aDisco.nombre = aCuerpo.nombre !== undefined ? String(aCuerpo.nombre) : "";
+            aDisco.accion = aCuerpo.accion !== undefined ? String(aCuerpo.accion) : "";
+          }
+        }
+
+        // Reescribir los tres TSV
+        escribirTsvCrudo(rutaCursos, tsvCursos);
+        escribirTsvCrudo(rutaTemas, tsvTemas);
+        escribirTsvCrudo(rutaArchivos, tsvArchivos);
+
+        return Response.json({ ok: true });
+      } catch (err) {
+        return Response.json({ ok: false, errores: [String(err)] }, { status: 500 });
+      }
+    }
+
+    if (req.method === "POST" && url.pathname === rutaEnsayo) {
+      const origin = req.headers.get("origin");
+      if (origin && origin !== url.origin) {
+        return Response.json({ ok: false, errores: ["origen no permitido"] }, { status: 403 });
+      }
+
+      const modoIndice = url.searchParams.get("modo") === "indice";
+      if (modoIndice) {
+        return Response.json({
+          codigo: 0,
+          salida: "En modo índice, Guardar sólo escribe el índice; no copia ni mueve archivos.",
+        });
+      }
+
+      try {
+        const dirModulo = import.meta.dir || import.meta.dirname || path.dirname(new URL(import.meta.url).pathname);
+        const proc = Bun.spawn(
+          [
+            process.execPath,
+            path.join(dirModulo, "aplicar.js"),
+            "--raiz",
+            opts.raiz,
+            "--salida",
+            opts.salida,
+          ],
+          {
+            stdout: "pipe",
+            stderr: "pipe",
+          }
+        );
+
+        const stdout = await new Response(proc.stdout).text();
+        const stderr = await new Response(proc.stderr).text();
+        const codigo = await proc.exited;
+
+        return Response.json({ codigo, salida: stdout + stderr });
+      } catch (err) {
+        return Response.json({ codigo: 1, salida: `Error al ejecutar ensayo: ${err}` }, { status: 500 });
+      }
+    }
+
+    return null;
+  };
+}
+
+export function iniciarServidor(opts = parseArgs()) {
+  const manejar = crearManejadorEditor(opts, "");
+  const server = Bun.serve({
+    hostname: "127.0.0.1",
+    port: opts.puerto,
+    async fetch(req) {
+      return (await manejar(req, new URL(req.url))) ?? new Response("No encontrado", { status: 404 });
+    },
+  });
+
+  console.log(`Editor de adopción Classroom escuchando en http://127.0.0.1:${server.port}`);
+  console.log("No corras generar.js mientras editás: pisa los TSV.");
+
+  return server;
+}
+
+if (import.meta.main) {
+  iniciarServidor();
+}

@@ -1,0 +1,22 @@
+- [Ficha en AGENTS.md](project_ficha_en_agents.md) — sin ficha en CLAUDE.md; qué docs de estado leer al arrancar y estado al 2026-09-25
+- [Organización del material](user_organizacion_material.md) — ~/U.N.L.P: árbol git+Obsidian por facultad/materia/docente; mirar antes de proponer layouts
+- [Google Classroom](project_google_classroom.md) — historia hasta el corte 2a; lo siguiente (2b, 2c) está en planes-2b-2c-moodle
+- [Edición por UI](feedback_edicion_por_ui.md) — el dueño no edita TSV/JSON crudos: pantalla o preguntas
+- [Flota de agentes](reference_flota_antigravity.md) — generada desde ~/Dev/agentes a Claude y agy; `generar --check`; qué quedó derivado a forja
+- [Orquestar agentes](feedback_orquestar_agentes.md) — repartir a pares por SendMessage; al dueño sólo decisiones; obra la pasa él
+- [jq en verificaciones](feedback_jq_precedencia.md) — `|` es lo de menor precedencia: parentizar cada término; probar los jq antes de entregar
+- [Revisión Mate C](project_revision_mate_c.md) — hallazgos doc a doc de conversiones y wiki; informe escrito en ~/Boveda/Sistema; decidido + regla 2 verificaciones; forja etapa 1 en curso
+- [Planes 2b/2c y Moodle](project_planes_2b_2c_moodle.md) — planes 00-08 en la bóveda (2026-09-30), hallazgos que los moldearon, puntos de parada humanos
+- [Leer la doc antes de preguntar](feedback_leer_doc_antes_de_preguntar.md) — no preguntar sesión/carpetas de un portal nuevo: está en multisitio-diseno y en Classroom
+- [Firma en doc y Bóveda](feedback_firma_documentos.md) — firmar siempre: tanda agy 3.8 flash high
+- [Política de videos por portal](policy_descarga_videos_por_portal.md) — sólo Ramón Net y Anatomy descargan video; Classroom, Moodle y Google Sites sólo guardan link .md
+- [Plan 19 borrador del editor](project_borrador_editor_plan19.md) — beforeunload→localStorage; cuelgue al cerrar, causa probable sin reproducir
+- [Moodle Asignaturas](project_moodle_asignaturas.md) — medición en vivo curso id=82, diseño en Bóveda, spec draft y fixtures sanitizados (2026-10-01)
+- [Plan 20 subcarpeta por tema](project_subcarpeta_por_tema_plan20.md) — mergeado 2026-10-04; cómo verificar el editor sin tocar la Bóveda (HOME falso)
+- [Plan 21 choques de nombre](project_choques_nombre_plan21.md) — causa en 3 eslabones, rama choques-nombre; va antes del plan 22
+- [Explicar simple](feedback_explicar_simple.md) — pasos exactos con nombres reales, causa en palabras simples, no adivinar
+- [Plan 22 disco manda](project_disco_manda_plan22.md) — spec aprobada y plan escrito; el disco manda sobre nombre y ruta; rama aún no creada
+- [Loader en tarjetas](project_loader_tarjetas.md) — rama loader-tarjetas: tarjetas + cancelar escaneo; planes para obra, cómo revisarlos
+- [Plan 23 videollamadas y raíz](project_editor_videollamadas_raiz_plan23.md) — spec+plan listos; rama editor-videollamadas-raiz; va antes del 22
+- [Plan 24 filtros y orden](project_editor_filtros_orden_plan24.md) — spec+plan listos; rama sale de main tras mergear el 23; editor.html ya tenía chips y búsqueda
+- [Plan 25 videollamadas omitidas](project_videollamadas_omitidas_plan25.md) — omitidas por defecto + refresco del popup; rama videollamadas-omitidas-defecto
