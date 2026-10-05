@@ -12,4 +12,7 @@
 - [Política de videos por portal](policy_descarga_videos_por_portal.md) — sólo Ramón Net y Anatomy descargan video; Classroom, Moodle y Google Sites sólo guardan link .md
 - [Plan 19 borrador del editor](project_borrador_editor_plan19.md) — beforeunload→localStorage; cuelgue al cerrar, causa probable sin reproducir
 - [Moodle Asignaturas](project_moodle_asignaturas.md) — medición en vivo curso id=82, diseño en Bóveda, spec draft y fixtures sanitizados (2026-10-01)
-- [Plan 20 subcarpeta por tema](project_subcarpeta_por_tema_plan20.md) — spec+plan listos en rama subcarpeta-tema; estado derivado de la carpeta, defecto previo de overrides
+- [Plan 20 subcarpeta por tema](project_subcarpeta_por_tema_plan20.md) — mergeado 2026-10-04; cómo verificar el editor sin tocar la Bóveda (HOME falso)
+- [Plan 21 choques de nombre](project_choques_nombre_plan21.md) — causa en 3 eslabones, rama choques-nombre; va antes del plan 22
+- [Explicar simple](feedback_explicar_simple.md) — pasos exactos con nombres reales, causa en palabras simples, no adivinar
+- [Plan 22 disco manda](project_disco_manda_plan22.md) — spec aprobada y plan escrito; el disco manda sobre nombre y ruta; rama aún no creada

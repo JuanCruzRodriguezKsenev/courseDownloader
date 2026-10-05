@@ -6,7 +6,7 @@ import {
   esMateriaSintacticamenteSegura,
   normalizarCarpetaOcupacion,
 } from "./vistas";
-import type { VistoCurso } from "./vistas";
+import type { VistoCurso, FilasEditor } from "./vistas";
 import { serializarIndice } from "./indice";
 import type { Indice } from "./indice";
 
@@ -1073,13 +1073,15 @@ describe("core/destino/vistas.ts", () => {
         },
       };
 
-      const filas = {
+      const filas: FilasEditor = {
         cursos: [
           {
             clave_curso: "google-classroom:c1",
-            nombre_curso: "Curso 1",
+            nombre: "Curso 1",
+            carpeta: materia,
             materia,
             docente: "Rey Grange",
+            items: "2",
           },
         ],
         temas: [
@@ -1087,6 +1089,8 @@ describe("core/destino/vistas.ts", () => {
             clave_curso: "google-classroom:c1",
             tema: "Teoria",
             destino: "Teorias",
+            regla: "no",
+            items: "2",
             editable: true,
           },
         ],
@@ -1099,6 +1103,8 @@ describe("core/destino/vistas.ts", () => {
             nombre: "colision.pdf",
             carpeta: "Ingenieria/Matematica C/Teorias",
             accion: "ya-esta" as const,
+            origen: "",
+            md5: "abc12345",
           },
           {
             clave: "google-classroom:arch_copiar",
@@ -1108,6 +1114,8 @@ describe("core/destino/vistas.ts", () => {
             nombre: "colision.pdf",
             carpeta: "Teorias",
             accion: "copiar" as const,
+            origen: "",
+            md5: "",
           },
         ],
       };
