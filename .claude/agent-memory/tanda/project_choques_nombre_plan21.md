@@ -11,5 +11,5 @@ Plan `~/Boveda/Proyectos/courseDownloader/Planes/21 - Nombres que chocan en curs
 
 **How to apply:**
 - Los `nombres` repetidos no existen en la Bóveda real (medido); sólo en la copia `~/Descargas/facultad-prueba`. Por eso el plan no limpia datos viejos.
-- **Dirección siguiente (el dueño, 2026-10-04):** descargar todo a una carpeta nueva, verificación archivo por archivo, orden asistido por mí leyendo los archivos, y que la extensión guarde lo **detectado** contra lo que él **nombró/movió** para «aprender». Es una **spec** (skill `spec`), después del plan 21. Abiertas: «aprender» = sólo registrar o proponer solo; dónde vive el registro; cambia el rol del editor (de decidir antes a revisar después).
-- La descarga masiva haría peor el defecto de los choques: por eso el plan 21 va primero.
+- **La idea grande del dueño (descargar todo a una carpeta bruta, verificar, «aprender») se achicó** a «lo que está en disco manda»: ver [[project-disco-manda-plan22]]. Ya no hay carpeta bruta ni aprendizaje.
+- El plan 21 va primero porque el 22 toca los mismos archivos (`vistas.ts`, `propuesta.ts`).
