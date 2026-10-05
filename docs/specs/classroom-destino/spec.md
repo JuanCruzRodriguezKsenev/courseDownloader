@@ -102,12 +102,12 @@ transformación de texto.
   del nombre del archivo.
 - **RN-13** — El dueño puede editar el nombre propuesto en la lista, antes de bajar. *(2c: el nombre editado antes de bajar vive en `cursos.<clave>.nombres`)*.
 - **RN-14** — El nombre editado se guarda en el índice **por id de Drive** y se reusa en todos los
-  escaneos siguientes. Un archivo se nombra una sola vez. *(2c: el nombre editado antes de bajar vive en `cursos.<clave>.nombres`)*.
+  escaneos siguientes. Un archivo se nombra una sola vez. *(2c: el nombre editado antes de bajar vive en `cursos.<clave>.nombres`)*. Un nombre que choca con otro de la misma carpeta nunca se guarda.
 - **RN-15** — En Parciales la extensión no infiere la fecha: propone `modN_<nombre>` y el dueño la
   escribe.
 - **RN-16** — Si dos archivos distintos quedan con el mismo nombre en la misma carpeta, **todos los
   del grupo** llevan `_<título del material>` antes de la extensión (D12), y se aplica después de
-  simplificar el nombre.
+  simplificar el nombre; también se aplica en un curso sin asociar, agrupando por tema.
 - **RN-16a** — En Novedades el encabezado del post es "Publicación de <autor>", así que el título del
   material es la **primera frase del anuncio** (sin saludo, muletilla ni artículo, hasta 8 palabras).
   En la adopción, un archivo de Novedades que choca **se nombra** con esa frase en vez de agregarla
@@ -117,6 +117,8 @@ transformación de texto.
   nombre sencillo del recurso. El `.md` nace con el frontmatter de la bóveda: `tipo: acceso` y `revisado: <fecha de descarga>`. *(Dueño, 2026-09-28)*.
 
 ### Qué ya está descargado
+
+> **Ampliado por [`docs/specs/disco-manda/spec.md`](../disco-manda/spec.md)** (draft, 2026-10-04): RN-19 pasa a ser un principio para popup, editor y descarga; la fila 5 de la tabla se parte en 5a y 5b (RN-20 mira toda la raíz); y entre varias copias gana la más reciente.
 
 - **RN-18** — Antes de bajar, la extensión consulta el índice por **id de archivo** (id de Drive
   para los adjuntos, `acceso:<url>:<título>` para los accesos — RN-29). Si el id figura y

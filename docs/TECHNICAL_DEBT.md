@@ -14,9 +14,9 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 
 ## 🔴 Abierto
 
-> ## Estado al 2026-10-04: **TREINTA Y UNA** entradas abiertas
+> ## Estado al 2026-10-04: **TREINTA** entradas abiertas
 >
-> Re-contadas, no sumadas al número anterior (3 🔴, 3 🟠, 25 ⚪):
+> Re-contadas, no sumadas al número anterior (3 🔴, 3 🟠, 24 ⚪):
 >
 > 1. 🔴 **El mecanismo de popovers sin tests** (hallado 2026-08-05).
 > 2. 🔴 **El loader del popup no tiene dueño**: tokens y demora pendientes (hallado 2026-08-12).
@@ -46,13 +46,14 @@ ruta que desde entonces se movió, no se corrige hacia atrás.
 > 26. ✅ **`inyeccion.test.js`: prueba sobre DOM real y contexto VM aislado** (cerrada 2026-10-04, Plan 16 D-4).
 > 27. ⚪ **Vitest no ignora `.worktrees/`: worktrees concurrentes en la raíz ejecutan tests duplicados salvo remoción o exclusión explícita** (hallado 2026-10-02, Plan 14-b).
 > 28. ⚪ **El editor de adopción tiene la raíz fija en `RAIZ_FACULTAD` e ignora `raices` de `config_usuario.json`** (hallado 2026-10-04, verificación del plan 20).
-> 29. ⚪ **El editor no ve choques de nombre cuando el scan no trae `md5`: el servidor los rechaza recién al descargar** (hallado 2026-10-04, verificación del plan 20).
+> 29. ✅ **El editor no ve choques de nombre cuando el scan no trae `md5`**: cerrado 2026-10-04 (Plan 21).
 > 30. ⚪ **CSS de la tarjeta de tema del editor: ruta calculada cortada, título en tres líneas, botones partidos** (hallado 2026-10-04).
 > 31. ⚪ **Los tests de humo del editor deben filtrar `DATOS.temas` por `clave_curso`: agrupa temas de todos los cursos** (hallado 2026-10-04).
 > 32. ⚪ **`indiceAFilasEditor` marca `subcarpeta: "si"` en temas con destino `-` o `.`, donde la casilla va deshabilitada** (hallado 2026-10-04, `core/destino/vistas.ts:249`).
 >
-> ### Lo que se cerró el 2026-10-04 (Plan 16)
+> ### Lo que se cerró el 2026-10-04 (Planes 16 y 21)
 >
+> - **Nombres que chocan en cursos sin asociar y al guardar**: `core/destino/propuesta.ts` incluye cursos sin asociar en la resolución de choques agrupando por tema; `core/destino/vistas.ts` descarta nombres que chocan de `nombresFinales` al guardar (RN-14); `editor.html` recalcula choques con discriminante `md5 || clave` aunque no haya md5 (Plan 21).
 > - **`inyeccion.test.js`: prueba con DOM real**: evalúa `escanearListado.toString()` con `dom.getInternalVMContext()` y fixtures reales para `sites-matec` y `moodle-asignaturas`, cerrando el hueco de helpers internos fuera del scope de la función serializada (Plan 16, D-4).
 >
 > ### Lo que se cerró el 2026-09-27

@@ -174,10 +174,10 @@ export function proponerParaCurso({
 
   // Resolución de choques RN-16a (Novedades)
   const filasNovedades: FilaNovedad[] = resultados
-    .filter((r) => !r.omitido && r.carpeta !== null && r.nombre !== null)
+    .filter((r) => !r.omitido && r.nombre !== null)
     .map((r) => ({
       clave: r.clave,
-      ruta: r.carpeta!,
+      ruta: r.carpeta ?? `(sin asociar)/${r.tema}`,
       nombre: r.nombre!,
       md5: r.md5 || r.idArchivo,
       renombrable: !r.fijoEnIndice && /^novedades$/i.test(r.tema),
@@ -196,10 +196,10 @@ export function proponerParaCurso({
 
   // Resolución de choques RN-16 (Trabajo / general)
   const filasParaChoques: FilaChoque[] = resultados
-    .filter((r) => !r.omitido && r.carpeta !== null && r.nombre !== null)
+    .filter((r) => !r.omitido && r.nombre !== null)
     .map((r) => ({
       clave: r.clave,
-      ruta: r.carpeta!,
+      ruta: r.carpeta ?? `(sin asociar)/${r.tema}`,
       nombre: r.nombre!,
       md5: r.md5 || r.idArchivo,
     }));

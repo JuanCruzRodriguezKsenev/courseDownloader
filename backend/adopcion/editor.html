@@ -1365,7 +1365,7 @@ button {
 
       FILAS_CON_CHOQUE = new Set();
       for (const [_, arr] of grupos.entries()) {
-        const md5s = new Set(arr.map((f) => (f.md5 || "").toLowerCase()));
+        const md5s = new Set(arr.map((f) => (f.md5 || f.clave).toLowerCase()));
         if (md5s.size > 1 && arr.length > 0) {
           arr.forEach((f) => FILAS_CON_CHOQUE.add(f.clave));
         }
