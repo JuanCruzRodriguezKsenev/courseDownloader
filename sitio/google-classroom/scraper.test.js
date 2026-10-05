@@ -212,27 +212,119 @@ describe("ScraperClassroom.escanearListado", () => {
     expect(cronograma?.modulo).toBe("Física II › Novedades");
   });
 
-  it("5e. ignora enlaces a meet.google.com porque son reuniones efímeras", async () => {
+  it("5e. clasifica enlaces de videollamada como accesos con esVideollamada: true (RN-32)", async () => {
     const region = document.querySelector('#vista-trabajo div[role="region"]');
     const li = document.createElement("li");
-    li.setAttribute("data-stream-item-id", "item-meet");
-    li.setAttribute("data-expandable-row-id", "row-meet");
+    li.setAttribute("data-stream-item-id", "item-videollamadas");
+    li.setAttribute("data-expandable-row-id", "row-videollamadas");
     li.innerHTML = `
-      <div role="button" aria-expanded="true" aria-label="Consulta Meet"></div>
+      <div role="button" aria-expanded="true" aria-label="Clases sincrónicas"></div>
       <div data-attachment-id="att-meet-vinculo">
         <a aria-label="Archivo adjunto: Vínculo a https://meet.google.com/abc-defg-hij" href="https://meet.google.com/abc-defg-hij"></a>
       </div>
       <div data-attachment-id="att-meet-directo">
         <a aria-label="Archivo adjunto: Reunión en vivo" href="https://meet.google.com/xyz-uvw-rst"></a>
       </div>
+      <div data-attachment-id="att-zoom">
+        <a aria-label="Archivo adjunto: Vínculo a https://unlp-ar.zoom.us/j/123456789" href="https://unlp-ar.zoom.us/j/123456789"></a>
+      </div>
+      <div data-attachment-id="att-teams-ms">
+        <a aria-label="Archivo adjunto: Vínculo a https://teams.microsoft.com/l/meetup-join/123" href="https://teams.microsoft.com/l/meetup-join/123"></a>
+      </div>
+      <div data-attachment-id="att-teams-live">
+        <a aria-label="Archivo adjunto: Vínculo a https://teams.live.com/meet/456" href="https://teams.live.com/meet/456"></a>
+      </div>
+      <div data-attachment-id="att-webex">
+        <a aria-label="Archivo adjunto: Vínculo a https://facultad.webex.com/meet/catedra" href="https://facultad.webex.com/meet/catedra"></a>
+      </div>
+      <div data-attachment-id="att-jitsi-meet">
+        <a aria-label="Archivo adjunto: Vínculo a https://meet.jit.si/ClaseConsulta" href="https://meet.jit.si/ClaseConsulta"></a>
+      </div>
+      <div data-attachment-id="att-jitsi-net">
+        <a aria-label="Archivo adjunto: Vínculo a https://jitsi.net/sala" href="https://jitsi.net/sala"></a>
+      </div>
+      <div data-attachment-id="att-neg-notzoom">
+        <a aria-label="Archivo adjunto: Vínculo a https://notzoom.us/x" href="https://notzoom.us/x"></a>
+      </div>
+      <div data-attachment-id="att-neg-evil">
+        <a aria-label="Archivo adjunto: Vínculo a https://zoom.us.evil.example/x" href="https://zoom.us.evil.example/x"></a>
+      </div>
+      <div data-attachment-id="att-neg-youtube">
+        <a aria-label="Archivo adjunto: video de YouTube: Video Teórico" href="https://www.youtube.com/watch?v=x"></a>
+      </div>
+      <div data-attachment-id="att-neg-drive">
+        <a aria-label="Archivo adjunto: documento: Apunte.pdf" href="https://drive.google.com/file/d/drive-neg-test/view"></a>
+      </div>
+      <div data-attachment-id="att-neg-doc">
+        <a aria-label="Archivo adjunto: documento de Google: Guía" href="https://docs.google.com/document/d/doc-neg-test/edit"></a>
+      </div>
     `;
     region.appendChild(li);
 
     const res = await ScraperClassroom.escanearListado({ tiempos: TIEMPOS_TEST });
-    const meet = res.enlaces.find(
-      (e) => e.href?.includes("meet.google.com") || e.texto?.includes("meet.google.com")
-    );
-    expect(meet).toBeUndefined();
+
+    // 1. Meet vínculo y directo
+    const meetVinculo = res.enlaces.find((e) => e.href === "https://meet.google.com/abc-defg-hij");
+    expect(meetVinculo).toBeDefined();
+    expect(meetVinculo?.idArchivo?.startsWith("acceso:")).toBe(true);
+    expect(meetVinculo?.esVideollamada).toBe(true);
+
+    const meetDirecto = res.enlaces.find((e) => e.href === "https://meet.google.com/xyz-uvw-rst");
+    expect(meetDirecto).toBeDefined();
+    expect(meetDirecto?.idArchivo?.startsWith("acceso:")).toBe(true);
+    expect(meetDirecto?.esVideollamada).toBe(true);
+
+    // 2. Zoom, Teams, Webex, Jitsi
+    const zoom = res.enlaces.find((e) => e.href === "https://unlp-ar.zoom.us/j/123456789");
+    expect(zoom).toBeDefined();
+    expect(zoom?.idArchivo?.startsWith("acceso:")).toBe(true);
+    expect(zoom?.esVideollamada).toBe(true);
+
+    const teamsMs = res.enlaces.find((e) => e.href === "https://teams.microsoft.com/l/meetup-join/123");
+    expect(teamsMs).toBeDefined();
+    expect(teamsMs?.idArchivo?.startsWith("acceso:")).toBe(true);
+    expect(teamsMs?.esVideollamada).toBe(true);
+
+    const teamsLive = res.enlaces.find((e) => e.href === "https://teams.live.com/meet/456");
+    expect(teamsLive).toBeDefined();
+    expect(teamsLive?.idArchivo?.startsWith("acceso:")).toBe(true);
+    expect(teamsLive?.esVideollamada).toBe(true);
+
+    const webex = res.enlaces.find((e) => e.href === "https://facultad.webex.com/meet/catedra");
+    expect(webex).toBeDefined();
+    expect(webex?.idArchivo?.startsWith("acceso:")).toBe(true);
+    expect(webex?.esVideollamada).toBe(true);
+
+    const jitsiMeet = res.enlaces.find((e) => e.href === "https://meet.jit.si/ClaseConsulta");
+    expect(jitsiMeet).toBeDefined();
+    expect(jitsiMeet?.idArchivo?.startsWith("acceso:")).toBe(true);
+    expect(jitsiMeet?.esVideollamada).toBe(true);
+
+    const jitsiNet = res.enlaces.find((e) => e.href === "https://jitsi.net/sala");
+    expect(jitsiNet).toBeDefined();
+    expect(jitsiNet?.idArchivo?.startsWith("acceso:")).toBe(true);
+    expect(jitsiNet?.esVideollamada).toBe(true);
+
+    // 3. Casos negativos: no deben marcarse como videollamada
+    const notZoom = res.enlaces.find((e) => e.href === "https://notzoom.us/x");
+    expect(notZoom).toBeDefined();
+    expect(notZoom?.esVideollamada).toBeUndefined();
+
+    const evil = res.enlaces.find((e) => e.href === "https://zoom.us.evil.example/x");
+    expect(evil).toBeDefined();
+    expect(evil?.esVideollamada).toBeUndefined();
+
+    const youtube = res.enlaces.find((e) => e.href === "https://www.youtube.com/watch?v=x");
+    expect(youtube).toBeDefined();
+    expect(youtube?.esVideollamada).toBeUndefined();
+
+    const drive = res.enlaces.find((e) => e.idArchivo === "drive-neg-test");
+    expect(drive).toBeDefined();
+    expect(drive?.esVideollamada).toBeUndefined();
+
+    const doc = res.enlaces.find((e) => e.href === "https://docs.google.com/document/d/doc-neg-test/edit");
+    expect(doc).toBeDefined();
+    expect(doc?.esVideollamada).toBeUndefined();
   });
 
   it("6. el choque de nombres le agrega el material a los dos", async () => {

@@ -19,7 +19,6 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 Nada en `main` espera revisión. Lo que sigue fuera de `main` vive en su propia rama y su estado está en el
 `docs/ramas-en-revision.md` **de esa rama**, no acá:
 
-- `classroom-videollamadas`: plan 12, videollamadas con chip y al tope. Falta verificar en el navegador.
 - `marca-resaltador`: identidad visual «Resaltador», diseño cerrado y sin aplicar.
 
 ## Mergeado el 2026-10-04
@@ -31,6 +30,7 @@ Nada en `main` espera revisión. Lo que sigue fuera de `main` vive en su propia 
   `docs/specs/moodle-asignaturas/`.
 - **Subcarpeta por tema** (plan 20): `565b7ee`.
 - **Loader en tarjetas y cancelar escaneo** (planes `loader-tarjetas` y `cancelar-escaneo`): verificado por el dueño en Brave, T-1..T-5 y C-1..C-10 dados por buenos. Registro de diseño: `docs/portal-google-classroom-diseno.md` §11.
+- **Videollamadas con chip y al tope** (plan 12): verificado por el dueño en Brave con el curso Fisica II G25 2026. Hallazgo menor: el mapeo de `esVideollamada` en `popup.js` no tiene test directo (ADR-0005).
 - **Nombres que chocan** (plan 21): `37a1e96`. M-1 a M-4 verificados con el dueño en la copia de prueba.
 
 Los checklists V-0..V-9 (2b), W-0..W-7 (2c) y H/B (planes 17 y 19) estuvieron en este doc con las casillas

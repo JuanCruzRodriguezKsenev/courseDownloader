@@ -662,6 +662,44 @@ describe('Isla Preact: ListaClases — la alerta comparte contenedor', () => {
       );
     });
 
+    it('esVideollamada: true → muestra .chip-videollamada con texto y title explicativo (D-5, RN-32)', async () => {
+      puente.render({
+        modo: 'lista',
+        items: [{
+          id: 201,
+          titulo: 'Consulta Meet',
+          tipo: 'adjunto',
+          estado: 'pending',
+          esVideollamada: true,
+        }],
+        ctx: ctxBase(),
+      });
+      await flush();
+
+      const chip = root.querySelector('.chip-videollamada');
+      expect(chip).not.toBeNull();
+      expect(chip.textContent).toBe('📹 Videollamada');
+      expect(chip.getAttribute('title')).toBe(
+        'enlace de videollamada sincrónica, posiblemente inactivo'
+      );
+    });
+
+    it('sin esVideollamada no muestra .chip-videollamada (D-5)', async () => {
+      puente.render({
+        modo: 'lista',
+        items: [{
+          id: 202,
+          titulo: 'Clase Normal',
+          tipo: 'adjunto',
+          estado: 'pending',
+        }],
+        ctx: ctxBase(),
+      });
+      await flush();
+
+      expect(root.querySelector('.chip-videollamada')).toBeNull();
+    });
+
     it('nota con onNotaClick → clase clickable y llamada a callback al clickear (D-4)', async () => {
       let clickeado = false;
       puente.render({

@@ -697,5 +697,56 @@ describe("popup/features/destino.js", () => {
 
       expect(lista.map((x) => x.id)).toEqual([2, 1, 3]);
     });
+
+    it("antepone ítems con esVideollamada frente a sinAsignar y normales (D-4, RN-32)", () => {
+      const normal = { id: 1, sinAsignar: false, esVideollamada: false, titulo: "Clase Normal" };
+      const sinAsignar = { id: 2, sinAsignar: true, esVideollamada: false, titulo: "Tema Suelto" };
+      const videollamada = { id: 3, sinAsignar: false, esVideollamada: true, titulo: "Consulta Meet" };
+
+      expect(compararPrioridadDestino(sinAsignar, videollamada)).toBeGreaterThan(0);
+      expect(compararPrioridadDestino(videollamada, sinAsignar)).toBeLessThan(0);
+      expect(compararPrioridadDestino(normal, videollamada)).toBeGreaterThan(0);
+      expect(compararPrioridadDestino(videollamada, normal)).toBeLessThan(0);
+      expect(compararPrioridadDestino(videollamada, videollamada)).toBe(0);
+    });
+
+    it("con ítems normales, sin asignar y videollamada del mismo curso el orden es videollamada → sin asignar → resto (D-4)", () => {
+      const lista = [
+        { id: 1, titulo: "Normal A", sinAsignar: false, esVideollamada: false },
+        { id: 2, titulo: "Sin asignar A", sinAsignar: true, esVideollamada: false },
+        { id: 3, titulo: "Videollamada A", sinAsignar: false, esVideollamada: true },
+        { id: 4, titulo: "Normal B", sinAsignar: false, esVideollamada: false },
+        { id: 5, titulo: "Videollamada B", sinAsignar: false, esVideollamada: true },
+        { id: 6, titulo: "Sin asignar B", sinAsignar: true, esVideollamada: false },
+      ];
+
+      lista.sort(compararPrioridadDestino);
+
+      expect(lista.map((x) => x.id)).toEqual([3, 5, 2, 6, 1, 4]);
+    });
+
+    it("entre cursos distintos el comparador respeta la partición de cursos de popup.js", () => {
+      const curso1 = "Álgebra";
+      const curso2 = "Física";
+      const indiceCurso = new Map([[curso1, 0], [curso2, 1]]);
+
+      const lista = [
+        { id: 1, curso: curso2, titulo: "Física Video", esVideollamada: true },
+        { id: 2, curso: curso1, titulo: "Álgebra Normal", esVideollamada: false },
+        { id: 3, curso: curso1, titulo: "Álgebra Video", esVideollamada: true },
+        { id: 4, curso: curso2, titulo: "Física SinAsignar", sinAsignar: true },
+      ];
+
+      lista.sort((a, b) => {
+        const idxA = indiceCurso.get(a.curso) ?? 999999;
+        const idxB = indiceCurso.get(b.curso) ?? 999999;
+        if (idxA !== idxB) return idxA - idxB;
+        const diffSin = compararPrioridadDestino(a, b);
+        if (diffSin !== 0) return diffSin;
+        return a.titulo.localeCompare(b.titulo);
+      });
+
+      expect(lista.map((x) => x.id)).toEqual([3, 2, 1, 4]);
+    });
   });
 });

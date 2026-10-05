@@ -1128,5 +1128,50 @@ describe("core/destino/vistas.ts", () => {
       expect(curso.nombres).toBeUndefined();
     });
   });
-});
 
+  it("V-4: un ítem de videollamada (acceso:<url>:<título>) en vistos aparece en indiceAFilasEditor y con accion 'omitir' se persiste en cursos.<clave>.omitidos (RN-31, RN-32)", () => {
+    const idVideollamada = "acceso:https%3A%2F%2Fmeet.google.com%2Fabc-defg-hij:Consulta%20Meet";
+    const claveCurso = "google-classroom:c1";
+    const claveArchivo = `google-classroom:${idVideollamada}`;
+
+    const vistosConVideollamada: VistoCurso[] = [
+      {
+        sitio: "google-classroom",
+        idCurso: "c1",
+        nombre: "Física II G22 2026",
+        items: [
+          {
+            idArchivo: idVideollamada,
+            original: "Consulta Meet",
+            tema: "Clases Teóricas",
+          },
+        ],
+      },
+    ];
+
+    const filas = indiceAFilasEditor({
+      indice: indiceEjemplo,
+      vistos: vistosConVideollamada,
+    });
+
+    const filaVideo = filas.archivos.find((a) => a.clave === claveArchivo);
+    expect(filaVideo).toBeDefined();
+    expect(filaVideo!.original).toBe("Consulta Meet");
+
+    // Marcar para omitir
+    filaVideo!.accion = "omitir";
+
+    const res = filasEditorAIndice({
+      indice: indiceEjemplo,
+      filas,
+      vistos: vistosConVideollamada,
+    });
+
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+
+    const curso = res.indice.cursos[claveCurso];
+    expect(curso).toBeDefined();
+    expect(curso!.omitidos).toContain(claveArchivo);
+  });
+});

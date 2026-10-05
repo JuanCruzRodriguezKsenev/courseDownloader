@@ -1380,6 +1380,8 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           destino: undefined,
           bloqueo: undefined,
           sinAsignar: undefined,
+          // [PLAN 12 / RN-32] Marca si es videollamada (Classroom)
+          esVideollamada: item.esVideollamada,
           // ADR-0010: de qué portal salió. Se estampa ACÁ, que es el único momento en
           // que se sabe con certeza — el escaneo corre sobre una pestaña concreta.
           // Después la cola es independiente de la pestaña y ya no habría cómo deducirlo.
