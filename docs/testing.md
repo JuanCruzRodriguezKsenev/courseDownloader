@@ -30,10 +30,15 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **79 archivos, 1191 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
+| `pnpm test` | **80 archivos, 1203 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 1203** (2026-10-04, plan `23 - Omitir videollamadas en bloque y raiz decidida en el editor`, rama `editor-videollamadas-raiz`): son los 1191 de abajo más **+12** tests (+1 archivo):
+- **+11** en el archivo nuevo `core/destino/videollamada.test.ts` (test de deriva contra `scraper.js` de Classroom y suite de `esEnlaceVideollamada` y `claveEsVideollamada` con AC-6),
+- **+1** en `core/destino/vistas.test.ts` (test de AC-5 / RN-5: videollamadas omitidas previamente conservan accion omitir y una nueva llega como copiar).
+Las interacciones de UI (omisión en bloque, volver a ofrecer, chip 📹, raíz decidida, selector con opción vacía y reglas automáticas AC-1..4, AC-7..13) se ejercitan en el script de humo nuevo en jsdom (`bun backend/adopcion/humo-editor-videollamadas-raiz.js`).
 
 **De dónde sale el 1191** (2026-10-04, merge de `classroom-videollamadas`, plan 12): son los 1185 de abajo más **+6** tests (reconocimiento de videollamadas en `scraper.test.js`, orden y chip en `destino.test.js` y `listaClases.preact.test.js`, y omisión en adopción en `vistas.test.ts`).
 

@@ -16,9 +16,14 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## 🚧 En revisión
 
-Nada en `main` espera revisión. Lo que sigue fuera de `main` vive en su propia rama y su estado está en el
-`docs/ramas-en-revision.md` **de esa rama**, no acá:
-
+- `editor-videollamadas-raiz`: Plan 23 (`~/Boveda/Proyectos/courseDownloader/Planes/23 - Omitir videollamadas en bloque y raiz decidida en el editor.md`).
+  Spec: `docs/specs/editor-ignorar-y-raiz/spec.md`.
+  Compuerta: 80 archivos / 1203 tests; humos: `humo-editor.js`, `humo-editor-indice.js`, `humo-editor-videollamadas-raiz.js` (errores: 0).
+  - ⬜ **M-1** — Dueño: re-escanear **Fisica_II_G25_2026** (clave `google-classroom:Nzk0MDIyNDkyNDUx`). Abrir el editor (🗂️). Tiene que verse en la cabecera `Omitir N videollamadas` con N igual a los enlaces de Meet de ese curso, y cada fila de videollamada con la etiqueta `📹 Videollamada`.
+  - ⬜ **M-2** — Dueño: tocar el botón. Las filas quedan tachadas/omitidas, el botón pasa a `Volver a ofrecerlas` con `N omitidas`, y aparece `Cambios sin guardar`. Guardar. **Tanda:** `jq '.cursos["google-classroom:Nzk0MDIyNDkyNDUx"].omitidos' ~/Descargas/facultad-prueba/.course-downloader.json` lista las N claves `google-classroom:acceso:https%3A%2F%2Fmeet...`.
+  - ⬜ **M-3** — Dueño: `Volver a ofrecerlas` las deja destildadas→tildadas otra vez; **no guardar** (descartar con F5).
+  - ⬜ **M-4** — Dueño, mismo curso: los temas **Novedades**, **Sin tema** y **Cronograma tentativo primer cuatrimestre 2026** (los tres guardados en `.` en el índice) se ven `✓ Asignado · Raíz de la materia` y **no** cuentan en «a revisar» de la lista de cursos ni en «Solo problemas». *(Antes del plan: los tres decían «Sin destino».)*
+  - ⬜ **M-5** — Tanda: sacar de la copia el tema «Cronograma tentativo primer cuatrimestre 2026» del índice (`jq 'del(.cursos["google-classroom:Nzk0MDIyNDkyNDUx"].temas["Cronograma tentativo primer cuatrimestre 2026"])'`, con respaldo) y reiniciar el servidor. Dueño: en el editor, ese tema aparece como tema nuevo (regla `si` por `carpetas.ts` L17) → «Asignado». Para ver un tema **sin regla**, tanda agrega al curso un tema inventado (ver Preparación del plan 20) con un nombre que no matchee ninguna regla, por ejemplo `Anuncios varios`: sale «Sin destino» con el selector en «— elegir carpeta —»; el dueño elige «Raíz de la materia» y pasa a «Asignado» **sin guardar**.
 - `marca-resaltador`: identidad visual «Resaltador», diseño cerrado y sin aplicar.
 
 ## Mergeado el 2026-10-04

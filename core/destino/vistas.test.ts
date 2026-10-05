@@ -1174,4 +1174,59 @@ describe("core/destino/vistas.ts", () => {
     expect(curso).toBeDefined();
     expect(curso!.omitidos).toContain(claveArchivo);
   });
+
+  it("AC-5 / RN-5: videollamadas omitidas previamente conservan accion omitir y una nueva llega como copiar", () => {
+    const v1Id = "acceso:https%3A%2F%2Fmeet.google.com%2Fmeet-1:Meet%201";
+    const v2Id = "acceso:https%3A%2F%2Fmeet.google.com%2Fmeet-2:Meet%202";
+    const v3Id = "acceso:https%3A%2F%2Fmeet.google.com%2Fmeet-3:Meet%203";
+    const v4Id = "acceso:https%3A%2F%2Fmeet.google.com%2Fmeet-4:Meet%204";
+
+    const v1Clave = `google-classroom:${v1Id}`;
+    const v2Clave = `google-classroom:${v2Id}`;
+    const v3Clave = `google-classroom:${v3Id}`;
+    const v4Clave = `google-classroom:${v4Id}`;
+
+    const indiceConOmitidos: Indice = {
+      version: 1,
+      cursos: {
+        "google-classroom:c1": {
+          nombre: "Física II G22 2026",
+          materia: "Ingenieria/Fisica 2",
+          docente: "Palacio",
+          temas: { "Clases Teóricas": "Teorias/Palacio" },
+          omitidos: [v1Clave, v2Clave, v3Clave],
+        },
+      },
+      archivos: {},
+    };
+
+    const vistos: VistoCurso[] = [
+      {
+        sitio: "google-classroom",
+        idCurso: "c1",
+        nombre: "Física II G22 2026",
+        items: [
+          { idArchivo: v1Id, original: "Meet 1", tema: "Clases Teóricas" },
+          { idArchivo: v2Id, original: "Meet 2", tema: "Clases Teóricas" },
+          { idArchivo: v3Id, original: "Meet 3", tema: "Clases Teóricas" },
+          { idArchivo: v4Id, original: "Meet 4", tema: "Clases Teóricas" },
+        ],
+      },
+    ];
+
+    const filas = indiceAFilasEditor({
+      indice: indiceConOmitidos,
+      vistos,
+    });
+
+    const f1 = filas.archivos.find((a) => a.clave === v1Clave);
+    const f2 = filas.archivos.find((a) => a.clave === v2Clave);
+    const f3 = filas.archivos.find((a) => a.clave === v3Clave);
+    const f4 = filas.archivos.find((a) => a.clave === v4Clave);
+
+    expect(f1?.accion).toBe("omitir");
+    expect(f2?.accion).toBe("omitir");
+    expect(f3?.accion).toBe("omitir");
+    expect(f4?.accion).toBe("copiar");
+  });
 });
