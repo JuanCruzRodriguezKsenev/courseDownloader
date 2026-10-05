@@ -368,4 +368,185 @@ describe("backend/destino/estado.js", () => {
     expect(res.items[0].omitido).toBe(true);
     expect(res.items[0].rutaDestino).toBeNull();
   });
+
+  it("AC-1 y AC-8: archivo movido lleva movido: true en el primer escaneo y movido: false en el segundo", async () => {
+    const claveC = "google-classroom:c1";
+    const claveA = "google-classroom:a1";
+    const contenido = "Contenido de capacitores";
+    const hash = crypto.createHash("md5").update(contenido).digest("hex").toLowerCase();
+
+    const indiceInicial = {
+      version: 1,
+      cursos: {
+        [claveC]: {
+          nombre: "Física II",
+          materia: "Ingenieria/Fisica 2",
+          docente: "Palacio",
+          temas: { "Clases Teóricas": "Teorias/Palacio" },
+        },
+      },
+      archivos: {
+        [claveA]: {
+          curso: claveC,
+          nombre: "05_capacitores.pdf",
+          ruta: "Ingenieria/Fisica 2/Teorias/Palacio",
+          md5: hash,
+          original: "05_capacitores.pdf",
+        },
+      },
+    };
+    await fs.writeFile(path.join(raiz, NOMBRE_INDICE), serializarIndice(indiceInicial), "utf8");
+
+    // Movido a Practicas
+    const dirNuevo = path.join(raiz, "Ingenieria", "Fisica 2", "Practicas");
+    await fs.mkdir(dirNuevo, { recursive: true });
+    await fs.writeFile(path.join(dirNuevo, "05_capacitores.pdf"), contenido, "utf8");
+
+    // Primer escaneo (AC-1)
+    const res1 = await calcularEstado({
+      raiz,
+      sitio: "google-classroom",
+      curso: { id: "c1", nombre: "Física II" },
+      items: [{ idArchivo: "a1", tema: "Clases Teóricas", original: "05_capacitores.pdf" }],
+    });
+
+    expect(res1.ok).toBe(true);
+    expect(res1.items[0].estado).toBe("descargado");
+    expect(res1.items[0].fila).toBe("2");
+    expect(res1.items[0].rutaDestino).toBe("Ingenieria/Fisica 2/Practicas");
+    expect(res1.items[0].movido).toBe(true);
+
+    // Segundo escaneo consecutivo (AC-8): índice ya corregido, fila 1, movido: false
+    const res2 = await calcularEstado({
+      raiz,
+      sitio: "google-classroom",
+      curso: { id: "c1", nombre: "Física II" },
+      items: [{ idArchivo: "a1", tema: "Clases Teóricas", original: "05_capacitores.pdf" }],
+    });
+
+    expect(res2.ok).toBe(true);
+    expect(res2.items[0].estado).toBe("descargado");
+    expect(res2.items[0].fila).toBe("1");
+    expect(res2.items[0].rutaDestino).toBe("Ingenieria/Fisica 2/Practicas");
+    expect(res2.items[0].movido).toBe(false);
+  });
+
+  it("AC-2 y RN-6: renombrado en la misma carpeta toma el nombre del disco tal cual (espacios, tildes, paréntesis)", async () => {
+    const claveC = "google-classroom:c1";
+    const claveA = "google-classroom:a1";
+    const contenido = "Contenido de teoría renombrada";
+    const hash = crypto.createHash("md5").update(contenido).digest("hex").toLowerCase();
+
+    const indiceInicial = {
+      version: 1,
+      cursos: {
+        [claveC]: {
+          nombre: "Física II",
+          materia: "Ingenieria/Fisica 2",
+          docente: "Palacio",
+          temas: { "Clases Teóricas": "Teorias/Palacio" },
+        },
+      },
+      archivos: {
+        [claveA]: {
+          curso: claveC,
+          nombre: "05_capacitores.pdf",
+          ruta: "Ingenieria/Fisica 2/Teorias/Palacio",
+          md5: hash,
+          original: "05_capacitores.pdf",
+        },
+      },
+    };
+    await fs.writeFile(path.join(raiz, NOMBRE_INDICE), serializarIndice(indiceInicial), "utf8");
+
+    const nombreEnDiscoTalCual = "Capacitores (clase 5 con tilde á).pdf";
+    const dirArchivo = path.join(raiz, "Ingenieria", "Fisica 2", "Teorias", "Palacio");
+    await fs.mkdir(dirArchivo, { recursive: true });
+    await fs.writeFile(path.join(dirArchivo, nombreEnDiscoTalCual), contenido, "utf8");
+
+    const res = await calcularEstado({
+      raiz,
+      sitio: "google-classroom",
+      curso: { id: "c1", nombre: "Física II" },
+      items: [{ idArchivo: "a1", tema: "Clases Teóricas", original: "05_capacitores.pdf" }],
+    });
+
+    expect(res.ok).toBe(true);
+    expect(res.items[0].nombre).toBe(nombreEnDiscoTalCual);
+    expect(res.items[0].movido).toBe(true);
+
+    const indiceEnDisco = JSON.parse(await fs.readFile(path.join(raiz, NOMBRE_INDICE), "utf8"));
+    expect(indiceEnDisco.archivos[claveA].nombre).toBe(nombreEnDiscoTalCual);
+  });
+
+  it("AC-9 (RN-12): raíz inaccesible devuelve error sin modificar índice ni marcar como no encontrado", async () => {
+    const rutaInexistente = path.join(raiz, "carpeta_que_no_existe");
+
+    const res = await calcularEstado({
+      raiz: rutaInexistente,
+      sitio: "google-classroom",
+      curso: { id: "c1", nombre: "Curso" },
+      items: [{ idArchivo: "a1", original: "archivo.pdf" }],
+    });
+
+    expect(res.ok).toBe(false);
+    expect(res.indiceIlegible).toBe(true);
+    expect(res.raizInaccesible).toBe(true);
+    expect(res.error).toBe(`La carpeta raíz no está accesible: ${rutaInexistente}`);
+  });
+
+  it("AC-12 (RN-9): curso desasociado mira el disco para los ids que figuran en el índice", async () => {
+    const claveA = "google-classroom:a1";
+    const contenido = "Contenido de materia desasociada";
+    const hash = crypto.createHash("md5").update(contenido).digest("hex").toLowerCase();
+
+    const indiceInicial = {
+      version: 1,
+      cursos: {}, // Curso no figura en cursos
+      archivos: {
+        [claveA]: {
+          curso: "google-classroom:c_viejo",
+          nombre: "viejo.pdf",
+          ruta: "Ingenieria/Materia Vieja",
+          md5: hash,
+          original: "viejo.pdf",
+        },
+      },
+    };
+    await fs.writeFile(path.join(raiz, NOMBRE_INDICE), serializarIndice(indiceInicial), "utf8");
+
+    // Movido a Nueva Ruta/renombrado.pdf
+    const dirNuevo = path.join(raiz, "Ingenieria", "Nueva Ruta");
+    await fs.mkdir(dirNuevo, { recursive: true });
+    await fs.writeFile(path.join(dirNuevo, "renombrado.pdf"), contenido, "utf8");
+
+    const res = await calcularEstado({
+      raiz,
+      sitio: "google-classroom",
+      curso: { id: "c_viejo", nombre: "Materia Vieja" },
+      items: [
+        { idArchivo: "a1", original: "viejo.pdf" },
+        { idArchivo: "a2", original: "desconocido.pdf" },
+      ],
+    });
+
+    expect(res.ok).toBe(true);
+    expect(res.curso.asociado).toBe(false);
+    expect(res.items.length).toBe(2);
+
+    // a1 figuraba en el índice y se movió: detecta disco, fila 2, movido: true
+    expect(res.items[0].idArchivo).toBe("a1");
+    expect(res.items[0].estado).toBe("descargado");
+    expect(res.items[0].fila).toBe("2");
+    expect(res.items[0].rutaDestino).toBe("Ingenieria/Nueva Ruta");
+    expect(res.items[0].nombre).toBe("renombrado.pdf");
+    expect(res.items[0].movido).toBe(true);
+
+    // a2 no figuraba en el índice: sigue pendiente, fila 4, rutaDestino null
+    expect(res.items[1].idArchivo).toBe("a2");
+    expect(res.items[1].estado).toBe("pendiente");
+    expect(res.items[1].fila).toBe("4");
+    expect(res.items[1].rutaDestino).toBeNull();
+    expect(res.items[1].movido).toBe(false);
+  });
 });

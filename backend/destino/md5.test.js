@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
@@ -48,5 +48,43 @@ describe("backend/destino/md5.js", () => {
     const res2 = await md5Archivo(rutaArchivo, { hasher: hasherSpy });
     expect(res2).toBe("0123456789abcdef0123456789abcdef");
     expect(lecturasHasher).toBe(1); // No incrementó: vino del cache
+  });
+
+  it("concurrencia (Trampa 3): dos búsquedas simultáneas llaman una sola vez a hasher", async () => {
+    const rutaArchivo = path.join(dirTemp, "concurrente.txt");
+    await fs.writeFile(rutaArchivo, "Contenido concurrente", "utf8");
+
+    let lecturasHasher = 0;
+    const hasherSpy = vi.fn(async () => {
+      lecturasHasher++;
+      await new Promise((r) => setTimeout(r, 15));
+      return "0123456789abcdef0123456789abcdef";
+    });
+
+    const [res1, res2] = await Promise.all([
+      md5Archivo(rutaArchivo, { hasher: hasherSpy }),
+      md5Archivo(rutaArchivo, { hasher: hasherSpy }),
+    ]);
+
+    expect(res1).toBe("0123456789abcdef0123456789abcdef");
+    expect(res2).toBe("0123456789abcdef0123456789abcdef");
+    expect(lecturasHasher).toBe(1);
+  });
+
+  it("si el cálculo falla, se borra de la caché y permite reintentar", async () => {
+    const rutaArchivo = path.join(dirTemp, "fallo.txt");
+    await fs.writeFile(rutaArchivo, "Contenido para fallo", "utf8");
+
+    let intentos = 0;
+    const hasherSpy = vi.fn(async () => {
+      intentos++;
+      if (intentos === 1) throw new Error("Fallo transitorio");
+      return "0123456789abcdef0123456789abcdef";
+    });
+
+    await expect(md5Archivo(rutaArchivo, { hasher: hasherSpy })).rejects.toThrow("Fallo transitorio");
+    const res = await md5Archivo(rutaArchivo, { hasher: hasherSpy });
+    expect(res).toBe("0123456789abcdef0123456789abcdef");
+    expect(intentos).toBe(2);
   });
 });

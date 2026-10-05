@@ -49,18 +49,39 @@ export async function buscarPorMd5(raiz, md5Buscado, opciones = {}) {
   if (!md5Buscado) return null;
   const hashObjetivo = md5Buscado.toLowerCase();
   const archivos = await recorrerRaiz(raiz);
+  const coincidencias = [];
 
   for (const rel of archivos) {
     const rutaAbs = path.join(raiz, rel);
     try {
+      let stat = null;
+      if (typeof opciones.tamano === "number") {
+        stat = await fs.stat(rutaAbs);
+        if (stat.size !== opciones.tamano) {
+          continue;
+        }
+      }
       const hash = await md5Archivo(rutaAbs, opciones);
       if (hash === hashObjetivo) {
-        return rel;
+        if (!stat) {
+          stat = await fs.stat(rutaAbs);
+        }
+        coincidencias.push({ rel, mtimeMs: stat.mtimeMs });
       }
     } catch {
       // Ignorar archivos que no se puedan leer
     }
   }
 
-  return null;
+  if (coincidencias.length === 0) return null;
+  if (coincidencias.length === 1) return coincidencias[0].rel;
+
+  coincidencias.sort((a, b) => {
+    if (b.mtimeMs !== a.mtimeMs) {
+      return b.mtimeMs - a.mtimeMs;
+    }
+    return a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0;
+  });
+
+  return coincidencias[0].rel;
 }
