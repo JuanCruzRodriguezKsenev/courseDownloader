@@ -47,4 +47,5 @@
 - [Classroom: Cancelar escaneo](project_classroom_cancelar_escaneo.md) — botón Cancelar en fila Escaneando… del loader, oyente en scraper, guarda en recorridoTodos y timeout de seguridad
 - [Editor: Omitir videollamadas y raíz decidida (Plan 23)](project_editor_videollamadas_raiz_plan23.md) — omisión en bloque de videollamadas con chip 📹 en editor, selector con opción vacía inicial y raíz decidida con '.', humo en verde y compuerta en 80 archivos / 1203 tests
 - [Parada previa al Plan 24 (filtros y orden)](project_editor_filtros_orden_plan24_parada.md) — parada por precondición no cumplida: rama no creada, árbol sucio y plan 23 no mergeado
+- [Editor: Filtros y orden (Plan 24)](project_editor_filtros_orden_plan24.md) — selectores Mostrar, Tipo, Temas, Archivos y Cursos, extracción pura calcularTemasVisibles, búsqueda por destino resuelto y humo jsdom en verde
 
