@@ -154,28 +154,22 @@ try {
     }
   }
 
-  // AC-1: Omitir 3 videollamadas
-  const btnOmitir = doc.querySelector("#btnOmitirVideollamadas");
-  if (!btnOmitir || btnOmitir.textContent.trim() !== "Omitir 3 videollamadas") {
-    errores.push(`[AC-1] Botón omitir no dice 'Omitir 3 videollamadas': '${btnOmitir?.textContent?.trim()}'`);
-  } else {
-    btnOmitir.click();
-    const archivos = dom.window.eval("DATOS.archivos");
-    const vNuevas = archivos.filter((a) =>
-      a.clave.includes("Meet%20Nuevo") || a.clave.includes("Zoom%20Nuevo") || a.clave.includes("Teams%20Nuevo")
-    );
-    for (const a of vNuevas) {
-      if (a.accion !== "omitir") {
-        errores.push(`[AC-1] Videollamada ${a.clave} no quedó con accion omitir: ${a.accion}`);
-      }
+  // AC-5 / RN-A: Videollamadas nuevas nacen omitidas por defecto
+  const archivosIniciales = dom.window.eval("DATOS.archivos");
+  const vNuevasIniciales = archivosIniciales.filter((a) =>
+    a.clave.includes("Meet%20Nuevo") || a.clave.includes("Zoom%20Nuevo") || a.clave.includes("Teams%20Nuevo")
+  );
+  for (const a of vNuevasIniciales) {
+    if (a.accion !== "omitir") {
+      errores.push(`[AC-5/RN-A] Videollamada nueva ${a.clave} no llegó con accion omitir: ${a.accion}`);
     }
-    const normales = archivos.filter((a) =>
-      a.clave.includes("f1") || a.clave.includes("f2") || a.clave.includes("youtube.com")
-    );
-    for (const a of normales) {
-      if (a.accion !== "copiar") {
-        errores.push(`[AC-1] Archivo normal o YouTube ${a.clave} cambió su accion: ${a.accion}`);
-      }
+  }
+  const normalesIniciales = archivosIniciales.filter((a) =>
+    a.clave.includes("f1") || a.clave.includes("f2") || a.clave.includes("youtube.com")
+  );
+  for (const a of normalesIniciales) {
+    if (a.accion !== "copiar") {
+      errores.push(`[AC-5/RN-A] Archivo normal o YouTube ${a.clave} no llegó con accion copiar: ${a.accion}`);
     }
   }
 
@@ -187,10 +181,11 @@ try {
     errores.push(`[AC-3] Archivo ya-esta no conservó accion ya-esta: ${archYaEsta?.accion}`);
   }
 
-  // AC-4: Volver a ofrecerlas
+  // AC-4: Con videollamadas omitidas por defecto, se ofrece 'Volver a ofrecerlas'
   const btnReofrecer = doc.querySelector("#btnReofrecerVideollamadas");
-  if (!btnReofrecer) {
-    errores.push(`[AC-4] No se encontró botón Volver a ofrecerlas`);
+  const txtOmitidas = doc.querySelector(".videollamadas-omitidas-txt");
+  if (!btnReofrecer || !txtOmitidas?.textContent.includes("3 videollamadas omitidas")) {
+    errores.push(`[AC-4] No se encontró botón Volver a ofrecerlas o texto de 3 omitidas: '${txtOmitidas?.textContent}'`);
   } else {
     btnReofrecer.click();
     const archivos = dom.window.eval("DATOS.archivos");
@@ -199,12 +194,29 @@ try {
     );
     for (const a of vNuevas) {
       if (a.accion !== "copiar") {
-        errores.push(`[AC-4] Videollamada ${a.clave} no volvió a copiar: ${a.accion}`);
+        errores.push(`[AC-4] Videollamada ${a.clave} no pasó a copiar tras re-ofrecer: ${a.accion}`);
       }
     }
-    const btnOmitirDespues = doc.querySelector("#btnOmitirVideollamadas");
-    if (!btnOmitirDespues || btnOmitirDespues.textContent.trim() !== "Omitir 3 videollamadas") {
-      errores.push(`[AC-4] Botón omitir no volvió a 'Omitir 3 videollamadas': '${btnOmitirDespues?.textContent?.trim()}'`);
+
+    // AC-1: Ahora que están a copiar, aparece 'Omitir 3 videollamadas'
+    const btnOmitir = doc.querySelector("#btnOmitirVideollamadas");
+    if (!btnOmitir || btnOmitir.textContent.trim() !== "Omitir 3 videollamadas") {
+      errores.push(`[AC-1] Botón omitir no dice 'Omitir 3 videollamadas': '${btnOmitir?.textContent?.trim()}'`);
+    } else {
+      btnOmitir.click();
+      const archivosPostOmitir = dom.window.eval("DATOS.archivos");
+      const vNuevasOmitidas = archivosPostOmitir.filter((a) =>
+        a.clave.includes("Meet%20Nuevo") || a.clave.includes("Zoom%20Nuevo") || a.clave.includes("Teams%20Nuevo")
+      );
+      for (const a of vNuevasOmitidas) {
+        if (a.accion !== "omitir") {
+          errores.push(`[AC-1] Videollamada ${a.clave} no volvió a omitir: ${a.accion}`);
+        }
+      }
+      const btnReofrecerPost = doc.querySelector("#btnReofrecerVideollamadas");
+      if (!btnReofrecerPost) {
+        errores.push(`[AC-1] No volvió a aparecer botón Volver a ofrecerlas tras omitir`);
+      }
     }
   }
 

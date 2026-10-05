@@ -175,9 +175,9 @@ transformación de texto.
   - **Omisión masiva en el editor**: ver [`../editor-ignorar-y-raiz/spec.md`](../editor-ignorar-y-raiz/spec.md) (botón «Omitir N videollamadas» por curso).
   - **Ubicación**: en el listado del popup, dentro de cada curso, las videollamadas se listan fijadas arriba de todo (primeras filas del curso).
   - **Indicador visual**: se renderizan con un chip distintivo "Videollamada" (o icono 📹) que advierte su naturaleza sincrónica/potencialmente inactiva.
-  - **Selección**: vienen marcadas por defecto para descarga (igual que el resto de los elementos).
-  - **Gestor de adopción**: en el editor web de adopción (`backend/adopcion/editor.html`), se listan entre los archivos del curso y pueden marcarse con acción `omitir` para no descargarlas, guardándose en `cursos.<clave>.omitidos` (RN-31).
-  *(Dueño, 2026-10-01; firmado: tanda agy 3.8 flash high).*
+  - **Selección**: vienen **omitidas por defecto** tanto en el popup como en el editor web (RN-A, Plan 25). Sólo se descargan si el dueño las re-ofrece en el editor (persistiendo su clave en `cursos.<clave>.videollamadasPermitidas`, RN-B) o si ya están descargadas en disco.
+  - **Gestor de adopción**: en el editor web de adopción (`backend/adopcion/editor.html`), se listan entre los archivos del curso y nacen con acción `omitir` por defecto. Si el dueño las re-ofrece («Volver a ofrecerlas» o individualmente), se guardan en `cursos.<clave>.videollamadasPermitidas` y se quitan de `omitidos` (RN-B, Plan 25).
+  *(Dueño, 2026-10-01; modificado 2026-10-05 Plan 25).*
 
 ---
 
@@ -290,6 +290,7 @@ La fila 0b va antes que la 2 y la 3 porque un acceso editado tiene otro md5: sin
 | `cursos.<clave>.materia` | Ruta relativa a la raíz. Tiene que existir (RN-1). |
 | `cursos.<clave>.temas.<tema>` | Ruta relativa a la materia (puede incluir la subcarpeta del tema). `"."` es la raíz de la materia. `"-"` indica tema omitido que no se ofrece para descargar (RN-31). |
 | `cursos.<clave>.omitidos` | Array de claves de archivo (`<portal>:<id>`). Archivos que el dueño omitió; la extensión los lista marcados como omitidos y deshabilitados (RN-31). |
+| `cursos.<clave>.videollamadasPermitidas` | Array de claves completas (`<portal>:acceso:...`). Videollamadas que el dueño decidió permitir/descargar en el editor (RN-B, Plan 25). |
 
 | `cursos.<clave>.nombres` | Diccionario de clave de archivo a nombre personalizado por el dueño antes de descargar (RN-14, D-3). |
 | `archivos.<portal>:<id>` | El portal, `:`, y el id de archivo: id de Drive para los adjuntos, `acceso:<url>:<título>` para los accesos (RN-29). Es la identidad estable, y la misma que viaja por el pipeline — no se inventa un eje nuevo (ADR-0014). |

@@ -4,6 +4,7 @@ import type { CursoIndice, ArchivoIndice } from "./indice";
 import { proponerNombre } from "./nombres";
 import { buscarChoques, renombrarChoquesNovedades } from "./choques";
 import type { FilaNovedad, FilaChoque } from "./choques";
+import { claveEsVideollamada } from "./videollamada";
 
 export interface ItemEntradaPropuesta {
   idArchivo: string;
@@ -72,7 +73,25 @@ export function proponerParaCurso({
     const temaStr = (item.tema || "").trim();
 
     if (!curso) {
-      // Curso sin asociar (RN-2)
+      // Curso sin asociar (RN-2, RN-A)
+      if (claveEsVideollamada(clave) && !archivos[clave]) {
+        resultados.push({
+          idArchivo: item.idArchivo,
+          clave,
+          nombre: null,
+          carpeta: null,
+          sinAsignar: false,
+          omitido: true,
+          fijoEnIndice: false,
+          original: item.original,
+          tema: temaStr,
+          publicacion: item.publicacion,
+          anuncio: item.anuncio,
+          md5: item.md5,
+        });
+        continue;
+      }
+
       let nombreInicial = "";
       let fijoEnIndice = false;
       if (archivos[clave]?.nombre) {
@@ -99,10 +118,11 @@ export function proponerParaCurso({
       continue;
     }
 
-    // Comprobar si está omitido (D-7)
+    // Comprobar si está omitido (D-7, RN-A)
     const temaOmitido = curso.temas && curso.temas[temaStr] === "-";
     const claveOmitida = Boolean(
-      curso.omitidos && (curso.omitidos.includes(clave) || curso.omitidos.includes(item.idArchivo))
+      (curso.omitidos && (curso.omitidos.includes(clave) || curso.omitidos.includes(item.idArchivo))) ||
+      (claveEsVideollamada(clave) && !archivos[clave] && !curso.videollamadasPermitidas?.includes(clave))
     );
 
     if (temaOmitido || claveOmitida) {

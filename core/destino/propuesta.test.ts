@@ -393,4 +393,76 @@ describe("core/destino/propuesta.ts", () => {
       }
     });
   });
+
+  describe("videollamadas omitidas por defecto (RN-A)", () => {
+    const meetId =
+      "acceso:" + encodeURIComponent("https://meet.google.com/abc-defg-hij") + ":Clase%20Meet";
+    const meetClave = `google-classroom:${meetId}`;
+
+    it("(a) videollamada sin permitir -> omitido: true, carpeta: null, nombre: null", () => {
+      const items = [{ idArchivo: meetId, original: "Clase Meet", tema: "Clases Teóricas" }];
+      const props = proponerParaCurso({ curso: cursoBase, items });
+      expect(props[0]!.omitido).toBe(true);
+      expect(props[0]!.carpeta).toBeNull();
+      expect(props[0]!.nombre).toBeNull();
+    });
+
+    it("(b) con su clave en videollamadasPermitidas -> omitido: false", () => {
+      const cursoConPermitida: CursoIndice = {
+        ...cursoBase,
+        videollamadasPermitidas: [meetClave],
+      };
+      const items = [{ idArchivo: meetId, original: "Clase Meet", tema: "Clases Teóricas" }];
+      const props = proponerParaCurso({ curso: cursoConPermitida, items });
+      expect(props[0]!.omitido).toBe(false);
+      expect(props[0]!.carpeta).toBe("Teorias/Palacio");
+      expect(props[0]!.nombre).not.toBeNull();
+    });
+
+    it("(c) con la clave en archivos (ya descargada) -> no omitida", () => {
+      const archivos: Record<string, ArchivoIndice> = {
+        [meetClave]: {
+          curso: "google-classroom:c1",
+          nombre: "clase_meet.md",
+          ruta: "Teorias/Palacio/clase_meet.md",
+          md5: "md5meet",
+          original: "Clase Meet",
+        },
+      };
+      const items = [{ idArchivo: meetId, original: "Clase Meet", tema: "Clases Teóricas" }];
+      const props = proponerParaCurso({ curso: cursoBase, items, archivos });
+      expect(props[0]!.omitido).toBe(false);
+      expect(props[0]!.nombre).toBe("clase_meet.md");
+    });
+
+    it("(d) un host fuera de lista (youtube.com) -> no omitida", () => {
+      const ytId =
+        "acceso:" + encodeURIComponent("https://youtube.com/watch?v=123") + ":Video%20YT";
+      const items = [{ idArchivo: ytId, original: "Video YT", tema: "Clases Teóricas" }];
+      const props = proponerParaCurso({ curso: cursoBase, items });
+      expect(props[0]!.omitido).toBe(false);
+      expect(props[0]!.carpeta).toBe("Teorias/Palacio");
+    });
+
+    it("(e) curso null + videollamada -> omitido: true", () => {
+      const items = [{ idArchivo: meetId, original: "Clase Meet", tema: "Clases Teóricas" }];
+      const props = proponerParaCurso({ curso: null, items });
+      expect(props[0]!.omitido).toBe(true);
+      expect(props[0]!.carpeta).toBeNull();
+      expect(props[0]!.nombre).toBeNull();
+    });
+
+    it("(f) omitidos explícito gana aunque esté permitida", () => {
+      const cursoConAmbos: CursoIndice = {
+        ...cursoBase,
+        omitidos: [meetClave],
+        videollamadasPermitidas: [meetClave],
+      };
+      const items = [{ idArchivo: meetId, original: "Clase Meet", tema: "Clases Teóricas" }];
+      const props = proponerParaCurso({ curso: cursoConAmbos, items });
+      expect(props[0]!.omitido).toBe(true);
+      expect(props[0]!.carpeta).toBeNull();
+      expect(props[0]!.nombre).toBeNull();
+    });
+  });
 });

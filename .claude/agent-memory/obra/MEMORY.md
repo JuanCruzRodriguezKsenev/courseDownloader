@@ -48,4 +48,5 @@
 - [Editor: Omitir videollamadas y raíz decidida (Plan 23)](project_editor_videollamadas_raiz_plan23.md) — omisión en bloque de videollamadas con chip 📹 en editor, selector con opción vacía inicial y raíz decidida con '.', humo en verde y compuerta en 80 archivos / 1203 tests
 - [Parada previa al Plan 24 (filtros y orden)](project_editor_filtros_orden_plan24_parada.md) — parada por precondición no cumplida: rama no creada, árbol sucio y plan 23 no mergeado
 - [Editor: Filtros y orden (Plan 24)](project_editor_filtros_orden_plan24.md) — selectores Mostrar, Tipo, Temas, Archivos y Cursos, extracción pura calcularTemasVisibles, búsqueda por destino resuelto y humo jsdom en verde
+- [Videollamadas omitidas por defecto y popup al día con el editor (Plan 25)](project_videollamadas_omitidas_defecto_plan25.md) — omisión por defecto de videollamadas (RN-A), videollamadasPermitidas al guardar (RN-B), refresco automático en popup sin re-escanear y compuerta en 81 archivos / 1220 tests
 

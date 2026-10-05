@@ -408,6 +408,7 @@ import { decidirAlAbrir } from './core/estado/origenListado.ts';
 import { esVigente, textoResumen, enlacesDe } from './core/estado/recorridoTodos.ts';
 import LoaderDetalle, { montar as montarLoaderDetalle } from './popup/features/loaderDetalle.preact.js';
 import { vistaLoaderRecorrido, vistaLoaderCurso } from './core/estado/progresoEscaneo.ts';
+import { crearControlRefrescoEditor } from './popup/features/refrescoEditor.js';
 
 /**
  * Arranca el popup con sus dependencias ya resueltas (Fase 7b).
@@ -2182,6 +2183,29 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       }
     });
 
+    const controlRefresco = crearControlRefrescoEditor({
+      estaOffline: () => {
+        const est = conexion.get();
+        return Boolean(!est.completa || BannerConexion.get().visible);
+      },
+      hayLista: () => Boolean(appState.listadoClasesGlobal && appState.listadoClasesGlobal.length > 0),
+      marcarSincronizacionIncompleta: () => {
+        appState.sincronizacionDiscoCompletada = false;
+      },
+      sincronizar: () => {
+        ejecutarPaso2SincronizarDiscoVeloz();
+      },
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        controlRefresco.refrescarTrasEditor();
+      }
+    });
+    window.addEventListener('focus', () => {
+      controlRefresco.refrescarTrasEditor();
+    });
+
     nodos.btnRescan?.addEventListener('click', () => reescanearSegunPestaña());
 
     nodos.linkAdopcion?.addEventListener('click', async (e) => {
@@ -2216,6 +2240,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         const url = `${urlBase}${separador}modo=indice${paramCurso}`;
 
         window.open(url, '_blank');
+        controlRefresco.marcarEditorAbierto();
       } catch (err) {
         console.error('Error al registrar cursos vistos en el backend:', err);
         activarEstadoOfflineUI();

@@ -1175,7 +1175,7 @@ describe("core/destino/vistas.ts", () => {
     expect(curso!.omitidos).toContain(claveArchivo);
   });
 
-  it("AC-5 / RN-5: videollamadas omitidas previamente conservan accion omitir y una nueva llega como copiar", () => {
+  it("AC-5 / RN-A: videollamadas omitidas previamente conservan accion omitir y una nueva llega como omitir", () => {
     const v1Id = "acceso:https%3A%2F%2Fmeet.google.com%2Fmeet-1:Meet%201";
     const v2Id = "acceso:https%3A%2F%2Fmeet.google.com%2Fmeet-2:Meet%202";
     const v3Id = "acceso:https%3A%2F%2Fmeet.google.com%2Fmeet-3:Meet%203";
@@ -1227,6 +1227,125 @@ describe("core/destino/vistas.ts", () => {
     expect(f1?.accion).toBe("omitir");
     expect(f2?.accion).toBe("omitir");
     expect(f3?.accion).toBe("omitir");
-    expect(f4?.accion).toBe("copiar");
+    expect(f4?.accion).toBe("omitir");
+  });
+
+  describe("escritura de videollamadasPermitidas (RN-B)", () => {
+    const vId = "acceso:https%3A%2F%2Fmeet.google.com%2Fclase:Clase%20Meet";
+    const vClave = `google-classroom:${vId}`;
+    const cursoClave = "google-classroom:c1";
+
+    const indiceBase: Indice = {
+      version: 1,
+      cursos: {
+        [cursoClave]: {
+          nombre: "Física II",
+          materia: "Ingenieria/Fisica 2",
+          docente: "Palacio",
+          temas: { "Clases Teóricas": "Teorias/Palacio" },
+          omitidos: [vClave],
+        },
+      },
+      archivos: {},
+    };
+
+    const vistosBase: VistoCurso[] = [
+      {
+        sitio: "google-classroom",
+        idCurso: "c1",
+        nombre: "Física II",
+        items: [{ idArchivo: vId, original: "Clase Meet", tema: "Clases Teóricas" }],
+      },
+    ];
+
+    it("guardar con una videollamada copiar -> queda en videollamadasPermitidas y fuera de omitidos", () => {
+      const filas = indiceAFilasEditor({ indice: indiceBase, vistos: vistosBase });
+      const fVideo = filas.archivos.find((a) => a.clave === vClave);
+      expect(fVideo).toBeDefined();
+      fVideo!.accion = "copiar";
+
+      const res = filasEditorAIndice({ indice: indiceBase, filas, vistos: vistosBase });
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+
+      const curso = res.indice.cursos[cursoClave];
+      expect(curso?.videollamadasPermitidas).toContain(vClave);
+      expect(curso?.omitidos || []).not.toContain(vClave);
+    });
+
+    it("guardar con omitir -> fuera de permitidas y en omitidos, y vacío se borra", () => {
+      const indiceConPermitida: Indice = {
+        version: 1,
+        cursos: {
+          [cursoClave]: {
+            ...indiceBase.cursos[cursoClave]!,
+            omitidos: undefined,
+            videollamadasPermitidas: [vClave],
+          },
+        },
+        archivos: {},
+      };
+
+      const filas = indiceAFilasEditor({ indice: indiceConPermitida, vistos: vistosBase });
+      const fVideo = filas.archivos.find((a) => a.clave === vClave);
+      expect(fVideo).toBeDefined();
+      fVideo!.accion = "omitir";
+
+      const res = filasEditorAIndice({ indice: indiceConPermitida, filas, vistos: vistosBase });
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+
+      const curso = res.indice.cursos[cursoClave];
+      expect("videollamadasPermitidas" in (curso || {})).toBe(false);
+      expect(curso?.omitidos).toContain(vClave);
+    });
+
+    it("ya-esta -> ninguno la toca", () => {
+      const indiceConYaEsta: Indice = {
+        version: 1,
+        cursos: {
+          [cursoClave]: {
+            ...indiceBase.cursos[cursoClave]!,
+            omitidos: undefined,
+          },
+        },
+        archivos: {
+          [vClave]: {
+            curso: cursoClave,
+            nombre: "clase_meet.md",
+            ruta: "Teorias/Palacio/clase_meet.md",
+            md5: "abc123md5",
+            original: "Clase Meet",
+          },
+        },
+      };
+
+      const filas = indiceAFilasEditor({ indice: indiceConYaEsta, vistos: vistosBase });
+      const fVideo = filas.archivos.find((a) => a.clave === vClave);
+      expect(fVideo?.accion).toBe("ya-esta");
+
+      const res = filasEditorAIndice({ indice: indiceConYaEsta, filas, vistos: vistosBase });
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+
+      const curso = res.indice.cursos[cursoClave];
+      expect(curso?.videollamadasPermitidas).toBeUndefined();
+      expect(curso?.omitidos).toBeUndefined();
+    });
+
+    it("guardar un curso con una videollamada copiar no cambia nombres", () => {
+      const filas = indiceAFilasEditor({ indice: indiceBase, vistos: vistosBase });
+      const fVideo = filas.archivos.find((a) => a.clave === vClave);
+      expect(fVideo).toBeDefined();
+      fVideo!.accion = "copiar";
+
+      const res = filasEditorAIndice({ indice: indiceBase, filas, vistos: vistosBase });
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+
+      const curso = res.indice.cursos[cursoClave];
+      // Si el nombre no fue editado por el usuario, no debe aparecer en curso.nombres
+      expect(curso?.nombres?.[vClave]).toBeUndefined();
+    });
   });
 });

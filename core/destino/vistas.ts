@@ -13,6 +13,7 @@ import { proponerParaCurso } from "./propuesta";
 import type { ItemEntradaPropuesta } from "./propuesta";
 import { proponerNombre } from "./nombres";
 import { nombreEnDisco } from "../util/texto";
+import { claveEsVideollamada } from "./videollamada";
 
 export interface FilaCursoEditor {
   clave_curso: string;
@@ -535,6 +536,29 @@ export function filasEditorAIndice({
       nuevoCurso.omitidos = [];
     } else {
       delete nuevoCurso.omitidos;
+    }
+
+    // Actualizar videollamadas permitidas (RN-B, Plan 25)
+    let permitidas = cursoExistente?.videollamadasPermitidas
+      ? [...cursoExistente.videollamadasPermitidas]
+      : [];
+
+    for (const a of archivosCurso) {
+      if (!claveEsVideollamada(a.clave)) continue;
+      if (a.accion === "copiar") {
+        if (!permitidas.includes(a.clave)) {
+          permitidas.push(a.clave);
+        }
+      } else if (a.accion === "omitir") {
+        permitidas = permitidas.filter((k) => k !== a.clave);
+      }
+      // ya-esta -> no tocar
+    }
+
+    if (permitidas.length > 0) {
+      nuevoCurso.videollamadasPermitidas = permitidas;
+    } else {
+      delete nuevoCurso.videollamadasPermitidas;
     }
 
     // Actualizar carpetas personalizadas (D-5, Plan 08d)

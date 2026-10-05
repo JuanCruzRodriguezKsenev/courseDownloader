@@ -214,6 +214,45 @@ describe("popup/features/destino.js", () => {
       expect(clases[0].seleccionado).toBe(false);
     });
 
+    it("ítem de videollamada vuelve con omitido: true -> bloqueo 'omitido', sin destino y deseleccionada (RN-A)", async () => {
+      const meetId = "acceso:" + encodeURIComponent("https://meet.google.com/abc-defg-hij") + ":Clase%20Meet";
+      const backend = {
+        estadoDestino: vi.fn().mockResolvedValue({
+          ok: true,
+          curso: { asociado: true },
+          items: [
+            {
+              idArchivo: meetId,
+              estado: "pendiente",
+              rutaDestino: null,
+              nombre: null,
+              sinAsignar: false,
+              omitido: true,
+            },
+          ],
+        }),
+      };
+
+      const clases = [
+        {
+          id: 1,
+          sitioId: "google-classroom",
+          cursoId: "c1",
+          idArchivo: meetId,
+          titulo: "Clase Meet",
+          estado: "pending",
+          seleccionado: true,
+        },
+      ];
+
+      await aplicarEstadoDestino({ backend, sitio: sitioClassroom, clases });
+
+      expect(clases[0].bloqueo).toBe("omitido");
+      expect(clases[0].destino).toBeUndefined();
+      expect(clases[0].sinAsignar).toBe(false);
+      expect(clases[0].seleccionado).toBe(false);
+    });
+
     it("tema nuevo -> sinAsignar: true (AC-9)", async () => {
       const backend = {
         estadoDestino: vi.fn().mockResolvedValue({
