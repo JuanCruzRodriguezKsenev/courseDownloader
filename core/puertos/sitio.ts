@@ -273,7 +273,7 @@ export interface PuertoSitio {
    * nombre, y en la Cola —que mezcla portales a propósito— dos filas de portales distintos se
    * veían exactamente iguales.
    *
-   * ⚠️ **No uses el naranja del acento** (`--accent-orange`): ya significa "seleccionada" y
+   * ⚠️ **No uses el amarillo de marca** (`--accent-brand`): ya significa "seleccionada" y
    * "bajando" en esa misma fila, y un tercer significado para el mismo color no se distingue.
    */
   color: string;

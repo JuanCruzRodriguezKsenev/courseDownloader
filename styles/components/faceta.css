@@ -10,7 +10,7 @@
 
 .faceta-card h4 {
   margin: 0;
-  color: var(--accent-orange);
+  color: var(--accent-brand-text);
   font-size: var(--text-lg);
   font-weight: var(--font-black);
   letter-spacing: 0.5px;
@@ -44,19 +44,19 @@
 
   /* Sin `translateY(-0.5px)`: parpadeaba en vez de moverse. Ver `styles/list.css` (.video-item). */
   &:hover {
-    background-color: var(--accent-orange);
-    color: var(--text-on-orange);
-    border-color: var(--accent-orange);
+    background-color: var(--accent-brand);
+    color: var(--text-on-brand);
+    border-color: var(--accent-brand-line);
   }
 
   &.opt-todas {
-    background-color: rgba(var(--accent-orange-rgb), 0.1);
-    color: var(--accent-orange);
-    border-color: rgba(var(--accent-orange-rgb), 0.25);
+    background-color: rgba(var(--accent-brand-rgb), 0.1);
+    color: var(--accent-brand-text);
+    border-color: rgba(var(--accent-brand-rgb), 0.25);
 
     &:hover {
-      background-color: var(--accent-orange);
-      color: var(--text-on-orange);
+      background-color: var(--accent-brand);
+      color: var(--text-on-brand);
     }
   }
 
@@ -81,11 +81,11 @@
    es el primero de los tres en el @import de popup/globals.css. */
 .faceta-badge {
   font-size: var(--text-sm);
-  background-color: rgba(var(--accent-orange-rgb), 0.1);
-  color: var(--accent-orange);
+  background-color: rgba(var(--accent-brand-rgb), 0.1);
+  color: var(--accent-brand-text);
   padding: 0 0.6rem;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(var(--accent-orange-rgb), 0.25);
+  border: 1px solid rgba(var(--accent-brand-rgb), 0.25);
   cursor: pointer;
   font-weight: var(--font-bold);
   text-transform: uppercase;
@@ -99,8 +99,8 @@
   line-height: 1;
 
   &:hover {
-    background-color: var(--accent-orange);
-    color: var(--text-on-orange);
-    border-color: var(--accent-orange);
+    background-color: var(--accent-brand);
+    color: var(--text-on-brand);
+    border-color: var(--accent-brand-line);
   }
 }

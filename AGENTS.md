@@ -22,9 +22,10 @@ edit here, never there.
 >
 > **⚠️ Si levantás el backend en una máquina nueva**: la raíz de descargas vive en
 > `backend/config_usuario.json`, **gitignoreada**, así que no viaja con el clon. La extensión la
-> **lee**, no la manda. Si el servidor arranca diciendo `Downloads/RamonNet_Turbo` en vez de tu
-> carpeta real, reelegila desde el popup (📂) — si no, bajás a otro lado *y* el "ya descargado" te
-> da el curso entero por no bajado.
+> **lee**, no la manda. Si el servidor arranca con la carpeta por defecto (`Downloads/CourseDownloader`,
+> salvo que ya exista `Downloads/RamonNet_Turbo`, que se sigue usando) en vez de tu carpeta real,
+> reelegila desde el popup (📂) — si no, bajás a otro lado *y* el "ya descargado" te da el curso
+> entero por no bajado.
 >
 > ### Lo que este proyecto cobra caro, y conviene saber antes de tocar nada
 >
@@ -101,7 +102,7 @@ Start at **`docs/architecture.md`**. Full map:
 - `docs/specs/<slug>/` — el **qué** de una funcionalidad antes de planificarla: `spec.md` (reglas `RN-n`, criterios `AC-n`) y su traza `assumptions.md`, escritos con la skill `spec`. La carpeta nace con la primera. El doc de diseño del tema es el *cómo* y linkea a la spec en vez de repetirla.
 - `docs/fusion-monorepo-diseno.md` — cómo el backend Bun se mudó a `backend/` con su historia (decisión → **ADR-0015**; el motivo, `Atlas.pdf.mp4`, está en §Project Overview arriba). Su §5 tiene las 4 comprobaciones en navegador que cierran el contrato, y su §7 lo que no se toca.
 - `docs/copy-generico-diseno.md` — el inventario y el cómo de sacarle a la UI genérica el vocabulario de Ramón Net. Dos secciones antes de ejecutarlo: **§3, la regla de decisión — son tres casos y no dos**, y **§4, la trampa** (el arreglo obvio anuncia el portal equivocado justo al cambiar de portal). Su §6 lista lo que no hay que tocar. El estado del ítem está en `TECHNICAL_DEBT.md`; esto es el cómo.
-- `docs/marca-diseno.md` — la identidad visual "Resaltador": paleta de los dos temas, logo (maestro en `docs/marca/logo.svg`), wordmark, y el mapeo a `styles/variables.css`. **Hogar canónico de cualquier color de marca**; diseño cerrado y todavía sin aplicar (su §7 dice qué falta). La referencia visual es `docs/marca/referencia.html`.
+- `docs/marca-diseno.md` — la identidad visual "Resaltador": paleta de los dos temas, logo (maestro en `docs/marca/logo.svg`), wordmark, y el mapeo a `styles/variables.css`. **Hogar canónico de cualquier color de marca**; aplicada en el popup (identidad), faltan las decisiones de UI de §6.2 (plan 27). La referencia visual es `docs/marca/referencia.html`.
 - `docs/alertas-y-bloqueo-diseno.md` — cómo se comporta la UI cuando algo falló. **Sus cuatro reglas se leen antes de tocar el popup**, porque cada una salió de un defecto real: una región/un dueño; el contrato del bloqueo (`disabled` vs `aria-disabled`; `pointer-events` **no** es un bloqueo, deja pasar el teclado); el botón dice lo que hace y la alerta dice qué pasa; la selección sigue al filtro. Su §5 es la checklist de navegador y su §6 el informe de la auditoría de loaders.
 - `docs/notificaciones-fallos-diseno.md` — el "cómo" de los avisos de fallo (notificación nativa + campanita Preact sobre `historialFallos`). El detalle canónico vive en `data-model.md`/`security.md`/`patterns.md`/`preact-migration.md`.
 

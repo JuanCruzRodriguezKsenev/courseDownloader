@@ -271,7 +271,7 @@ export function FilaClase({ clase, ctx }) {
   }
 
   // Vista Cola. `bajando` (corte 6a) es la fila anclada arriba de la divisoria: la marca con el
-  // mismo acento naranja que la fila seleccionada, para no sumar vocabulario visual.
+  // mismo acento amarillo que la fila seleccionada, para no sumar vocabulario visual.
   return html`
     <div class="video-item ${sel ? 'selected' : ''} ${esActivo ? 'bajando' : ''}${clase.sinAsignar ? ' sin-asignar' : ''}" title=${titleFila} onClick=${onRowClick}>
       ${checkbox}

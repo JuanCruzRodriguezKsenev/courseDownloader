@@ -1,32 +1,34 @@
 :root {
   /* LIGHT MODE (Lino Cálido & Acero) */
-  --bg-main: #FAF8F5;
+  --bg-main: #FBFAF4;
   --bg-surface: #FFFFFF;
   --text-main: #1C1C1E;
-  --text-muted: #8E8E93;
-  --border-color: #E5E5EA;
+  --text-muted: #6B6B70;
+  --border-color: #ECE9DF;
 
 
   /* ACCENTS & GENERAL */
-  --accent-orange: #FF5E00;
-  --accent-orange-hover: #E04D00;
-  --accent-cyan-disco: #005AD7; /* Azul oscuro legible con texto blanco */
-  --accent-cyan-disco-hover: #0045B5;
+  --accent-brand: #FFD60A;
+  --accent-brand-hover: #E6BE00;
+  --accent-brand-text: #8A6D00;
+  --accent-brand-line: #E6BE00;
+  --accent-disco: #1C1C1E; /* Tinta en claro */
+  --accent-disco-hover: #3A3A3F;
   --accent-green: #30D158;
-  --accent-error: #FF3B30;
+  --accent-error: #E5484D;
   --accent-error-hover: #D72621;
-  --accent-error-visible: #FF3B30;
+  --accent-error-visible: #E5484D;
   --accent-warning-visible: #FF9500;
 
   /* CANALES RGB
      Para colores translúcidos: rgba(var(--accent-error-rgb), 0.2).
-     Existen porque un token de color ya resuelto (#FF3B30) no se puede usar dentro
+     Existen porque un token de color ya resuelto (#E5484D) no se puede usar dentro
      de rgba(); sin estos canales, cada hoja terminaba re-escribiendo el literal a
      mano — que es como se colaron un naranja (255,107,0) y un rojo (220,53,69)
      que NO eran los de la marca. Regla: ninguna hoja de componente escribe un
      color literal; si falta uno, se agrega acá. */
-  --accent-orange-rgb: 255, 94, 0;   /* = --accent-orange  #FF5E00 */
-  --accent-error-rgb: 255, 59, 48;   /* = --accent-error   #FF3B30 */
+  --accent-brand-rgb: 255, 214, 10;  /* = --accent-brand  #FFD60A */
+  --accent-error-rgb: 229, 72, 77;   /* = --accent-error   #E5484D */
   --accent-green-rgb: 48, 209, 88;   /* = --accent-green   #30D158 */
   --shadow-rgb: 0, 0, 0;             /* tinte de TODAS las sombras */
   --shine-rgb: 255, 255, 255;        /* barrido del gradiente del footer */
@@ -79,66 +81,71 @@
   --alpha-overlay: 0.82;
 
   /* TEXT ON ACCENT CONTRAST TOKENS */
-  --text-on-orange: #FFFFFF;
-  --text-on-cyan: #FFFFFF;
+  --text-on-brand: #1C1C1E;
+  --text-on-disco: #FBFAF4;
   --text-on-error: #FFFFFF;
 
   --item-bg: var(--bg-surface);
-  --bg-btn-secondary: #F2F2F7;
+  --bg-btn-secondary: #F3F1E8;
   --text-btn-secondary: #1C1C1E;
 
   --badge-pending-bg: rgba(142, 142, 147, var(--alpha-badge));
   --badge-pending-txt: var(--text-muted);
   --badge-downloaded-bg: rgba(48, 209, 88, var(--alpha-badge));
   --badge-downloaded-txt: var(--accent-green);
-  --badge-process-bg: rgba(255, 94, 0, var(--alpha-badge));
-  --badge-process-txt: var(--accent-orange);
+  --badge-process-bg: rgba(var(--accent-brand-rgb), var(--alpha-badge));
+  --badge-process-txt: #6B5600;
   
   --font-display: system-ui, -apple-system, sans-serif;
   --font-mono: "SF Mono", "Fira Code", Consolas, Menlo, Monaco, monospace;
 
   /* GLOW EFFECTS & TRANSITIONS */
-  --glow-orange: rgba(255, 94, 0, 0.12);
-  --glow-cyan: rgba(10, 132, 255, 0.12);
+  --glow-brand: rgba(255, 214, 10, 0.25);
+  --glow-disco: rgba(var(--shadow-rgb), 0.18);
   --glow-green: rgba(48, 209, 88, 0.12);
   --ease-elastic: cubic-bezier(0.25, 1, 0.5, 1);
-  --bg-overlay: rgba(250, 248, 245, var(--alpha-overlay));
+  --bg-overlay: rgba(251, 250, 244, var(--alpha-overlay));
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     /* DARK MODE (Pizarra Obsidiana Profunda & Metalizado) */
-    --bg-main: #090A0C;
-    --bg-surface: #111318;
-    --text-main: #F1F3F5;
-    --text-muted: #7E8590;
-    --border-color: #1E222A;
+    --bg-main: #141416;
+    --bg-surface: #1B1B1F;
+    --text-main: #F2F0E6;
+    --text-muted: #9A988F;
+    --border-color: #2A2A2F;
 
-    --accent-orange: #FF751F; /* Naranja neón brillante */
-    --accent-orange-hover: #FF8C42;
-    --accent-cyan-disco: #33EBFF; /* Cian eléctrico brillante */
-    --accent-cyan-disco-hover: #80F3FF;
+    --accent-brand: #FFD60A;
+    --accent-brand-hover: #FFE14D;
+    --accent-brand-text: #FFD60A;
+    --accent-brand-line: #FFD60A;
+    --accent-disco: #F2F0E6; /* Tiza en oscuro */
+    --accent-disco-hover: #FFFFFF;
+    --accent-error: #FF6369;
     --accent-error-hover: #FF665C;
-    --accent-error-visible: #FF453A;
+    --accent-error-visible: #FF6369;
     --accent-warning-visible: #FF9F0A;
+    --accent-error-rgb: 255, 99, 105;
 
     --alpha-badge: 0.15;
 
-    --text-on-orange: #090A0C; /* Texto oscuro para contraste en botones */
-    --text-on-cyan: #090A0C;   /* Texto oscuro para contraste en botones */
+    --text-on-brand: #141416; /* Tinta en oscuro para contraste */
+    --text-on-disco: #141416;
     --text-on-error: #FFFFFF;
 
-    --bg-btn-secondary: #1E222A;
-    --text-btn-secondary: #F1F3F5;
+    --bg-btn-secondary: #2A2A2F;
+    --text-btn-secondary: #F2F0E6;
 
     --badge-pending-bg: rgba(126, 133, 144, var(--alpha-badge));
     --badge-downloaded-bg: rgba(48, 209, 88, var(--alpha-badge));
-    --badge-process-bg: rgba(255, 94, 0, var(--alpha-badge));
+    --badge-process-bg: rgba(var(--accent-brand-rgb), var(--alpha-badge));
+    --badge-process-txt: #FFD60A;
 
-    --glow-orange: rgba(255, 94, 0, 0.25);
-    --glow-cyan: rgba(10, 132, 255, 0.25);
+    --glow-brand: rgba(255, 214, 10, 0.18);
+    --glow-disco: rgba(var(--shadow-rgb), 0.18);
     --glow-green: rgba(48, 209, 88, 0.25);
-    --bg-overlay: rgba(9, 10, 12, var(--alpha-overlay));
+    --bg-overlay: rgba(20, 20, 22, var(--alpha-overlay));
   }
 }
 

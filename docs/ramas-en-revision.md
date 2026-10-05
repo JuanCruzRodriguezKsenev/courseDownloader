@@ -45,8 +45,15 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   - ⬜ **M-2** — Dueño: tocar el botón. Las filas quedan tachadas/omitidas, el botón pasa a `Volver a ofrecerlas` con `N omitidas`, y aparece `Cambios sin guardar`. Guardar. **Tanda:** `jq '.cursos["google-classroom:Nzk0MDIyNDkyNDUx"].omitidos' ~/Descargas/facultad-prueba/.course-downloader.json` lista las N claves `google-classroom:acceso:https%3A%2F%2Fmeet...`.
   - ⬜ **M-3** — Dueño: `Volver a ofrecerlas` las deja destildadas→tildadas otra vez; **no guardar** (descartar con F5).
   - ⬜ **M-4** — Dueño, mismo curso: los temas **Novedades**, **Sin tema** y **Cronograma tentativo primer cuatrimestre 2026** (los tres guardados en `.` en el índice) se ven `✓ Asignado · Raíz de la materia` y **no** cuentan en «a revisar» de la lista de cursos ni en «Solo problemas». *(Antes del plan: los tres decían «Sin destino».)*
-  - ⬜ **M-5** — Tanda: sacar de la copia el tema «Cronograma tentativo primer cuatrimestre 2026» del índice (`jq 'del(.cursos["google-classroom:Nzk0MDIyNDkyNDUx"].temas["Cronograma tentativo primer cuatrimestre 2026"])'`, con respaldo) y reiniciar el servidor. Dueño: en el editor, ese tema aparece como tema nuevo (regla `si` por `carpetas.ts` L17) → «Asignado». Para ver un tema **sin regla**, tanda agrega al curso un tema inventado (ver Preparación del plan 20) con un nombre que no matchee ninguna regla, por ejemplo `Anuncios varios`: sale «Sin destino» con el selector en «— elegir carpeta —»; el dueño elige «Raíz de la materia» y pasa a «Asignado» **sin guardar**.
-- `marca-resaltador`: identidad visual «Resaltador», diseño cerrado y sin aplicar.
+- `marca-resaltador`: identidad visual «Resaltador». Plan 26 aplicado (identidad: tokens, íconos, wordmark, carpeta); plan 27 pendiente (UI: resaltado de filas, botón Re-escanear, grilla, chips).
+  - ⬜ **M-1 Íconos** — el de la barra de extensiones y el del header muestran la flecha sobre el trazo amarillo, **no** la «R». Mirar el de 16 px con la barra clara y con la oscura.
+  - ⬜ **M-2 Wordmark claro** — «Course **Downloader**» en Bricolage Grotesque, el trazo amarillo detrás sólo de «Downloader», a media altura. Sin pedir nada a Google Fonts (pestaña Network del popup: ninguna petición a `fonts.googleapis.com`).
+  - ⬜ **M-3 Wordmark oscuro** (poner el SO en tema oscuro) — letras en tiza con el borde que las hace legibles sobre el amarillo.
+  - ⬜ **M-4 Contraste en claro** — el badge «En fila»/«Bajando», el chip `→ materia`, el badge de faceta y los textos de acento se leen en **ocre**, no en amarillo; **ningún texto amarillo** sobre fondo claro.
+  - ⬜ **M-5 Botones** — «Descargar», «Iniciar descarga masiva», «Reintentar» y los de la advertencia: fondo amarillo con **texto tinta** legible. El botón de sincronizar disco es **tinta en claro / tiza en oscuro** (ya no azul ni cian).
+  - ⬜ **M-6 Foco y checkboxes** — aro de foco y checkbox tildado en amarillo con el tilde en tinta.
+  - ⬜ **M-7 Carpeta** — con un `HOME` falso sin `Downloads/RamonNet_Turbo`, arrancar el backend y confirmar que dice `Downloads/CourseDownloader`; con la carpeta vieja creada, que dice `RamonNet_Turbo`.
+
 
 ## Mergeado el 2026-10-04
 

@@ -35,8 +35,8 @@
       }
 
       .tab-counter {
-        background-color: var(--accent-orange);
-        color: var(--text-on-orange);
+        background-color: var(--accent-brand);
+        color: var(--text-on-brand);
       }
     }
   }

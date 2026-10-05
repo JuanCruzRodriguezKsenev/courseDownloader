@@ -80,9 +80,9 @@
   }
 
   &.selected {
-    border-color: rgba(var(--accent-orange-rgb), 0.15);
-    border-left-color: var(--accent-orange);
-    background-color: rgba(var(--accent-orange-rgb), 0.03);
+    border-color: rgba(var(--accent-brand-rgb), 0.15);
+    border-left-color: var(--accent-brand-line);
+    background-color: rgba(var(--accent-brand-rgb), 0.03);
   }
 
   &.sin-asignar {
@@ -121,12 +121,12 @@
 /* Ancla de la descarga en curso (corte 6a del multi-sitio)
    -----------------------------------------------------------------------
    La clase que se está bajando va siempre primera y no la tocan ni el filtro ni el
-   orden; la línea divisoria la separa del resto de la cola. Reusa el naranja que
+   orden; la línea divisoria la separa del resto de la cola. Reusa el amarillo de marca que
    .video-item.selected ya usa como acento de fila, así no entra vocabulario visual
    nuevo. Quién va anclada lo decide popup.js al armar el view-model. */
 .video-item.bajando {
-  border-left-color: var(--accent-orange);
-  background-color: rgba(var(--accent-orange-rgb), 0.03);
+  border-left-color: var(--accent-brand-line);
+  background-color: rgba(var(--accent-brand-rgb), 0.03);
 }
 
 .cola-divisor {
@@ -188,8 +188,8 @@
 .lista-nota {
   margin: 0 0 var(--space-xs);
   padding: var(--space-sm);
-  border-left: 3px solid var(--accent-orange);
-  background-color: rgba(var(--accent-orange-rgb), 0.06);
+  border-left: 3px solid var(--accent-brand-line);
+  background-color: rgba(var(--accent-brand-rgb), 0.06);
   border-radius: var(--radius-xs);
   font-size: var(--text-sm);
   color: var(--text-muted);
@@ -201,7 +201,7 @@
     transition: background-color 0.15s ease, border-color 0.15s ease;
 
     &:hover {
-      background-color: rgba(var(--accent-orange-rgb), 0.10);
+      background-color: rgba(var(--accent-brand-rgb), 0.10);
       color: var(--text-main);
     }
   }
@@ -288,10 +288,10 @@
   opacity: 0.85;
 
   /* Override del input activo: se enciende, porque ahí el destino dejó de ser el esperado.
-     Usa el naranja del acento a propósito —es una advertencia, no una identidad— y por eso NO
+     Usa el acento de marca a propósito —es una advertencia, no una identidad— y por eso NO
      puede ser un color de portal. */
   &.override {
-    --color-portal: var(--accent-orange);
+    --color-portal: var(--accent-brand-text);
     opacity: 1;
     font-weight: var(--font-bold);
   }
@@ -321,10 +321,10 @@
 .chip-videollamada {
   font-size: var(--font-xs);
   padding: 2px var(--space-xs);
-  border: 1px solid var(--accent-orange);
+  border: 1px solid var(--accent-brand-line);
   border-radius: var(--radius-xs);
-  color: var(--accent-orange);
-  background-color: rgba(var(--accent-orange-rgb), 0.08);
+  color: var(--accent-brand-text);
+  background-color: rgba(var(--accent-brand-rgb), 0.08);
   white-space: nowrap;
   flex-shrink: 0;
   font-weight: var(--font-bold);
@@ -389,7 +389,7 @@
 .pulse-dot {
   width: 6px;
   height: 6px;
-  background-color: var(--accent-orange);
+  background-color: var(--accent-brand);
   border-radius: 50%;
   animation: pulse-dot-anim 1.5s infinite ease-in-out;
 }
@@ -452,8 +452,8 @@
 
   /* Modificadores de Estado */
   &.info {
-    border-color: rgba(var(--accent-orange-rgb), 0.3);
-    h5 { color: var(--accent-orange); }
+    border-color: rgba(var(--accent-brand-rgb), 0.3);
+    h5 { color: var(--accent-brand-text); }
   }
 
   &.error {

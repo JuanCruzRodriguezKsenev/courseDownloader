@@ -1,9 +1,8 @@
 # Marca: Resaltador
 
-**Estado (2026-09-25): 🟡 DISEÑO CERRADO, SIN APLICAR.** El popup y los íconos siguen con la
-marca heredada de Ramón Net (la "R" naranja y `--accent-orange: #FF5E00`). Este doc es el
+**Estado (2026-10-05): 🟢 aplicada en el popup (identidad), faltan las decisiones de UI de §6.2 (plan 27).** Este doc es el
 **hogar canónico de la identidad visual**: qué colores, qué logo, qué wordmark y cómo se mapean a
-`styles/variables.css`. Lo que falta para aplicarlo está en §7.
+`styles/variables.css`. Lo que falta para completarlo está en §7.
 
 - **Referencia visual**: `docs/marca/referencia.html` (abrir en el navegador). Es la página con la
   que se diseñó: paleta, ícono en 96/48/16 px sobre tres fondos, los dos temas y un mock del popup
@@ -120,17 +119,27 @@ y el trazo bajado a subrayado (se lee, pero ya no es el mismo resaltado que en c
 | `--text-muted` | `#6B6B70` | `#9A988F` | `#8E8E93` / `#7E8590` |
 | `--border-color` | `#ECE9DF` | `#2A2A2F` | `#E5E5EA` / `#1E222A` |
 | `--accent-brand` (renombra `--accent-orange`) | `#FFD60A` | `#FFD60A` | `#FF5E00` / `#FF751F` |
+| `--accent-brand-hover` | `#E6BE00` | `#FFE14D` | `#E04D00` / `#FF8C42` |
+| `--accent-brand-text` | `#8A6D00` | `#FFD60A` | — |
+| `--accent-brand-line` | `#E6BE00` | `#FFD60A` | — |
+| `--accent-disco` (renombra `--accent-cyan-disco`) | `#1C1C1E` | `#F2F0E6` | `#005AD7` / `#33EBFF` |
+| `--accent-disco-hover` | `#3A3A3F` | `#FFFFFF` | `#0045B5` / `#80F3FF` |
 | `--text-on-brand` (renombra `--text-on-orange`) | `#1C1C1E` | `#141416` | `#FFFFFF` / `#090A0C` |
+| `--text-on-disco` (renombra `--text-on-cyan`) | `#FBFAF4` | `#141416` | `#FFFFFF` / `#090A0C` |
 | `--accent-error` | `#E5484D` | `#FF6369` | `#FF3B30` / `#FF453A` |
 | `--bg-btn-secondary` | `#F3F1E8` | `#2A2A2F` | `#F2F2F7` / `#1E222A` |
+| `--glow-brand` (renombra `--glow-orange`) | `rgba(255,214,10,0.25)` | `rgba(255,214,10,0.18)` | `rgba(255,94,0,0.12)` / `0.25` |
+| `--glow-disco` (renombra `--glow-cyan`) | `rgba(var(--shadow-rgb),0.18)` | `rgba(var(--shadow-rgb),0.18)` | `rgba(10,132,255,0.12)` / `0.25` |
 
-Hacen falta **dos tokens nuevos** que hoy no existen, por la regla de §3:
+Hacen falta tokens nuevos que no existían, por la regla de §3:
 
 - `--accent-brand-text`: el acento usado **como color de texto**. `#8A6D00` en claro, `#FFD60A`
   en oscuro.
 - `--accent-brand-line`: el acento usado **como borde o raya** (borde izquierdo de la fila
   seleccionada, borde del checkbox tildado). `#E6BE00` en claro, `#FFD60A` en oscuro. En claro
   el amarillo puro sobre blanco se pierde.
+- `--accent-brand-hover`: `#E6BE00` en claro, `#FFE14D` en oscuro.
+- `--accent-disco*`: tinta/tiza para el botón de sincronizar con disco.
 
 El renombre de `--accent-orange` es el motivo de §1: el nombre de una variable no puede llevar el
 color, o cambiar el color obliga a tocar todas las hojas.
@@ -157,18 +166,18 @@ color, o cambiar el color obliga a tocar todas las hojas.
 
 ## 7. Qué falta para aplicarlo
 
-Nada de esto está hecho. Es el orden sugerido, en una rama propia (no mezclar con otro corte):
+Orden ejecutado en el plan 26 (identidad) y plan 27 (UI):
 
-1. `styles/variables.css`: los tokens de §6.1, con el renombre `--accent-orange` →
+1. [x] `styles/variables.css`: los tokens de §6.1, con el renombre `--accent-orange` →
    `--accent-brand` en todas las hojas (`grep -rn "accent-orange\|text-on-orange" styles popup`).
    Recordar las variantes `-rgb` (`--accent-orange-rgb`) y los `--glow-*`.
-2. `public/icons/icon{16,48,128}.png`: exportarlos desde `docs/marca/logo.svg`; revisar el de 16
+2. [x] `public/icons/icon{16,48,128}.png`: exportarlos desde `docs/marca/logo.svg`; revisar el de 16
    a ojo.
-3. `entrypoints/popup/index.html`: el `<h4>` del header pasa al wordmark de §5 (y cargar
+3. [x] `entrypoints/popup/index.html`: el `<h4>` del header pasa al wordmark de §5 (y cargar
    Bricolage Grotesque **empaquetada**, no desde Google Fonts: el popup no debería depender de
    la red para dibujar su nombre).
-4. Las decisiones de §6.2, cada una en su hoja (`list.css`, `filters.css`, `footer.css`,
+4. [ ] Las decisiones de §6.2, cada una en su hoja (`list.css`, `filters.css`, `footer.css`,
    `actions.css`) y el footer en `popup.js`. Van a verificación en navegador: casi todo cae en
-   `popup.js`, que la suite no ve (ADR-0005).
-5. `backend/config.js`: la carpeta por defecto `Downloads/RamonNet_Turbo`, **sin romper** a quien
+   `popup.js`, que la suite no ve (ADR-0005). *(Plan 27)*
+5. [x] `backend/config.js`: la carpeta por defecto `Downloads/RamonNet_Turbo`, **sin romper** a quien
    ya la tenga (ver el aviso de `AGENTS.md` sobre `config_usuario.json`).

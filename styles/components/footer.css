@@ -76,10 +76,10 @@
     .progress-bar {
       width: 0%;
       height: 100%;
-      background-color: var(--accent-orange);
+      background-color: var(--accent-brand);
       position: relative;
       overflow: hidden;
-      box-shadow: 0 0 6px var(--glow-orange);
+      box-shadow: 0 0 6px var(--glow-brand);
       transition: width 0.1s linear;
 
       &::after {

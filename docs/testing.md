@@ -30,12 +30,14 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **81 archivos, 1239 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
+| `pnpm test` | **82 archivos, 1242 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
 
-**De dónde sale el 1239** (2026-10-05, plan `22 - Lo que está en disco manda`, rama `disco-manda`): son los 1220 de abajo más **+19** tests:
+**De dónde sale el 1242** (2026-10-05, plan `26 - Marca Resaltador, identidad`, rama `marca-resaltador`): son los 1239 de abajo más **+3** tests en `backend/destino/raizPorDefecto.test.js` (carpeta heredada existe, no existe y home vacío).
+
+**De dónde salía el 1239** (2026-10-05, plan `22 - Lo que está en disco manda`, rama `disco-manda`): son los 1220 de abajo más **+19** tests:
 - **+2** en `backend/destino/md5.test.js` (concurrencia de cálculo y reintento tras fallo),
 - **+3** en `backend/destino/recorrido.test.js` (desempate por mtime más reciente, orden alfabético y filtro por tamaño),
 - **+4** en `backend/destino/estado.test.js` (AC-1/AC-8 ciclo de marca movido, AC-2/RN-6 nombre tal cual, AC-9 raíz inaccesible, AC-12 curso desasociado),

@@ -23,9 +23,25 @@
     font-size: var(--text-lg);
     font-weight: var(--font-bold);
     color: var(--text-main);
-    text-transform: uppercase;
     letter-spacing: 0.5px;
     margin: 0;
+  }
+
+  .wordmark {
+    font-family: "Bricolage Grotesque", var(--font-display);
+    font-weight: 800;
+
+    span {
+      background: linear-gradient(transparent 48%, var(--accent-brand) 48% 92%, transparent 92%);
+      color: var(--text-on-brand);
+      padding-inline: 1px;
+
+      @media (prefers-color-scheme: dark) {
+        color: var(--text-main);
+        -webkit-text-stroke: 1px var(--bg-main);
+        paint-order: stroke fill;
+      }
+    }
   }
 }
 
