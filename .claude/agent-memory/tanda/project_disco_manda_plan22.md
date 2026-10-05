@@ -16,3 +16,5 @@ Spec `docs/specs/disco-manda/spec.md` (aprobada 2026-10-04, en `main`) y plan `~
 - El CLI `generar` quedó **fuera** (ya compara por md5 dentro de las materias de su semilla); la marca «movido» no se guarda (decisión del dueño de no tocar el esquema).
 - Errores míos en esta ronda, ya corregidos: dije que `generar` no miraba el disco, y que convertir a `.md` rompía el emparejamiento (el original queda). Leer el código antes de afirmar.
 - Orden: obra ejecuta plan 21 → merge → tanda crea `disco-manda` → obra ejecuta plan 22 → pruebas manuales M-1..M-5 del plan con `HOME` falso.
+
+**Estado 2026-10-05:** obra ejecutó el plan 22 en la rama `disco-manda` (commits 1bb448a, dc3ead0, d090532). Verificador independiente: vitest 81 archivos / 1239 tests, lint, tsc, build y humos del editor, todo verde. Pendiente: pruebas manuales M-1..M-5 con `HOME` falso y el merge a `main`. No tengo el informe de obra con sus hallazgos: pedirlo al dueño.
