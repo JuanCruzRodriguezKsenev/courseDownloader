@@ -16,59 +16,26 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## 🚧 En revisión
 
-Integración de portales Moodle y Google Sites en curso en la rama `moodle-linti`:
-- **Planes**: `~/Boveda/Proyectos/courseDownloader/Planes/09 - Moodle-1 Lo genérico del destino que hoy dice Classroom.md`, `10 - Moodle-2 Adaptador puro Moodle LINTI.md`, `11 - Google Sites Mate C adaptador puro.md`, `13 - Moodle Asignaturas UNLP adaptador puro.md`, `14b - Integracion y registro central de portales.md`, `15 - Scrapers inyectables autocontenidos en Sites Mate C y Moodle Asignaturas.md`, `16 - Correcciones de los planes 08b-15 contra el codigo.md`, `17 - Boton Heredar carpeta en las tarjetas de tema del editor.md` y `19 - Borrador local del editor en lugar del aviso al cerrar.md`.
-- **Qué entrega**: generalización del destino por índice (Plan 09) y los 3 nuevos adaptadores de portal integrados oficialmente: Moodle LINTI (`catedras.linti.unlp.edu.ar`), Google Sites Mate C (`sites.google.com/ing.unlp.edu.ar/matec`) y Moodle Asignaturas (`asignaturas.info.unlp.edu.ar`), con registro en runtime (`sitio/registro.ts`), entrypoints de popup y background, permisos de host (`wxt.config.ts`), globals de eslint (`eslint.config.js`), validación de inyección serializable y disyunción estricta de URLs de los 6 portales. Correcciones del Plan 16 (Parte I): resolver de Sites Mate C con `drive.usercontent.google.com` (`confirm=t`), permisos mínimos acotados a `ing.unlp.edu.ar/matec*`, scraper autocontenido sin duplicación de módulo, inyección con DOM real jsdom, soporte para materias nuevas sintácticamente seguras sin carpeta previa en disco, desacople de `_destinoPrevio` a Map privado y CSS accesible para filas descargadas en tema claro y oscuro. Botón de herencia rápida en editor (Plan 17): botón «↺ Que hereden» en `.topic-right` de tarjetas de tema con deshabilitación reactiva (D-1..D-4), reseteo de `destinoPropio` a `""` preservando archivos inmutables `ya-esta` y omitidos, sin cascadear desde `.topic-dest-select`. Borrador local de adopción (Plan 19): persistencia automática en `localStorage` con debounce de 500 ms y banner de restauración ante cambios sin guardar en lugar del diálogo nativo `beforeunload` para evitar cuelgues del navegador (D-1..D-9).
-- **Specs**: `docs/specs/moodle-linti/spec.md`, `docs/specs/google-sites-matec/spec.md`, `docs/specs/moodle-asignaturas/spec.md`.
-- **Compuerta**: 78 archivos / 1140 tests (ver `docs/testing.md` §Baseline).
-- **Humo jsdom**: `humo-editor.js` y `humo-editor-indice.js` en verde (errores: 0).
-- **Estado**: Plan 19 ejecutado por `obra`. Listo para verificación en navegador (H-1 a H-4 del plan 17, y B-1 a B-5 del plan 19 por dueño y tanda).
+Nada en `main` espera revisión. Lo que sigue fuera de `main` vive en su propia rama y su estado está en el
+`docs/ramas-en-revision.md` **de esa rama**, no acá:
 
-Corte 2c en curso en la rama `classroom-destino-2c`:
-- **Planes**: `~/Boveda/Proyectos/courseDownloader/Planes/07 - 2c-1 Editor web sobre el índice real.md`, `08 - 2c-2 Asociar desde el popup y cierre del 2c.md`, `08b - 2c-3 Resaltado, orden y filtro de temas sin asignar.md`, `08c - 2c-4 Nuevo editor web monocromo de alta densidad.md`, `08d - 2c-5 Ajustes ergonomicos del editor web (layout, carpetas y sticky).md`, `08f - 2c-6 Deteccion estricta de carpetas por materia y creacion en ambos selectores.md`, `08g - 2c-7 Desactivacion limpia de carpetas y eliminacion de opcion redundante en selector.md` y `08h - 2c-8 Atenuacion e indicador inmutable para archivos en disco.md`.
-- **Qué entrega**: editor web de adopción monocromo con ajustes ergonómicos: tabla de archivos con `table-layout: fixed` y nombres editables legibles, eliminación de duplicación de rutas en vivo, encabezados sticky escalonados (toolbar fija + tarjetas de tema fijas durante el recorrido de sus clases), soporte para creación y persistencia de carpetas personalizadas, detección estricta de subcarpetas por materia activa (sin mezcla global), creación interactiva en ambos selectores (`#selectMateria` y destinos), tilde verde circular para archivos ya descargados y eliminación de pill redundante `"ya está en disco"`, checkboxes de acento verde contrastado, desactivación limpia de carpetas vía checkbox maestro (`tema.destino = "-"` y archivos omitidos), eliminación de la opción redundante `-` en el selector con estado disabled, y atenuación visual neta con badge `🔒 en disco` para archivos descargados inmutables.
-- **Spec**: `docs/specs/classroom-destino/spec.md`. Implementa RN-3, RN-6, RN-7, RN-9, RN-10, RN-13, RN-31, AC-9.
-- **Compuerta**: 64 archivos / 1034 tests (ver `docs/testing.md` §Baseline).
-- **Humo jsdom**: `humo-editor.js` y `humo-editor-indice.js` en verde (errores: 0).
-- **Estado**: Plan 08h ejecutado por `obra`. Pendiente verificación en navegador (W-0..W-7).
+- `loader-tarjetas`: loader con tarjetas y cancelar escaneo (planes en esa rama). Falta el dueño en Brave.
+- `classroom-videollamadas`: plan 12, videollamadas con chip y al tope. Falta verificar en el navegador.
+- `marca-resaltador`: identidad visual «Resaltador», diseño cerrado y sin aplicar.
 
-### Checklist de verificación W del corte 2c (dueño + tanda)
-- ⬜ **W-0** — Tanda: copia limpia de `~/Boveda/Areas/Facultad` y respaldo del índice. Para simular un curso **nuevo**, **quita del índice de la copia** un curso con pocos archivos (anotar cuál y sus entradas para restaurarlo). `pnpm run build`, recarga de la extensión, servidor reiniciado, y `raices.google-classroom` apuntando a la copia.
-- ⬜ **W-1** — Dueño: escanea el curso quitado (o «todos»). Debe ver la nota «N curso(s) sin asociar … Abrí 🗂️», sus filas con la pastilla `sin asociar` y los checkboxes deshabilitados.
-- ⬜ **W-2** — Dueño: toca 🗂️. Debe abrirse una pestaña con el editor **en ese curso**, con la materia vacía y las carpetas de los temas ya sugeridas. Tanda anota qué sugirió para cada tema y lo contrasta con RN-7a/7b (`Links` → `Teorias`; un tema conceptual con publicaciones «Ejercicios…» → `Practicas`).
-- ⬜ **W-3** — Dueño: elige materia y docente, corrige una carpeta y un nombre, marca un archivo `omitir`, guarda. Tanda: el índice de la copia tiene el curso con `materia`, `docente`, los `temas` resueltos (con `Teorias/<docente>` si hay docente), `nombres` sólo del archivo editado y `omitidos` con el marcado; `archivos` **sin cambios**.
-- ⬜ **W-4** — Dueño: reabre el popup en ese curso. Debe verlo asociado, **sin tocar nada más**: filas con su pastilla de carpeta, el nombre editado en la etiqueta, el omitido marcado `omitido`. Baja **un** archivo. Tanda: está en `<materia>/<carpeta>/<nombre editado>` y su `md5sum` es el del original.
-- ⬜ **W-5** — AC-8: Dueño cambia el docente de un curso **ya asociado** desde el editor. Tanda: ninguna entrada de `archivos` cambió y ningún archivo se movió; el siguiente que se baje va a `Teorias/<docente nuevo>/`.
-- ⬜ **W-6** — AC-9: Tanda agrega un tema nuevo al curso (borra uno del índice de la copia). Dueño: ve `⚠ sin asignar`; abre 🗂️, asigna carpeta, guarda; al reabrir el popup la marca desapareció.
-- ⬜ **W-7** — Servidor reiniciado con el editor abierto: Dueño toca Guardar. Debe ver un error claro (no un guardado a medias); reabriendo 🗂️ desde el popup vuelve a funcionar. Y en un portal **sin** `destinoPorIndice` (Ramón Net o Anatomy), 🗂️ abre el editor de TSV como antes.
+## Mergeado el 2026-10-04
 
-Al terminar W-0..W-7: se borra la copia y se restaura el curso que se quitó **en la copia** (la bóveda real nunca se tocó).
+- **Classroom 2b y 2c** (planes 01 a 08h): entraron a `main` con `535fa40`. La rama `classroom-destino-2c`
+  ya no existe. Diseño: `docs/specs/classroom-destino/spec.md` y `docs/adr/0019-raiz-por-portal-y-backend-decide-lo-descargado.md`.
+- **Moodle LINTI, Google Sites Mate C, Moodle Asignaturas, botón «Que hereden» y borrador local del editor**
+  (planes 09 a 19): `c1f8a57`. Specs: `docs/specs/moodle-linti/`, `docs/specs/google-sites-matec/`,
+  `docs/specs/moodle-asignaturas/`.
+- **Subcarpeta por tema** (plan 20): `565b7ee`.
+- **Nombres que chocan** (plan 21): `37a1e96`. M-1 a M-4 verificados con el dueño en la copia de prueba.
 
----
-
-Corte 2b en curso en la rama `classroom-destino-2b`: construcción finalizada (planes 01 a 06). Pendiente verificación en navegador (V-0..V-9).
-
-`classroom-destino-2b`: Corte 2b del destino de Google Classroom.
-- **Planes**: `~/Boveda/Proyectos/courseDownloader/Planes/01 - 2b-1 Backend raíz por portal y servicio del índice.md`, `02 - 2b-2 Backend escritura a destino y decisión al guardar.md`, `03 - 2b-3 Cola de la extensión baja a destino.md`, `04 - 2b-4 El curso viaja con cada adjunto y el popup pide el estado al backend.md`, `05 - 2b-5 Lo que ve el dueño en la lista.md`, `06 - 2b-6 Cierre del corte 2b.md`.
-- **Spec**: `docs/specs/classroom-destino/spec.md`.
-- **ADR**: `docs/adr/0019-raiz-por-portal-y-backend-decide-lo-descargado.md`.
-- **Compuerta**: 62 archivos / 988 tests (ver `docs/testing.md` §Baseline).
-- **Medición M-1**: Recorrido en frío de 1615 archivos en `~/Boveda/Areas/Facultad` en 4,29 s (tope 10 s).
-- **Smoke test**: GET `/api/destino/indice`, POST `/api/destino/estado` y POST `/api/bypass-stream` en modo destino responden con el contrato de `deployment.md` sin escrituras colaterales en la bóveda.
-
-### Checklist de verificación B del corte 2b (dueño + tanda)
-- ⬜ **V-0** — Tanda: `cp -r ~/Boveda/Areas/Facultad ~/Descargas/facultad-prueba` (la raíz **sin** `.git`, que está en `~/Boveda`) y respaldo del índice migrado. `md5sum` del índice de la copia anotado.
-- ⬜ **V-1** — Dueño: `pnpm run build`, recargar la extensión en Brave y **reiniciar el servidor Bun** (`ps -o lstart= -p <pid>` contra `git log -1 --format=%ci -- backend/`: Bun no recarga y el popup se traga el error).
-- ⬜ **V-2** — Dueño: en una pestaña de Classroom, 📂 → elegir `~/Descargas/facultad-prueba`. Tanda: `cat backend/config_usuario.json` muestra `raices.google-classroom` y **`rutaRaiz` intacta**; el 📂 de Ramón Net/Anatomy sigue mostrando la suya (D-7 del plan 05).
-- ⬜ **V-3** — Dueño: portada de Classroom al frente → «Escanear todos los cursos» (≈3 min). Tanda: `descargados + omitidos + pendientes = total escaneado`; **pendientes esperados: 0** (si hay, listarlos con su tema: puede ser material publicado después del 2026-09-27, y no es un defecto); los 9 omitidos aparecen como `omitido`; **0 archivos escritos** en la copia (`find ~/Descargas/facultad-prueba -newer <marca-de-V-0> -type f` vacío, salvo el índice si la corrección de ruta corrió).
-- ⬜ **V-4** — AC-5/AC-5b. Tanda mueve **dentro de la copia** un archivo a otra materia y lo renombra. Dueño: re-escanea. Tanda: el índice de la copia anota la ruta nueva, el archivo **no** se volvió a bajar y nada se movió en disco.
-- ⬜ **V-5** — AC-6/AC-1. Tanda borra un archivo de la copia. Dueño: re-escanea, lo selecciona y baja. Tanda: reaparece con el **nombre del índice** y su `md5sum` es igual al del archivo original de la bóveda real.
-- ⬜ **V-6** — AC-2/AC-3. Tanda copia en la carpeta destino de un curso un archivo existente con **otro nombre** y quita la entrada de ese id del índice **de la copia**. Dueño: baja ese ítem. Tanda: **no** hay archivo nuevo, el índice apunta al existente, y el popup dice «Ya lo tenías».
-- ⬜ **V-7** — AC-13/AC-12. Tanda agrega notas al final de un acceso `.md` de la copia. Dueño: re-escanea. Tanda: el `.md` quedó **intacto con sus notas**. Un acceso **nuevo** (borrar una entrada de acceso del índice y el archivo): el `.md` que se crea **empieza con el frontmatter** `tipo: acceso` y `revisado: <hoy>`.
-- ⬜ **V-8** — AC-7/AC-9/RN-2. Tanda (en la copia): (a) agrega una coma de más al índice → el popup muestra la card «No se pudo leer .course-downloader.json» y no deja bajar nada; se arregla y **Reintentar** vuelve a la lista sin re-escanear el portal; (b) quita un tema del índice → ese tema sale `⚠ sin asignar`; (c) quita un curso del índice → nota «sin asociar» y sus checkboxes deshabilitados (no se pueden tildar ni con teclado).
-- ⬜ **V-9** — No regresión. Dueño baja **un** video o adjunto de Ramón Net y **uno** de Anatomy. Tanda: siguen cayendo en `raíz/<portal>/<materia>/` de la `rutaRaiz` de siempre, con los mismos nombres. Si el dueño no tiene acceso activo a alguno, ese ítem queda **⚪ sin mirar** y se registra en la deuda (como el corte 1).
-
-Al terminar V-0..V-9: el dueño borra `~/Descargas/facultad-prueba` y vuelve `raices.google-classroom` a su raíz real (o al default).
+Los checklists V-0..V-9 (2b), W-0..W-7 (2c) y H/B (planes 17 y 19) estuvieron en este doc con las casillas
+sin marcar. El merge los dio por superados, pero **no quedó registro de cada casilla**; si alguna importa,
+rehacerla contra el código actual antes de confiar en ella.
 
 ---
 
