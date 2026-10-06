@@ -22,32 +22,32 @@
   box-shadow: 0 2px 4px rgba(var(--shadow-rgb), 0.04);
 
   &.modo-sincronizar-disco {
-    background-color: var(--accent-cyan-disco);
-    color: var(--text-on-cyan);
+    background-color: var(--accent-disco);
+    color: var(--text-on-disco);
 
     &:hover:not(:disabled) {
-      background-color: var(--accent-cyan-disco-hover);
-      box-shadow: 0 4px 12px var(--glow-cyan), 0 0 4px var(--accent-cyan-disco);
+      background-color: var(--accent-disco-hover);
+      box-shadow: 0 4px 12px var(--glow-disco), 0 0 4px var(--accent-disco);
     }
   }
 
   &.modo-descargar {
-    background-color: var(--accent-orange);
-    color: var(--text-on-orange);
+    background-color: var(--accent-brand);
+    color: var(--text-on-brand);
 
     &:hover:not(:disabled) {
-      background-color: var(--accent-orange-hover);
-      box-shadow: 0 4px 12px var(--glow-orange), 0 0 4px var(--accent-orange);
+      background-color: var(--accent-brand-hover);
+      box-shadow: 0 4px 12px var(--glow-brand), 0 0 4px var(--accent-brand);
     }
   }
 
   &.modo-reintentar-cola {
-    background-color: var(--accent-orange);
-    color: var(--text-on-orange);
+    background-color: var(--accent-brand);
+    color: var(--text-on-brand);
 
     &:hover:not(:disabled) {
-      background-color: var(--accent-orange-hover);
-      box-shadow: 0 4px 12px var(--glow-orange), 0 0 4px var(--accent-orange);
+      background-color: var(--accent-brand-hover);
+      box-shadow: 0 4px 12px var(--glow-brand), 0 0 4px var(--accent-brand);
     }
   }
 
@@ -62,7 +62,8 @@
   }
 
 
-  &.modo-re-escanear {
+  &.modo-re-escanear,
+  &.btn-secundario {
     background-color: var(--bg-btn-secondary);
     color: var(--text-btn-secondary);
     border: 1px solid var(--border-color);
@@ -73,14 +74,19 @@
     }
   }
 
+  &.btn-secundario {
+    width: auto;
+    white-space: nowrap;
+  }
+
   &.start-queue-style {
-    background-color: var(--accent-orange);
-    color: var(--text-on-orange);
+    background-color: var(--accent-brand);
+    color: var(--text-on-brand);
     display: none;
 
     &:hover:not(:disabled) {
-      background-color: var(--accent-orange-hover);
-      box-shadow: 0 4px 12px var(--glow-orange), 0 0 4px var(--accent-orange);
+      background-color: var(--accent-brand-hover);
+      box-shadow: 0 4px 12px var(--glow-brand), 0 0 4px var(--accent-brand);
     }
   }
 

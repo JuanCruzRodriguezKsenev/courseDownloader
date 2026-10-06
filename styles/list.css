@@ -46,10 +46,11 @@
 
 /* Fila de video individual */
 .video-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: 14px 14px minmax(0, 1fr) 84px 80px;
+  column-gap: 6px;
   align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-sm) 10px;
+  padding: var(--space-sm) 8px;
   border-radius: var(--radius-md);
   background-color: var(--item-bg);
   border: 1px solid var(--border-color);
@@ -80,14 +81,21 @@
   }
 
   &.selected {
-    border-color: rgba(var(--accent-orange-rgb), 0.15);
-    border-left-color: var(--accent-orange);
-    background-color: rgba(var(--accent-orange-rgb), 0.03);
+    border-color: rgba(var(--accent-brand-rgb), 0.15);
+    border-left-color: var(--accent-brand-line);
+    background-color: var(--bg-row-highlight);
   }
 
   &.sin-asignar {
     border-left-color: var(--accent-warning-visible);
     background-color: rgba(245, 158, 11, 0.06);
+  }
+
+  /* Celdas de materia (4) y estado (5) de columnas fijas */
+  > :nth-child(4),
+  > :nth-child(5) {
+    min-width: 0;
+    overflow: hidden;
   }
 
   input[type="checkbox"] {
@@ -107,8 +115,16 @@
     transition: opacity 0.15s ease;
   }
 
+  .celda-titulo {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    min-width: 0;
+  }
+
   .video-label {
     flex: 1;
+    min-width: 0;
     font-size: var(--text-base);
     font-weight: var(--font-medium);
     color: var(--text-main);
@@ -116,17 +132,21 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+
+  .marca-movido {
+    flex-shrink: 0;
+  }
 }
 
 /* Ancla de la descarga en curso (corte 6a del multi-sitio)
    -----------------------------------------------------------------------
    La clase que se está bajando va siempre primera y no la tocan ni el filtro ni el
-   orden; la línea divisoria la separa del resto de la cola. Reusa el naranja que
+   orden; la línea divisoria la separa del resto de la cola. Reusa el amarillo de marca que
    .video-item.selected ya usa como acento de fila, así no entra vocabulario visual
    nuevo. Quién va anclada lo decide popup.js al armar el view-model. */
 .video-item.bajando {
-  border-left-color: var(--accent-orange);
-  background-color: rgba(var(--accent-orange-rgb), 0.03);
+  border-left-color: var(--accent-brand-line);
+  background-color: var(--bg-row-highlight);
 }
 
 .cola-divisor {
@@ -188,8 +208,8 @@
 .lista-nota {
   margin: 0 0 var(--space-xs);
   padding: var(--space-sm);
-  border-left: 3px solid var(--accent-orange);
-  background-color: rgba(var(--accent-orange-rgb), 0.06);
+  border-left: 3px solid var(--accent-brand-line);
+  background-color: rgba(var(--accent-brand-rgb), 0.06);
   border-radius: var(--radius-xs);
   font-size: var(--text-sm);
   color: var(--text-muted);
@@ -201,7 +221,7 @@
     transition: background-color 0.15s ease, border-color 0.15s ease;
 
     &:hover {
-      background-color: rgba(var(--accent-orange-rgb), 0.10);
+      background-color: rgba(var(--accent-brand-rgb), 0.10);
       color: var(--text-main);
     }
   }
@@ -209,15 +229,18 @@
 
 /* Botón de acción interna de fila */
 .btn-row-action {
+  box-sizing: border-box;
   background-color: var(--bg-main);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-xs);
-  padding: 2px var(--space-sm);
+  padding: 2px var(--space-xs);
   font-size: var(--text-xs);
   font-weight: var(--font-bold);
   cursor: pointer;
   text-transform: uppercase;
   color: var(--text-main);
+  white-space: nowrap;
+  text-align: center;
 
   &.remove-action {
     color: var(--accent-error);
@@ -233,15 +256,26 @@
 
 /* Badges de Estado */
 .badge {
+  box-sizing: border-box;
   font-size: var(--text-xs);
   font-weight: var(--font-bold);
   padding: 3px var(--space-sm);
   border-radius: var(--radius-xs);
   text-transform: uppercase;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 
   &.pending {
     background-color: var(--badge-pending-bg);
     color: var(--badge-pending-txt);
+  }
+
+  &.omitido {
+    background-color: var(--badge-pending-bg);
+    color: var(--badge-pending-txt);
+    border: 1px dashed var(--border-color);
   }
 
   &.downloaded {
@@ -255,7 +289,7 @@
   }
 }
 
-/* Ícono de TIPO de la fila (🎬 / 📄).
+/* Ícono de TIPO de la fila (🎬 / 📄 / 📹).
    Va en todas las filas y en las dos pestañas: si sólo apareciera en los adjuntos, habría que
    leer la AUSENCIA de un ícono como información, y eso no se lee. */
 .chip-tipo {
@@ -274,13 +308,15 @@
    no registrado— no resuelve descriptor, y sin fallback quedaría con `border-color` inválido y
    la pastilla se vería rota en vez de neutra. */
 .chip-materia {
+  box-sizing: border-box;
   --color-portal: var(--text-muted);
   font-size: var(--text-xs);
   color: var(--color-portal);
   padding: 2px var(--space-xs);
   border: 1px solid var(--color-portal);
   border-radius: var(--radius-xs);
-  max-width: 11ch;
+  max-width: 100%;
+  justify-self: start;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -288,10 +324,10 @@
   opacity: 0.85;
 
   /* Override del input activo: se enciende, porque ahí el destino dejó de ser el esperado.
-     Usa el naranja del acento a propósito —es una advertencia, no una identidad— y por eso NO
+     Usa el acento de marca a propósito —es una advertencia, no una identidad— y por eso NO
      puede ser un color de portal. */
   &.override {
-    --color-portal: var(--accent-orange);
+    --color-portal: var(--accent-brand-text);
     opacity: 1;
     font-weight: var(--font-bold);
   }
@@ -300,34 +336,13 @@
     --color-portal: var(--accent-warning-visible);
     opacity: 1;
     font-weight: var(--font-bold);
-    max-width: 14ch;
-  }
-
-  &.chip-movido {
-    --color-portal: var(--text-muted);
-    opacity: 1;
-    font-weight: var(--font-bold);
-    max-width: 14ch;
   }
 
   &.bloqueado {
     --color-portal: var(--text-muted);
     border-style: dashed;
     opacity: 0.7;
-    max-width: 14ch;
   }
-}
-
-.chip-videollamada {
-  font-size: var(--font-xs);
-  padding: 2px var(--space-xs);
-  border: 1px solid var(--accent-orange);
-  border-radius: var(--radius-xs);
-  color: var(--accent-orange);
-  background-color: rgba(var(--accent-orange-rgb), 0.08);
-  white-space: nowrap;
-  flex-shrink: 0;
-  font-weight: var(--font-bold);
 }
 
 /* Tarjeta de Error de Servidor Desconectado */
@@ -389,7 +404,7 @@
 .pulse-dot {
   width: 6px;
   height: 6px;
-  background-color: var(--accent-orange);
+  background-color: var(--accent-brand);
   border-radius: 50%;
   animation: pulse-dot-anim 1.5s infinite ease-in-out;
 }
@@ -452,8 +467,8 @@
 
   /* Modificadores de Estado */
   &.info {
-    border-color: rgba(var(--accent-orange-rgb), 0.3);
-    h5 { color: var(--accent-orange); }
+    border-color: rgba(var(--accent-brand-rgb), 0.3);
+    h5 { color: var(--accent-brand-text); }
   }
 
   &.error {

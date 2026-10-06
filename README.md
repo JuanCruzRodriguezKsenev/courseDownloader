@@ -44,7 +44,7 @@ Para realizar las descargas físicas en tu disco, la extensión se conecta con u
 2. Ejecutá el archivo **`iniciar.bat`**.
 3. Verás una ventana de consola esperando conexiones en el puerto `3001`. *Podés minimizar la consola y dejarla corriendo en segundo plano*.
 
-> **Si es una PC nueva**, la primera vez el servidor arranca con su carpeta por defecto (`Downloads/RamonNet_Turbo`). Elegí tu carpeta real desde el popup (botón 📂) antes de bajar nada: si no, los videos van a otro lado *y* la extensión te va a mostrar como pendientes clases que ya tenías bajadas.
+> **Si es una PC nueva**, la primera vez el servidor arranca con su carpeta por defecto (`Downloads/CourseDownloader`, salvo que ya exista `Downloads/RamonNet_Turbo`, que se sigue usando). Elegí tu carpeta real desde el popup (botón 📂) antes de bajar nada: si no, los videos van a otro lado *y* la extensión te va a mostrar como pendientes clases que ya tenías bajadas.
 
 ### 2. Compilar e Instalar la Extensión en el Navegador
 > La extensión se **compila** (antes se cargaba el repo tal cual).

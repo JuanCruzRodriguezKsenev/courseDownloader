@@ -31,7 +31,7 @@
     <header class="header">
       <div class="header-left">
         <img src="../icons/icon48.png" alt="Logo de la extensión" width="20" height="20">
-        <h4>Course Downloader</h4>
+        <h4 class="wordmark">Course <span>Downloader</span></h4>
       </div>
       <div class="header-right">
         <a id="ui-link-adopcion" class="btn-help-icon" href="http://127.0.0.1:3001/adopcion/"
@@ -97,8 +97,6 @@
         <div id="ui-sort-menu" class="filter-menu-popover" style="display: none;"></div>
       </div>
 
-      <button id="ui-btn-rescan" class="btn-sort" title="Volver a escanear esta pestaña" aria-label="Volver a escanear esta pestaña" disabled>🔄</button>
-
       <button id="ui-btn-toggle-select" class="btn-sort" style="display:none" title="Activar selección múltiple">
         Seleccionar
       </button>
@@ -119,6 +117,7 @@
 
 
     <footer class="footer-panel">
+      <button id="ui-btn-rescan" class="btn-action btn-secundario" title="Volver a escanear esta pestaña" aria-label="Volver a escanear esta pestaña" disabled>🔄 Re-escanear</button>
       <button id="ui-btn-action" class="btn-action" disabled>Conectando con el servidor... ⏳</button>
 
       <button id="ui-btn-start-queue" class="btn-action start-queue-style" style="display:none">Iniciar descarga masiva 🚀</button>

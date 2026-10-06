@@ -24,7 +24,7 @@ La extensión depende de que este servidor esté corriendo para cualquier operac
 
 **Sigue siendo otro runtime, y eso no cambió con la fusión**: corre en Bun como proceso aparte, no comparte una línea de código con la extensión y el único acoplamiento es el contrato de acá abajo. Tiene su propio `backend/package.json` (`"type": "module"`) porque el de la raíz no declara `type` y el backend es ESM. Lo que sí ganó al entrar es el lint del repo — `eslint.config.js` tiene un bloque para `backend/**` con globals de Node + Bun.
 
-⚠️ **La ruta raíz de descargas vive del lado del backend**, en `backend/config_usuario.json` (gitignoreado, se escribe al elegir carpeta). La extensión la **lee**, no la manda. Si movés o reinstalás el backend, ese archivo no viaja y el servidor cae a su default (`Downloads/RamonNet_Turbo`): las descargas van a otra carpeta **y** el escaneo de "ya descargado" mira la raíz nueva y te da todo por no bajado. Copialo, o volvé a elegir la carpeta desde el popup.
+⚠️ **La ruta raíz de descargas vive del lado del backend**, en `backend/config_usuario.json` (gitignoreado, se escribe al elegir carpeta). La extensión la **lee**, no la manda. Si movés o reinstalás el backend, ese archivo no viaja y el servidor cae a su default (por defecto `Downloads/CourseDownloader`, salvo que ya exista `Downloads/RamonNet_Turbo`, que se sigue usando): las descargas van a otra carpeta **y** el escaneo de "ya descargado" mira la raíz nueva y te da todo por no bajado. Copialo, o volvé a elegir la carpeta desde el popup.
 
 ### Contrato de endpoints (lado extensión)
 

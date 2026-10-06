@@ -599,7 +599,7 @@ describe('Isla Preact: ListaClases — la alerta comparte contenedor', () => {
         '<div class="video-item " title="Tejido epitelial" style="">' +
         '<input type="checkbox" id="chk-101">' +
         '<span class="chip-tipo" title="Video">🎬</span>' +
-        '<span class="video-label">Tejido epitelial</span>' +
+        '<span class="celda-titulo"><span class="video-label">Tejido epitelial</span></span>' +
         '<span class="chip-materia " style="" title="histologia">histologia</span>' +
         '<span class="badge pending">Pendiente</span>' +
         '</div>'
@@ -662,7 +662,7 @@ describe('Isla Preact: ListaClases — la alerta comparte contenedor', () => {
       );
     });
 
-    it('esVideollamada: true → muestra .chip-videollamada con texto y title explicativo (D-5, RN-32)', async () => {
+    it('esVideollamada: true → .chip-tipo con texto 📹 y title explicativo (D-5, RN-32)', async () => {
       puente.render({
         modo: 'lista',
         items: [{
@@ -676,28 +676,38 @@ describe('Isla Preact: ListaClases — la alerta comparte contenedor', () => {
       });
       await flush();
 
-      const chip = root.querySelector('.chip-videollamada');
+      const chip = root.querySelector('.chip-tipo');
       expect(chip).not.toBeNull();
-      expect(chip.textContent).toBe('📹 Videollamada');
+      expect(chip.textContent).toBe('📹');
       expect(chip.getAttribute('title')).toBe(
         'enlace de videollamada sincrónica, posiblemente inactivo'
       );
     });
 
-    it('sin esVideollamada no muestra .chip-videollamada (D-5)', async () => {
+    it('sin esVideollamada, .chip-tipo es 🎬 (video) o 📄 (adjunto) (D-5)', async () => {
       puente.render({
         modo: 'lista',
-        items: [{
-          id: 202,
-          titulo: 'Clase Normal',
-          tipo: 'adjunto',
-          estado: 'pending',
-        }],
+        items: [
+          {
+            id: 202,
+            titulo: 'Clase Normal Adjunto',
+            tipo: 'adjunto',
+            estado: 'pending',
+          },
+          {
+            id: 203,
+            titulo: 'Clase Normal Video',
+            tipo: 'video',
+            estado: 'pending',
+          },
+        ],
         ctx: ctxBase(),
       });
       await flush();
 
-      expect(root.querySelector('.chip-videollamada')).toBeNull();
+      const chips = root.querySelectorAll('.chip-tipo');
+      expect(chips[0].textContent).toBe('📄');
+      expect(chips[1].textContent).toBe('🎬');
     });
 
     it('nota con onNotaClick → clase clickable y llamada a callback al clickear (D-4)', async () => {
@@ -719,7 +729,7 @@ describe('Isla Preact: ListaClases — la alerta comparte contenedor', () => {
       expect(clickeado).toBe(true);
     });
 
-    it('bloqueo: omitido → checkbox con disabled y pastilla omitido (D-3)', async () => {
+    it('bloqueo: omitido → checkbox disabled, badge.omitido en columna de estado y destino intacto en chip-materia (D-3)', async () => {
       puente.render({
         modo: 'lista',
         items: [{
@@ -728,6 +738,11 @@ describe('Isla Preact: ListaClases — la alerta comparte contenedor', () => {
           tipo: 'adjunto',
           estado: 'pending',
           bloqueo: 'omitido',
+          destino: {
+            nombre: 'cronograma.pdf',
+            ruta: 'Ingenieria/Fisica 2/Cronograma',
+            original: 'Cronograma semanal 1.pdf',
+          },
         }],
         ctx: ctxBase(),
       });
@@ -737,10 +752,16 @@ describe('Isla Preact: ListaClases — la alerta comparte contenedor', () => {
       expect(chk).not.toBeNull();
       expect(chk.disabled).toBe(true);
 
+      const badgeOmitido = root.querySelector('.badge.omitido');
+      expect(badgeOmitido).not.toBeNull();
+      expect(badgeOmitido.textContent).toBe('Omitido');
+      expect(badgeOmitido.getAttribute('title')).toBe('Marcado para no bajarse');
+
       const chip = root.querySelector('.chip-materia');
-      expect(chip.textContent).toBe('omitido');
-      expect(chip.classList.contains('bloqueado')).toBe(true);
-      expect(chip.getAttribute('title')).toBe('Marcado para no bajarse');
+      expect(chip).not.toBeNull();
+      expect(chip.textContent).toBe('Fisica 2/Cronograma');
+      expect(chip.textContent).not.toBe('omitido');
+      expect(chip.classList.contains('bloqueado')).toBe(false);
     });
 
     it('bloqueo: sin-asociar → checkbox disabled, onClick en fila no cambia selección y pastilla «sin asociar» (D-3, RN-2)', async () => {
@@ -796,7 +817,7 @@ describe('Isla Preact: ListaClases — la alerta comparte contenedor', () => {
       expect(fila.getAttribute('title')).toContain('Ya lo tenías: no se escribió nada');
     });
 
-    it('clase.movido: true → title con «Movido» y chip .chip-movido renderizado (RN-10)', async () => {
+    it('clase.movido: true → title con «Movido» y marca .marca-movido renderizada (RN-10)', async () => {
       puente.render({
         modo: 'lista',
         items: [{
@@ -818,9 +839,72 @@ describe('Isla Preact: ListaClases — la alerta comparte contenedor', () => {
       const fila = root.querySelector('.video-item');
       expect(fila.getAttribute('title')).toContain('Movido: se tomó la ruta y el nombre que hay en disco');
 
-      const chipMovido = root.querySelector('.chip-movido');
-      expect(chipMovido).not.toBeNull();
-      expect(chipMovido.textContent).toBe('movido');
+      const marcaMovido = root.querySelector('.marca-movido');
+      expect(marcaMovido).not.toBeNull();
+      expect(marcaMovido.textContent).toBe('↪');
+      expect(marcaMovido.getAttribute('title')).toContain('Movido');
+    });
+
+    describe('grilla fija: toda fila emite exactamente 5 celdas hijas', () => {
+      it('caso disponible normal emite 5 celdas hijas', async () => {
+        puente.render({
+          modo: 'lista',
+          items: [{ id: 301, titulo: 'Clase Normal', estado: 'pending', tipo: 'video', carpeta: 'biologia' }],
+          ctx: ctxBase(),
+        });
+        await flush();
+        expect(root.querySelector('.video-item').children.length).toBe(5);
+      });
+
+      it('caso omitida emite 5 celdas hijas', async () => {
+        puente.render({
+          modo: 'lista',
+          items: [{ id: 302, titulo: 'Clase Omitida', estado: 'pending', tipo: 'adjunto', bloqueo: 'omitido' }],
+          ctx: ctxBase(),
+        });
+        await flush();
+        expect(root.querySelector('.video-item').children.length).toBe(5);
+      });
+
+      it('caso videollamada emite 5 celdas hijas', async () => {
+        puente.render({
+          modo: 'lista',
+          items: [{ id: 303, titulo: 'Consulta Meet', estado: 'pending', tipo: 'adjunto', esVideollamada: true }],
+          ctx: ctxBase(),
+        });
+        await flush();
+        expect(root.querySelector('.video-item').children.length).toBe(5);
+      });
+
+      it('caso movida emite 5 celdas hijas', async () => {
+        puente.render({
+          modo: 'lista',
+          items: [{ id: 304, titulo: 'Clase Movida', estado: 'downloaded', tipo: 'adjunto', movido: true }],
+          ctx: ctxBase(),
+        });
+        await flush();
+        expect(root.querySelector('.video-item').children.length).toBe(5);
+      });
+
+      it('caso cola con descarga activa (Bajando) emite 5 celdas hijas', async () => {
+        puente.render({
+          modo: 'lista',
+          items: [{ id: 305, titulo: 'Clase en Descarga', estado: 'process', tipo: 'video' }],
+          ctx: { ...ctxBase(), pestaña: 'cola', enCurso: true, videoActivo: 'Clase en Descarga' },
+        });
+        await flush();
+        expect(root.querySelector('.video-item').children.length).toBe(5);
+      });
+
+      it('caso cola con ítem en espera (Remover) emite 5 celdas hijas', async () => {
+        puente.render({
+          modo: 'lista',
+          items: [{ id: 306, titulo: 'Clase en Cola', estado: 'process', tipo: 'video' }],
+          ctx: { ...ctxBase(), pestaña: 'cola', enCurso: true, videoActivo: 'Otra Clase' },
+        });
+        await flush();
+        expect(root.querySelector('.video-item').children.length).toBe(5);
+      });
     });
   });
 });

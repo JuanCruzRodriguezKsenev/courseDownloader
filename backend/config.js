@@ -2,6 +2,7 @@ import path from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { RAIZ_FACULTAD } from "./adopcion/raiz.js";
 import { resolverRaizDeDestino } from "./destino/portales.js";
+import { elegirRaizPorDefecto } from "./destino/raizPorDefecto.js";
 
 export const VERSION = "1.8.0-PRODUCTION";
 export const PORT    = 3001;
@@ -10,7 +11,7 @@ export const HOST    = "127.0.0.1"; // Solo loopback
 export const DEBUG_MODE = false;
 
 const RUTA_BASE_HOME         = process.env.USERPROFILE || process.env.HOME || "";
-const DEFAULT_RAIZ = path.join(RUTA_BASE_HOME, "Downloads", "RamonNet_Turbo");
+const DEFAULT_RAIZ = elegirRaizPorDefecto({ home: RUTA_BASE_HOME, existe: existsSync });
 
 // Cargar la ruta guardada por el usuario o usar la por defecto
 export let CARPETA_RAIZ_VIDEOS = DEFAULT_RAIZ;

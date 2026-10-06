@@ -5,7 +5,7 @@
 
 .adv-card h4 {
   margin: 0;
-  color: var(--accent-orange);
+  color: var(--accent-brand-text);
   font-size: var(--text-md);
   font-weight: var(--font-black);
   letter-spacing: 0.5px;
@@ -45,9 +45,9 @@
 
 .btn-adv-primary {
   flex: 1;
-  background-color: var(--accent-orange);
+  background-color: var(--accent-brand);
   border: none;
-  color: var(--text-on-orange);
+  color: var(--text-on-brand);
   padding: 0.45rem;
   border-radius: var(--radius-sm);
   font-size: var(--text-sm);
@@ -58,7 +58,7 @@
 
   /* Sin `translateY(-0.5px)`: parpadeaba en vez de moverse. Ver `styles/list.css` (.video-item). */
   &:hover {
-    background-color: var(--accent-orange-hover);
+    background-color: var(--accent-brand-hover);
   }
 }
 

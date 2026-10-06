@@ -125,16 +125,20 @@ export function FilaClase({ clase, ctx }) {
   const disponibles = pestaña === 'disponibles';
 
   // ── Ícono de TIPO ────────────────────────────────────────────────────────────────────────
-  // Va SIEMPRE y en las dos pestañas, no sólo en los adjuntos. Mostrarlo únicamente cuando hay
-  // un PDF obliga a leer la ausencia de un ícono como información, y eso no se lee: la fila sin
-  // nada parecía una fila a la que le faltaba algo.
+  // Va SIEMPRE y en las dos pestañas. Videollamada reemplaza el ícono por 📹 con title explicativo.
   const esAdjunto = clase.tipo === 'adjunto';
-  const chipTipo = html`<span class="chip-tipo" title=${esAdjunto ? 'Material adjunto (PDF)' : 'Video'}
-    >${esAdjunto ? '📄' : '🎬'}</span>`;
+  const tipoTitulo = clase.esVideollamada
+    ? 'enlace de videollamada sincrónica, posiblemente inactivo'
+    : (esAdjunto ? 'Material adjunto (PDF)' : 'Video');
+  const tipoIcono = clase.esVideollamada
+    ? '📹'
+    : (esAdjunto ? '📄' : '🎬');
+  const chipTipo = html`<span class="chip-tipo" title=${tipoTitulo}>${tipoIcono}</span>`;
 
   // ── Pastilla de MATERIA / DESTINO / BLOQUEO ──────────────────────────────────────────────
   // En Classroom con destino por índice:
-  // - Si está bloqueada (D-3): pastilla con el motivo ('sin asociar', 'omitido', 'índice ilegible').
+  // - Si está bloqueada (D-3): pastilla con el motivo ('sin asociar', 'índice ilegible').
+  //   El bloqueo 'omitido' ahora se muestra en la columna de estado, dejando acá el destino o materia.
   // - Si tiene destino (D-1): muestra los dos últimos segmentos de `destino.ruta`.
   // - Si el tema no está asignado (D-2): prefijo ⚠ y clase `chip-sin-asignar`.
   // Sin destino ni bloqueo (Ramón Net / Anatomy): comportamiento previo intacto.
@@ -146,11 +150,8 @@ export function FilaClase({ clase, ctx }) {
   let titleMateria = null;
   let clasesChipExtra = '';
 
-  if (conBloqueo) {
-    if (clase.bloqueo === 'omitido') {
-      textoMateria = 'omitido';
-      titleMateria = 'Marcado para no bajarse';
-    } else if (clase.bloqueo === 'sin-asociar') {
+  if (conBloqueo && clase.bloqueo !== 'omitido') {
+    if (clase.bloqueo === 'sin-asociar') {
       textoMateria = 'sin asociar';
       titleMateria = portal ? `${portal.nombre} · sin asociar` : 'sin asociar';
     } else if (clase.bloqueo === 'indice-ilegible') {
@@ -188,17 +189,7 @@ export function FilaClase({ clase, ctx }) {
              style=${portal && portal.color ? `--color-portal:${portal.color}` : ''}
              title=${titleMateria}
            >${textoMateria}</span>`
-    : null;
-
-  // [PLAN 12 / RN-32] Chip de videollamada sincrónica (D-5)
-  const chipVideollamada = clase.esVideollamada
-    ? html`<span class="chip-videollamada" title="enlace de videollamada sincrónica, posiblemente inactivo">📹 Videollamada</span>`
-    : null;
-
-  // [PLAN 22 / RN-10] Chip de archivo movido en disco
-  const chipMovido = clase.movido
-    ? html`<span class="chip-materia chip-movido" title="Movido: se tomó la ruta y el nombre que hay en disco">movido</span>`
-    : null;
+    : html`<span></span>`;
 
   // ── Etiqueta y Título de la fila ──────────────────────────────────────────────────────────
   // Con destino (D-1): la etiqueta muestra destino.nombre y el title el nombre original y ruta.
@@ -247,6 +238,18 @@ export function FilaClase({ clase, ctx }) {
              onChange=${(e) => { if (!estaBloqueado) onCheckChange(clase, e.target.checked); }} />`
     : html`<div class="checkbox-placeholder"></div>`;
 
+  const celdaTituloDisponibles = html`
+    <span class="celda-titulo">
+      <span class="video-label">${etiquetaTexto}</span>
+      ${clase.movido ? html`<span class="marca-movido" title="Movido: se tomó la ruta y el nombre que hay en disco">↪</span>` : null}
+    </span>`;
+
+  const celdaTituloCola = html`
+    <span class="celda-titulo">
+      <span class="video-label" style=${`cursor:${(tieneCheckbox && !estaBloqueado) ? 'pointer' : 'default'}`}>${etiquetaTexto}</span>
+      ${clase.movido ? html`<span class="marca-movido" title="Movido: se tomó la ruta y el nombre que hay en disco">↪</span>` : null}
+    </span>`;
+
   if (disponibles) {
     // Sólo hay CSS para pending/process/downloaded: cualquier otro estado (ej. un 'error'
     // heredado de storage viejo) cae a 'pending', alineado con el texto del badge de abajo.
@@ -256,30 +259,29 @@ export function FilaClase({ clase, ctx }) {
     const badgeTxt = !sincronizado
       ? 'Sin verificar'
       : (clase.estado === 'downloaded' ? 'Descargado' : (clase.estado === 'process' ? 'En Fila' : 'Pendiente'));
+    const celdaEstado = clase.bloqueo === 'omitido'
+      ? html`<span class="badge omitido" title="Marcado para no bajarse">Omitido</span>`
+      : html`<span class="badge ${badgeCls}">${badgeTxt}</span>`;
     // Sin sincronizar: fila atenuada (equivale al viejo fila.style.opacity=0.65 de popup.js).
     const estilo = !sincronizado ? 'opacity:0.65' : '';
     return html`
       <div class="video-item ${sel ? 'selected' : ''}${clase.sinAsignar ? ' sin-asignar' : ''}" title=${titleFila} style=${estilo} onClick=${onRowClick}>
         ${checkbox}
         ${chipTipo}
-        <span class="video-label">${etiquetaTexto}</span>
-        ${chipVideollamada}
+        ${celdaTituloDisponibles}
         ${chipMateria}
-        ${chipMovido}
-        <span class="badge ${badgeCls}">${badgeTxt}</span>
+        ${celdaEstado}
       </div>`;
   }
 
   // Vista Cola. `bajando` (corte 6a) es la fila anclada arriba de la divisoria: la marca con el
-  // mismo acento naranja que la fila seleccionada, para no sumar vocabulario visual.
+  // mismo acento amarillo que la fila seleccionada, para no sumar vocabulario visual.
   return html`
     <div class="video-item ${sel ? 'selected' : ''} ${esActivo ? 'bajando' : ''}${clase.sinAsignar ? ' sin-asignar' : ''}" title=${titleFila} onClick=${onRowClick}>
       ${checkbox}
       ${chipTipo}
-      <span class="video-label" style=${`cursor:${(tieneCheckbox && !estaBloqueado) ? 'pointer' : 'default'}`}>${etiquetaTexto}</span>
-      ${chipVideollamada}
+      ${celdaTituloCola}
       ${chipMateria}
-      ${chipMovido}
       ${esActivo
         ? html`<span class="badge process">Bajando</span>`
         : html`<button class="btn-row-action remove-action"

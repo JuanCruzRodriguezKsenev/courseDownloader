@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="128" height="128">
+  <!-- Logo Resaltador, trazo biselado. Maestro de los PNG de public/icons/ (16, 48, 128).
+       Un solo ícono para los dos temas: lleva su propio papel. Ver docs/marca-diseno.md. -->
+  <rect width="64" height="64" rx="14" fill="#FBFAF4"/>
+  <path d="M8.5 39.5 C22 36.6 39 33.8 54.5 31.2 Q56 31 56.4 32.4 L59 44.6 C44 46.9 27 50 12.6 53 Q11 53.3 10.6 51.9 Z" fill="#FFD60A"/>
+  <g fill="none" stroke="#1C1C1E" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M32 9 V40"/>
+    <path d="M19 28 L32 41 L45 28"/>
+  </g>
+</svg>

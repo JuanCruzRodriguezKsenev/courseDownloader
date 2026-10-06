@@ -1,0 +1,441 @@
+<title>Marca Course Downloader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=JetBrains+Mono:wght@700;800&family=Outfit:wght@500;700&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Chakra+Petch:ital,wght@1,700&display=swap">
+<style>
+:root{
+  --bg:#F3F4F6; --surface:#FFFFFF; --ink:#16181D; --muted:#5E6470; --line:#DDE0E5;
+  --chip:#E9EBEF; --rec:#FFD60A; --rec-ink:#1C1C1E;
+  --sans:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1013; --surface:#171A1F; --ink:#ECEEF1; --muted:#9097A3; --line:#2A2E36; --chip:#22262D;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1013; --surface:#171A1F; --ink:#ECEEF1; --muted:#9097A3; --line:#2A2E36; --chip:#22262D;
+  color-scheme:dark;
+}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--sans);padding-inline:16px;padding-block:40px 64px}
+.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:48px}
+h1,h2,h3{text-wrap:balance;margin:0;line-height:1.15}
+p{margin:0}
+.eyebrow{font:500 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+code,.hex{font-family:var(--mono);font-size:.86em}
+
+/* intro */
+.intro{display:flex;flex-direction:column}
+.intro h1{font-size:clamp(28px,4.2vw,42px);font-weight:600;letter-spacing:-.02em;margin-top:10px}
+.intro .lead{margin-top:14px;max-width:60ch;color:var(--muted)}
+.portales{display:flex;gap:6px;flex-wrap:wrap}
+.pchip{display:inline-flex;align-items:center;gap:6px;font:500 12px/1 var(--mono);padding:5px 8px;border-radius:99px;background:var(--chip)}
+.pchip i{width:9px;height:9px;border-radius:50%;display:block}
+
+/* rumbos */
+.rumbo{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,380px)}
+
+.info{padding:28px;display:flex;flex-direction:column;gap:18px}
+.info-head{display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap}
+.tag-rec{font:500 11px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;background:var(--rec);color:var(--rec-ink);padding:5px 8px;border-radius:4px}
+.info h2{font-size:24px;font-weight:600;letter-spacing:-.01em}
+.info .idea{color:var(--muted);max-width:58ch}
+.info .idea b{color:var(--ink);font-weight:500}
+.sw{display:flex;flex-wrap:wrap;gap:8px}
+.sw div{display:flex;flex-direction:column;gap:6px;width:92px}
+.sw span{height:44px;border-radius:6px;border:1px solid rgba(128,128,128,.25)}
+.sw small{font:11px/1.3 var(--mono);color:var(--muted)}
+.sw small b{display:block;color:var(--ink);font-family:var(--sans);font-weight:500;font-size:12px}
+.sizes{display:flex;align-items:flex-end;gap:18px}
+.sizes figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:6px}
+.sizes figcaption{font:11px var(--mono);color:var(--muted)}
+.refs{display:flex;flex-wrap:wrap;gap:6px}
+.refs span{font-size:12.5px;padding:4px 9px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.label{font:500 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+
+/* stage + popup mock */
+.stage{padding:28px 22px;display:flex;align-items:center;justify-content:center}
+.pop{width:100%;max-width:340px;border-radius:10px;overflow:hidden;box-shadow:0 12px 32px rgba(0,0,0,.18);font:13px/1.35 var(--sans)}
+.pop-h{display:flex;align-items:center;gap:8px;padding:10px 12px}
+.pop-h svg{width:20px;height:20px;flex:none}
+.pop-h .wm{font-size:15px;flex:1}
+.pop-h .bell{opacity:.6;font:12px var(--mono)}
+.pop-b{padding:12px;display:flex;flex-direction:column;gap:10px}
+.btn{border:0;border-radius:7px;padding:9px 12px;font:600 13px var(--sans);text-align:center}
+.row{border-radius:8px;padding:9px 10px;display:flex;flex-direction:column;gap:6px}
+.row-t{display:flex;gap:8px;align-items:center}
+.row-t .dot{width:8px;height:8px;border-radius:50%;flex:none}
+.row-t .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.row-t .st{font:11px var(--mono);opacity:.7;white-space:nowrap}
+.bar{height:5px;border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%}
+
+/* nombres + cierre */
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px;display:flex;flex-direction:column;gap:14px}
+.box h3{font-size:19px;font-weight:600}
+.names{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.names div{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.names b{font-size:17px;font-weight:600}
+.names small{color:var(--muted);font-size:12.5px}
+.box ol,.box ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
+.box li{color:var(--muted)}
+.box li b{color:var(--ink);font-weight:500}
+
+.tok{border-collapse:collapse;width:100%;min-width:560px;font-size:13.5px}
+.tok th{text-align:left;font:500 11px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line)}
+.tok td{padding:8px 10px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+.tok td i{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:8px;border:1px solid rgba(128,128,128,.35)}
+.tok td.old{color:var(--muted)}
+/* controles del mock */
+.pv-controls{display:flex;gap:10px;flex-wrap:wrap}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;padding:3px;gap:3px;background:var(--bg)}
+.seg button{border:0;background:none;color:var(--muted);font:500 13px var(--sans);padding:6px 12px;border-radius:6px;cursor:pointer}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.seg button:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+.pv-scroll{overflow-x:auto;margin-inline:-4px;padding:4px}
+.pv-pair{display:flex;gap:20px;width:max-content}
+.pv-col{display:flex;flex-direction:column;gap:8px}
+.pv-notas{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;max-width:78ch}
+.pv-notas li{color:var(--muted)}
+.pv-notas b{color:var(--ink);font-weight:500}
+
+/* ===== popup (réplica de styles/*.css, con tokens por marca × tema) ===== */
+.pv{
+  --r-xs:4px;--r-sm:6px;--r-md:8px;
+  width:390px;height:600px;box-sizing:border-box;padding:12px;display:flex;flex-direction:column;gap:12px;
+  background:var(--p-bg);color:var(--p-text);font-family:system-ui,-apple-system,sans-serif;
+  border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.22);overflow:hidden;-webkit-font-smoothing:antialiased;
+}
+.pv.res.claro{--p-bg:#FBFAF4;--p-surf:#FFFFFF;--p-text:#1C1C1E;--p-muted:#6B6B70;--p-border:#ECE9DF;--p-brand:#FFD60A;--p-brand-line:#E6BE00;--p-brand-text:#8A6D00;--p-on-brand:#1C1C1E;--p-sel:rgba(255,214,10,.2);--p-sel-border:rgba(230,190,0,.45);--p-proc-bg:rgba(255,214,10,.35);--p-proc-txt:#6B5600;--p-green:#30D158;--p-green-bg:rgba(48,209,88,.12);--p-pend-bg:rgba(107,107,112,.12);--p-err:#E5484D;--p-btn2:#F3F1E8;--p-disco:#1C1C1E;--p-on-disco:#FBFAF4;--p-badge-bg:rgba(255,214,10,.3);--p-badge-bd:rgba(230,190,0,.6)}
+.pv.res.oscuro{--p-bg:#141416;--p-surf:#1B1B1F;--p-text:#F2F0E6;--p-muted:#9A988F;--p-border:#2A2A2F;--p-brand:#FFD60A;--p-brand-line:#FFD60A;--p-brand-text:#FFD60A;--p-on-brand:#141416;--p-sel:rgba(255,214,10,.08);--p-sel-border:rgba(255,214,10,.3);--p-proc-bg:rgba(255,214,10,.15);--p-proc-txt:#FFD60A;--p-green:#30D158;--p-green-bg:rgba(48,209,88,.15);--p-pend-bg:rgba(154,152,143,.15);--p-err:#FF6369;--p-btn2:#2A2A2F;--p-disco:#F2F0E6;--p-on-disco:#141416;--p-badge-bg:rgba(255,214,10,.1);--p-badge-bd:rgba(255,214,10,.3)}
+.pv *{box-sizing:border-box}
+.pv-h{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid var(--p-border);padding-bottom:8px;flex-shrink:0}
+.pv-hl{display:flex;align-items:center;gap:8px}
+.pv-hl svg{width:20px;height:20px}
+.pv-hl h4{margin:0;font-size:.9rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--p-text)}
+.pv.res .pv-hl h4{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:800;text-transform:none;letter-spacing:-.01em;font-size:1rem}
+.pv.res .pv-hl h4 span{background:linear-gradient(transparent 48%,var(--p-brand) 48% 92%,transparent 92%);color:#1C1C1E;padding-inline:1px}
+.pv.res.claro .pv-hl h4 span{color:var(--p-text)}
+.pv.res.oscuro .pv-hl h4 span{color:var(--p-text);-webkit-text-stroke:1px var(--p-bg);paint-order:stroke fill}
+.pv-hr{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--p-muted)}
+.pv-dot{width:8px;height:8px;border-radius:50%;background:var(--p-green);box-shadow:0 0 6px rgba(48,209,88,.25)}
+.pv-bar{background:var(--p-surf);border:1px solid var(--p-border);border-radius:var(--r-md);flex-shrink:0}
+.pv-path{padding:.6rem;display:flex;flex-direction:column;gap:.5rem}
+.pv-row{display:flex;align-items:center;gap:.5rem}
+.pv-row+.pv-row{border-top:1px solid var(--p-border);padding-top:.5rem}
+.pv-lbl{font-size:.6875rem;font-weight:700;color:var(--p-muted);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+.pv-pathtxt{flex:1;min-width:0;font:.75rem/24px ui-monospace,Consolas,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:rtl;text-align:left;color:var(--p-text)}
+.pv-btn2{background:var(--p-bg);border:1px solid var(--p-border);color:var(--p-text);border-radius:var(--r-sm);padding:0 10px;font-size:.6875rem;font-weight:700;height:24px;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.pv-input{flex:1;min-width:0;height:24px;background:var(--p-bg);border:1px solid var(--p-border);border-radius:var(--r-xs);padding:0 .4rem;font-size:.75rem;color:var(--p-muted);display:flex;align-items:center;white-space:nowrap;overflow:hidden}
+.pv-faceta{font-size:.6875rem;font-weight:700;text-transform:uppercase;padding:0 .6rem;height:24px;display:flex;align-items:center;border-radius:var(--r-sm);background:var(--p-badge-bg);border:1px solid var(--p-badge-bd);color:var(--p-brand-text);white-space:nowrap}
+.pv-tabs{display:flex;padding:3px;gap:4px}
+.pv-tab{flex:1;padding:.45rem;font-size:.75rem;font-weight:700;color:var(--p-muted);border-radius:var(--r-sm);text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:5px}
+.pv-tab.on{color:var(--p-text);background:var(--p-bg);box-shadow:0 2px 6px rgba(0,0,0,.08)}
+.pv-cnt{background:var(--p-border);color:var(--p-muted);font-size:.625rem;padding:.05rem .35rem;border-radius:var(--r-md);font-weight:800}
+.pv-tab.on .pv-cnt{background:var(--p-brand);color:var(--p-on-brand)}
+.pv-filt{display:flex;align-items:center;gap:.35rem;padding:.4rem .5rem}
+.pv-search{flex:1.3;min-width:0;height:24px;background:var(--p-bg);border:1px solid var(--p-border);border-radius:var(--r-xs);padding:0 .4rem;font-size:.75rem;color:var(--p-muted);display:flex;align-items:center}
+.pv-pill{height:24px;background:var(--p-bg);border:1px solid var(--p-border);border-radius:var(--r-xs);font-size:.75rem;font-weight:700;color:var(--p-text);display:flex;align-items:center;gap:6px;padding:0 .5rem;white-space:nowrap}
+.pv-pill small{font-size:.55rem;color:var(--p-muted)}
+.pv-all{display:flex;align-items:center;gap:4px;font-size:.6875rem;font-weight:700;color:var(--p-muted);text-transform:uppercase}
+.pv-chk{width:14px;height:14px;border:1.5px solid var(--p-border);border-radius:var(--r-xs);background:var(--p-bg);flex-shrink:0;display:inline-flex;align-items:center;justify-content:center}
+.pv-chk.on{background:var(--p-brand);border-color:var(--p-brand-line)}
+.pv-chk.on::after{content:"";width:3px;height:7px;border:solid var(--p-on-brand);border-width:0 2px 2px 0;transform:translateY(-1px) rotate(45deg)}
+.pv-chk.ph{visibility:hidden}
+.pv-list{flex:1;min-height:0;background:var(--p-surf);border:1px solid var(--p-border);border-radius:var(--r-md);padding:8px;display:flex;flex-direction:column;gap:4px;overflow:hidden}
+.pv-item{display:grid;grid-template-columns:14px 14px minmax(0,1fr) 68px 80px;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r-md);background:var(--p-surf);border:1px solid var(--p-border);border-left:3px solid var(--p-border);flex-shrink:0}
+.pv-item.sel,.pv-item.bajando{border-color:var(--p-sel-border);border-left-color:var(--p-brand-line);background:var(--p-sel)}
+.pv-tipo{font-size:.6875rem;line-height:1}
+.pv-lab{flex:1;min-width:0;font-size:.75rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--p-text)}
+.pv-mat{font-size:.625rem;color:var(--cp);border:1px solid var(--cp);padding:2px 4px;border-radius:var(--r-xs);width:100%;text-align:center;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.85;flex-shrink:0}
+.pv-badge{display:block;text-align:center;font-size:.625rem;font-weight:700;padding:3px 4px;border-radius:var(--r-xs);text-transform:uppercase;white-space:nowrap}
+.pv-badge.pending{background:var(--p-pend-bg);color:var(--p-muted)}
+.pv-badge.downloaded{background:var(--p-green-bg);color:var(--p-green)}
+.pv-badge.process{background:var(--p-proc-bg);color:var(--p-proc-txt)}
+.pv-rm{display:block;text-align:center;background:var(--p-bg);border:1px solid color-mix(in srgb,var(--p-err) 25%,transparent);border-radius:var(--r-xs);padding:2px 4px;font-size:.625rem;font-weight:700;text-transform:uppercase;color:var(--p-err);white-space:nowrap}
+.pv-div{display:flex;align-items:center;gap:8px;padding:2px 2px 0}
+.pv-div::before,.pv-div::after{content:"";flex:1;height:1px;background:var(--p-border)}
+.pv-div span{font-size:.625rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--p-muted)}
+.pv-foot{display:flex;flex-direction:column;gap:4px;border-top:1px solid var(--p-border);padding-top:8px;flex-shrink:0}
+.pv-action{width:100%;padding:.65rem 1rem;border-radius:var(--r-md);font-weight:700;font-size:.8125rem;text-transform:uppercase;text-align:center;background:var(--p-brand);color:var(--p-on-brand);box-shadow:0 2px 4px rgba(0,0,0,.04)}
+.pv-actions{display:flex;gap:6px}
+.pv-actions .pv-action{flex:1;min-width:0;padding-inline:.6rem;font-size:.75rem;white-space:nowrap}
+.pv-rescan{flex:none;display:flex;align-items:center;justify-content:center;gap:6px;padding:.65rem .7rem;border-radius:var(--r-md);background:var(--p-btn2);border:1px solid var(--p-border);color:var(--p-text);font-weight:700;font-size:.75rem;text-transform:uppercase;white-space:nowrap}
+.pv-progress{height:5px;border-radius:var(--r-xs);background:var(--p-border);overflow:hidden}
+.pv-progress i{display:block;height:100%;width:64%;background:var(--p-brand)}
+.pv.res.claro .pv-progress i{box-shadow:inset 0 0 0 1px var(--p-brand-line)}
+.pv-tel{display:flex;justify-content:space-between;font:700 .625rem ui-monospace,Consolas,monospace;color:var(--p-muted)}
+.pv-status{font-size:.75rem;font-weight:600;color:var(--p-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pv-status b{color:var(--p-text)}
+.pv-cancel{display:flex;gap:4px}
+.pv-cancel div{flex:1;padding:.35rem;font-size:.625rem;font-weight:700;text-transform:uppercase;border-radius:var(--r-sm);text-align:center;border:1px solid var(--p-border);background:var(--p-bg);color:var(--p-text)}
+.pv-cancel .hard{background:var(--p-err);border-color:var(--p-err);color:#fff}
+.pv-cap{font:500 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+/* variantes del logo */
+.var-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.var{border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.var.pick{outline:2px solid var(--rec);outline-offset:-2px}
+.var-txt{padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.var-txt h4{margin:0;font-size:16px;font-weight:600;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.var-txt p{color:var(--muted);font-size:13.5px}
+.var-bg{display:flex;align-items:flex-end;gap:16px;padding:14px 16px}
+.var-bg.l{background:#FFFFFF;border-top:1px solid var(--line)}
+.var-bg.p{background:#FBFAF4}
+.var-bg.d{background:#141416}
+.var-bg figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:4px}
+.var-bg figcaption{font:10px var(--mono);color:#8A8880}
+.var-bg .fondo{margin-left:auto;font:10px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:#8A8880;align-self:center}
+.var-solo{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+.var-solo .var-txt{grid-column:1/-1}
+.var-solo .var-bg{border-top:1px solid var(--line)}
+@media (max-width:820px){.var-solo{grid-template-columns:1fr}}
+.var-16{display:flex;gap:10px;align-items:center}
+@media (max-width:820px){
+    .rumbo{grid-template-columns:1fr}
+  .info{padding:22px 18px}
+}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="logo-resal" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="14" fill="#FBFAF4"/><path d="M8.5 39.5 C22 36.6 39 33.8 54.5 31.2 Q56 31 56.4 32.4 L59 44.6 C44 46.9 27 50 12.6 53 Q11 53.3 10.6 51.9 Z" fill="#FFD60A"/><g fill="none" stroke="#1C1C1E" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M32 9 V40"/><path d="M19 28 L32 41 L45 28"/></g>
+    </symbol>
+    <symbol id="logo-resal-dark" viewBox="0 0 64 64">
+      <use href="#logo-resal"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+  <header class="intro">
+    <div class="eyebrow">Course Downloader · identidad</div>
+    <h1>Resaltador</h1>
+    <p class="lead">Una flecha en tinta sobre un trazo de marcador amarillo, como la clase que se baja del aula y queda marcada en tu carpeta. Paleta, ícono, los dos temas y el popup de la extensión con la marca aplicada.</p>
+  </header>
+
+  <!-- 3 Resaltador -->
+  <section class="rumbo rec">
+    <div class="info">
+      <div class="info-head"><h2>Marca y tema claro</h2><span class="tag-rec">Tema claro</span></div>
+      <p class="idea">El tono de estudiante que se <b>lleva la clase del aula a su carpeta</b>. Una flecha en tinta sobre un trazo de marcador amarillo. El amarillo no se cruza con ninguno de los colores de los portales (azul, violeta y verde), así que la marca y los portales conviven en la misma fila.</p>
+      <div>
+        <div class="label">Paleta</div>
+        <div class="sw">
+          <div><span style="background:#FFD60A"></span><small><b>Resaltador</b>#FFD60A</small></div>
+          <div><span style="background:#1C1C1E"></span><small><b>Tinta</b>#1C1C1E</small></div>
+          <div><span style="background:#FBFAF4"></span><small><b>Hoja</b>#FBFAF4</small></div>
+          <div><span style="background:#6B6B70"></span><small><b>Lápiz</b>#6B6B70</small></div>
+          <div><span style="background:#E5484D"></span><small><b>Corrección</b>#E5484D</small></div>
+        </div>
+      </div>
+      <div>
+        <div class="label">Ícono · wordmark en Bricolage Grotesque</div>
+        <div class="sizes">
+          <figure><svg width="128" height="128"><use href="#logo-resal"/></svg><figcaption>128</figcaption></figure>
+          <figure><svg width="48" height="48"><use href="#logo-resal"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="16" height="16"><use href="#logo-resal"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="refs"><span>Readwise</span><span>Obsidian</span><span>Libretas Rhodia</span><span>Stabilo Boss</span></div>
+    </div>
+    <div class="stage" style="background:#EFEDE3;background-image:linear-gradient(#E2DFD2 1px,transparent 1px),linear-gradient(90deg,#E2DFD2 1px,transparent 1px);background-size:18px 18px">
+      <div class="pop" style="background:#FBFAF4;color:#1C1C1E">
+        <div class="pop-h" style="border-bottom:1px solid #E8E5DA"><svg><use href="#logo-resal"/></svg><span class="wm" style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;letter-spacing:-.01em">Course <span style="background:linear-gradient(transparent 45%,#FFD60A 45% 90%,transparent 90%)">Downloader</span></span><span class="bell">🔔 0</span></div>
+        <div class="pop-b">
+          <div class="row" style="background:#FFFFFF;border:1px solid #ECE9DF"><div class="row-t"><i class="dot" style="background:#005AD7"></i><span class="nm">Anatomía I · Clase 12 · Miembro superior</span><span class="st">64 %</span></div><div class="bar" style="background:#F1EEE3"><i style="width:64%;background:#1C1C1E"></i></div></div>
+          <div class="row" style="background:#FFFFFF;border:1px solid #ECE9DF"><div class="row-t"><i class="dot" style="background:#8E44FF"></i><span class="nm">Neuroanatomía · Módulo 3 · Atlas.pdf</span><span class="st">3,2 MB</span></div><div class="bar" style="background:#F1EEE3"><i style="width:22%;background:#1C1C1E"></i></div></div>
+          <div class="row" style="background:#FFFFFF;border:1px solid #ECE9DF"><div class="row-t"><i class="dot" style="background:#1E8E3E"></i><span class="nm">Histología 2026 · Clase grabada 05</span><span class="st">en cola</span></div><div class="bar" style="background:#F1EEE3"><i style="width:0"></i></div></div>
+          <div style="display:flex;gap:6px"><div class="btn" style="background:#F3F1E8;border:1px solid #ECE9DF;padding-inline:10px;white-space:nowrap">🔄 Re-escanear</div><div class="btn" style="flex:1;background:#FFD60A;color:#1C1C1E">Agregar a la fila 📥</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3b Resaltador oscuro -->
+  <section class="rumbo rec" id="resaltador-oscuro">
+    <div class="info">
+      <div class="info-head"><h2>Tema oscuro</h2><span class="tag-rec">Tema oscuro</span></div>
+      <p class="idea">Es la misma marca de noche: <b>el amarillo no cambia</b> y lo que se invierte es el papel. La hoja pasa a pizarra, la tinta pasa a tiza cálida, y el texto sobre el amarillo sigue siendo tinta oscura, igual que en claro. El ícono no se invierte: es una hoja con su propio papel, como una etiqueta pegada, y se usa igual en los dos temas. Así el trazo de marcador siempre cae sobre papel claro, que es donde se lee como resaltado.</p>
+      <div>
+        <div class="label">Paleta</div>
+        <div class="sw">
+          <div><span style="background:#FFD60A"></span><small><b>Resaltador</b>#FFD60A</small></div>
+          <div><span style="background:#141416"></span><small><b>Pizarra</b>#141416</small></div>
+          <div><span style="background:#1B1B1F"></span><small><b>Hoja noche</b>#1B1B1F</small></div>
+          <div><span style="background:#F2F0E6"></span><small><b>Tiza</b>#F2F0E6</small></div>
+          <div><span style="background:#9A988F"></span><small><b>Lápiz</b>#9A988F</small></div>
+          <div><span style="background:#FF6369"></span><small><b>Corrección</b>#FF6369</small></div>
+        </div>
+      </div>
+      <div>
+        <div class="label">El mismo ícono, sobre fondo oscuro</div>
+        <div class="sizes">
+          <figure><svg width="128" height="128"><use href="#logo-resal-dark"/></svg><figcaption>128</figcaption></figure>
+          <figure><svg width="48" height="48"><use href="#logo-resal-dark"/></svg><figcaption>48</figcaption></figure>
+          <figure><svg width="16" height="16"><use href="#logo-resal-dark"/></svg><figcaption>16</figcaption></figure>
+        </div>
+        <p class="idea" style="font-size:13px;margin-top:10px">Es un solo archivo para todo: la barra de Chrome (el manifest no cambia de ícono según el tema) y el <code>&lt;img&gt;</code> del header en los dos temas.</p>
+      </div>
+      <div>
+        <div class="label">Contraste (WCAG)</div>
+        <div class="refs"><span>Tiza sobre pizarra · 16,1:1</span><span>Lápiz sobre hoja noche · 5,9:1</span><span>Tinta sobre resaltador · 13:1</span></div>
+      </div>
+    </div>
+    <div class="stage" style="background:#18181B;background-image:linear-gradient(#232327 1px,transparent 1px),linear-gradient(90deg,#232327 1px,transparent 1px);background-size:18px 18px">
+      <div class="pop" style="background:#141416;color:#F2F0E6;box-shadow:0 12px 32px rgba(0,0,0,.5);border:1px solid #2A2A2F">
+        <div class="pop-h" style="border-bottom:1px solid #26262B"><svg><use href="#logo-resal-dark"/></svg><span class="wm" style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;letter-spacing:-.01em">Course <span style="color:#F2F0E6;-webkit-text-stroke:1px #141416;paint-order:stroke fill;background:linear-gradient(transparent 45%,#FFD60A 45% 90%,transparent 90%);padding-inline:1px">Downloader</span></span><span class="bell">🔔 0</span></div>
+        <div class="pop-b">
+          <div class="row" style="background:#1B1B1F;border:1px solid #2A2A2F"><div class="row-t"><i class="dot" style="background:#005AD7"></i><span class="nm">Anatomía I · Clase 12 · Miembro superior</span><span class="st">64 %</span></div><div class="bar" style="background:#2A2A2F"><i style="width:64%;background:#FFD60A"></i></div></div>
+          <div class="row" style="background:#1B1B1F;border:1px solid #2A2A2F"><div class="row-t"><i class="dot" style="background:#8E44FF"></i><span class="nm">Neuroanatomía · Módulo 3 · Atlas.pdf</span><span class="st">3,2 MB</span></div><div class="bar" style="background:#2A2A2F"><i style="width:22%;background:#FFD60A"></i></div></div>
+          <div class="row" style="background:#1B1B1F;border:1px solid #2A2A2F"><div class="row-t"><i class="dot" style="background:#1E8E3E"></i><span class="nm">Histología 2026 · Clase grabada 05</span><span class="st">en cola</span></div><div class="bar" style="background:#2A2A2F"><i style="width:0"></i></div></div>
+          <div style="display:flex;gap:6px"><div class="btn" style="background:#2A2A2F;border:1px solid #2A2A2F;padding-inline:10px;white-space:nowrap">🔄 Re-escanear</div><div class="btn" style="flex:1;background:#FFD60A;color:#141416">Agregar a la fila 📥</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="box" id="variantes-logo">
+    <div class="eyebrow">Logo · trazo biselado</div>
+    <h3>Un resaltado menos geométrico</h3>
+    <p class="idea" style="color:var(--muted);max-width:72ch">Un solo ícono con su propio papel y la flecha en tinta. El trazo tiene forma de marcador y no de cinta. Aparece a 96, 48 y 16 px sobre blanco (barra de Chrome clara), hoja y pizarra (barra oscura). Es el logo que usa toda esta página.</p>
+    <div class="var-grid">
+      <div class="var var-solo">
+        <div class="var-txt"><h4>Biselado<span class="tag-rec">Logo elegido</span></h4><p>Bordes largos apenas curvos y puntas cortadas en diagonal, como un marcador de punta biselada. Es el cambio más chico respecto del paralelogramo original y el que mejor aguanta a 16 px.</p></div>
+        <div class="var-bg l"><figure><svg width="96" height="96" aria-hidden="true"><use href="#logo-resal"/></svg><figcaption>96</figcaption></figure><figure><svg width="48" height="48" aria-hidden="true"><use href="#logo-resal"/></svg><figcaption>48</figcaption></figure><figure><svg width="16" height="16" aria-hidden="true"><use href="#logo-resal"/></svg><figcaption>16</figcaption></figure><span class="fondo">Blanco</span></div><div class="var-bg p"><figure><svg width="96" height="96" aria-hidden="true"><use href="#logo-resal"/></svg><figcaption>96</figcaption></figure><figure><svg width="48" height="48" aria-hidden="true"><use href="#logo-resal"/></svg><figcaption>48</figcaption></figure><figure><svg width="16" height="16" aria-hidden="true"><use href="#logo-resal"/></svg><figcaption>16</figcaption></figure><span class="fondo">Hoja</span></div><div class="var-bg d"><figure><svg width="96" height="96" aria-hidden="true"><use href="#logo-resal"/></svg><figcaption>96</figcaption></figure><figure><svg width="48" height="48" aria-hidden="true"><use href="#logo-resal"/></svg><figcaption>48</figcaption></figure><figure><svg width="16" height="16" aria-hidden="true"><use href="#logo-resal"/></svg><figcaption>16</figcaption></figure><span class="fondo">Pizarra</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="box">
+    <div class="eyebrow">Resaltador · mapeo a styles/variables.css</div>
+    <h3>Los dos temas, token por token</h3>
+    <div style="overflow-x:auto">
+      <table class="tok">
+        <thead><tr><th>Token</th><th>Claro</th><th>Oscuro</th></tr></thead>
+        <tbody>
+          <tr><td><code>--bg-main</code></td><td><i style="background:#FBFAF4"></i>#FBFAF4</td><td><i style="background:#141416"></i>#141416</td></tr>
+          <tr><td><code>--bg-surface</code></td><td><i style="background:#FFFFFF"></i>#FFFFFF</td><td><i style="background:#1B1B1F"></i>#1B1B1F</td></tr>
+          <tr><td><code>--text-main</code></td><td><i style="background:#1C1C1E"></i>#1C1C1E</td><td><i style="background:#F2F0E6"></i>#F2F0E6</td></tr>
+          <tr><td><code>--text-muted</code></td><td><i style="background:#6B6B70"></i>#6B6B70</td><td><i style="background:#9A988F"></i>#9A988F</td></tr>
+          <tr><td><code>--border-color</code></td><td><i style="background:#ECE9DF"></i>#ECE9DF</td><td><i style="background:#2A2A2F"></i>#2A2A2F</td></tr>
+          <tr><td><code>--accent-brand</code> (renombra <code>--accent-orange</code>)</td><td><i style="background:#FFD60A"></i>#FFD60A</td><td><i style="background:#FFD60A"></i>#FFD60A</td></tr>
+          <tr><td><code>--text-on-brand</code> (renombra <code>--text-on-orange</code>)</td><td><i style="background:#1C1C1E"></i>#1C1C1E</td><td><i style="background:#141416"></i>#141416</td></tr>
+          <tr><td><code>--accent-error</code></td><td><i style="background:#E5484D"></i>#E5484D</td><td><i style="background:#FF6369"></i>#FF6369</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="idea" style="color:var(--muted);font-size:13.5px">El texto sobre la marca es siempre tinta, en los dos temas: blanco sobre amarillo da 1,4:1 y no se lee.</p>
+  </section>
+
+  <!-- Mock del popup real -->
+  <section class="box" id="popup-real">
+    <div class="eyebrow">Mock · entrypoints/popup/index.html</div>
+    <h3>El popup con Resaltador</h3>
+    <p class="idea" style="color:var(--muted);max-width:70ch">La misma estructura que la extensión: header, barra de ruta, pestañas, filtros, lista y footer, a 390 × 600 px como <code>.container</code>. Solo cambian los tokens de color y el logo.</p>
+    <div class="pv-controls">
+      <div class="seg" role="group" aria-label="Pantalla">
+        <button type="button" id="pv-vista-disp" class="on" data-vista="disp">Clases disponibles</button>
+        <button type="button" id="pv-vista-cola" data-vista="cola">Fila de descarga</button>
+      </div>
+    </div>
+    <div class="pv-scroll">
+      <div class="pv-pair" id="pv-pair"></div>
+    </div>
+    <ul class="pv-notas">
+      <li><b>Re-escanear 🔄</b> pasa de la barra de filtros a la botonera de abajo, como botón secundario con su nombre, al lado de “Agregar a la fila”. En la fila de descarga no aparece, porque el footer está ocupado por los controles de la descarga.</li>
+      <li><b>Tags alineados</b>: la fila es una grilla con columnas fijas (materia 68 px, estado 80 px), así la materia y el estado caen en la misma columna aunque cambie el largo del título o del estado.</li>
+      <li><b>Filas seleccionadas y la que se está bajando</b>: quedan resaltadas en amarillo, como un renglón marcado.</li>
+      <li><b>Texto amarillo sobre claro no se lee</b>. Por eso “En fila”, “Bajando” y el chip <code>→ materia</code> usan un ocre (<code>#8A6D00</code>) en claro y el amarillo puro solo en oscuro.</li>
+      <li><b>El botón de “sincronizar disco”</b> va en tinta en claro y en tiza en oscuro, para no confundirse con el azul de un portal.</li>
+    </ul>
+  </section>
+
+
+</div>
+
+<script>
+(function(){
+  var PORTAL={rn:'#005AD7',abc:'#8E44FF',gc:'#1E8E3E'};
+  var disp=[
+    {t:'Semana 1 - Clase 1: Introducción a la anatomía',m:'Anatomía',p:'rn',b:'downloaded',bt:'Descargado'},
+    {t:'Semana 1 - Clase 2: La célula',m:'Biología',p:'rn',b:'downloaded',bt:'Descargado'},
+    {t:'Semana 3 - Clase 1: Miembro superior',m:'Anatomía',p:'rn',b:'pending',bt:'Pendiente',c:'on',sel:1},
+    {t:'Semana 3 - Clase 2: Ciclo celular y mitosis',m:'Biología',p:'rn',b:'pending',bt:'Pendiente',c:'on',sel:1},
+    {t:'Semana 4 - Clase 1: Epitelios',m:'Histología',p:'rn',b:'pending',bt:'Pendiente',c:'off'},
+    {t:'Semana 4 - Clase 2: Articulaciones',m:'Anatomía',p:'rn',b:'process',bt:'En Fila'},
+    {t:'Guía de TP 4 - Genética mendeliana.pdf',m:'Biología',p:'rn',b:'pending',bt:'Pendiente',c:'off',pdf:1},
+    {t:'Semana 5 - Clase 1: Potencial de acción',m:'Fisiología',p:'rn',b:'pending',bt:'Pendiente',c:'off'},
+    {t:'Semana 5 - Clase 2: Tejido conectivo',m:'Histología',p:'rn',b:'pending',bt:'Pendiente',c:'off'},
+    {t:'Semana 6 - Clase 1: Tórax',m:'Anatomía',p:'rn',b:'pending',bt:'Pendiente',c:'off'}
+  ];
+  var cola=[
+    {t:'Semana 3 - Clase 2: Plexo braquial',m:'Anatomía',p:'rn'},
+    {t:'Neuroanatomía · Atlas de cortes.pdf',m:'Módulo 3',p:'abc',pdf:1},
+    {t:'Neuroanatomía · Vías sensitivas',m:'Módulo 3',p:'abc'},
+    {t:'Histología 2026 · Clase grabada 05',m:'Histología',p:'gc'},
+    {t:'Histología 2026 · Clase grabada 06',m:'Histología',p:'gc'},
+    {t:'Semana 4 - Clase 2: Articulaciones',m:'Anatomía',p:'rn'}
+  ];
+  function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+  function chk(c){return c?'<span class="pv-chk '+(c==='on'?'on':'')+'"></span>':'<span class="pv-chk ph"></span>'}
+  function mat(r){return '<span class="pv-mat" style="--cp:'+PORTAL[r.p]+'">'+esc(r.m)+'</span>'}
+  function tipo(r){return '<span class="pv-tipo">'+(r.pdf?'📄':'🎬')+'</span>'}
+  function popup(marca,tema,vista){
+    var logo='logo-resal';
+    var titulo='Course <span>Downloader</span>';
+    var enCola=vista==='cola';
+    var h='<div class="pv '+marca+' '+tema+'">';
+    h+='<div class="pv-h"><div class="pv-hl"><svg aria-hidden="true"><use href="#'+logo+'"/></svg><h4>'+titulo+'</h4></div><div class="pv-hr"><span>❓</span><span>🔔</span><span class="pv-dot" title="Servidor conectado"></span></div></div>';
+    h+='<div class="pv-bar pv-path"><div class="pv-row"><span class="pv-lbl">📁 PC:</span><span class="pv-pathtxt">D:\\Facultad\\2026\\Clases</span><span class="pv-btn2">📂 Explorar</span></div>';
+    h+='<div class="pv-row"><span class="pv-lbl">📚 Materia:</span><span class="pv-input">subcarpeta/vacia (ej: Biologia)</span><span class="pv-faceta">Cátedra 2</span></div></div>';
+    h+='<div class="pv-bar pv-tabs"><div class="pv-tab'+(enCola?'':' on')+'">Clases Disponibles</div><div class="pv-tab'+(enCola?' on':'')+'">Fila de Descarga <span class="pv-cnt">'+(cola.length+1)+'</span></div></div>';
+    h+='<div class="pv-bar pv-filt"><span class="pv-search">Buscar clase...</span><span class="pv-pill">Filtros <small>▼</small></span><span class="pv-pill">Sem. ↑</span><label class="pv-all">'+chk(enCola?'off':'off')+'Todos</label></div>';
+    h+='<div class="pv-list">';
+    if(!enCola){
+      disp.forEach(function(r){
+        h+='<div class="pv-item'+(r.sel?' sel':'')+'">'+chk(r.c)+tipo(r)+'<span class="pv-lab">'+esc(r.t)+'</span>'+mat(r)+'<span class="pv-badge '+r.b+'">'+r.bt+'</span></div>';
+      });
+    }else{
+      h+='<div class="pv-item bajando">'+chk()+'<span class="pv-tipo">🎬</span><span class="pv-lab">Semana 3 - Clase 1: Miembro superior</span>'+mat({m:'Anatomía',p:'rn'})+'<span class="pv-badge process">Bajando</span></div>';
+      h+='<div class="pv-div"><span>En cola</span></div>';
+      cola.forEach(function(r){
+        h+='<div class="pv-item">'+chk('off')+tipo(r)+'<span class="pv-lab">'+esc(r.t)+'</span>'+mat(r)+'<span class="pv-rm">Remover ❌</span></div>';
+      });
+    }
+    h+='</div><div class="pv-foot">';
+    if(!enCola){
+      h+='<div class="pv-actions"><div class="pv-rescan" title="Volver a escanear la pestaña del portal para traer clases nuevas">🔄 Re-escanear</div><div class="pv-action">Agregar 2 clases a la fila 📥</div></div>';
+    }else{
+      h+='<div class="pv-progress"><i></i></div><div class="pv-tel"><span>182.4 MB / 285.0 MB</span><span>12.6 MB/s</span><span>Frags: 412/640</span></div>';
+      h+='<div class="pv-status">Descargando:<b> Semana 3 - Clase 1: Miembro superior</b></div>';
+      h+='<div class="pv-cancel"><div>Frenar al terminar</div><div class="hard">Detener descargas 🚫</div></div>';
+    }
+    h+='</div></div>';
+    return h;
+  }
+  var st={marca:'res',vista:'disp'};
+  try{var g=JSON.parse(localStorage.getItem('pv-st')||'null');if(g&&g.vista)st.vista=g.vista}catch(e){}
+  var pair=document.getElementById('pv-pair');
+  function render(){
+    pair.innerHTML=['claro','oscuro'].map(function(t){
+      return '<div class="pv-col"><div class="pv-cap">'+'Resaltador'+' · '+(t==='claro'?'claro':'oscuro')+'</div>'+popup(st.marca,t,st.vista)+'</div>';
+    }).join('');
+    document.querySelectorAll('.pv-controls button').forEach(function(b){
+      var on=(b.dataset.marca&&b.dataset.marca===st.marca)||(b.dataset.vista&&b.dataset.vista===st.vista);
+      b.classList.toggle('on',!!on);b.setAttribute('aria-pressed',on?'true':'false');
+    });
+  }
+  document.querySelectorAll('.pv-controls button').forEach(function(b){
+    b.addEventListener('click',function(){
+      if(b.dataset.vista)st.vista=b.dataset.vista;
+      try{localStorage.setItem('pv-st',JSON.stringify(st))}catch(e){}
+      render();
+    });
+  });
+  render();
+})();
+</script>

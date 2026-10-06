@@ -98,11 +98,11 @@ body {
 
 /* focus-visible accessibility best practices */
 :focus-visible {
-  outline: 2px solid var(--accent-orange);
+  outline: 2px solid var(--accent-brand-line);
   outline-offset: 2px;
 }
 input:focus-visible, select:focus-visible, button:focus-visible {
-  outline: 2px solid var(--accent-orange);
+  outline: 2px solid var(--accent-brand-line);
   outline-offset: 1px;
 }
 
@@ -127,20 +127,20 @@ input[type="checkbox"] {
               box-shadow 0.2s var(--ease-elastic);
 
   &:hover:not(:disabled) {
-    border-color: var(--accent-orange);
+    border-color: var(--accent-brand-line);
   }
 
   &:checked {
-    background-color: var(--accent-orange);
-    border-color: var(--accent-orange);
-    box-shadow: 0 0 5px var(--glow-orange);
+    background-color: var(--accent-brand);
+    border-color: var(--accent-brand-line);
+    box-shadow: 0 0 5px var(--glow-brand);
 
     &::before {
       content: "";
       width: 7px;
       height: 4px;
-      border-left: 1.8px solid var(--text-on-orange);
-      border-bottom: 1.8px solid var(--text-on-orange);
+      border-left: 1.8px solid var(--text-on-brand);
+      border-bottom: 1.8px solid var(--text-on-brand);
       transform: rotate(-45deg) translate(0.5px, -0.5px);
       display: block;
     }

@@ -10,6 +10,8 @@
  * verifica que los archivos existan.
  */
 
+import '@fontsource/bricolage-grotesque/latin-800.css';
+
 // Adaptadores de sitio (Capa 2): antes que todo lo que los consume.
 //
 // Desde el corte 7 son DOS portales, y cada uno publica sus globals con nombre propio

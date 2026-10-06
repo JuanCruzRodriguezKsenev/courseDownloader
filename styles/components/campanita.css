@@ -22,7 +22,7 @@
 }
 
 .campanita-btn:hover {
-  color: var(--accent-orange);
+  color: var(--accent-brand-text);
   transform: scale(1.15);
 }
 
@@ -114,7 +114,7 @@
 .campanita-fila:last-child { border-bottom: none; }
 
 /* Sin leer: barra de acento a la izquierda. */
-.campanita-fila.no-leido { box-shadow: inset 3px 0 0 var(--accent-orange); }
+.campanita-fila.no-leido { box-shadow: inset 3px 0 0 var(--accent-brand-line); }
 
 .campanita-fila-top {
   display: flex;
@@ -130,10 +130,10 @@
   padding: 1px 6px;
   border-radius: var(--radius-full);
   background: var(--badge-process-bg);
-  color: var(--accent-orange);
+  color: var(--accent-brand-text);
 }
 
-/* La caída de conexión (servidor/internet) usa el rojo de error; "sesion" el naranja. */
+/* La caída de conexión (servidor/internet) usa el rojo de error; "sesion" el amarillo de marca. */
 .campanita-chip.servidor,
 .campanita-chip.internet {
   background: rgba(var(--accent-error-rgb), var(--alpha-badge));

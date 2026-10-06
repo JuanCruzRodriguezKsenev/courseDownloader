@@ -69,7 +69,7 @@
 .onboarding-icon {
   font-size: 2.8rem;
   margin-bottom: 0.8rem;
-  filter: drop-shadow(0 0 8px rgba(var(--accent-orange-rgb), 0.25));
+  filter: drop-shadow(0 0 8px rgba(var(--accent-brand-rgb), 0.25));
   animation: pulse-icon 2s infinite ease-in-out;
 }
 
@@ -80,7 +80,7 @@
 
 .onboarding-slide h3 {
   margin: 0 0 0.6rem 0;
-  color: var(--accent-orange);
+  color: var(--accent-brand-text);
   font-size: var(--text-md);
   font-weight: var(--font-black);
   text-transform: uppercase;
@@ -144,13 +144,13 @@
 }
 
 .onboarding-dot.active {
-  background-color: var(--accent-orange);
-  box-shadow: 0 0 4px var(--glow-orange);
+  background-color: var(--accent-brand);
+  box-shadow: 0 0 4px var(--glow-brand);
   transform: scale(1.2);
 }
 
 .onboarding-link {
-  color: var(--accent-orange);
+  color: var(--accent-brand-text);
   text-decoration: underline;
   text-underline-offset: 3px;
   font-weight: var(--font-bold);
@@ -160,7 +160,7 @@
   margin-top: 6px;
 
   &:hover {
-    color: var(--accent-orange-hover);
+    color: var(--accent-brand-text);
   }
 }
 

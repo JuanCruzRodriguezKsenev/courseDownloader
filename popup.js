@@ -1316,12 +1316,12 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
       const selectWrapper = document.getElementById('ui-master-select-wrapper');
       if (id === "disponibles") {
-        if (nodos.btnRescan) nodos.btnRescan.style.display = '';
+        sincronizarBtnRescan();
         if (nodos.btnToggleSelect) nodos.btnToggleSelect.style.display = 'none';
         if (selectWrapper) selectWrapper.style.display = 'flex';
         modoSeleccionFilaActivo = false;
       } else {
-        if (nodos.btnRescan) nodos.btnRescan.style.display = 'none';
+        sincronizarBtnRescan();
         if (nodos.btnToggleSelect) {
           nodos.btnToggleSelect.style.display = 'flex';
           nodos.btnToggleSelect.textContent = "Seleccionar";
@@ -3145,6 +3145,15 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       pisoBoton.libre(() => aplicarBotonesUX(modo, txt, dis));
     }
 
+    function sincronizarBtnRescan() {
+      if (!nodos.btnRescan) return;
+      const modo = nodos.btnAction ? nodos.btnAction.getAttribute('data-modo') : '';
+      const btnActionVisible = nodos.btnAction && nodos.btnAction.style.display !== 'none';
+      const modoRescan = modo === 're-escanear' || modo === 'escanear-todos' || modo === 'recorriendo';
+      const visible = appState.pestañaActiva === 'disponibles' && btnActionVisible && !modoRescan;
+      nodos.btnRescan.style.display = visible ? '' : 'none';
+    }
+
     function aplicarBotonesUX(modo, txt, dis) {
       nodos.btnAction.setAttribute('data-modo', modo);
       nodos.btnAction.className = `btn-action modo-${modo}`;
@@ -3158,6 +3167,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // o vacío en pantalla. Excepción única y explícita: la sincronización de disco, que
       // escribe su label con innerHTML por el spinner y restaura el display ahí mismo.
       nodos.btnAction.style.display = txt ? 'block' : 'none';
+      sincronizarBtnRescan();
       sincronizarFooterVacio();
     }
 

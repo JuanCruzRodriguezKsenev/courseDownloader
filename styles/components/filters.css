@@ -30,8 +30,8 @@
        indicador propio es lo bastante visible como para poder apagar el outline global —el
        cambio de color del borde, solo, no lo era. */
     &:focus {
-      border-color: var(--accent-orange);
-      box-shadow: 0 0 0 2px rgba(var(--accent-orange-rgb), 0.15);
+      border-color: var(--accent-brand-line);
+      box-shadow: 0 0 0 2px rgba(var(--accent-brand-rgb), 0.15);
     }
 
     /* El mismo triple foco que tenía materia: ver el comentario largo en `path-bar.css`. */
@@ -97,9 +97,9 @@
     }
 
     &.active {
-      background-color: rgba(var(--accent-orange-rgb), var(--alpha-hover));
-      border-color: var(--accent-orange);
-      color: var(--accent-orange);
+      background-color: rgba(var(--accent-brand-rgb), var(--alpha-hover));
+      border-color: var(--accent-brand-line);
+      color: var(--accent-brand-text);
     }
 
     .arrow {
@@ -283,8 +283,8 @@
       &:hover { color: var(--text-main); }
 
       &.activo {
-        background-color: rgba(var(--accent-orange-rgb), var(--alpha-hover));
-        color: var(--accent-orange);
+        background-color: rgba(var(--accent-brand-rgb), var(--alpha-hover));
+        color: var(--accent-brand-text);
       }
     }
   }
@@ -300,14 +300,14 @@
     position: relative;
 
     &.marcado {
-      border-color: var(--accent-orange);
+      border-color: var(--accent-brand-line);
 
       &::after {
         content: "";
         position: absolute;
         inset: 2.5px;
         border-radius: 50%;
-        background-color: var(--accent-orange);
+        background-color: var(--accent-brand);
       }
     }
   }

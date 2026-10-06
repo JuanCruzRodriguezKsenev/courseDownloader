@@ -357,7 +357,7 @@ describe("AppState.establecerModoTurbo", () => {
 describe("AppState.sincronizarConBackground", () => {
   it("copia los estados del SW sobre la lista en memoria y detecta la ráfaga", async () => {
     mensajeria.onMensaje((_msg, responder) => {
-      responder({ estados: { A: "process", B: "done" }, suaveFrenado: true, videoActual: "A" });
+      responder({ estados: { A: "process", B: "done" }, rafagaCorriendo: true, suaveFrenado: true, videoActual: "A" });
     });
     app.listadoClasesGlobal = [
       { titulo: "A", estado: "pending" },
@@ -371,6 +371,30 @@ describe("AppState.sincronizarConBackground", () => {
     expect(app.ráfagaEnCurso).toBe(true);
     expect(app.banderaFrenadoSolicitado).toBe(true);
     expect(app.videoActualEnTransmisiónSW).toBe("A");
+  });
+
+  it("con la fila armada y nada corriendo, la clase queda en process pero ráfagaEnCurso es false", async () => {
+    mensajeria.onMensaje((_msg, responder) => {
+      responder({ estados: { A: "process" }, rafagaCorriendo: false });
+    });
+    app.listadoClasesGlobal = [{ titulo: "A", estado: "pending" }];
+
+    await app.sincronizarConBackground();
+
+    expect(app.listadoClasesGlobal[0]?.estado).toBe("process");
+    expect(app.ráfagaEnCurso).toBe(false);
+  });
+
+  it("sin el campo rafagaCorriendo (SW viejo o modoVerificacion), ráfagaEnCurso es false", async () => {
+    mensajeria.onMensaje((_msg, responder) => {
+      responder({ estados: { A: "process" } });
+    });
+    app.listadoClasesGlobal = [{ titulo: "A", estado: "pending" }];
+
+    await app.sincronizarConBackground();
+
+    expect(app.listadoClasesGlobal[0]?.estado).toBe("process");
+    expect(app.ráfagaEnCurso).toBe(false);
   });
 
   it("si el SW acepta pero nunca contesta, el timeout de rescate resuelve vacío en vez de colgar", async () => {

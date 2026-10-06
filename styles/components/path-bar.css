@@ -114,7 +114,7 @@
   background-color: var(--bg-main);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  color: var(--accent-orange);
+  color: var(--accent-brand-text);
   padding: 0 var(--space-sm);
   font-size: var(--text-base);
   font-family: var(--font-mono);
@@ -125,19 +125,19 @@
   height: 24px;
 
   &:focus {
-    border-color: var(--accent-orange);
-    box-shadow: 0 0 0 2px rgba(var(--accent-orange-rgb), 0.15);
+    border-color: var(--accent-brand-line);
+    box-shadow: 0 0 0 2px rgba(var(--accent-brand-rgb), 0.15);
   }
 
   /* UN SOLO TRATAMIENTO DE FOCO. El `outline: none` de arriba no alcanzaba: `base.css` tiene
      `input:focus-visible { outline: 2px solid … }` como default de accesibilidad, y ése le gana
      —(0,1,1) contra (0,1,0)—, así que al entrar al campo se veían TRES cosas encimadas: el
-     borde naranja, el halo de 2px y encima el outline con su `outline-offset: 1px`. Eso es lo
+     borde amarillo de marca, el halo de 2px y encima el outline con su `outline-offset: 1px`. Eso es lo
      que se leía como borde doble.
 
      Se apaga acá y NO en `base.css`: el default global tiene que seguir valiendo para todo lo
      que no traiga foco propio. Apagarlo es legítimo **sólo porque este campo ya muestra un foco
-     bien visible** (borde + halo, los dos naranjas). Un control al que le saques el outline sin
+     bien visible** (borde + halo, los dos amarillos). Un control al que le saques el outline sin
      darle otro indicador queda sin foco visible para quien navega con teclado. */
   &:focus-visible {
     outline: none;

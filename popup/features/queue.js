@@ -282,7 +282,7 @@ const QueueFeature = {
 
       nodos.txtEstado.innerHTML = "";
       const spanDesc = document.createElement('span');
-      spanDesc.style.color = "var(--accent-orange)";
+      spanDesc.style.color = "var(--accent-brand-text)";
       spanDesc.textContent = appState.videoActualEnTransmisiónSW || "Video actual";
       nodos.txtEstado.append("Frenando al terminar:", document.createElement('br'), spanDesc);
 
