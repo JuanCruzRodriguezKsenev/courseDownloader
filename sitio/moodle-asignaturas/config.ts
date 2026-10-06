@@ -1,6 +1,9 @@
 /**
- * ADAPTADOR DE SITIO — MOODLE ASIGNATURAS (UNLP): CONFIGURACIÓN (V1.0.0)
+ * ADAPTADOR DE SITIO — MOODLE ASIGNATURAS (UNLP): CONFIGURACIÓN (V1.1.0)
  * ==========================================================================
+ * CHANGELOG v1.1.0:
+ * - [PLAN 29 / MULTICURSO] Portada en /my/ y subrutas (esPortada, claveDeListado "todos").
+ *
  * CHANGELOG v1.0.0:
  * - [PLAN 13 / MODO PURO] Descriptor del portal asignaturas.info.unlp.edu.ar (UNLP Informática).
  *   - Implementa PuertoSitio con destinoPorIndice: true (RN-1, RN-13).
@@ -40,13 +43,21 @@ const SitioMoodleAsignaturas: PuertoSitio = {
 
   esPaginaDelSitio(url) {
     if (typeof url !== "string") return false;
-    return /^https:\/\/asignaturas\.info\.unlp\.edu\.ar\/course\/view\.php\?(?:[^#]*&)?id=\d+/.test(
-      url
+    return (
+      /^https:\/\/asignaturas\.info\.unlp\.edu\.ar\/course\/view\.php\?(?:[^#]*&)?id=\d+/.test(
+        url
+      ) || this.esPortada?.(url) === true
     );
+  },
+
+  esPortada(url) {
+    if (typeof url !== "string") return false;
+    return /^https:\/\/asignaturas\.info\.unlp\.edu\.ar\/my(?:\/|$|\?)/.test(url);
   },
 
   claveDeListado(url) {
     if (typeof url !== "string") return undefined;
+    if (this.esPortada?.(url)) return "todos";
     if (!this.esPaginaDelSitio(url)) return undefined;
     const m = /[?&]id=(\d+)/.exec(url);
     return m ? m[1] : undefined;
