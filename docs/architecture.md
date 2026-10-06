@@ -594,7 +594,7 @@ El servidor complementario Bun aloja en `backend/destino/` los servicios puros d
 - **`backend/destino/estado.js`**: `calcularEstado({ raiz, sitio, curso, items })`, cálculo de estado contra disco e índice corrigiendo rutas movidas (RN-19).
 - **`backend/destino/escritura.js`**: `validarDestino({ raiz, ruta, nombre, materia })` y `finalizarEnDestino(...)`, gancho `alFinalizar` del acumulador que ejecuta la tabla de decisión (`decidirDespues`) al completar la descarga para escribir, descartar o rechazar por ocupado (D-6, D-7).
 - **`backend/destino/vistos.js`**: `guardarVisto`, `leerVistos` y `limpiarVistos`, almacén volátil en memoria para conservar los escaneos recientes de cursos y alimentar el modo índice del editor web (D-2).
-- **`backend/destino/portales.js`**: módulo puro (node-free) dueño de `PORTALES_VALIDOS`, `PORTALES_CON_DESTINO_INDICE` y `resolverRaizDeDestino({ portalId, raices, raizPorDefecto, raizFacultad })` (D-1, D-2).
+- **`backend/destino/portales.js`**: módulo puro (node-free) dueño de `PORTALES_VALIDOS` (7 portales), `PORTALES_CON_DESTINO_INDICE` (`google-classroom`, `moodle-linti`, `moodle-asignaturas`, `sites-matec`, `moodle-ingenieria`) y `resolverRaizDeDestino({ portalId, raices, raizPorDefecto, raizFacultad })` (D-1, D-2).
 - **`backend/adopcion/editor.html`**: interfaz web monocroma del editor de adopción servida en `/adopcion/` para configurar materias, temas y archivos; incluye borrador local persistido en `localStorage` con debounce de 500 ms y banner interactivo de restauración ante cambios sin guardar, sin listener `beforeunload` para evitar cuelgues del navegador (Plan 19).
 
 ## Flujo de una descarga, de punta a punta

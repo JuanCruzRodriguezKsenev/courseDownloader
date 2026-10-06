@@ -30,10 +30,19 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **83 archivos, 1273 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
+| `pnpm test` | **87 archivos, 1313 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 1313** (2026-10-06, plan `31 - Moodle Ingenieria, el sexto portal`, rama `moodle-ingenieria`): son los 1273 de abajo más **+40** tests (+4 archivos nuevos en `sitio/moodle-ingenieria/`):
+- **+7** en `sitio/moodle-ingenieria/config.test.ts` (esPaginaDelSitio, esPortada, claveDeListado, metadatos y aislamiento),
+- **+7** en `sitio/moodle-ingenieria/descargarAdjunto.test.js` (soporte de 302, folder, sesión expirada /login/ y rechazo 404),
+- **+3** en `sitio/moodle-ingenieria/parserTitulos.test.js` (limpieza de sufijo tipo archivo de Moodle),
+- **+18** en `sitio/moodle-ingenieria/scraper.test.js` (recorrido de curso individual con RN-4 sección 0, recorrido multicurso desde /my/, carpetas, URLs y cancelación),
+- **+2** en `backend/destino/portales.test.js` (moodle-asignaturas, sites-matec y moodle-ingenieria en PORTALES_CON_DESTINO_INDICE y válidos),
+- **+2** en `sitio/registro.test.ts` (registro del sexto portal y aislamiento de portadas entre Moodles),
+- **+1** en `sitio/inyeccion.test.js` (evaluación JSDOM en node:vm sin ReferenceError para moodle-ingenieria).
 
 **De dónde sale el 1273** (2026-10-06, merge de `marca-resaltador` con `moodle-multicurso`): son los 1250 de abajo (marca) más los **+23** del plan 29, que se miden contra 1239; no hay tests propios del merge.
 

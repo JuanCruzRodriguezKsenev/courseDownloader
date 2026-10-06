@@ -11,7 +11,7 @@ grande—, falta bajar una clase y mirar el popup con las dos colas mezcladas. �
 **Si venís a eso: lo específico de ese portal está en `portal-anatomy-by-chris-diseno.md`, y el
 cómo genérico acá, en §Cómo escribir un portal nuevo — el paso a paso.**
 
-> **Sexto portal (2026-10-05):** el Moodle de Ingeniería (`asignaturas.ing.unlp.edu.ar`), por curso y
+> **Sexto portal (2026-10-06):** el Moodle de Ingeniería (`asignaturas.ing.unlp.edu.ar`), implementado por curso y
 > con recorrido de todos los cursos desde `/my/`. El *qué* vive en
 > [`specs/moodle-ingenieria/spec.md`](./specs/moodle-ingenieria/spec.md). Los scripts de consola con los que se
 > mide un portal antes de escribir su spec están en [`medicion-de-portales.md`](./medicion-de-portales.md).
