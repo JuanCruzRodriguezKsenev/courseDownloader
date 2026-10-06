@@ -246,6 +246,39 @@ describe("recorridoTodos — Reductor puro", () => {
     expect(res?.cursos[0]?.enlaces).toBeUndefined();
     expect(res?.ultimaSenal).toBe(6000);
   });
+
+  it("fin cortado sesion conserva los cursos con resultado y no crea el siguiente", () => {
+    const rInicial: RecorridoTodos = {
+      idRecorrido: 42,
+      tabId: 1,
+      sitioId: "moodle-linti",
+      estado: "escaneando",
+      cursos: [
+        { id: "1331", nombre: "Programación III", resultado: "ok", enlaces: [{ id: "doc1" }] },
+        { id: "1352", nombre: "ISO" },
+        { id: "1371", nombre: "Taller II" },
+      ],
+      indice: 1,
+      ultimaSenal: 1000,
+      materializado: false,
+    };
+
+    const evFin: EventoRecorrido = {
+      tipo: "fin",
+      idRecorrido: 42,
+      estado: "cortado",
+      motivoCorte: "sesion",
+    };
+
+    const r = aplicarEvento(rInicial, evFin, 2000);
+    expect(r?.estado).toBe("cortado");
+    expect(r?.motivoCorte).toBe("sesion");
+    expect(r?.cursos).toHaveLength(3);
+    expect(r?.cursos[0]?.resultado).toBe("ok");
+    expect(r?.cursos[1]?.resultado).toBeUndefined();
+    expect(r?.cursos[2]?.resultado).toBeUndefined();
+    expect(r?.ultimaSenal).toBe(2000);
+  });
 });
 
 describe("recorridoTodos — esVigente", () => {
@@ -343,7 +376,29 @@ describe("recorridoTodos — resumen, textoResumen y enlacesDe", () => {
     const texto = textoResumen(r);
     expect(texto).toContain("3 cursos: 1 con material · 0 vacíos · 0 fallidos");
     expect(texto).toContain(
-      "Se cortó en el curso 1 de 3: Classroom quedó en segundo plano. Quedaron 2 sin recorrer."
+      "Se cortó en el curso 1 de 3: la pestaña quedó en segundo plano. Quedaron 2 sin recorrer."
+    );
+  });
+
+  it("textoResumen de recorrido cortado por sesion", () => {
+    const r: RecorridoTodos = {
+      idRecorrido: 1,
+      tabId: 1,
+      sitioId: "moodle-linti",
+      estado: "cortado",
+      motivoCorte: "sesion",
+      cursos: [
+        { id: "c1", nombre: "Física", resultado: "ok" },
+        { id: "c2", nombre: "Química" },
+      ],
+      indice: 1,
+      ultimaSenal: 1000,
+      materializado: false,
+    };
+
+    const texto = textoResumen(r);
+    expect(texto).toContain(
+      "Se cortó en el curso 2 de 2: la sesión venció: volvé a entrar al portal y escaneá de nuevo. Quedaron 1 sin recorrer."
     );
   });
 
