@@ -25,3 +25,4 @@
 - [Scripts de medición](reference_scripts_medicion_portales.md) — scripts A–E en docs/medicion-de-portales.md; flujo para sumar un portal
 - [Moodle Asignaturas multicurso](project_moodle_asignaturas_multicurso.md) — spec draft 2026-10-05; /my/ tiene 1 curso; falta plan; separado de Ingeniería
 - [Sitios pendientes](project_sitios_pendientes.md) — LEER AL RETOMAR: 4 specs listas; plan 29 (Moodle LINTI+Info) escrito en Bóveda; faltan 30 (Ing) y 31 (IDEAS)
+- [Medir con clic y worktrees](feedback_medir_con_clic.md) — clic real en menús al medir; no hacer checkout con obra activo, usar git worktree
