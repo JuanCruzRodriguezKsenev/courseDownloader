@@ -11,6 +11,20 @@ grande—, falta bajar una clase y mirar el popup con las dos colas mezcladas. �
 **Si venís a eso: lo específico de ese portal está en `portal-anatomy-by-chris-diseno.md`, y el
 cómo genérico acá, en §Cómo escribir un portal nuevo — el paso a paso.**
 
+> **Sexto portal (2026-10-05):** el Moodle de Ingeniería (`asignaturas.ing.unlp.edu.ar`), por curso y
+> con recorrido de todos los cursos desde `/my/`. El *qué* vive en
+> [`specs/moodle-ingenieria/spec.md`](./specs/moodle-ingenieria/spec.md). Los scripts de consola con los que se
+> mide un portal antes de escribir su spec están en [`medicion-de-portales.md`](./medicion-de-portales.md).
+>
+> **Multicurso de Informática (2026-10-05):** «Escanear todos» para `moodle-asignaturas`. El *qué* vive en
+> [`specs/moodle-asignaturas-multicurso/spec.md`](./specs/moodle-asignaturas-multicurso/spec.md).
+>
+> **Multicurso del LINTI (2026-10-05):** «Escanear todos» para `moodle-linti`. El *qué* vive en
+> [`specs/moodle-linti-multicurso/spec.md`](./specs/moodle-linti-multicurso/spec.md).
+>
+> **IDEAS del LIDI (2026-10-05):** portal nuevo con multicurso. El *qué* vive en
+> [`specs/ideas-info/spec.md`](./specs/ideas-info/spec.md).
+
 Lo que **no** se pudo verificar y no hay que dar por bueno: todo lo que exige dos portales a la
 vez (la sección Portal del 6c, el criterio `portal` del 6b, y la mitad "el otro portal no se ve
 afectado" de los cinco cortes multiportal). **Con el corte 7 una parte dejó de tener sólo dobles**
