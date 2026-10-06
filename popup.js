@@ -1454,17 +1454,20 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         adjuntosSinResolverUltimoEscaneo = adjuntosSinResolver;
         nodos.folder.value = "";
         recorridoSinEnlaces = false;
-        let authUser = "0";
-        const matchUrl = pestañaActivaUrl?.match(/\/u\/(\d+)\//);
-        if (matchUrl) {
-          authUser = matchUrl[1];
-        } else {
-          const creds = await credencialesPortal?.para(portal?.id);
-          if (creds?.authuser) {
-            authUser = creds.authuser;
+        let urlPortada = portal?.urlListado;
+        if (portal?.id === "google-classroom") {
+          let authUser = "0";
+          const matchUrl = pestañaActivaUrl?.match(/\/u\/(\d+)\//);
+          if (matchUrl) {
+            authUser = matchUrl[1];
+          } else {
+            const creds = await credencialesPortal?.para(portal?.id);
+            if (creds?.authuser) {
+              authUser = creds.authuser;
+            }
           }
+          urlPortada = `https://classroom.google.com/u/${authUser}/h`;
         }
-        const urlPortada = `https://classroom.google.com/u/${authUser}/h`;
         aplicarEnlacesEscaneados(portal, urlPortada, enlaces);
       } else {
         recorridoSinEnlaces = true;
