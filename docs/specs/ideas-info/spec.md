@@ -219,6 +219,15 @@ AC-12 — Escanear un curso no ofrece "todos"
 | M-4 | De qué sección es el `.zip` y cómo se llama | RN-18, AC-2 |
 | M-5 | Con 2 o más cursos en `/home`, ver cómo se listan y si hay paginación | RN-13 |
 
+### Resultado de las mediciones (2026-10-06, con la sesión del dueño en Chrome, sólo lecturas)
+
+- **M-3** — «Información de cátedra» y «Promoción» **no tienen texto**: el `Show/<guid>` sólo trae el título de la sección y un `<p>` vacío (sin `a.contentToView`, sin cuerpo). RN-7 no tiene de dónde sacar un `.md`: esas dos secciones se **omiten** en vez de generar un archivo vacío.
+- **M-4** — Hay **32 archivos**, no «31 PDF y 1 zip»: el «zip» es «Explicacion 2 - Algoritmica Clasica» (sección Material de práctica), cuyo header trae `content-type: application/zip` pero `filename` termina en **`.pptx`** (47 caracteres, empieza con número). Un `.pptx` es un zip, así que el servidor lo etiqueta mal. **Clasificar por la extensión del `filename`, no por el `content-type`.** Resultado: 31 `.pdf` + 1 `.pptx`. Muchos PDF llevan doble extensión en el nombre real (`….docx.pdf`, `….pptx.pdf`).
+- **M-2 (parcial, desde la página, sin la extensión)** — Listar las 9 secciones y leer los 32 headers (cancelando cada descarga) tardó **26,8 s en total**, ~0,63 s por archivo. Con eso 120 s alcanza con holgura para un curso del tamaño de CBD (4,5×). Falta medirlo desde el service worker con la extensión.
+- **M-5** — `/home` tiene **un solo curso** (Conceptos de Bases de Datos); no se puede medir listado ni paginación. Sigue pendiente hasta que haya un segundo curso.
+- **M-1** — Pendiente: necesita la extensión con soporte de IDEAS (cookie HttpOnly desde el service worker y destino de la sesión vencida).
+- **Otro hallazgo** — Cada enlace de `/home` apunta a `.../EnterCourse/<guid>` o `...EnterCourse?idCourseTool=<guid>`: entrar a un curso pasa por una ruta `EnterCourse` que fija el curso en la sesión antes de que `Show?courseTool` responda. El plan debe recorrer ese paso, no sólo `Show`.
+
 ## Dependencias
 
 - Reusa el recorrido genérico `recorridoTodos` y `esPortada` de los portales Moodle. El plan de IDEAS va **después** del plan del recorrido genérico.
