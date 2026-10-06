@@ -16,7 +16,9 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## 🚧 En revisión
 
-### `moodle-ingenieria` (Plan 31)
+### `moodle-ingenieria` (Plan 31) — **ya está en `main` (2026-10-06), mergeada SIN verificar en Chrome**
+
+Compuerta del merge: 87 archivos / 1313 tests, lint 0, tsc 0, build ok. Las casillas de abajo siguen sin hacer: no tratarlas como superadas.
 
 Sexto portal: Moodle de Ingeniería (`www.asignaturas.ing.unlp.edu.ar` y sin `www`).
 Escaneo de curso individual y recorrido completo desde `/my/` (modo `todos`).
