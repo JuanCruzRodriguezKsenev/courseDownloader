@@ -38,8 +38,8 @@ Esta spec define las reglas específicas para este portal.
 
 **No incluye**
 - Otros Moodle de la UNLP (cada uno es un portal independiente).
-- `forum`, `quiz`, `assign`, `choicegroup` ni contenido binario de `label`.
-- Descarga de video binario de Kaltura (política transversal: sólo accesos `.md`).
+- `forum`, `quiz`, `assign`, `choicegroup` ni contenido binario de `label`. (Un `label` con un video Kaltura incrustado **sí** genera un acceso `.md`, RN-15.)
+- Descarga de video binario de Kaltura (política transversal: sólo accesos `.md`; el acceso sí entra, ver RN-15 a RN-18).
 - Escaneo de todos los cursos desde la portada (lo cubre [`../moodle-asignaturas-multicurso/spec.md`](../moodle-asignaturas-multicurso/spec.md), `draft`).
 
 ## Actores
@@ -72,6 +72,15 @@ Esta spec define las reglas específicas para este portal.
 ### Los `url`
 
 - **RN-9** — Un `url` se guarda como archivo `.md` con frontmatter (`tipo: acceso`, `revisado: <hoy>`). El destino se extrae de la página intermedia con `.urlworkaround a, #region-main a[href^="http"]`. Si no hay intermedia legible, se guarda la URL de Moodle `mod/url/view.php?id=<cmid>`.
+
+### Los videos Kaltura (en `label`)
+
+*Decidido por el dueño el 2026-10-06: el video entra como enlace `.md`.* Medido en el curso 82 (`module-5411`, «Cierre de cursada»): el HTML crudo del `label` trae `<script src="https://videos.unlp.edu.ar/p/117/sp/11700/embedIframeJs/uiconf_id/23448245/partner_id/117">` y un `<script>` inline `kWidget.embed({ "targetId": "kaltura_player_…", "wid": "_117", "uiconf_id": 23448245, "entry_id": "0_p4y3czcv", … })`. El `<iframe>` **no existe** en el HTML inicial: lo crea el script. Los otros 37 `label` del curso son sólo texto.
+
+- **RN-15** — Un `label` cuyo HTML contiene un `kWidget.embed({ … "entry_id": "<id>" … })` genera **un** ítem acceso `.md` (como un `url`, RN-9). El `entry_id` se lee del **texto del `<script>` inline** con una expresión regular; no se espera a que el script cree el `<iframe>` ni se lo ejecuta.
+- **RN-16** — La URL del acceso se arma con el host y los ids del `<script src>` `…/p/<pid>/sp/<pid>00/embedIframeJs/uiconf_id/<uiconf>/partner_id/<pid>` del **mismo** `label`: `https://<host>/p/<pid>/sp/<pid>00/embedIframeJs/uiconf_id/<uiconf>/partner_id/<pid>?iframeembed=true&entry_id=<entry_id>`. Si ese `<script src>` falta, el `label` **no** genera ítem (no se inventa el host).
+- **RN-17** — El título es el nombre de la actividad (`data-activityname` del `label`); si falta, `Video <entry_id>`. La clave es `acceso:<url>:<título>` (RN-5) y se desduplica por `entry_id` dentro del curso. El tema y la `publicacion` son los de cualquier ítem (RN-4, RN-8).
+- **RN-18** — No se baja video ni se valida que se reproduzca. Medido: ese enlace abre la página del reproductor con el título del video («Cierre de Programación II-20241204 1224-1»), pero el reproductor dice «No source video was found»: el enlace sirve como registro, no como reproducción garantizada.
 
 ### Bajar y resolver
 
@@ -110,6 +119,22 @@ AC-4 — Carpeta con subcarpetas
   Dado un folder con estructura interna "1. imperativo/practica1.pdf"
   Cuando se descarga en modo destino
   Entonces el archivo se guarda con su idArchivo compuesto "<cmid>/1. imperativo/practica1.pdf"
+
+AC-5 — Video Kaltura en un label
+  Dado el label «Cierre de cursada» con kWidget.embed y entry_id "0_p4y3czcv" y su script embedIframeJs de partner 117
+  Cuando se escanea el curso
+  Entonces la lista tiene un ítem "Cierre de cursada.md" de tipo acceso
+    y su url es https://videos.unlp.edu.ar/p/117/sp/11700/embedIframeJs/uiconf_id/23448245/partner_id/117?iframeembed=true&entry_id=0_p4y3czcv
+
+AC-6 — Un label sin video no genera ítem
+  Dado los otros 37 label del curso, que sólo tienen texto
+  Cuando se escanea el curso
+  Entonces ninguno aparece en la lista
+
+AC-7 — Label con kWidget pero sin script embedIframeJs
+  Dado un label con kWidget.embed y entry_id pero sin el script embedIframeJs
+  Cuando se escanea el curso
+  Entonces no genera ítem
 ```
 
 ---
