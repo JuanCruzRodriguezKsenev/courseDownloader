@@ -1,6 +1,6 @@
 # Marca: Resaltador
 
-**Estado (2026-10-05): 🟢 aplicada en el popup (identidad), faltan las decisiones de UI de §6.2 (plan 27).** Este doc es el
+**Estado (2026-10-05): 🟢 aplicada (en revisión en Chrome).** Este doc es el
 **hogar canónico de la identidad visual**: qué colores, qué logo, qué wordmark y cómo se mapean a
 `styles/variables.css`. Lo que falta para completarlo está en §7.
 
@@ -160,6 +160,8 @@ color, o cambiar el color obliga a tocar todas las hojas.
   materia (Anatomía, Biología…) y el de estado (Descargado, Pendiente…) caen en la misma columna
   en todas las filas, sin importar el largo del título o del estado. **Costo**: el título tiene
   menos lugar y se corta antes; el nombre completo sigue en el `title` de la fila.
+  - *«omitido» va en la columna de estado* (donde diría «Pendiente», no en la columna de materia).
+  - *«videollamada» y «movido» son sólo ícono (📹 en la columna de tipo, ↪ al final del título)*.
 - **El botón de "sincronizar disco" deja el azul.** `--accent-cyan-disco: #005AD7` es
   exactamente el color de Ramón Net como portal. Pasa a tinta en claro y a tiza en oscuro.
 - El verde de "Descargado" (`--accent-green`) no se tocó: es semántico, no de marca.
@@ -176,8 +178,7 @@ Orden ejecutado en el plan 26 (identidad) y plan 27 (UI):
 3. [x] `entrypoints/popup/index.html`: el `<h4>` del header pasa al wordmark de §5 (y cargar
    Bricolage Grotesque **empaquetada**, no desde Google Fonts: el popup no debería depender de
    la red para dibujar su nombre).
-4. [ ] Las decisiones de §6.2, cada una en su hoja (`list.css`, `filters.css`, `footer.css`,
-   `actions.css`) y el footer en `popup.js`. Van a verificación en navegador: casi todo cae en
-   `popup.js`, que la suite no ve (ADR-0005). *(Plan 27)*
+4. [x] Las decisiones de §6.2, cada una en su hoja (`list.css`, `footer.css`, `actions.css`) y el
+   footer en `popup.js`. *(Plan 27)*
 5. [x] `backend/config.js`: la carpeta por defecto `Downloads/RamonNet_Turbo`, **sin romper** a quien
    ya la tenga (ver el aviso de `AGENTS.md` sobre `config_usuario.json`).

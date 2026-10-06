@@ -46,9 +46,10 @@
 
 /* Fila de video individual */
 .video-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: 14px 14px minmax(0, 1fr) 68px 80px;
+  column-gap: var(--space-sm);
   align-items: center;
-  gap: var(--space-sm);
   padding: var(--space-sm) 10px;
   border-radius: var(--radius-md);
   background-color: var(--item-bg);
@@ -82,12 +83,19 @@
   &.selected {
     border-color: rgba(var(--accent-brand-rgb), 0.15);
     border-left-color: var(--accent-brand-line);
-    background-color: rgba(var(--accent-brand-rgb), 0.03);
+    background-color: var(--bg-row-highlight);
   }
 
   &.sin-asignar {
     border-left-color: var(--accent-warning-visible);
     background-color: rgba(245, 158, 11, 0.06);
+  }
+
+  /* Celdas de materia (4) y estado (5) de columnas fijas */
+  > :nth-child(4),
+  > :nth-child(5) {
+    min-width: 0;
+    overflow: hidden;
   }
 
   input[type="checkbox"] {
@@ -107,14 +115,26 @@
     transition: opacity 0.15s ease;
   }
 
+  .celda-titulo {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    min-width: 0;
+  }
+
   .video-label {
     flex: 1;
+    min-width: 0;
     font-size: var(--text-base);
     font-weight: var(--font-medium);
     color: var(--text-main);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .marca-movido {
+    flex-shrink: 0;
   }
 }
 
@@ -126,7 +146,7 @@
    nuevo. Quién va anclada lo decide popup.js al armar el view-model. */
 .video-item.bajando {
   border-left-color: var(--accent-brand-line);
-  background-color: rgba(var(--accent-brand-rgb), 0.03);
+  background-color: var(--bg-row-highlight);
 }
 
 .cola-divisor {
@@ -244,6 +264,12 @@
     color: var(--badge-pending-txt);
   }
 
+  &.omitido {
+    background-color: var(--badge-pending-bg);
+    color: var(--badge-pending-txt);
+    border: 1px dashed var(--border-color);
+  }
+
   &.downloaded {
     background-color: var(--badge-downloaded-bg);
     color: var(--badge-downloaded-txt);
@@ -255,7 +281,7 @@
   }
 }
 
-/* Ícono de TIPO de la fila (🎬 / 📄).
+/* Ícono de TIPO de la fila (🎬 / 📄 / 📹).
    Va en todas las filas y en las dos pestañas: si sólo apareciera en los adjuntos, habría que
    leer la AUSENCIA de un ícono como información, y eso no se lee. */
 .chip-tipo {
@@ -280,7 +306,8 @@
   padding: 2px var(--space-xs);
   border: 1px solid var(--color-portal);
   border-radius: var(--radius-xs);
-  max-width: 11ch;
+  max-width: 100%;
+  justify-self: start;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -300,34 +327,13 @@
     --color-portal: var(--accent-warning-visible);
     opacity: 1;
     font-weight: var(--font-bold);
-    max-width: 14ch;
-  }
-
-  &.chip-movido {
-    --color-portal: var(--text-muted);
-    opacity: 1;
-    font-weight: var(--font-bold);
-    max-width: 14ch;
   }
 
   &.bloqueado {
     --color-portal: var(--text-muted);
     border-style: dashed;
     opacity: 0.7;
-    max-width: 14ch;
   }
-}
-
-.chip-videollamada {
-  font-size: var(--font-xs);
-  padding: 2px var(--space-xs);
-  border: 1px solid var(--accent-brand-line);
-  border-radius: var(--radius-xs);
-  color: var(--accent-brand-text);
-  background-color: rgba(var(--accent-brand-rgb), 0.08);
-  white-space: nowrap;
-  flex-shrink: 0;
-  font-weight: var(--font-bold);
 }
 
 /* Tarjeta de Error de Servidor Desconectado */

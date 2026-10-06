@@ -1,11 +1,24 @@
 /* Panel de Footer */
 .footer-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-xs) var(--space-sm);
   border-top: 1px solid var(--border-color);
   padding-top: var(--space-sm);
   flex-shrink: 0;
+
+  > :not(#ui-btn-rescan):not(#ui-btn-action) {
+    grid-column: 1 / -1;
+  }
+
+  #ui-btn-rescan[style*="none"] ~ #ui-btn-action {
+    grid-column: 1 / -1;
+  }
+
+  #ui-btn-rescan,
+  #ui-btn-action {
+    font-size: var(--text-base);
+  }
 
   /* [FOOTER VACÍO] Si adentro no quedó nada visible, el borde superior es una línea divisoria
      que no divide nada: se lee como un botón que se rompió. Pasa desde que el botón se oculta

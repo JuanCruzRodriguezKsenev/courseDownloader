@@ -86,6 +86,7 @@
   --text-on-error: #FFFFFF;
 
   --item-bg: var(--bg-surface);
+  --bg-row-highlight: rgba(var(--accent-brand-rgb), 0.2);
   --bg-btn-secondary: #F3F1E8;
   --text-btn-secondary: #1C1C1E;
 
@@ -135,6 +136,7 @@
     --text-on-error: #FFFFFF;
 
     --bg-btn-secondary: #2A2A2F;
+    --bg-row-highlight: rgba(var(--accent-brand-rgb), 0.08);
     --text-btn-secondary: #F2F0E6;
 
     --badge-pending-bg: rgba(126, 133, 144, var(--alpha-badge));

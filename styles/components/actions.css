@@ -62,7 +62,8 @@
   }
 
 
-  &.modo-re-escanear {
+  &.modo-re-escanear,
+  &.btn-secundario {
     background-color: var(--bg-btn-secondary);
     color: var(--text-btn-secondary);
     border: 1px solid var(--border-color);
@@ -71,6 +72,11 @@
       background-color: var(--border-color);
       color: var(--text-main);
     }
+  }
+
+  &.btn-secundario {
+    width: auto;
+    white-space: nowrap;
   }
 
   &.start-queue-style {
