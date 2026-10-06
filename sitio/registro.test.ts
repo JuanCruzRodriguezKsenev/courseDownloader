@@ -6,6 +6,7 @@ import { SitioGoogleClassroom } from "./google-classroom/config";
 import { SitioMoodleLinti } from "./moodle-linti/config";
 import { SitioSitesMatec } from "./sites-matec/config";
 import { SitioMoodleAsignaturas } from "./moodle-asignaturas/config";
+import { SitioMoodleIngenieria } from "./moodle-ingenieria/config";
 
 /**
  * Tests del registro de sitios (multi-sitio, corte 2; ampliado en el corte 7, classroom-corte-1 y plan 14-B).
@@ -26,6 +27,7 @@ describe("Sitios.obtener (por id, como viene de un ítem persistido)", () => {
     expect(Sitios.obtener("moodle-linti")).toBe(SitioMoodleLinti);
     expect(Sitios.obtener("sites-matec")).toBe(SitioSitesMatec);
     expect(Sitios.obtener("moodle-asignaturas")).toBe(SitioMoodleAsignaturas);
+    expect(Sitios.obtener("moodle-ingenieria")).toBe(SitioMoodleIngenieria);
   });
 
   it("un id desconocido devuelve undefined y NO cae al portal por defecto", () => {
@@ -92,6 +94,21 @@ describe("Sitios.resolverPorUrl (para la pestaña activa)", () => {
     ).toBe(SitioMoodleAsignaturas);
   });
 
+  it("reconoce Moodle Ingeniería por URL de curso (con y sin www) y por portada /my/", () => {
+    expect(
+      Sitios.resolverPorUrl("https://www.asignaturas.ing.unlp.edu.ar/course/view.php?id=4091")
+    ).toBe(SitioMoodleIngenieria);
+    expect(
+      Sitios.resolverPorUrl("https://asignaturas.ing.unlp.edu.ar/course/view.php?id=4091")
+    ).toBe(SitioMoodleIngenieria);
+    expect(
+      Sitios.resolverPorUrl("https://www.asignaturas.ing.unlp.edu.ar/my/")
+    ).toBe(SitioMoodleIngenieria);
+    expect(
+      Sitios.resolverPorUrl("https://asignaturas.ing.unlp.edu.ar/my/")
+    ).toBe(SitioMoodleIngenieria);
+  });
+
   it("una URL ajena no resuelve a ningún portal", () => {
     expect(Sitios.resolverPorUrl("https://www.google.com/")).toBeUndefined();
   });
@@ -106,7 +123,7 @@ describe("Sitios.resolverPorUrl (para la pestaña activa)", () => {
     ).toBeUndefined();
   });
 
-  it("los seis portales son DISJUNTOS: ninguno reclama la URL del otro", () => {
+  it("los siete portales son DISJUNTOS: ninguno reclama la URL del otro", () => {
     const urls = [
       "https://ramonnet.com.ar/usuario/clases-grabadas",
       "https://hotmart.com/es/club/anatomy-by-chris/products/6083220/content/ABC",
@@ -122,6 +139,10 @@ describe("Sitios.resolverPorUrl (para la pestaña activa)", () => {
       "https://asignaturas.info.unlp.edu.ar/course/view.php?id=105",
       "https://asignaturas.info.unlp.edu.ar/my/",
       "https://asignaturas.info.unlp.edu.ar/my/courses.php",
+      "https://www.asignaturas.ing.unlp.edu.ar/course/view.php?id=4091",
+      "https://asignaturas.ing.unlp.edu.ar/course/view.php?id=4091",
+      "https://www.asignaturas.ing.unlp.edu.ar/my/",
+      "https://asignaturas.ing.unlp.edu.ar/my/",
     ];
     for (const url of urls) {
       const reclaman = Sitios.todos().filter((s) => s.esPaginaDelSitio(url));
@@ -129,7 +150,8 @@ describe("Sitios.resolverPorUrl (para la pestaña activa)", () => {
     }
   });
 
-  it("Moodle LINTI y Moodle Asignaturas tienen hosts distintos y no reclaman la URL del otro", () => {
+  it("Moodle LINTI, Moodle Asignaturas y Moodle Ingeniería tienen hosts distintos y no reclaman la URL del otro", () => {
+    // LINTI no reclama Informática ni Ingeniería
     expect(
       SitioMoodleLinti.esPaginaDelSitio("https://asignaturas.info.unlp.edu.ar/my/")
     ).toBe(false);
@@ -137,10 +159,38 @@ describe("Sitios.resolverPorUrl (para la pestaña activa)", () => {
       SitioMoodleLinti.esPaginaDelSitio("https://asignaturas.info.unlp.edu.ar/course/view.php?id=82")
     ).toBe(false);
     expect(
+      SitioMoodleLinti.esPaginaDelSitio("https://www.asignaturas.ing.unlp.edu.ar/my/")
+    ).toBe(false);
+    expect(
+      SitioMoodleLinti.esPaginaDelSitio("https://www.asignaturas.ing.unlp.edu.ar/course/view.php?id=4091")
+    ).toBe(false);
+
+    // Asignaturas (Informática) no reclama LINTI ni Ingeniería
+    expect(
       SitioMoodleAsignaturas.esPaginaDelSitio("https://catedras.linti.unlp.edu.ar/my/")
     ).toBe(false);
     expect(
       SitioMoodleAsignaturas.esPaginaDelSitio("https://catedras.linti.unlp.edu.ar/course/view.php?id=1352")
+    ).toBe(false);
+    expect(
+      SitioMoodleAsignaturas.esPaginaDelSitio("https://www.asignaturas.ing.unlp.edu.ar/my/")
+    ).toBe(false);
+    expect(
+      SitioMoodleAsignaturas.esPaginaDelSitio("https://www.asignaturas.ing.unlp.edu.ar/course/view.php?id=4091")
+    ).toBe(false);
+
+    // Ingeniería no reclama LINTI ni Informática
+    expect(
+      SitioMoodleIngenieria.esPaginaDelSitio("https://catedras.linti.unlp.edu.ar/my/")
+    ).toBe(false);
+    expect(
+      SitioMoodleIngenieria.esPaginaDelSitio("https://catedras.linti.unlp.edu.ar/course/view.php?id=1352")
+    ).toBe(false);
+    expect(
+      SitioMoodleIngenieria.esPaginaDelSitio("https://asignaturas.info.unlp.edu.ar/my/")
+    ).toBe(false);
+    expect(
+      SitioMoodleIngenieria.esPaginaDelSitio("https://asignaturas.info.unlp.edu.ar/course/view.php?id=82")
     ).toBe(false);
   });
 
@@ -252,6 +302,13 @@ describe("topeEscaneoMs: el techo del escaneo es una medición, no un default", 
       SitioMoodleAsignaturas.claveDeListado!("https://asignaturas.info.unlp.edu.ar/my/")
     ).toBe("todos");
 
+    expect(
+      SitioMoodleIngenieria.claveDeListado!("https://www.asignaturas.ing.unlp.edu.ar/course/view.php?id=4091")
+    ).toBe("4091");
+    expect(
+      SitioMoodleIngenieria.claveDeListado!("https://www.asignaturas.ing.unlp.edu.ar/my/")
+    ).toBe("todos");
+
     expect(SitioRamonNet.claveDeListado).toBeUndefined();
     expect(SitioAnatomyByChris.claveDeListado).toBeUndefined();
   });
@@ -280,6 +337,11 @@ describe("topeEscaneoMs: el techo del escaneo es una medición, no un default", 
       SitioMoodleAsignaturas.esPortada!("https://asignaturas.info.unlp.edu.ar/course/view.php?id=82")
     ).toBe(false);
 
+    expect(SitioMoodleIngenieria.esPortada!("https://www.asignaturas.ing.unlp.edu.ar/my/")).toBe(true);
+    expect(
+      SitioMoodleIngenieria.esPortada!("https://www.asignaturas.ing.unlp.edu.ar/course/view.php?id=4091")
+    ).toBe(false);
+
     expect(SitioRamonNet.esPortada).toBeUndefined();
     expect(SitioAnatomyByChris.esPortada).toBeUndefined();
   });
@@ -291,6 +353,7 @@ describe("topeEscaneoMs: el techo del escaneo es una medición, no un default", 
     expect(SitioMoodleLinti.destinoPorIndice).toBe(true);
     expect(SitioSitesMatec.destinoPorIndice).toBe(true);
     expect(SitioMoodleAsignaturas.destinoPorIndice).toBe(true);
+    expect(SitioMoodleIngenieria.destinoPorIndice).toBe(true);
     expect(SitioRamonNet.destinoPorIndice).toBeUndefined();
     expect(SitioAnatomyByChris.destinoPorIndice).toBeUndefined();
   });

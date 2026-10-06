@@ -44,6 +44,10 @@ import '../../sitio/moodle-asignaturas/config.ts';
 import '../../sitio/moodle-asignaturas/parserTitulos.js';
 import '../../sitio/moodle-asignaturas/scraper.js';
 
+import '../../sitio/moodle-ingenieria/config.ts';
+import '../../sitio/moodle-ingenieria/parserTitulos.js';
+import '../../sitio/moodle-ingenieria/scraper.js';
+
 // Núcleo compartido.
 import '../../core/backend/bunClient.ts';
 // Composición: acá se instancian y se publican los globals de los módulos ya desacoplados
