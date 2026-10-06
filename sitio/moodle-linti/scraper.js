@@ -728,6 +728,11 @@ async function escanearListado(opciones = {}) {
         }
       }
 
+      if (cancelado) {
+        await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "cancelado" });
+        return { materia: "", enlaces: [], recorrido: true, cancelado: true };
+      }
+
       // 8. Fin
       recorridoTerminado = true;
       await avisar({ tipo: "fin", estado: "terminado" });

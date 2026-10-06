@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import cursoHtml from "./__fixtures__/curso.html?raw";
 import carpetaHtml from "./__fixtures__/carpeta.html?raw";
 import urlIntermediaHtml from "./__fixtures__/url-intermedia.html?raw";
+import misCursosHtml from "./__fixtures__/mis-cursos.html?raw";
 import ScraperMoodleAsignaturas from "./scraper.js";
 
 describe("ScraperMoodleAsignaturas.escanearListado", () => {
@@ -179,5 +180,396 @@ describe("ScraperMoodleAsignaturas.escanearListado", () => {
 
     await ScraperMoodleAsignaturas.escanearListado();
     expect(maxActivas).toBeLessThanOrEqual(4);
+  });
+});
+
+describe("ScraperMoodleAsignaturas.escanearListado (modo todos)", () => {
+  let mensajesEnviados;
+  let mockMsg;
+
+  function mockOnMessage() {
+    let oyenteRegistrado = null;
+    const addListener = vi.fn((fn) => {
+      oyenteRegistrado = fn;
+    });
+    const removeListener = vi.fn((fn) => {
+      if (oyenteRegistrado === fn) {
+        oyenteRegistrado = null;
+      }
+    });
+    globalThis.chrome = globalThis.chrome || {};
+    globalThis.chrome.runtime = globalThis.chrome.runtime || {};
+    globalThis.chrome.runtime.onMessage = { addListener, removeListener };
+    return {
+      addListener,
+      removeListener,
+      getOyente: () => oyenteRegistrado,
+      dispararCancelar: (msg, responder = vi.fn()) => {
+        if (oyenteRegistrado) {
+          oyenteRegistrado(msg, {}, responder);
+        }
+      },
+    };
+  }
+
+  function armarCursoHtml(id, nombre, itemsHtml = "") {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head><title>${nombre}</title></head>
+      <body class="format-topics">
+        <div class="page-header-headings"><h1>${nombre}</h1></div>
+        <div id="region-main">
+          <div id="section-1" class="section" data-for="section" data-number="1">
+            <h3 class="sectionname">Tema 1</h3>
+            <ul class="section">
+              ${itemsHtml}
+            </ul>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  function itemResource(cmid, nombre) {
+    return `
+      <li class="activity modtype_resource" data-for="cmitem" data-id="${cmid}" id="module-${cmid}">
+        <div class="activity-item" data-activityname="${nombre}">
+          <a class="activityname" href="https://asignaturas.info.unlp.edu.ar/mod/resource/view.php?id=${cmid}">${nombre}</a>
+        </div>
+      </li>
+    `;
+  }
+
+  beforeEach(() => {
+    mensajesEnviados = [];
+    mockMsg = mockOnMessage();
+    globalThis.chrome.runtime.sendMessage = vi.fn(async (msg) => {
+      mensajesEnviados.push(msg);
+    });
+
+    delete window.location;
+    window.location = new URL("https://asignaturas.info.unlp.edu.ar/my/");
+    document.documentElement.innerHTML = misCursosHtml;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete globalThis.chrome;
+  });
+
+  it("I:AC-2: 1 curso (id 82) en portada emite inicio (1 curso), 1 curso ok y fin terminado", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        const u = String(url);
+        if (u.includes("id=82")) {
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("82", "Programación II", itemResource("4697", "Presentación")),
+          };
+        }
+        return { ok: true, url: u, text: async () => "" };
+      })
+    );
+
+    const res = await ScraperMoodleAsignaturas.escanearListado({
+      modo: "todos",
+      idRecorrido: 101,
+      tabId: 1,
+      sitioId: "moodle-asignaturas",
+    });
+
+    expect(res.recorrido).toBe(true);
+
+    const evInicio = mensajesEnviados.find((m) => m.tipo === "inicio");
+    expect(evInicio).toBeDefined();
+    expect(evInicio.cursos).toHaveLength(1);
+    expect(evInicio.cursos[0].id).toBe("82");
+
+    const evCursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+    expect(evCursos).toHaveLength(1);
+    expect(evCursos[0].resultado).toBe("ok");
+    expect(evCursos[0].enlaces).toHaveLength(1);
+
+    const evFin = mensajesEnviados.find((m) => m.tipo === "fin");
+    expect(evFin).toBeDefined();
+    expect(evFin.estado).toBe("terminado");
+  });
+
+  it("I:AC-3: 5 cursos con 2 vacíos emite 3 ok y 2 vacio", async () => {
+    document.documentElement.innerHTML = `
+      <div id="region-main">
+        <a href="https://asignaturas.info.unlp.edu.ar/course/view.php?id=10">C10</a>
+        <a href="https://asignaturas.info.unlp.edu.ar/course/view.php?id=20">C20</a>
+        <a href="https://asignaturas.info.unlp.edu.ar/course/view.php?id=30">C30</a>
+        <a href="https://asignaturas.info.unlp.edu.ar/course/view.php?id=40">C40</a>
+        <a href="https://asignaturas.info.unlp.edu.ar/course/view.php?id=50">C50</a>
+      </div>
+    `;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        const u = String(url);
+        if (u.includes("id=10") || u.includes("id=30") || u.includes("id=50")) {
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("c", "Con Material", itemResource("10", "Mat.pdf")),
+          };
+        }
+        if (u.includes("id=20") || u.includes("id=40")) {
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("c", "Sin Material", ""),
+          };
+        }
+        return { ok: true, url: u, text: async () => "" };
+      })
+    );
+
+    await ScraperMoodleAsignaturas.escanearListado({
+      modo: "todos",
+      idRecorrido: 102,
+      tabId: 1,
+      sitioId: "moodle-asignaturas",
+    });
+
+    const evCursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+    expect(evCursos).toHaveLength(5);
+    expect(evCursos.filter((c) => c.resultado === "ok")).toHaveLength(3);
+    expect(evCursos.filter((c) => c.resultado === "vacio")).toHaveLength(2);
+    expect(evCursos[1].resultado).toBe("vacio");
+    expect(evCursos[3].resultado).toBe("vacio");
+  });
+
+  it("I:AC-4: curso que supera tope emite fallido y el siguiente continúa", async () => {
+    document.documentElement.innerHTML = `
+      <div id="region-main">
+        <a href="https://asignaturas.info.unlp.edu.ar/course/view.php?id=81">C81</a>
+        <a href="https://asignaturas.info.unlp.edu.ar/course/view.php?id=82">C82</a>
+      </div>
+    `;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url, init) => {
+        const u = String(url);
+        if (u.includes("id=81")) {
+          return new Promise((_, reject) => {
+            if (init?.signal) {
+              init.signal.addEventListener("abort", () => {
+                reject(new DOMException("Aborted", "AbortError"));
+              });
+            }
+          });
+        }
+        if (u.includes("id=82")) {
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("82", "C82", itemResource("2", "R2")),
+          };
+        }
+        return { ok: true, url: u, text: async () => "" };
+      })
+    );
+
+    await ScraperMoodleAsignaturas.escanearListado({
+      modo: "todos",
+      idRecorrido: 103,
+      tabId: 1,
+      sitioId: "moodle-asignaturas",
+      topeCursoMs: 50,
+    });
+
+    const evCursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+    expect(evCursos).toHaveLength(2);
+    expect(evCursos[0].resultado).toBe("fallido");
+    expect(evCursos[0].motivo).toContain("superó el tope");
+    expect(evCursos[1].resultado).toBe("ok");
+  });
+
+  it("I:AC-5: curso que devuelve /login/ emite fin cortado sesion sin evento curso", async () => {
+    document.documentElement.innerHTML = `
+      <div id="region-main">
+        <a href="https://asignaturas.info.unlp.edu.ar/course/view.php?id=81">C81</a>
+        <a href="https://asignaturas.info.unlp.edu.ar/course/view.php?id=82">C82</a>
+      </div>
+    `;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        const u = String(url);
+        if (u.includes("id=81")) {
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("81", "C81", itemResource("1", "R1")),
+          };
+        }
+        if (u.includes("id=82")) {
+          return {
+            ok: true,
+            url: "https://asignaturas.info.unlp.edu.ar/login/index.php",
+            text: async () => "<html><body class='path-login'></body></html>",
+          };
+        }
+        return { ok: true, url: u, text: async () => "" };
+      })
+    );
+
+    await ScraperMoodleAsignaturas.escanearListado({
+      modo: "todos",
+      idRecorrido: 104,
+      tabId: 1,
+      sitioId: "moodle-asignaturas",
+    });
+
+    const evCursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+    expect(evCursos).toHaveLength(1);
+    expect(evCursos[0].indice).toBe(0);
+
+    const evFin = mensajesEnviados.find((m) => m.tipo === "fin");
+    expect(evFin).toBeDefined();
+    expect(evFin.estado).toBe("cortado");
+    expect(evFin.motivoCorte).toBe("sesion");
+  });
+
+  it("I:AC-7: pagehide a mitad de recorrido emite fin cortado navegacion", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        window.dispatchEvent(new Event("pagehide"));
+        return {
+          ok: true,
+          url: String(url),
+          text: async () => armarCursoHtml("82", "C82", itemResource("1", "R1")),
+        };
+      })
+    );
+
+    await ScraperMoodleAsignaturas.escanearListado({
+      modo: "todos",
+      idRecorrido: 105,
+      tabId: 1,
+      sitioId: "moodle-asignaturas",
+    });
+
+    const evFinNav = mensajesEnviados.find(
+      (m) => m.tipo === "fin" && m.motivoCorte === "navegacion"
+    );
+    expect(evFinNav).toBeDefined();
+    expect(evFinNav.estado).toBe("cortado");
+  });
+
+  it("I:AC-8: el mismo idArchivo en dos cursos emite dos ítems con cursoId distinto", async () => {
+    document.documentElement.innerHTML = `
+      <div id="region-main">
+        <a href="https://asignaturas.info.unlp.edu.ar/course/view.php?id=81">C81</a>
+        <a href="https://asignaturas.info.unlp.edu.ar/course/view.php?id=82">C82</a>
+      </div>
+    `;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        const u = String(url);
+        if (u.includes("id=81")) {
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("81", "C81", itemResource("777", "Guia")),
+          };
+        }
+        if (u.includes("id=82")) {
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("82", "C82", itemResource("777", "Guia")),
+          };
+        }
+        return { ok: true, url: u, text: async () => "" };
+      })
+    );
+
+    await ScraperMoodleAsignaturas.escanearListado({
+      modo: "todos",
+      idRecorrido: 106,
+      tabId: 1,
+      sitioId: "moodle-asignaturas",
+    });
+
+    const evCursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+    expect(evCursos).toHaveLength(2);
+    expect(evCursos[0].enlaces[0].idArchivo).toBe("777");
+    expect(evCursos[1].enlaces[0].idArchivo).toBe("777");
+    expect(evCursos[0].enlaces[0].cursoId).toBe("81");
+    expect(evCursos[1].enlaces[0].cursoId).toBe("82");
+  });
+
+  it("I:RN-2: enlaces duplicados y en nav se desduplican y se procesa una vez cada id", async () => {
+    document.documentElement.innerHTML = `
+      <nav><a href="https://asignaturas.info.unlp.edu.ar/course/view.php?id=82">C82 nav</a></nav>
+      <div id="region-main">
+        <a href="https://asignaturas.info.unlp.edu.ar/course/view.php?id=82">C82</a>
+        <a href="https://asignaturas.info.unlp.edu.ar/course/view.php?id=82">C82 bis</a>
+      </div>
+    `;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        return {
+          ok: true,
+          url: String(url),
+          text: async () => armarCursoHtml("82", "C82", itemResource("1", "R1")),
+        };
+      })
+    );
+
+    await ScraperMoodleAsignaturas.escanearListado({
+      modo: "todos",
+      idRecorrido: 107,
+      tabId: 1,
+      sitioId: "moodle-asignaturas",
+    });
+
+    const evInicio = mensajesEnviados.find((m) => m.tipo === "inicio");
+    expect(evInicio.cursos).toHaveLength(1);
+    expect(evInicio.cursos[0].id).toBe("82");
+  });
+
+  it("cancelar_escaneo con otro idRecorrido se ignora; con el propio corta inmediatamente", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        mockMsg.dispararCancelar({ action: "cancelar_escaneo", idRecorrido: 999 });
+        mockMsg.dispararCancelar({ action: "cancelar_escaneo", idRecorrido: 108 });
+        return {
+          ok: true,
+          url: String(url),
+          text: async () => armarCursoHtml("82", "C82", itemResource("1", "R1")),
+        };
+      })
+    );
+
+    const res = await ScraperMoodleAsignaturas.escanearListado({
+      modo: "todos",
+      idRecorrido: 108,
+      tabId: 1,
+      sitioId: "moodle-asignaturas",
+    });
+
+    expect(res.cancelado).toBe(true);
+    const evFin = mensajesEnviados.find((m) => m.tipo === "fin");
+    expect(evFin).toBeDefined();
+    expect(evFin.estado).toBe("cortado");
+    expect(evFin.motivoCorte).toBe("cancelado");
   });
 });
