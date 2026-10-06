@@ -11,7 +11,7 @@ function extraerBloque(contenido, ruta) {
   const fin = contenido.indexOf("// </recorrido-moodle>");
   if (inicio === -1 || fin === -1 || fin <= inicio) {
     throw new Error(
-      `los dos recorridos Moodle deben ser idénticos; Ingeniería va a ser el tercero (falta marcador en ${ruta})`
+      `los tres recorridos Moodle deben ser idénticos (falta marcador en ${ruta})`
     );
   }
   return contenido
@@ -20,19 +20,26 @@ function extraerBloque(contenido, ruta) {
 }
 
 describe("Paridad del bloque de recorrido Moodle", () => {
-  it("el bloque <recorrido-moodle> es idéntico byte a byte entre scrapers", () => {
+  it("el bloque <recorrido-moodle> es idéntico byte a byte entre los tres scrapers", () => {
     const rutaLinti = path.join(__dirname, "moodle-linti/scraper.js");
     const rutaAsignaturas = path.join(__dirname, "moodle-asignaturas/scraper.js");
+    const rutaIngenieria = path.join(__dirname, "moodle-ingenieria/scraper.js");
 
     const contenidoLinti = fs.readFileSync(rutaLinti, "utf-8");
     const contenidoAsignaturas = fs.readFileSync(rutaAsignaturas, "utf-8");
+    const contenidoIngenieria = fs.readFileSync(rutaIngenieria, "utf-8");
 
     const bloqueLinti = extraerBloque(contenidoLinti, rutaLinti);
     const bloqueAsignaturas = extraerBloque(contenidoAsignaturas, rutaAsignaturas);
+    const bloqueIngenieria = extraerBloque(contenidoIngenieria, rutaIngenieria);
 
     expect(
       bloqueLinti,
-      "los dos recorridos Moodle deben ser idénticos; Ingeniería va a ser el tercero"
+      "los tres recorridos Moodle deben ser idénticos (LINTI vs Asignaturas)"
     ).toBe(bloqueAsignaturas);
+    expect(
+      bloqueAsignaturas,
+      "los tres recorridos Moodle deben ser idénticos (Asignaturas vs Ingeniería)"
+    ).toBe(bloqueIngenieria);
   });
 });
