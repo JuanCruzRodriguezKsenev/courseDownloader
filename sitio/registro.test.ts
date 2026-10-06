@@ -115,14 +115,33 @@ describe("Sitios.resolverPorUrl (para la pestaña activa)", () => {
       "https://classroom.google.com/u/2/h",
       "https://classroom.google.com/u/2/h/archived",
       "https://catedras.linti.unlp.edu.ar/course/view.php?id=301",
+      "https://catedras.linti.unlp.edu.ar/my/",
+      "https://catedras.linti.unlp.edu.ar/my/courses.php",
       "https://sites.google.com/ing.unlp.edu.ar/matec",
       "https://sites.google.com/ing.unlp.edu.ar/matec/teorias",
       "https://asignaturas.info.unlp.edu.ar/course/view.php?id=105",
+      "https://asignaturas.info.unlp.edu.ar/my/",
+      "https://asignaturas.info.unlp.edu.ar/my/courses.php",
     ];
     for (const url of urls) {
       const reclaman = Sitios.todos().filter((s) => s.esPaginaDelSitio(url));
       expect(reclaman).toHaveLength(1);
     }
+  });
+
+  it("Moodle LINTI y Moodle Asignaturas tienen hosts distintos y no reclaman la URL del otro", () => {
+    expect(
+      SitioMoodleLinti.esPaginaDelSitio("https://asignaturas.info.unlp.edu.ar/my/")
+    ).toBe(false);
+    expect(
+      SitioMoodleLinti.esPaginaDelSitio("https://asignaturas.info.unlp.edu.ar/course/view.php?id=82")
+    ).toBe(false);
+    expect(
+      SitioMoodleAsignaturas.esPaginaDelSitio("https://catedras.linti.unlp.edu.ar/my/")
+    ).toBe(false);
+    expect(
+      SitioMoodleAsignaturas.esPaginaDelSitio("https://catedras.linti.unlp.edu.ar/course/view.php?id=1352")
+    ).toBe(false);
   });
 
   it("tolera URL vacía/ausente (pestaña sin URL legible, chrome://…)", () => {
@@ -203,7 +222,7 @@ describe("topeEscaneoMs: el techo del escaneo es una medición, no un default", 
     expect(SitioGoogleClassroom.topeEscaneoMs).toBeGreaterThan(SitioAnatomyByChris.topeEscaneoMs);
   });
 
-  it("claveDeListado: Classroom devuelve el id del curso, 'todos' en portada, y los otros portales no la declaran", () => {
+  it("claveDeListado: Classroom y Moodle devuelven el id del curso, 'todos' en portada, y Ramón Net y Anatomy no la declaran", () => {
     expect(
       SitioGoogleClassroom.claveDeListado!(
         "https://classroom.google.com/u/2/w/ODc0ODk1NDcwNTMw/t/all"
@@ -218,11 +237,26 @@ describe("topeEscaneoMs: el techo del escaneo es una medición, no un default", 
       SitioGoogleClassroom.claveDeListado!("https://classroom.google.com/u/2/h")
     ).toBe("todos");
     expect(SitioGoogleClassroom.claveDeListado!(undefined)).toBeUndefined();
+
+    expect(
+      SitioMoodleLinti.claveDeListado!("https://catedras.linti.unlp.edu.ar/course/view.php?id=1352")
+    ).toBe("1352");
+    expect(
+      SitioMoodleLinti.claveDeListado!("https://catedras.linti.unlp.edu.ar/my/")
+    ).toBe("todos");
+
+    expect(
+      SitioMoodleAsignaturas.claveDeListado!("https://asignaturas.info.unlp.edu.ar/course/view.php?id=82")
+    ).toBe("82");
+    expect(
+      SitioMoodleAsignaturas.claveDeListado!("https://asignaturas.info.unlp.edu.ar/my/")
+    ).toBe("todos");
+
     expect(SitioRamonNet.claveDeListado).toBeUndefined();
     expect(SitioAnatomyByChris.claveDeListado).toBeUndefined();
   });
 
-  it("esPortada: Classroom identifica /h, /h/st y /h/archived como portada, y no un curso ni portales ajenos", () => {
+  it("esPortada: Classroom y Moodle identifican su portada, y no un curso ni portales ajenos", () => {
     expect(SitioGoogleClassroom.esPortada!("https://classroom.google.com/u/2/h")).toBe(true);
     expect(SitioGoogleClassroom.esPortada!("https://classroom.google.com/u/2/h/st")).toBe(true);
     expect(SitioGoogleClassroom.esPortada!("https://classroom.google.com/u/2/h/archived")).toBe(true);
@@ -233,6 +267,19 @@ describe("topeEscaneoMs: el techo del escaneo es una medición, no un default", 
       SitioGoogleClassroom.esPortada!("https://classroom.google.com/u/2/w/ODc0ODk1NDcwNTMw/t/all")
     ).toBe(false);
     expect(SitioGoogleClassroom.esPortada!(undefined)).toBe(false);
+
+    expect(SitioMoodleLinti.esPortada!("https://catedras.linti.unlp.edu.ar/my/")).toBe(true);
+    expect(SitioMoodleLinti.esPortada!("https://catedras.linti.unlp.edu.ar/my/courses.php")).toBe(true);
+    expect(
+      SitioMoodleLinti.esPortada!("https://catedras.linti.unlp.edu.ar/course/view.php?id=1352")
+    ).toBe(false);
+
+    expect(SitioMoodleAsignaturas.esPortada!("https://asignaturas.info.unlp.edu.ar/my/")).toBe(true);
+    expect(SitioMoodleAsignaturas.esPortada!("https://asignaturas.info.unlp.edu.ar/my/courses.php")).toBe(true);
+    expect(
+      SitioMoodleAsignaturas.esPortada!("https://asignaturas.info.unlp.edu.ar/course/view.php?id=82")
+    ).toBe(false);
+
     expect(SitioRamonNet.esPortada).toBeUndefined();
     expect(SitioAnatomyByChris.esPortada).toBeUndefined();
   });

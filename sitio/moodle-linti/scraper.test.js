@@ -10,6 +10,7 @@ import cursoHtml from "./__fixtures__/curso.html?raw";
 import carpetaHtml from "./__fixtures__/carpeta.html?raw";
 import urlIntermediaHtml from "./__fixtures__/url-intermedia.html?raw";
 import loginHtml from "./__fixtures__/login.html?raw";
+import misCursosHtml from "./__fixtures__/mis-cursos.html?raw";
 import ScraperMoodleLinti from "./scraper.js";
 
 function armarHtmlFolder(archivos) {
@@ -227,3 +228,518 @@ describe("ScraperMoodleLinti.escanearListado", () => {
     expect(resultado.aviso).toBe("Este curso no tiene archivos");
   });
 });
+
+describe("ScraperMoodleLinti.escanearListado (modo todos)", () => {
+  let mensajesEnviados;
+  let mockMsg;
+
+  function mockOnMessage() {
+    let oyenteRegistrado = null;
+    const addListener = vi.fn((fn) => {
+      oyenteRegistrado = fn;
+    });
+    const removeListener = vi.fn((fn) => {
+      if (oyenteRegistrado === fn) {
+        oyenteRegistrado = null;
+      }
+    });
+    globalThis.chrome = globalThis.chrome || {};
+    globalThis.chrome.runtime = globalThis.chrome.runtime || {};
+    globalThis.chrome.runtime.onMessage = { addListener, removeListener };
+    return {
+      addListener,
+      removeListener,
+      getOyente: () => oyenteRegistrado,
+      dispararCancelar: (msg, responder = vi.fn()) => {
+        if (oyenteRegistrado) {
+          oyenteRegistrado(msg, {}, responder);
+        }
+      },
+    };
+  }
+
+  function armarCursoHtml(id, nombre, itemsHtml = "") {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head><title>${nombre}</title></head>
+      <body class="format-topics">
+        <div class="page-header-headings"><h1>${nombre}</h1></div>
+        <div id="region-main">
+          <ul data-for="course_sectionlist">
+            <li class="course-section" data-for="section" data-number="1" data-sectionname="Tema 1">
+              <h3 class="sectionname">Tema 1</h3>
+              <ul class="section">
+                ${itemsHtml}
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  function itemResource(cmid, nombre) {
+    return `
+      <li class="activity modtype_resource" data-for="cmitem" data-id="${cmid}" id="module-${cmid}">
+        <div class="activityname" data-activityname="${nombre}">
+          <a class="aalink" href="https://catedras.linti.unlp.edu.ar/mod/resource/view.php?id=${cmid}">${nombre}</a>
+        </div>
+      </li>
+    `;
+  }
+
+  beforeEach(() => {
+    mensajesEnviados = [];
+    mockMsg = mockOnMessage();
+    globalThis.chrome.runtime.sendMessage = vi.fn(async (msg) => {
+      mensajesEnviados.push(msg);
+    });
+
+    delete window.location;
+    window.location = new URL("https://catedras.linti.unlp.edu.ar/my/courses.php");
+    document.documentElement.innerHTML = misCursosHtml;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete globalThis.chrome;
+  });
+
+  it("L:AC-2: 3 cursos en portada emiten inicio (3 cursos), 3 curso ok y fin terminado", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        const u = String(url);
+        if (u.includes("id=1331")) {
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("1331", "Programación III", itemResource("101", "Guia 1")),
+          };
+        }
+        if (u.includes("id=1352")) {
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("1352", "ISO-CSO", itemResource("102", "Teoria 1")),
+          };
+        }
+        if (u.includes("id=1371")) {
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("1371", "Taller II", itemResource("103", "Practica 1")),
+          };
+        }
+        if (u.includes("/mod/resource/")) {
+          return {
+            ok: true,
+            url: "https://catedras.linti.unlp.edu.ar/content/doc.pdf",
+            body: { cancel: vi.fn().mockResolvedValue() },
+            text: async () => "",
+          };
+        }
+        return { ok: true, url: u, text: async () => "" };
+      })
+    );
+
+    const res = await ScraperMoodleLinti.escanearListado({
+      modo: "todos",
+      idRecorrido: 10,
+      tabId: 1,
+      sitioId: "moodle-linti",
+    });
+
+    expect(res.recorrido).toBe(true);
+
+    const evInicio = mensajesEnviados.find((m) => m.tipo === "inicio");
+    expect(evInicio).toBeDefined();
+    expect(evInicio.cursos).toHaveLength(3);
+    expect(evInicio.cursos.map((c) => c.id)).toEqual(["1331", "1352", "1371"]);
+
+    const evCursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+    expect(evCursos).toHaveLength(3);
+    expect(evCursos.every((c) => c.resultado === "ok")).toBe(true);
+    expect(evCursos[0].enlaces).toHaveLength(1);
+    expect(evCursos[1].enlaces).toHaveLength(1);
+    expect(evCursos[2].enlaces).toHaveLength(1);
+
+    const evFin = mensajesEnviados.find((m) => m.tipo === "fin");
+    expect(evFin).toBeDefined();
+    expect(evFin.estado).toBe("terminado");
+  });
+
+  it("L:AC-3: 5 cursos con 2 sin material emiten 3 ok y 2 vacio", async () => {
+    document.documentElement.innerHTML = `
+      <div id="region-main">
+        <a href="https://catedras.linti.unlp.edu.ar/course/view.php?id=1">C1</a>
+        <a href="https://catedras.linti.unlp.edu.ar/course/view.php?id=2">C2</a>
+        <a href="https://catedras.linti.unlp.edu.ar/course/view.php?id=3">C3</a>
+        <a href="https://catedras.linti.unlp.edu.ar/course/view.php?id=4">C4</a>
+        <a href="https://catedras.linti.unlp.edu.ar/course/view.php?id=5">C5</a>
+      </div>
+    `;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        const u = String(url);
+        if (u.includes("id=1") || u.includes("id=3") || u.includes("id=5")) {
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("c", "Con Material", itemResource("10", "Mat.pdf")),
+          };
+        }
+        if (u.includes("id=2") || u.includes("id=4")) {
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("c", "Sin Material", ""),
+          };
+        }
+        if (u.includes("/mod/resource/")) {
+          return {
+            ok: true,
+            url: "https://catedras.linti.unlp.edu.ar/content/doc.pdf",
+            body: { cancel: vi.fn().mockResolvedValue() },
+            text: async () => "",
+          };
+        }
+        return { ok: true, url: u, text: async () => "" };
+      })
+    );
+
+    await ScraperMoodleLinti.escanearListado({
+      modo: "todos",
+      idRecorrido: 20,
+      tabId: 1,
+      sitioId: "moodle-linti",
+    });
+
+    const evCursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+    expect(evCursos).toHaveLength(5);
+    expect(evCursos.filter((c) => c.resultado === "ok")).toHaveLength(3);
+    expect(evCursos.filter((c) => c.resultado === "vacio")).toHaveLength(2);
+    expect(evCursos[1].resultado).toBe("vacio");
+    expect(evCursos[3].resultado).toBe("vacio");
+  });
+
+  it("L:AC-4: curso 2 no responde por tope de tiempo y emite fallido con motivo, curso 3 sigue", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url, init) => {
+        const u = String(url);
+        if (u.includes("id=1331")) {
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("1331", "C1", itemResource("1", "R1")),
+          };
+        }
+        if (u.includes("id=1352")) {
+          return new Promise((_, reject) => {
+            if (init?.signal) {
+              init.signal.addEventListener("abort", () => {
+                reject(new DOMException("Aborted", "AbortError"));
+              });
+            }
+          });
+        }
+        if (u.includes("id=1371")) {
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("1371", "C3", itemResource("3", "R3")),
+          };
+        }
+        if (u.includes("/mod/resource/")) {
+          return {
+            ok: true,
+            url: "https://catedras.linti.unlp.edu.ar/content/doc.pdf",
+            body: { cancel: vi.fn().mockResolvedValue() },
+            text: async () => "",
+          };
+        }
+        return { ok: true, url: u, text: async () => "" };
+      })
+    );
+
+    await ScraperMoodleLinti.escanearListado({
+      modo: "todos",
+      idRecorrido: 30,
+      tabId: 1,
+      sitioId: "moodle-linti",
+      topeCursoMs: 50,
+    });
+
+    const evCursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+    expect(evCursos).toHaveLength(3);
+    expect(evCursos[0].resultado).toBe("ok");
+    expect(evCursos[1].resultado).toBe("fallido");
+    expect(evCursos[1].motivo).toContain("superó el tope");
+    expect(evCursos[2].resultado).toBe("ok");
+  });
+
+  it("L:AC-5: curso 2 redirige a /login/ y emite fin cortado sesion sin evento curso para índice 1", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        const u = String(url);
+        if (u.includes("id=1331")) {
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("1331", "C1", itemResource("1", "R1")),
+          };
+        }
+        if (u.includes("id=1352")) {
+          return {
+            ok: true,
+            url: "https://catedras.linti.unlp.edu.ar/login/index.php",
+            text: async () => "<html><body class='path-login'></body></html>",
+          };
+        }
+        if (u.includes("/mod/resource/")) {
+          return {
+            ok: true,
+            url: "https://catedras.linti.unlp.edu.ar/content/doc.pdf",
+            body: { cancel: vi.fn().mockResolvedValue() },
+            text: async () => "",
+          };
+        }
+        return { ok: true, url: u, text: async () => "" };
+      })
+    );
+
+    await ScraperMoodleLinti.escanearListado({
+      modo: "todos",
+      idRecorrido: 40,
+      tabId: 1,
+      sitioId: "moodle-linti",
+    });
+
+    const evCursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+    expect(evCursos).toHaveLength(1);
+    expect(evCursos[0].indice).toBe(0);
+    expect(evCursos[0].resultado).toBe("ok");
+
+    const evFin = mensajesEnviados.find((m) => m.tipo === "fin");
+    expect(evFin).toBeDefined();
+    expect(evFin.estado).toBe("cortado");
+    expect(evFin.motivoCorte).toBe("sesion");
+  });
+
+  it("L:AC-7: pagehide a mitad de recorrido emite fin cortado navegacion", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        const u = String(url);
+        if (u.includes("id=1331")) {
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("1331", "C1", itemResource("1", "R1")),
+          };
+        }
+        if (u.includes("/mod/resource/")) {
+          window.dispatchEvent(new Event("pagehide"));
+          return {
+            ok: true,
+            url: "https://catedras.linti.unlp.edu.ar/content/doc.pdf",
+            body: { cancel: vi.fn().mockResolvedValue() },
+            text: async () => "",
+          };
+        }
+        return { ok: true, url: u, text: async () => "" };
+      })
+    );
+
+    await ScraperMoodleLinti.escanearListado({
+      modo: "todos",
+      idRecorrido: 50,
+      tabId: 1,
+      sitioId: "moodle-linti",
+    });
+
+    const evFinNav = mensajesEnviados.find(
+      (m) => m.tipo === "fin" && m.motivoCorte === "navegacion"
+    );
+    expect(evFinNav).toBeDefined();
+    expect(evFinNav.estado).toBe("cortado");
+  });
+
+  it("L:AC-8: el mismo idArchivo en dos cursos produce dos ítems con cursoId distinto", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        const u = String(url);
+        if (u.includes("id=1331")) {
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("1331", "C1", itemResource("999", "Programa")),
+          };
+        }
+        if (u.includes("id=1352")) {
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("1352", "C2", itemResource("999", "Programa")),
+          };
+        }
+        if (u.includes("id=1371")) {
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("1371", "C3", itemResource("888", "Otro")),
+          };
+        }
+        if (u.includes("/mod/resource/")) {
+          return {
+            ok: true,
+            url: "https://catedras.linti.unlp.edu.ar/content/doc.pdf",
+            body: { cancel: vi.fn().mockResolvedValue() },
+            text: async () => "",
+          };
+        }
+        return { ok: true, url: u, text: async () => "" };
+      })
+    );
+
+    await ScraperMoodleLinti.escanearListado({
+      modo: "todos",
+      idRecorrido: 60,
+      tabId: 1,
+      sitioId: "moodle-linti",
+    });
+
+    const evCursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+    expect(evCursos).toHaveLength(3);
+    const item1 = evCursos[0].enlaces[0];
+    const item2 = evCursos[1].enlaces[0];
+    expect(item1.idArchivo).toBe("999");
+    expect(item2.idArchivo).toBe("999");
+    expect(item1.cursoId).toBe("1331");
+    expect(item2.cursoId).toBe("1352");
+  });
+
+  it("L:AC-11 y L:RN-5: curso con bigbluebuttonbn, forum y label no los lista ni genera aviso", async () => {
+    document.documentElement.innerHTML = `
+      <div id="region-main">
+        <a href="https://catedras.linti.unlp.edu.ar/course/view.php?id=1331">C1</a>
+      </div>
+    `;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        const u = String(url);
+        if (u.includes("id=1331")) {
+          const itemsExcluidos = `
+            <li class="activity modtype_bigbluebuttonbn" data-for="cmitem" data-id="801" id="module-801">
+              <div class="activityname" data-activityname="Sala BBB"></div>
+            </li>
+            <li class="activity modtype_forum" data-for="cmitem" data-id="802" id="module-802">
+              <div class="activityname" data-activityname="Foro"></div>
+            </li>
+            <li class="activity modtype_label" data-for="cmitem" data-id="803" id="module-803">
+              <div class="activityname" data-activityname="Texto informativo"></div>
+            </li>
+            ${itemResource("101", "Archivo real.pdf")}
+          `;
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("1331", "C1", itemsExcluidos),
+          };
+        }
+        if (u.includes("/mod/resource/")) {
+          return {
+            ok: true,
+            url: "https://catedras.linti.unlp.edu.ar/content/doc.pdf",
+            body: { cancel: vi.fn().mockResolvedValue() },
+            text: async () => "",
+          };
+        }
+        return { ok: true, url: u, text: async () => "" };
+      })
+    );
+
+    await ScraperMoodleLinti.escanearListado({
+      modo: "todos",
+      idRecorrido: 70,
+      tabId: 1,
+      sitioId: "moodle-linti",
+    });
+
+    const evCursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+    expect(evCursos).toHaveLength(1);
+    expect(evCursos[0].resultado).toBe("ok");
+    expect(evCursos[0].enlaces).toHaveLength(1);
+    expect(evCursos[0].enlaces[0].idArchivo).toBe("101");
+  });
+
+  it("L:RN-2: enlaces duplicados y en nav se desduplican y se procesa una vez cada id", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        const u = String(url);
+        return {
+          ok: true,
+          url: u,
+          text: async () => armarCursoHtml("c", "Curso", itemResource("1", "R1")),
+        };
+      })
+    );
+
+    await ScraperMoodleLinti.escanearListado({
+      modo: "todos",
+      idRecorrido: 80,
+      tabId: 1,
+      sitioId: "moodle-linti",
+    });
+
+    const evInicio = mensajesEnviados.find((m) => m.tipo === "inicio");
+    expect(evInicio.cursos).toHaveLength(3);
+    const ids = evInicio.cursos.map((c) => c.id);
+    expect(new Set(ids).size).toBe(3);
+  });
+
+  it("cancelar_escaneo con otro idRecorrido se ignora; con el propio corta inmediatamente", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        const u = String(url);
+        if (u.includes("id=1331")) {
+          // Disparamos primero con id distinto (no debe cancelar)
+          mockMsg.dispararCancelar({ action: "cancelar_escaneo", idRecorrido: 999 });
+          // Luego con el id correcto
+          mockMsg.dispararCancelar({ action: "cancelar_escaneo", idRecorrido: 90 });
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("1331", "C1", itemResource("1", "R1")),
+          };
+        }
+        return { ok: true, url: u, text: async () => "" };
+      })
+    );
+
+    const res = await ScraperMoodleLinti.escanearListado({
+      modo: "todos",
+      idRecorrido: 90,
+      tabId: 1,
+      sitioId: "moodle-linti",
+    });
+
+    expect(res.cancelado).toBe(true);
+    const evFin = mensajesEnviados.find((m) => m.tipo === "fin");
+    expect(evFin).toBeDefined();
+    expect(evFin.estado).toBe("cortado");
+    expect(evFin.motivoCorte).toBe("cancelado");
+  });
+});
+

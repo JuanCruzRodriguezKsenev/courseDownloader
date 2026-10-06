@@ -30,10 +30,12 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **82 archivos, 1250 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
+| `pnpm test` | **83 archivos, 1273 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 1273** (2026-10-06, merge de `marca-resaltador` con `moodle-multicurso`): son los 1250 de abajo (marca) más los **+23** del plan 29, que se miden contra 1239; no hay tests propios del merge.
 
 **De dónde sale el 1250** (2026-10-05, plan `28 - Marca Resaltador, correcciones de la revision`, rama `marca-resaltador`): son los 1248 de abajo más **+2** tests en `core/estado/appState.test.ts` (fila armada sin ráfaga corriendo y respuesta sin campo `rafagaCorriendo` dejan `ráfagaEnCurso` en `false`).
 
@@ -42,6 +44,15 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 **De dónde salía el 1242** (2026-10-05, plan `26 - Marca Resaltador, identidad`, rama `marca-resaltador`): son los 1239 de abajo más **+3** tests en `backend/destino/raizPorDefecto.test.js` (carpeta heredada existe, no existe y home vacío).
 
 **De dónde salía el 1239** (2026-10-05, plan `22 - Lo que está en disco manda`, rama `disco-manda`): son los 1220 de abajo más **+19** tests:
+
+**De dónde salía el 1262** (2026-10-06, plan `29 - Escanear todos los cursos en Moodle (LINTI e Informatica)`, rama `moodle-multicurso`): son los 1239 de abajo más **+23** tests (+1 archivo nuevo `sitio/moodle-recorrido-paridad.test.js`):
+- **+2** en `core/estado/recorridoTodos.test.ts` (corte por sesión y texto genérico de corte),
+- **+1** en `sitio/moodle-linti/config.test.ts` (esPortada y claveDeListado en /my/),
+- **+1** en `sitio/moodle-asignaturas/config.test.ts` (esPortada y claveDeListado en /my/),
+- **+1** en `sitio/registro.test.ts` (aislamiento de portadas entre portales Moodle),
+- **+9** en `sitio/moodle-linti/scraper.test.js` (recorrido multicurso L:AC-2..AC-11, L:RN-2, cancelación),
+- **+8** en `sitio/moodle-asignaturas/scraper.test.js` (recorrido multicurso I:AC-2..AC-8, I:RN-2, cancelación),
+- **+1** en el archivo nuevo `sitio/moodle-recorrido-paridad.test.js` (paridad byte a byte del bloque `<recorrido-moodle>`).
 - **+2** en `backend/destino/md5.test.js` (concurrencia de cálculo y reintento tras fallo),
 - **+3** en `backend/destino/recorrido.test.js` (desempate por mtime más reciente, orden alfabético y filtro por tamaño),
 - **+4** en `backend/destino/estado.test.js` (AC-1/AC-8 ciclo de marca movido, AC-2/RN-6 nombre tal cual, AC-9 raíz inaccesible, AC-12 curso desasociado),

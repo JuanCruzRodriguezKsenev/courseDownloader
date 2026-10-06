@@ -40,7 +40,7 @@ Esta spec define las reglas específicas para este portal.
 - Otros Moodle de la UNLP (cada uno es un portal independiente).
 - `forum`, `quiz`, `assign`, `choicegroup` ni contenido binario de `label`.
 - Descarga de video binario de Kaltura (política transversal: sólo accesos `.md`).
-- Escaneo de todos los cursos desde la portada.
+- Escaneo de todos los cursos desde la portada (lo cubre [`../moodle-asignaturas-multicurso/spec.md`](../moodle-asignaturas-multicurso/spec.md), `draft`).
 
 ## Actores
 

@@ -1,6 +1,10 @@
 /**
- * ADAPTADOR DE SITIO — MOODLE LINTI: CONFIGURACIÓN (V1.0.0)
+ * ADAPTADOR DE SITIO — MOODLE LINTI: CONFIGURACIÓN (V1.1.0)
  * ==========================================================================
+ * CHANGELOG v1.1.0:
+ * - [PLAN 29 / MULTICURSO] Portada en /my/ y subrutas (esPortada, claveDeListado "todos").
+ *   Actualiza instruccionEscaneo para mencionar «Mis cursos».
+ *
  * CHANGELOG v1.0.0:
  * - [MOODLE CORTE 2] Nace para el cuarto portal (catedras.linti.unlp.edu.ar).
  *   Portal sin videos HLS, con destino por índice (.course-downloader.json)
@@ -36,11 +40,20 @@ const SitioMoodleLinti: PuertoSitio = {
 
   esPaginaDelSitio(url) {
     if (typeof url !== "string") return false;
-    return /^https:\/\/catedras\.linti\.unlp\.edu\.ar\/course\/view\.php\?id=\d+/.test(url);
+    return (
+      /^https:\/\/catedras\.linti\.unlp\.edu\.ar\/course\/view\.php\?id=\d+/.test(url) ||
+      this.esPortada?.(url) === true
+    );
+  },
+
+  esPortada(url) {
+    if (typeof url !== "string") return false;
+    return /^https:\/\/catedras\.linti\.unlp\.edu\.ar\/my(?:\/|$|\?)/.test(url);
   },
 
   claveDeListado(url) {
     if (typeof url !== "string") return undefined;
+    if (this.esPortada?.(url)) return "todos";
     const m = /^https:\/\/catedras\.linti\.unlp\.edu\.ar\/course\/view\.php\?id=(\d+)/.exec(url);
     return m ? m[1] : undefined;
   },
@@ -54,7 +67,7 @@ const SitioMoodleLinti: PuertoSitio = {
   },
 
   instruccionEscaneo:
-    "Escaneá desde la página principal de un curso. Dejá esa pestaña al frente hasta que termine.",
+    "Escaneá desde la página principal de un curso o desde «Mis cursos». Dejá esa pestaña al frente hasta que termine.",
 
   topeEscaneoMs: 60000,
 

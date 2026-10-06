@@ -17,7 +17,7 @@ describe("SitioMoodleAsignaturas", () => {
     expect(SitioMoodleAsignaturas.instruccionEscaneo).toContain("course/view.php");
   });
 
-  it("2. esPaginaDelSitio reconoce vistas de curso y descarta otras URLs", () => {
+  it("2. esPaginaDelSitio reconoce vistas de curso, portada /my/ y descarta otras URLs", () => {
     expect(
       SitioMoodleAsignaturas.esPaginaDelSitio(
         "https://asignaturas.info.unlp.edu.ar/course/view.php?id=82"
@@ -36,10 +36,17 @@ describe("SitioMoodleAsignaturas", () => {
       )
     ).toBe(true);
 
-    // No son páginas de curso del sitio
     expect(SitioMoodleAsignaturas.esPaginaDelSitio("https://asignaturas.info.unlp.edu.ar/my/")).toBe(
-      false
+      true
     );
+    expect(
+      SitioMoodleAsignaturas.esPaginaDelSitio("https://asignaturas.info.unlp.edu.ar/my/courses.php")
+    ).toBe(true);
+    expect(
+      SitioMoodleAsignaturas.esPaginaDelSitio("https://asignaturas.info.unlp.edu.ar/calendar/view.php")
+    ).toBe(false);
+
+    // No son páginas de este sitio
     expect(
       SitioMoodleAsignaturas.esPaginaDelSitio(
         "https://catedras.linti.unlp.edu.ar/course/view.php?id=82"
@@ -55,7 +62,26 @@ describe("SitioMoodleAsignaturas", () => {
     expect(SitioMoodleAsignaturas.esPaginaDelSitio("")).toBe(false);
   });
 
-  it("3. claveDeListado devuelve el id numérico del curso", () => {
+  it("2b. esPortada identifica /my/, /my/courses.php y con query params, pero no un curso", () => {
+    expect(SitioMoodleAsignaturas.esPortada?.("https://asignaturas.info.unlp.edu.ar/my/")).toBe(true);
+    expect(
+      SitioMoodleAsignaturas.esPortada?.("https://asignaturas.info.unlp.edu.ar/my/courses.php")
+    ).toBe(true);
+    expect(
+      SitioMoodleAsignaturas.esPortada?.("https://asignaturas.info.unlp.edu.ar/my/courses.php?x=1")
+    ).toBe(true);
+    expect(
+      SitioMoodleAsignaturas.esPortada?.(
+        "https://asignaturas.info.unlp.edu.ar/course/view.php?id=82"
+      )
+    ).toBe(false);
+    expect(
+      SitioMoodleAsignaturas.esPortada?.("https://asignaturas.info.unlp.edu.ar/calendar/view.php")
+    ).toBe(false);
+    expect(SitioMoodleAsignaturas.esPortada?.(null as unknown as string)).toBe(false);
+  });
+
+  it("3. claveDeListado devuelve el id numérico del curso y 'todos' en portada", () => {
     expect(
       SitioMoodleAsignaturas.claveDeListado?.(
         "https://asignaturas.info.unlp.edu.ar/course/view.php?id=82"
@@ -70,6 +96,17 @@ describe("SitioMoodleAsignaturas", () => {
 
     expect(
       SitioMoodleAsignaturas.claveDeListado?.("https://asignaturas.info.unlp.edu.ar/my/")
+    ).toBe("todos");
+    expect(
+      SitioMoodleAsignaturas.claveDeListado?.("https://asignaturas.info.unlp.edu.ar/my/courses.php")
+    ).toBe("todos");
+    expect(
+      SitioMoodleAsignaturas.claveDeListado?.(
+        "https://asignaturas.info.unlp.edu.ar/my/courses.php?x=1"
+      )
+    ).toBe("todos");
+    expect(
+      SitioMoodleAsignaturas.claveDeListado?.("https://asignaturas.info.unlp.edu.ar/calendar/view.php")
     ).toBeUndefined();
 
     expect(SitioMoodleAsignaturas.claveDeListado?.(null as unknown as string)).toBeUndefined();

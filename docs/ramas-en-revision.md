@@ -16,58 +16,17 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## 🚧 En revisión
 
-- `disco-manda`: Plan 22 (`~/Boveda/Proyectos/courseDownloader/Planes/22 - Lo que esta en disco manda.md`).
-  Specs: `docs/specs/disco-manda/spec.md`, `docs/specs/classroom-destino/spec.md`.
-  Compuerta: 81 archivos / 1239 tests; humos: `humo-editor.js`, `humo-editor-indice.js`, `humo-editor-videollamadas-raiz.js`, `humo-editor-filtros-orden.js` (errores: 0).
-  - ⬜ **M-1** — Escanear **Física I** en el popup: `mod1_01_variables_cinematicas.pdf` aparece como «ya está» con el nombre `Cinematica (clase 1).pdf`, la ruta `Ingenieria/Fisica 1/Practicas` y el chip «movido»; no se baja nada. Los otros archivos de Física I no cambian.
-  - ⬜ **M-2** — Escanear **Física I** de nuevo: el mismo archivo sin el chip. Abrir 🗂️: la fila del archivo muestra la ruta y el nombre nuevos, con el candado «en disco» y sin campos editables.
-  - ⬜ **M-3 (RN-5)** — Con MC2 ya descargado en la copia: sacar del índice **sólo** la entrada de `mc_2025_series_1.pdf` (`jq` por `.nombre`, dejando el archivo en disco) y moverlo a `Ingenieria/Fisica 2/Notas/`. Bajar ese adjunto desde el popup: no aparece ningún archivo nuevo en `Matematica C/`, el popup dice «Ya lo tenías», y el índice tiene esa clave con ruta `Ingenieria/Fisica 2/Notas`.
-  - ⬜ **M-4 (RN-12)** — Renombrar `~/Descargas/facultad-prueba` a `facultad-prueba-off` y escanear cualquier curso: el popup muestra el aviso de raíz inaccesible y no marca nada como pendiente ni sin asociar. Volver a poner el nombre. El índice no cambió (`diff` contra `../indice-facultad-prueba-pre-22.json` más las correcciones esperadas de M-1).
-  - ⬜ **M-5 (tiempo)** — Reiniciar el servidor y escanear con varios cursos a la vez: ninguna llamada de estado supera los 15 s del popup y no aparece el mensaje de servidor sin respuesta.
-- `videollamadas-omitidas-defecto`: Plan 25 (`~/Boveda/Proyectos/courseDownloader/Planes/25 - Videollamadas omitidas por defecto y popup al dia con el editor.md`).
-  Specs: `docs/specs/editor-ignorar-y-raiz/spec.md`, `docs/specs/classroom-destino/spec.md`.
-  Compuerta: 81 archivos / 1220 tests; humos: `humo-editor.js`, `humo-editor-indice.js`, `humo-editor-videollamadas-raiz.js`, `humo-editor-filtros-orden.js` (errores: 0).
-  - ⬜ **M-1** — Dueño: re-escanear un curso con Meet, abrir el editor sin tocar nada: todas las videollamadas nacen en «omitir». «Volver a ofrecerlas» → guardar → `jq '.cursos[].videollamadasPermitidas' <índice>` las lista.
-  - ⬜ **M-2** — Dueño: con el popup abierto, abrir el editor (🗂️), re-ofrecer una videollamada, guardar, volver al popup **sin re-escanear**: pasa de «omitido» a seleccionable en pocos segundos. Lo tildado a mano **antes** de abrir el editor puede perderse (esperado, ver Paso 3); lo tildado en el popup sin haber abierto el editor no se toca al cambiar de pestaña.
-  - ⬜ **M-3** — Dueño: re-escanear después: las re-ofrecidas siguen ofrecidas; una videollamada nueva llega omitida.
-- `editor-filtros-orden`: Plan 24 (`~/Boveda/Proyectos/courseDownloader/Planes/24 - Filtros y orden en el editor de adopcion.md`).
-  Spec: `docs/specs/editor-filtros-orden/spec.md`.
-  Compuerta: 80 archivos / 1203 tests; humos: `humo-editor.js`, `humo-editor-indice.js`, `humo-editor-videollamadas-raiz.js`, `humo-editor-filtros-orden.js` (errores: 0).
-  - ⬜ **M-1** — Dueño: en «Mostrar» elegí «📹 Videollamadas»: sólo se ven las videollamadas, los temas sin ninguna desaparecen y los otros quedan expandidos. «Limpiar filtros» lo deshace.
-  - ⬜ **M-2** — Dueño: probá «Tipo» (pdf), luego combinalo con «A copiar» y con el chip «Revisar». Los seis contadores de arriba no se mueven.
-  - ⬜ **M-3** — Dueño: ordená temas por «A→Z» y «Problemas primero»; ordená archivos por «Nombre original». Editá el nombre de una fila: **no** salta de lugar. Resolvé un tema sin destino con «Problemas primero» activo: baja de lugar (esperado, D-3).
-  - ⬜ **M-4** — Dueño: en la barra lateral, «Más para revisar primero» sube el curso con más pendientes; al cambiar de curso el orden de la barra se mantiene y los filtros del curso se reinician. F5 lo reinicia todo.
-  - ⬜ **M-5** — Tanda: tras usar todos los controles, «Cambios sin guardar» no aparece por eso; guardar y comprobar con `jq` que el índice es igual que sin tocar filtros.
-- `editor-videollamadas-raiz`: Plan 23 (`~/Boveda/Proyectos/courseDownloader/Planes/23 - Omitir videollamadas en bloque y raiz decidida en el editor.md`).
-  Spec: `docs/specs/editor-ignorar-y-raiz/spec.md`.
-  Compuerta: 80 archivos / 1203 tests; humos: `humo-editor.js`, `humo-editor-indice.js`, `humo-editor-videollamadas-raiz.js` (errores: 0).
-  - ⬜ **M-1** — Dueño: re-escanear **Fisica_II_G25_2026** (clave `google-classroom:Nzk0MDIyNDkyNDUx`). Abrir el editor (🗂️). Tiene que verse en la cabecera `Omitir N videollamadas` con N igual a los enlaces de Meet de ese curso, y cada fila de videollamada con la etiqueta `📹 Videollamada`.
-  - ⬜ **M-2** — Dueño: tocar el botón. Las filas quedan tachadas/omitidas, el botón pasa a `Volver a ofrecerlas` con `N omitidas`, y aparece `Cambios sin guardar`. Guardar. **Tanda:** `jq '.cursos["google-classroom:Nzk0MDIyNDkyNDUx"].omitidos' ~/Descargas/facultad-prueba/.course-downloader.json` lista las N claves `google-classroom:acceso:https%3A%2F%2Fmeet...`.
-  - ⬜ **M-3** — Dueño: `Volver a ofrecerlas` las deja destildadas→tildadas otra vez; **no guardar** (descartar con F5).
-  - ⬜ **M-4** — Dueño, mismo curso: los temas **Novedades**, **Sin tema** y **Cronograma tentativo primer cuatrimestre 2026** (los tres guardados en `.` en el índice) se ven `✓ Asignado · Raíz de la materia` y **no** cuentan en «a revisar» de la lista de cursos ni en «Solo problemas». *(Antes del plan: los tres decían «Sin destino».)*
-- `marca-resaltador`: identidad visual «Resaltador». Planes 26 (identidad), 27 (UI: resaltado de filas, botón Re-escanear, grilla, chips) y 28 (correcciones de la revisión: anchos de columna y falso descargando) aplicados; sin verificar en Chrome. Compuerta: 82 archivos / 1250 tests.
-  - ⬜ **M-1 Íconos** — el de la barra de extensiones y el del header muestran la flecha sobre el trazo amarillo, **no** la «R». Mirar el de 16 px con la barra clara y con la oscura.
-  - ⬜ **M-2 Wordmark claro** — «Course **Downloader**» en Bricolage Grotesque, el trazo amarillo detrás sólo de «Downloader», a media altura. Sin pedir nada a Google Fonts (pestaña Network del popup: ninguna petición a `fonts.googleapis.com`).
-  - ⬜ **M-3 Wordmark oscuro** (poner el SO en tema oscuro) — letras en tiza con el borde que las hace legibles sobre el amarillo.
-  - ⬜ **M-4 Contraste en claro** — el badge «En fila»/«Bajando», el chip `→ materia`, el badge de faceta y los textos de acento se leen en **ocre**, no en amarillo; **ningún texto amarillo** sobre fondo claro.
-  - ⬜ **M-5 Botones** — «Descargar», «Iniciar descarga masiva», «Reintentar» y los de la advertencia: fondo amarillo con **texto tinta** legible. El botón de sincronizar disco es **tinta en claro / tiza en oscuro** (ya no azul ni cian).
-  - ⬜ **M-6 Foco y checkboxes** — aro de foco y checkbox tildado en amarillo con el tilde en tinta.
-  - ⬜ **M-7 Carpeta** — con un `HOME` falso sin `Downloads/RamonNet_Turbo`, arrancar el backend y confirmar que dice `Downloads/CourseDownloader`; con la carpeta vieja creada, que dice `RamonNet_Turbo`.
-  - ⬜ **M-27.1 Filas resaltadas** — tildar una clase: fondo amarillo translúcido y borde izquierdo amarillo; en oscuro el mismo resaltado, más suave. La clase que se está bajando (pestaña «Fila de descarga») va resaltada igual.
-  - ⬜ **M-27.2 Columnas** — con una lista de varias materias y estados mezclados, el chip de materia y el de estado caen **en la misma columna en todas las filas**, sin importar el largo del título.
-  - ⬜ **M-27.3 Videollamada** — una clase de videollamada muestra **📹 en la columna del ícono** (no la pastilla); pasar el mouse muestra «enlace de videollamada sincrónica, posiblemente inactivo».
-  - ⬜ **M-27.4 Omitido** — una clase omitida muestra **«Omitido» en la columna del estado** (donde diría «Pendiente»), con la materia en su columna, y su checkbox deshabilitado.
-  - ⬜ **M-27.5 Movido** — un archivo movido en disco (ver M-1 del plan 22) muestra `↪` al final del título, con el aviso al pasar el mouse.
-  - ⬜ **M-27.6 Re-escanear** — en «Disponibles» aparece **«🔄 Re-escanear»** a la izquierda de «Agregar N clases a la fila 📥», los dos en **una sola línea**; la barra de filtros ya no tiene el 🔄. Con modo «Re-escanear» como botón principal, **no** hay un segundo botón igual.
-  - ⬜ **M-27.7 Pestaña cola** — en «Fila de descarga» no aparece «Re-escanear». `Remover ❌` y `Bajando` caben en su columna.
-  - ⬜ **M-27.8 Footer vacío** — provocar el banner de conexión caída (apagar el servidor): sin acción que ofrecer, el footer **desaparece** (no queda una línea sola ni un «Re-escanear» suelto).
-  - ⬜ **M-27.9 Bloqueo** — con el banner de conexión, «Re-escanear» no se puede tabular ni activar (`disabled`).
-  - ⬜ **M-28.1 Falso descargando** — con la fila armada (17 clases) y **ninguna descarga corriendo**, abrir el popup: el pie **no** muestra «Frenar al terminar / Detener descargas»; no hay barra de progreso ni línea divisoria; en «Fila de descarga» se ve el botón para **iniciar** la cola. (Cierra el reporte original.)
-  - ⬜ **M-28.2 Descarga real** — iniciar la cola: aparecen «Bajando» en la fila activa, la barra y los dos botones de cancelar. Cerrar y reabrir el popup **a mitad de descarga**: sigue mostrando todo eso.
-  - ⬜ **M-28.3 Separación** — en las dos pestañas, entre el chip de materia y la columna de estado (y el botón `Remover ❌`) hay **aire**; el chip ya no toca al vecino.
-  - ⬜ **M-28.4 Remover** — en «Fila de descarga» `Remover ❌` queda en **una línea**; «EN FILA», «DESCARGADO», «OMITIDO» y «BAJANDO» están centrados y del mismo ancho en todas las filas.
-  - ⬜ **M-28.5 Título** — el título de las filas se corta más o menos donde se cortaba antes (~103 px); la materia muestra más texto que antes («Ingeniería/Física…» en vez de «Ingeniería/Fi…»).
+Nada en revisión (2026-10-06).
 
+## Mergeado el 2026-10-06
+
+Verificado por el dueño en Chrome («todo ok»): `marca-resaltador` (planes 26, 27 y 28), `moodle-multicurso`
+(plan 29), y el arrastre de los planes 22, 23, 24 y 25, que ya estaban en `main`. Plan de verificación:
+`~/Boveda/Proyectos/courseDownloader/Planes/30 - Verificacion conjunta y merge de marca-resaltador y moodle-multicurso.md`.
+Specs: `docs/marca-diseno.md`, `docs/specs/moodle-linti-multicurso/spec.md`, `docs/specs/moodle-asignaturas-multicurso/spec.md`.
+**No quedó registro casilla por casilla**; si alguna importa, rehacerla contra el código.
+Hallazgo del plan 29 (RN-8): la sesión vencida **corta** el recorrido (no pausa).
+Portales sin implementar, sólo con spec `draft` y mediciones parciales: IDEAS (`docs/specs/ideas-info/`) y Moodle de Ingeniería (`docs/specs/moodle-ingenieria/`).
 
 ## Mergeado el 2026-10-04
 

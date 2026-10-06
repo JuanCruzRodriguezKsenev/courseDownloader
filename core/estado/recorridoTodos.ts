@@ -1,6 +1,11 @@
 /**
- * NÚCLEO — ESTADO DEL RECORRIDO DE TODOS LOS CURSOS (V1.2.0)
+ * NÚCLEO — ESTADO DEL RECORRIDO DE TODOS LOS CURSOS (V1.3.0)
  * ==========================================================================
+ * CHANGELOG v1.3.0:
+ * - [MOODLE MULTICURSO] MotivoCorte suma "sesion".
+ * - [TEXTO RESUMEN] Motivo "visibilidad" pasa a texto genérico ("la pestaña quedó
+ *   en segundo plano") y se agrega el motivo "sesion".
+ *
  * CHANGELOG v1.2.0:
  * - [CANCELAR ESCANEO] MotivoCorte exportado con nuevo motivo "cancelado".
  * - [FIN SIN PREVIO] Evento "fin" con tabId y sitioId puede crear un recorrido
@@ -33,7 +38,13 @@ export type EstadoRecorrido = "escaneando" | "terminado" | "cortado";
 
 export type FaseEscaneo = "trabajo" | "ver-mas" | "novedades";
 
-export type MotivoCorte = "visibilidad" | "navegacion" | "sin-cursos" | "sin-respuesta" | "cancelado";
+export type MotivoCorte =
+  | "visibilidad"
+  | "navegacion"
+  | "sin-cursos"
+  | "sin-respuesta"
+  | "cancelado"
+  | "sesion";
 
 export interface CursoRecorrido {
   id: string;
@@ -285,10 +296,11 @@ export function textoResumen(r: RecorridoTodos): string {
   }
   if (r.estado === "cortado") {
     const mapaMotivos: Record<string, string> = {
-      visibilidad: "Classroom quedó en segundo plano",
+      visibilidad: "la pestaña quedó en segundo plano",
       navegacion: "navegaste fuera del recorrido",
       "sin-respuesta": "el recorrido dejó de responder",
       "sin-cursos": "no encontramos cursos en la portada",
+      sesion: "la sesión venció: volvé a entrar al portal y escaneá de nuevo",
     };
     const motivoLegible =
       (r.motivoCorte && mapaMotivos[r.motivoCorte]) || r.motivoCorte || "motivo desconocido";
