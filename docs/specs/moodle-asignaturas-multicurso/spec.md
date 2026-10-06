@@ -89,7 +89,7 @@ Con un solo curso hoy el recorrido es trivial; la regla se escribe para cuando h
 | A2 | Un curso sin material | No aparece en la lista; vacío en el resumen (RN-10) |
 | A3 | Navega fuera de `/my/` a mitad | Se corta, se conservan los completos (RN-9) |
 | A4 | Cierra el popup a mitad | El recorrido sigue (RN-11) |
-| A5 | Sesión vencida | Pausa con aviso de sesión (RN-8) |
+| A5 | Sesión vencida | Se corta con aviso de sesión (RN-8) |
 | A6 | Un solo curso en `/my/` | Se ofrece y corre igual (RN-1) |
 | A7 | Todos fallan o están vacíos | No hay lista; sólo el resumen |
 
@@ -129,7 +129,7 @@ AC-4 — Un curso falla
 AC-5 — Sesión vencida
   Dado un recorrido donde el curso 2 redirige a /login/
   Cuando se procesa
-  Entonces el recorrido se pausa con aviso de sesión
+  Entonces el recorrido se corta con aviso de sesión
     y el curso 2 no figura como fallido ni como vacío
 
 AC-6 — Cerrar el popup
