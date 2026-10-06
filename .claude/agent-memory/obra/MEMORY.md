@@ -50,3 +50,5 @@
 - [Editor: Filtros y orden (Plan 24)](project_editor_filtros_orden_plan24.md) — selectores Mostrar, Tipo, Temas, Archivos y Cursos, extracción pura calcularTemasVisibles, búsqueda por destino resuelto y humo jsdom en verde
 - [Videollamadas omitidas por defecto y popup al día con el editor (Plan 25)](project_videollamadas_omitidas_defecto_plan25.md) — omisión por defecto de videollamadas (RN-A), videollamadasPermitidas al guardar (RN-B), refresco automático en popup sin re-escanear y compuerta en 81 archivos / 1220 tests
 - [Lo que está en disco manda (Plan 22)](project_disco_manda_plan22.md) — búsqueda previa en raíz por MD5 y tamaño en backend, deduplicación entre cursos/materias, badge y chip movido en popup y editor; compuerta en 81 archivos / 1239 tests y humos en verde
+- [Escaneo multicurso en Moodle LINTI e Informática (Plan 29)](project_moodle_multicurso_plan29.md) — recorrido /my/ en Moodle LINTI e Informática, extracción escanearCurso, paridad byte a byte y corte por sesión; compuerta en 82 archivos / 1262 tests
+
