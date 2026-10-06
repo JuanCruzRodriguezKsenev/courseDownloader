@@ -52,3 +52,5 @@
 - [Lo que está en disco manda (Plan 22)](project_disco_manda_plan22.md) — búsqueda previa en raíz por MD5 y tamaño en backend, deduplicación entre cursos/materias, badge y chip movido en popup y editor; compuerta en 81 archivos / 1239 tests y humos en verde
 - [Marca Resaltador, identidad (Plan 26)](project_marca_resaltador_identidad_plan26.md) — tokens semánticos en variables.css, clasificación en 22 hojas CSS, exportación de íconos SVG, wordmark Bricolage Grotesque empaquetado, carpeta por defecto y compuerta en 82 archivos / 1242 tests
 - [Marca Resaltador, interfaz (Plan 27)](project_marca_resaltador_interfaz_plan27.md) — resaltado en selected/bajando con --bg-row-highlight, grilla fija de 5 columnas en listaClases, Re-escanear en footer como botón secundario y compuerta en 82 archivos / 1248 tests
+- [Marca Resaltador, correcciones de la revisión (Plan 28)](project_marca_resaltador_correcciones_plan28.md) — anchos de grilla (84px para materia), box-sizing en chips/badges/botones, centrado de badges y desacople de ráfagaEnCurso desde rafagaCorriendo del SW; compuerta en 82 archivos / 1250 tests
+
