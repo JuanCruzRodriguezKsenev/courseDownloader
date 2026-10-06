@@ -156,7 +156,7 @@ color, o cambiar el color obliga a tocar todas las hojas.
   principal. Los dos botones bajan a 12 px para entrar en una sola línea. En "Fila de descarga"
   no aparece: ahí la botonera la ocupan los controles de la descarga.
 - **Los chips de la fila van en columnas fijas.** La fila pasa de `flex` a grilla
-  (`14px 14px minmax(0,1fr) 68px 80px`): checkbox, tipo, título, materia, estado. Así el chip de
+  (`14px 14px minmax(0,1fr) 84px 80px`, con `box-sizing: border-box` en chips/badges/botones de la fila): checkbox, tipo, título, materia, estado. Así el chip de
   materia (Anatomía, Biología…) y el de estado (Descargado, Pendiente…) caen en la misma columna
   en todas las filas, sin importar el largo del título o del estado. **Costo**: el título tiene
   menos lugar y se corta antes; el nombre completo sigue en el `title` de la fila.

@@ -30,12 +30,14 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **82 archivos, 1248 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
+| `pnpm test` | **82 archivos, 1250 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
 
-**De dónde sale el 1248** (2026-10-05, plan `27 - Marca Resaltador, interfaz`, rama `marca-resaltador`): son los 1242 de abajo más **+6** tests en `popup/features/listaClases.preact.test.js` (suite de 5 celdas fijas por fila en Disponibles normal, omitida, videollamada, movida, y en Cola con descarga activa y en espera).
+**De dónde sale el 1250** (2026-10-05, plan `28 - Marca Resaltador, correcciones de la revision`, rama `marca-resaltador`): son los 1248 de abajo más **+2** tests en `core/estado/appState.test.ts` (fila armada sin ráfaga corriendo y respuesta sin campo `rafagaCorriendo` dejan `ráfagaEnCurso` en `false`).
+
+**De dónde salía el 1248** (2026-10-05, plan `27 - Marca Resaltador, interfaz`, rama `marca-resaltador`): son los 1242 de abajo más **+6** tests en `popup/features/listaClases.preact.test.js` (suite de 5 celdas fijas por fila en Disponibles normal, omitida, videollamada, movida, y en Cola con descarga activa y en espera).
 
 **De dónde salía el 1242** (2026-10-05, plan `26 - Marca Resaltador, identidad`, rama `marca-resaltador`): son los 1239 de abajo más **+3** tests en `backend/destino/raizPorDefecto.test.js` (carpeta heredada existe, no existe y home vacío).
 

@@ -47,10 +47,10 @@
 /* Fila de video individual */
 .video-item {
   display: grid;
-  grid-template-columns: 14px 14px minmax(0, 1fr) 68px 80px;
-  column-gap: var(--space-sm);
+  grid-template-columns: 14px 14px minmax(0, 1fr) 84px 80px;
+  column-gap: 6px;
   align-items: center;
-  padding: var(--space-sm) 10px;
+  padding: var(--space-sm) 8px;
   border-radius: var(--radius-md);
   background-color: var(--item-bg);
   border: 1px solid var(--border-color);
@@ -229,15 +229,18 @@
 
 /* Botón de acción interna de fila */
 .btn-row-action {
+  box-sizing: border-box;
   background-color: var(--bg-main);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-xs);
-  padding: 2px var(--space-sm);
+  padding: 2px var(--space-xs);
   font-size: var(--text-xs);
   font-weight: var(--font-bold);
   cursor: pointer;
   text-transform: uppercase;
   color: var(--text-main);
+  white-space: nowrap;
+  text-align: center;
 
   &.remove-action {
     color: var(--accent-error);
@@ -253,11 +256,16 @@
 
 /* Badges de Estado */
 .badge {
+  box-sizing: border-box;
   font-size: var(--text-xs);
   font-weight: var(--font-bold);
   padding: 3px var(--space-sm);
   border-radius: var(--radius-xs);
   text-transform: uppercase;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 
   &.pending {
     background-color: var(--badge-pending-bg);
@@ -300,6 +308,7 @@
    no registrado— no resuelve descriptor, y sin fallback quedaría con `border-color` inválido y
    la pastilla se vería rota en vez de neutra. */
 .chip-materia {
+  box-sizing: border-box;
   --color-portal: var(--text-muted);
   font-size: var(--text-xs);
   color: var(--color-portal);

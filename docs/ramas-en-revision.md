@@ -45,7 +45,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   - ⬜ **M-2** — Dueño: tocar el botón. Las filas quedan tachadas/omitidas, el botón pasa a `Volver a ofrecerlas` con `N omitidas`, y aparece `Cambios sin guardar`. Guardar. **Tanda:** `jq '.cursos["google-classroom:Nzk0MDIyNDkyNDUx"].omitidos' ~/Descargas/facultad-prueba/.course-downloader.json` lista las N claves `google-classroom:acceso:https%3A%2F%2Fmeet...`.
   - ⬜ **M-3** — Dueño: `Volver a ofrecerlas` las deja destildadas→tildadas otra vez; **no guardar** (descartar con F5).
   - ⬜ **M-4** — Dueño, mismo curso: los temas **Novedades**, **Sin tema** y **Cronograma tentativo primer cuatrimestre 2026** (los tres guardados en `.` en el índice) se ven `✓ Asignado · Raíz de la materia` y **no** cuentan en «a revisar» de la lista de cursos ni en «Solo problemas». *(Antes del plan: los tres decían «Sin destino».)*
-- `marca-resaltador`: identidad visual «Resaltador». Planes 26 (identidad) y 27 (UI: resaltado de filas, botón Re-escanear, grilla, chips) aplicados; sin verificar en Chrome.
+- `marca-resaltador`: identidad visual «Resaltador». Planes 26 (identidad), 27 (UI: resaltado de filas, botón Re-escanear, grilla, chips) y 28 (correcciones de la revisión: anchos de columna y falso descargando) aplicados; sin verificar en Chrome. Compuerta: 82 archivos / 1250 tests.
   - ⬜ **M-1 Íconos** — el de la barra de extensiones y el del header muestran la flecha sobre el trazo amarillo, **no** la «R». Mirar el de 16 px con la barra clara y con la oscura.
   - ⬜ **M-2 Wordmark claro** — «Course **Downloader**» en Bricolage Grotesque, el trazo amarillo detrás sólo de «Downloader», a media altura. Sin pedir nada a Google Fonts (pestaña Network del popup: ninguna petición a `fonts.googleapis.com`).
   - ⬜ **M-3 Wordmark oscuro** (poner el SO en tema oscuro) — letras en tiza con el borde que las hace legibles sobre el amarillo.
@@ -62,6 +62,11 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   - ⬜ **M-27.7 Pestaña cola** — en «Fila de descarga» no aparece «Re-escanear». `Remover ❌` y `Bajando` caben en su columna.
   - ⬜ **M-27.8 Footer vacío** — provocar el banner de conexión caída (apagar el servidor): sin acción que ofrecer, el footer **desaparece** (no queda una línea sola ni un «Re-escanear» suelto).
   - ⬜ **M-27.9 Bloqueo** — con el banner de conexión, «Re-escanear» no se puede tabular ni activar (`disabled`).
+  - ⬜ **M-28.1 Falso descargando** — con la fila armada (17 clases) y **ninguna descarga corriendo**, abrir el popup: el pie **no** muestra «Frenar al terminar / Detener descargas»; no hay barra de progreso ni línea divisoria; en «Fila de descarga» se ve el botón para **iniciar** la cola. (Cierra el reporte original.)
+  - ⬜ **M-28.2 Descarga real** — iniciar la cola: aparecen «Bajando» en la fila activa, la barra y los dos botones de cancelar. Cerrar y reabrir el popup **a mitad de descarga**: sigue mostrando todo eso.
+  - ⬜ **M-28.3 Separación** — en las dos pestañas, entre el chip de materia y la columna de estado (y el botón `Remover ❌`) hay **aire**; el chip ya no toca al vecino.
+  - ⬜ **M-28.4 Remover** — en «Fila de descarga» `Remover ❌` queda en **una línea**; «EN FILA», «DESCARGADO», «OMITIDO» y «BAJANDO» están centrados y del mismo ancho en todas las filas.
+  - ⬜ **M-28.5 Título** — el título de las filas se corta más o menos donde se cortaba antes (~103 px); la materia muestra más texto que antes («Ingeniería/Física…» en vez de «Ingeniería/Fi…»).
 
 
 ## Mergeado el 2026-10-04

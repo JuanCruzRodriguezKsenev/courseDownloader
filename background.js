@@ -319,6 +319,7 @@ export function iniciarServiceWorker({
       const state = await sesion.get();
       return sendResponse({
         estados: estados,
+        rafagaCorriendo: state.rafagaCorriendo,
         suaveFrenado: state.frenadoSuaveSolicitado,
         videoActual: state.videoActualTitulo,
         colaPausadaPorError: state.colaPausadaPorError,

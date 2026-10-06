@@ -89,6 +89,7 @@ export interface ClaseEnLista {
 /** Respuesta del SW a `obtener_estados_en_progreso`. */
 export interface RespuestaFondo {
   estados?: Record<string, string>;
+  rafagaCorriendo?: boolean;
   suaveFrenado?: boolean;
   videoActual?: string;
   porcentaje?: number;
@@ -433,7 +434,7 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: 
 
       try {
         const estadosEnFondo = respuestaFondo.estados || {};
-        app.ráfagaEnCurso = Object.values(estadosEnFondo).some((est) => est === "process");
+        app.ráfagaEnCurso = respuestaFondo.rafagaCorriendo === true;
         app.banderaFrenadoSolicitado = respuestaFondo.suaveFrenado || false;
         app.videoActualEnTransmisiónSW = respuestaFondo.videoActual || "";
 
