@@ -21,3 +21,7 @@
 - [Plan 24 filtros y orden](project_editor_filtros_orden_plan24.md) — spec+plan listos; rama sale de main tras mergear el 23; editor.html ya tenía chips y búsqueda
 - [Plan 25 videollamadas omitidas](project_videollamadas_omitidas_plan25.md) — omitidas por defecto + refresco del popup; rama videollamadas-omitidas-defecto
 - [Plan 26/27 marca Resaltador](project_marca_resaltador_planes.md) — dos planes escritos 2026-10-05; decisiones del dueño; rama marca-resaltador en el repo principal
+- [Moodle Ingeniería](project_moodle_ingenieria.md) — spec del sexto portal 2026-10-05; mediciones, falta M-1..M-3 y plan; 2º sitio sin dar
+- [Scripts de medición](reference_scripts_medicion_portales.md) — scripts A–E en docs/medicion-de-portales.md; flujo para sumar un portal
+- [Moodle Asignaturas multicurso](project_moodle_asignaturas_multicurso.md) — spec draft 2026-10-05; /my/ tiene 1 curso; falta plan; separado de Ingeniería
+- [Sitios pendientes](project_sitios_pendientes.md) — LEER AL RETOMAR: 4 specs listas (Ing, Info, LINTI, IDEAS), sin planes; plan genérico Moodle primero
