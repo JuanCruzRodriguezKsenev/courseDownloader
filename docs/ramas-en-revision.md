@@ -16,7 +16,21 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## 🚧 En revisión
 
-Nada en revisión (2026-10-06).
+### `moodle-ingenieria` (Plan 31)
+
+Sexto portal: Moodle de Ingeniería (`www.asignaturas.ing.unlp.edu.ar` y sin `www`).
+Escaneo de curso individual y recorrido completo desde `/my/` (modo `todos`).
+Destino por índice a `~/Boveda/Areas/Facultad/Ingenieria/` con H-1 resuelto en backend.
+
+#### Verificación en Chrome (dueño con sesión real en Moodle Ingeniería):
+
+- [ ] **M-A (Curso individual con adjuntos)**: abrir un curso (ej: `course/view.php?id=3104`), abrir el popup, verificar que detecta el portal y lista los recursos/carpetas.
+- [ ] **M-B (Sección 0 con nombre propio - RN-4)**: verificar que los temas respetan su nombre real y la sección 0 conserva su título propio (o «Sin tema» si no tiene o dice «General»).
+- [ ] **M-C (Descarga de adjuntos directos y carpetas)**: descargar un recurso y verificar que el backend lo guarda sin duplicar extensión (`.pdf` no `.pdf.mp4`).
+- [ ] **M-D (Enlaces URL a accesos .md)**: verificar que los recursos de tipo `url` generan su correspondiente archivo de acceso `.md`.
+- [ ] **M-E (Recorrido multicurso desde `/my/` - M-1 y NFR-4)**: abrir `/my/`, abrir el popup, presionar «Escanear todos los cursos», verificar que recorre los 9 cursos secuencialmente y sin errores.
+- [ ] **M-F (Segundo plano - M-3)**: verificar que el escaneo progresa incluso si la pestaña de `/my/` queda en segundo plano.
+- [ ] **M-G (Destino por índice - H-1)**: verificar que los archivos descargados caen en `~/Boveda/Areas/Facultad/Ingenieria/` según el índice del curso.
 
 ## Mergeado el 2026-10-06
 
@@ -26,7 +40,7 @@ Verificado por el dueño en Chrome («todo ok»): `marca-resaltador` (planes 26,
 Specs: `docs/marca-diseno.md`, `docs/specs/moodle-linti-multicurso/spec.md`, `docs/specs/moodle-asignaturas-multicurso/spec.md`.
 **No quedó registro casilla por casilla**; si alguna importa, rehacerla contra el código.
 Hallazgo del plan 29 (RN-8): la sesión vencida **corta** el recorrido (no pausa).
-Portales sin implementar, sólo con spec `draft` y mediciones parciales: IDEAS (`docs/specs/ideas-info/`) y Moodle de Ingeniería (`docs/specs/moodle-ingenieria/`).
+Portal sin implementar, sólo con spec `draft` y mediciones parciales: IDEAS (`docs/specs/ideas-info/`). Moodle de Ingeniería (`docs/specs/moodle-ingenieria/`) implementado en rama `moodle-ingenieria`.
 
 ## Mergeado el 2026-10-04
 

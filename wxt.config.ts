@@ -63,6 +63,8 @@ export default defineConfig({
       'https://sites.google.com/ing.unlp.edu.ar/matec/*',
       // --- Portal 6: Moodle Asignaturas (UNLP) ---
       'https://asignaturas.info.unlp.edu.ar/*',
+      // --- Portal 7: Moodle Ingeniería (UNLP) ---
+      'https://*.asignaturas.ing.unlp.edu.ar/*',
       // --- Backend local ---
       'http://localhost:3001/*',
     ],

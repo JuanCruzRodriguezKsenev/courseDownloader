@@ -70,6 +70,12 @@ const globalesDelProyecto = {
   ScraperMoodleAsignaturas: "readonly",
   ParserTitulosMoodleAsignaturas: "readonly",
   DescargarAdjuntoMoodleAsignaturas: "readonly",
+
+  // Portal 7: Moodle Ingeniería (UNLP).
+  SitioMoodleIngenieria: "readonly",
+  ScraperMoodleIngenieria: "readonly",
+  ParserTitulosMoodleIngenieria: "readonly",
+  DescargarAdjuntoMoodleIngenieria: "readonly",
 };
 
 module.exports = [

@@ -22,6 +22,7 @@ import './google-classroom/scraper.js';
 import './moodle-linti/scraper.js';
 import './sites-matec/scraper.js';
 import './moodle-asignaturas/scraper.js';
+import './moodle-ingenieria/scraper.js';
 import { Sitios } from './registro.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -32,6 +33,9 @@ const matecAutoHtml = fs.readFileSync(path.join(__dirname, 'sites-matec/__fixtur
 const moodleCursoHtml = fs.readFileSync(path.join(__dirname, 'moodle-asignaturas/__fixtures__/curso.html'), 'utf-8');
 const moodleCarpetaHtml = fs.readFileSync(path.join(__dirname, 'moodle-asignaturas/__fixtures__/carpeta.html'), 'utf-8');
 const moodleUrlHtml = fs.readFileSync(path.join(__dirname, 'moodle-asignaturas/__fixtures__/url-intermedia.html'), 'utf-8');
+const moodleIngCursoHtml = fs.readFileSync(path.join(__dirname, 'moodle-ingenieria/__fixtures__/curso.html'), 'utf-8');
+const moodleIngCarpetaHtml = fs.readFileSync(path.join(__dirname, 'moodle-ingenieria/__fixtures__/carpeta.html'), 'utf-8');
+const moodleIngUrlHtml = fs.readFileSync(path.join(__dirname, 'moodle-ingenieria/__fixtures__/url-intermedia.html'), 'utf-8');
 
 const compilaComoExpresion = (fn) => new Function(`return (${fn.toString()});`);
 
@@ -240,6 +244,48 @@ describe('inyección sobre DOM real con fixtures (sites-matec y moodle-asignatur
     expect(res.materia).toBe('2024_CURSADA REGULAR_Programación II');
     expect(res.enlaces.length).toBeGreaterThan(0);
     expect(res.enlaces.length).toBe(110);
+  });
+
+  it('moodle-ingenieria: evalúa escanearListado en ventana JSDOM limpia con fixtures y resuelve enlaces > 0 sin ReferenceError', async () => {
+    const sitio = Sitios.obtener('moodle-ingenieria');
+    expect(sitio).toBeDefined();
+
+    const dom = new JSDOM(moodleIngCursoHtml, {
+      url: 'https://www.asignaturas.ing.unlp.edu.ar/course/view.php?id=4091',
+      runScripts: 'outside-only',
+    });
+    const ctx = dom.getInternalVMContext();
+    ctx.fetch = async (url) => {
+      const urlStr = String(url);
+      if (urlStr.includes('/mod/folder/')) {
+        return {
+          ok: true,
+          status: 200,
+          text: async () => moodleIngCarpetaHtml,
+        };
+      }
+      if (urlStr.includes('/mod/url/')) {
+        return {
+          ok: true,
+          status: 200,
+          text: async () => moodleIngUrlHtml,
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        text: async () => '<html><body></body></html>',
+      };
+    };
+
+    const fnCodigo = `(${sitio.escanearListado.toString()})`;
+    const fnInyectada = vm.runInContext(fnCodigo, ctx);
+    expect(typeof fnInyectada).toBe('function');
+
+    const res = await fnInyectada();
+    expect(res.materia).toBe('Matemática B3 (2023)');
+    expect(res.enlaces.length).toBeGreaterThan(0);
+    expect(res.enlaces.length).toBe(9);
   });
 });
 

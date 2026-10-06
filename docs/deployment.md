@@ -140,7 +140,7 @@ Cuando la extensión envía `x-destino-ruta`, el backend activa el guardado dire
   - `INDICE_ILEGIBLE` (409): si `.course-downloader.json` no parsea (RN-25).
   - `MATERIA_INEXISTENTE` (409): si la carpeta de la materia no existe en disco (RN-1, D-3).
   - `RUTA_INSEGURA` (400): segmentos vacíos, `.` o `..`, o path traversal fuera de la raíz (D-2).
-  - `DESTINO_REQUERIDO` (400): si un portal configurado para destino por índice (`google-classroom`, `moodle-linti`) llega sin `x-destino-ruta` (D-9).
+  - `DESTINO_REQUERIDO` (400): si un portal configurado para destino por índice (`google-classroom`, `moodle-linti`, `moodle-asignaturas`, `sites-matec`, `moodle-ingenieria`) llega sin `x-destino-ruta` (D-9).
 - **Escritura y decisión al finalizar**:
   - `preservarDestino`: no se borra ningún archivo previo al abrir el `.part`.
   - Al completar los fragmentos, se evalúa `decidirDespues` (filas 0, 5, 6 y D-7):

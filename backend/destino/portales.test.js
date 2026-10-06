@@ -7,18 +7,24 @@ import {
 
 describe("backend/destino/portales.js", () => {
   describe("conjuntos de portales", () => {
-    it("PORTALES_VALIDOS contiene exactamente los 4 portales soportados", () => {
-      expect(PORTALES_VALIDOS.size).toBe(4);
+    it("PORTALES_VALIDOS contiene los 7 portales soportados", () => {
+      expect(PORTALES_VALIDOS.size).toBe(7);
       expect(PORTALES_VALIDOS.has("ramonnet")).toBe(true);
       expect(PORTALES_VALIDOS.has("anatomy-by-chris")).toBe(true);
       expect(PORTALES_VALIDOS.has("google-classroom")).toBe(true);
       expect(PORTALES_VALIDOS.has("moodle-linti")).toBe(true);
+      expect(PORTALES_VALIDOS.has("moodle-asignaturas")).toBe(true);
+      expect(PORTALES_VALIDOS.has("sites-matec")).toBe(true);
+      expect(PORTALES_VALIDOS.has("moodle-ingenieria")).toBe(true);
     });
 
-    it("PORTALES_CON_DESTINO_INDICE contiene exactamente google-classroom y moodle-linti", () => {
-      expect(PORTALES_CON_DESTINO_INDICE.size).toBe(2);
+    it("PORTALES_CON_DESTINO_INDICE contiene los 5 portales con destino por índice", () => {
+      expect(PORTALES_CON_DESTINO_INDICE.size).toBe(5);
       expect(PORTALES_CON_DESTINO_INDICE.has("google-classroom")).toBe(true);
       expect(PORTALES_CON_DESTINO_INDICE.has("moodle-linti")).toBe(true);
+      expect(PORTALES_CON_DESTINO_INDICE.has("moodle-asignaturas")).toBe(true);
+      expect(PORTALES_CON_DESTINO_INDICE.has("sites-matec")).toBe(true);
+      expect(PORTALES_CON_DESTINO_INDICE.has("moodle-ingenieria")).toBe(true);
       expect(PORTALES_CON_DESTINO_INDICE.has("ramonnet")).toBe(false);
       expect(PORTALES_CON_DESTINO_INDICE.has("anatomy-by-chris")).toBe(false);
     });
@@ -77,6 +83,18 @@ describe("backend/destino/portales.js", () => {
         raizFacultad,
       });
       expect(res).toBe(raizFacultad);
+    });
+
+    it("moodle-ingenieria, moodle-asignaturas y sites-matec sin raices devuelven raizFacultad", () => {
+      for (const portalId of ["moodle-ingenieria", "moodle-asignaturas", "sites-matec"]) {
+        const res = resolverRaizDeDestino({
+          portalId,
+          raices: {},
+          raizPorDefecto,
+          raizFacultad,
+        });
+        expect(res).toBe(raizFacultad);
+      }
     });
   });
 });
