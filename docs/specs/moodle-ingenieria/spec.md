@@ -1,6 +1,6 @@
 # Moodle de Ingeniería: el sexto portal, por curso y de todos los cursos
 
-**Estado**: `draft` — dependen de **M-1..M-3** (§Mediciones pendientes) RN-14, RN-18 y RN-19.
+**Estado**: `aprobada` (2026-10-06) — M-2 medida; dependen de **M-1** y **M-3** (§Mediciones pendientes) RN-14 y NFR-4, que se miden con la extensión armada, dentro del plan 31.
 **Fecha**: 2026-10-05
 **Autor**: tanda (Claude Sonnet 5.5)
 **Firmado**: tanda claude sonnet 5.5
@@ -91,7 +91,7 @@ Hoy `/my/` no hace nada. Por curso se escanea con la pestaña dentro del curso; 
 - **RN-15** — Entran los cursos de «Mis cursos»: los ids de `course/view.php?id=` de la página, **desduplicados** y en el orden en que aparecen. Entran los de años anteriores. (M-2 verifica que son todos.)
 - **RN-16** — Los cursos se recorren **en serie** desde la pestaña `/my/` con `fetch` same-origin con credenciales. Nunca en paralelo ni en pestañas de fondo.
 - **RN-17** — De cada curso se hace **lo mismo que el escaneo de un curso** (RN-3 a RN-13); ese escaneo no cambia. Cada curso conserva su tope de 60 s.
-- **RN-18** — Si un curso falla (sesión, tope, HTML sin actividades donde se esperan), se saltea y el recorrido sigue, con el motivo en el resumen (`todas:RN-8`).
+- **RN-18** — Si un curso falla por una causa **distinta de sesión** (tope, HTML sin actividades donde se esperan, error de red), se saltea y el recorrido sigue, con el motivo en el resumen (`todas:RN-8`). **Sesión vencida** (la URL final va a `/login/`): el recorrido **se corta** con aviso de sesión, conserva los cursos completos y el curso en el que venció no figura como fallido ni como vacío (`linti:RN-8`; decisión 3 del plan 29).
 - **RN-19** — Si el dueño navega fuera de `/my/`, o cierra la pestaña, el recorrido se corta: se conservan los cursos completos y se descarta el que estaba a medias (`todas:RN-9`).
 - **RN-20** — Un curso sin material no aparece en la lista; cuenta como vacío en el resumen (`todas:RN-14`).
 - **RN-21** — El progreso y el resultado se guardan a medida que avanza: cerrar el popup no corta el recorrido y al reabrirlo se ve el progreso o el resultado (`todas:RN-15`, `todas:RN-16`).
@@ -125,7 +125,7 @@ Hoy `/my/` no hace nada. Por curso se escanea con la pestaña dentro del curso; 
 | A3 | Navega fuera de `/my/` a mitad | Se corta, se conservan los completos (RN-19) |
 | A4 | Cierra el popup a mitad | El recorrido sigue (RN-21) |
 | A5 | Reabre el popup a mitad en `/my/` | Ve el progreso; no se dispara otro escaneo (RN-21) |
-| A6 | Sesión vencida | Pausa con aviso de sesión (RN-11) |
+| A6 | Sesión vencida al **bajar** | Pausa de la cola con aviso de sesión (RN-11); al **escanear todos**, el recorrido se corta (RN-18) |
 | A7 | Un `folder` no se puede leer | Se saltea ese `folder`; el curso sigue |
 | A8 | Todos los cursos fallan o están vacíos | No hay lista; sólo el resumen |
 | A9 | Backend caído | El recorrido funciona igual (escanear no lo usa); bajar queda deshabilitado |
@@ -214,7 +214,7 @@ AC-11 — Sesión vencida
 
 ## Las decisiones con más filo
 
-- **RN-15** — Entran los cursos de 2023, incluso los que sólo tienen un foro. Si el dueño no los quiere, la lista se llena de ruido; se resuelve con un filtro, no con una regla.
+- **RN-15** — Entran los cursos de 2023, incluso los que sólo tienen un foro. Si el dueño no los quiere, la lista se llena de ruido; se resuelve con un filtro, no con una regla. **Confirmada por el dueño el 2026-10-06** (*«mis cursos son solo 9»*): entran los 9, sin filtro.
 - **RN-16** — En serie y desde `/my/`, **sin pestañas**. Funciona porque el HTML trae las actividades; si M-1 mostrara que el service worker no recibe lo mismo, esto se rehace.
 - **RN-17 + RN-9** — El escaneo de cada curso resuelve los `url` pidiendo una página por enlace: Matemática B3 son 85 y Física II 76. El recorrido de los 9 puede tardar bastante más que los 4 s medidos para el HTML. Es M-1.
 
