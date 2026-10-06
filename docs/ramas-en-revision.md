@@ -58,7 +58,7 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
   - ⬜ **M-3** — Dueño: `Volver a ofrecerlas` las deja destildadas→tildadas otra vez; **no guardar** (descartar con F5).
   - ⬜ **M-4** — Dueño, mismo curso: los temas **Novedades**, **Sin tema** y **Cronograma tentativo primer cuatrimestre 2026** (los tres guardados en `.` en el índice) se ven `✓ Asignado · Raíz de la materia` y **no** cuentan en «a revisar» de la lista de cursos ni en «Solo problemas». *(Antes del plan: los tres decían «Sin destino».)*
   - ⬜ **M-5** — Tanda: sacar de la copia el tema «Cronograma tentativo primer cuatrimestre 2026» del índice (`jq 'del(.cursos["google-classroom:Nzk0MDIyNDkyNDUx"].temas["Cronograma tentativo primer cuatrimestre 2026"])'`, con respaldo) y reiniciar el servidor. Dueño: en el editor, ese tema aparece como tema nuevo (regla `si` por `carpetas.ts` L17) → «Asignado». Para ver un tema **sin regla**, tanda agrega al curso un tema inventado (ver Preparación del plan 20) con un nombre que no matchee ninguna regla, por ejemplo `Anuncios varios`: sale «Sin destino» con el selector en «— elegir carpeta —»; el dueño elige «Raíz de la materia» y pasa a «Asignado» **sin guardar**.
-- `marca-resaltador`: identidad visual «Resaltador», diseño cerrado y sin aplicar.
+- `marca-resaltador`: identidad visual «Resaltador», planes 26, 27 y 28 ejecutados (13 commits), falta la checklist de Chrome (M-1..M-7 del 26, M-1..M-9 del 27, M-28.1..M-28.5 del 28). Plan de verificación y merge: `~/Boveda/Proyectos/courseDownloader/Planes/30 - Verificacion conjunta y merge de marca-resaltador y moodle-multicurso.md`. Nota: los planes 22 a 25 ya están en `main`; sus `M-n` de arriba siguen sin registro.
 
 ## Mergeado el 2026-10-04
 
