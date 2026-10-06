@@ -226,6 +226,14 @@ AC-11 — Sesión vencida
 | M-2 | Con el dueño: comparar los ids de `/my/` con los de «Mis cursos → Todos» y con la lista de la barra lateral | RN-15: si faltan cursos (filtro «en progreso», paginación), hay que leer otra fuente |
 | M-3 | Con `/my/` en segundo plano 60 s, correr el recorrido y mirar si el `fetch` avanza | RN-14: si no avanza, el aviso tiene que pedir la pestaña al frente, como Classroom |
 
+### Resultado de M-2 (2026-10-06, con la sesión del dueño en Chrome, sólo lecturas)
+
+- **Hay 9 cursos** y `/my/` los trae a todos en el HTML: ids `2777, 3104, 3479, 3714, 4070, 4091, 4768, 5797, 5935`. Salen igual del bloque «Navegación → Mis cursos» (9) y de las tres pestañas del bloque «Vista general de curso → Cursos».
+- **El filtro por defecto esconde 3**: «En progreso» tiene 6 (`2777…4091`), «Pasados» tiene 3 (`4768, 5797, 5935`, los de 2025) y «Futuros» ninguno. **La barra lateral muestra sólo los 6 de «En progreso».** Quien lea sólo lo visible o sólo la barra pierde Física II G26 2025 y otros dos.
+- **Este Moodle no tiene `/my/courses.php`** (responde 404, «File not found.»): es una versión anterior a la que usan LINTI y Asignaturas. `esPortada` y la lista de cursos **no pueden copiarse** de `moodle-linti` ni `moodle-asignaturas`; la fuente es `/my/`.
+- **Implicación para RN-15**: leer todos los `a[href*="course/view.php?id="]` del HTML de `/my/` (sin mirar qué pestaña está activa) y deduplicar por `id` da los 9. Es el selector a fijar; no usar la barra lateral ni sólo «En progreso».
+- **Pendiente**: M-1 (tiempo del recorrido, necesita la extensión) y M-3 (segundo plano, ídem).
+
 ## Dependencias
 
 - `PuertoSitio.esPortada` y `core/estado/recorridoTodos.ts` ya están en `main`; el recorrido de Classroom es el modelo (`sitio/google-classroom/scraper.js`).
