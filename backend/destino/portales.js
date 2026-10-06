@@ -10,11 +10,17 @@ export const PORTALES_VALIDOS = new Set([
   "anatomy-by-chris",
   "google-classroom",
   "moodle-linti",
+  "moodle-asignaturas",
+  "sites-matec",
+  "moodle-ingenieria",
 ]);
 
 export const PORTALES_CON_DESTINO_INDICE = new Set([
   "google-classroom",
   "moodle-linti",
+  "moodle-asignaturas",
+  "sites-matec",
+  "moodle-ingenieria",
 ]);
 
 /**
