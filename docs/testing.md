@@ -30,10 +30,19 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **81 archivos, 1239 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
+| `pnpm test` | **82 archivos, 1262 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 1262** (2026-10-06, plan `29 - Escanear todos los cursos en Moodle (LINTI e Informatica)`, rama `moodle-multicurso`): son los 1239 de abajo más **+23** tests (+1 archivo nuevo `sitio/moodle-recorrido-paridad.test.js`):
+- **+2** en `core/estado/recorridoTodos.test.ts` (corte por sesión y texto genérico de corte),
+- **+1** en `sitio/moodle-linti/config.test.ts` (esPortada y claveDeListado en /my/),
+- **+1** en `sitio/moodle-asignaturas/config.test.ts` (esPortada y claveDeListado en /my/),
+- **+1** en `sitio/registro.test.ts` (aislamiento de portadas entre portales Moodle),
+- **+9** en `sitio/moodle-linti/scraper.test.js` (recorrido multicurso L:AC-2..AC-11, L:RN-2, cancelación),
+- **+8** en `sitio/moodle-asignaturas/scraper.test.js` (recorrido multicurso I:AC-2..AC-8, I:RN-2, cancelación),
+- **+1** en el archivo nuevo `sitio/moodle-recorrido-paridad.test.js` (paridad byte a byte del bloque `<recorrido-moodle>`).
 
 **De dónde sale el 1239** (2026-10-05, plan `22 - Lo que está en disco manda`, rama `disco-manda`): son los 1220 de abajo más **+19** tests:
 - **+2** en `backend/destino/md5.test.js` (concurrencia de cálculo y reintento tras fallo),

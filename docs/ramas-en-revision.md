@@ -16,6 +16,18 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## 🚧 En revisión
 
+- `moodle-multicurso`: Plan 29 (`~/Boveda/Proyectos/courseDownloader/Planes/29 - Escanear todos los cursos en Moodle (LINTI e Informatica).md`).
+  Specs: `docs/specs/moodle-linti-multicurso/spec.md`, `docs/specs/moodle-asignaturas-multicurso/spec.md`.
+  Compuerta: 82 archivos / 1262 tests.
+  - ⬜ **M-A (portada)** — En `catedras.linti.unlp.edu.ar/my/courses.php` («Todos», sin paginar): el popup dice «Escanear todos los cursos» y no escanea solo. Apretar: tarjeta «Curso 1 de 3» … «3 de 3», resumen **3 con material**. Repetir en `asignaturas.info.unlp.edu.ar/my/` (1 curso). Resuelve `L:M-2`: ¿aparecen los 3 cursos y no hay paginación?
+  - ⬜ **M-1 (tiempo)** — Anotar el tiempo total y por curso del recorrido de LINTI (Programación III tiene 10 `folder` y 3 `url`) y de Informática (Programación II, 158 actividades). Decide el aviso de duración (`L:RN-8`) y si 60 s alcanza por curso.
+  - ⬜ **M-3 (segundo plano)** — Lanzar el recorrido y cambiar de pestaña 60 s: ¿avanza? Si no avanza, anotarlo; el aviso tendrá que pedir la pestaña al frente.
+  - ⬜ **M-B (cerrar el popup)** — En medio del recorrido, cerrar y reabrir el popup: muestra el progreso o el resultado, no lanza otro escaneo.
+  - ⬜ **M-4 (navegar)** — En medio del recorrido, navegar a otra página del portal: tras unos segundos la lista conserva los cursos completos y el resumen dice por qué se cortó (`navegaste fuera…` o `el recorrido dejó de responder`).
+  - ⬜ **M-C (lista guardada)** — Terminado el recorrido, cerrar y reabrir el popup en la portada: **muestra la lista guardada** sin ofrecer escanear de nuevo (prueba el Paso 2). «Re-escanear 🔄» vuelve a recorrer todos.
+  - ⬜ **M-D (curso suelto)** — Abrir un curso suelto: escanea sólo ese curso, como antes, y reemplaza la lista.
+  - ⬜ **M-E (sesión)** — Cerrar sesión en otra pestaña a mitad del recorrido: el recorrido se corta con el aviso de sesión y no marca el curso como fallido.
+  - ⬜ **M-F (Classroom)** — Un recorrido de Classroom sigue igual: la lista guardada vuelve a su portada y el resumen no cambia (prueba que el Paso 2 no la tocó).
 - `disco-manda`: Plan 22 (`~/Boveda/Proyectos/courseDownloader/Planes/22 - Lo que esta en disco manda.md`).
   Specs: `docs/specs/disco-manda/spec.md`, `docs/specs/classroom-destino/spec.md`.
   Compuerta: 81 archivos / 1239 tests; humos: `humo-editor.js`, `humo-editor-indice.js`, `humo-editor-videollamadas-raiz.js`, `humo-editor-filtros-orden.js` (errores: 0).

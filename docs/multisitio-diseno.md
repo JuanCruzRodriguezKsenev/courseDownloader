@@ -401,6 +401,10 @@ archivo**: todo viaja por `args`. Hoistear un selector a `config.ts` —el movim
 "las constantes del sitio van en el config" pediría— rompe el escaneo, y **no lo detecta el
 bundler, ni el lint, ni `tsc`, ni la suite**. Sólo el navegador.
 
+Por la misma razón, el recorrido de todos los cursos de un Moodle está duplicado en cada scraper,
+entre marcadores `// <recorrido-moodle>`, con un test de paridad que afirma igualdad byte a byte
+(`sitio/moodle-recorrido-paridad.test.js`).
+
 ### Lo que recién con este portal se vuelve verificable
 
 Todo lo que exige dos portales a la vez y hoy sólo tiene tests con dobles. Cuando el segundo

@@ -64,7 +64,7 @@ Con un solo curso hoy el recorrido es trivial; la regla se escribe para cuando h
 - **RN-5** — Los `label` (Kaltura) y los demás tipos excluidos por `asig:RN-2` no se listan ni generan aviso.
 - **RN-6** — Cada curso conserva su tope de 60 s (`topeEscaneoMs`). Un curso que lo supera se saltea, con el motivo en el resumen.
 - **RN-7** — Un curso que falla por una causa **distinta de sesión** (HTML sin actividades donde se esperan, tope, error de red) se saltea y el recorrido sigue, con el motivo en el resumen (`todas:RN-8`).
-- **RN-8** — **Sesión vencida** (la URL final va a `/login/`): el recorrido se **pausa con aviso de sesión** y no saltea el curso (`ing:RN-11`). El aviso de duración antes de arrancar sale de **M-1**.
+- **RN-8** — **Sesión vencida** (la URL final va a `/login/`): el recorrido **se corta con aviso de sesión (sin reanudación: se conservan los cursos completos y el curso en el que venció no figura como fallido ni como vacío)** (`ing:RN-11`). El aviso de duración antes de arrancar sale de **M-1**.
 - **RN-9** — Si el dueño navega fuera de `/my/`, o cierra la pestaña, el recorrido se corta: se conservan los cursos completos y se descarta el que estaba a medias (`todas:RN-9`).
 - **RN-10** — Un curso sin material no aparece en la lista; cuenta como vacío en el resumen (`todas:RN-14`).
 - **RN-11** — El progreso y el resultado se guardan a medida que avanza: cerrar el popup no corta el recorrido y al reabrirlo se ve el progreso o el resultado (`todas:RN-15`, `todas:RN-16`).
@@ -174,7 +174,7 @@ Los 14 supuestos se aprobaron sin leer; la traza está en [`assumptions.md`](./a
 
 - **RN-1 / A6** — El botón se ofrece con un solo curso. Si molesta, es esconderlo cuando hay 1.
 - **RN-2** — Entran los cursos de años anteriores. Hoy no pesa (1 curso); con muchos, ruido.
-- **RN-8** — Sesión vencida **pausa** (no saltea). Es lo de Ingeniería; si un solo curso expirado bloquea el recorrido, hay que releerlo.
+- **RN-8** — Sesión vencida: implementado como **corte** (decisión 3 del plan 29) en vez de pausa, porque no hay protocolo de reanudación y un Moodle con sesión vencida exige re-autenticar antes de poder seguir. Conserva los cursos ya terminados.
 - **RN-4** — El recorrido hereda la resolución de 28 `url` + 80 `resource` por curso. Con Programación II el tiempo total no se midió (M-1).
 
 ## Mediciones pendientes

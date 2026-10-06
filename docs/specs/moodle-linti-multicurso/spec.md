@@ -63,7 +63,7 @@ El HTML de cada curso por `fetch` trae todas las actividades, con 200 y sin ir a
 - **RN-5** — Los demás tipos de actividad no se listan ni generan aviso (`linti:RN-2`).
 - **RN-6** — Cada curso conserva su tope de 60 s. Un curso que lo supera se saltea, con el motivo en el resumen.
 - **RN-7** — Un curso que falla por una causa **distinta de sesión** (HTML sin actividades donde se esperan, tope, error de red) se saltea y el recorrido sigue, con el motivo en el resumen (`todas:RN-8`).
-- **RN-8** — **Sesión vencida** (la URL final va a `/login/`): el recorrido se **pausa con aviso de sesión** y no saltea el curso (`linti:RN-10`, `ing:RN-11`). El aviso de duración antes de arrancar sale de **M-1**.
+- **RN-8** — **Sesión vencida** (la URL final va a `/login/`): el recorrido **se corta con aviso de sesión (sin reanudación: se conservan los cursos completos y el curso en el que venció no figura como fallido ni como vacío)** (`linti:RN-10`, `ing:RN-11`). El aviso de duración antes de arrancar sale de **M-1**.
 - **RN-9** — Si el dueño navega fuera de la portada, o cierra la pestaña, el recorrido se corta: se conservan los cursos completos y se descarta el que estaba a medias (`todas:RN-9`).
 - **RN-10** — Un curso sin material no aparece en la lista; cuenta como vacío en el resumen (`todas:RN-14`).
 - **RN-11** — El progreso y el resultado se guardan a medida que avanza: cerrar el popup no corta el recorrido y al reabrirlo se ve el progreso o el resultado (`todas:RN-15`, `todas:RN-16`).
@@ -181,7 +181,7 @@ Los 16 supuestos se mostraron en lista y el dueño respondió «Ninguno» (2026-
 
 ## Las decisiones con más filo
 
-- **RN-8** — Sesión vencida **pausa** (no saltea). Es lo de Ingeniería; si un solo curso expirado bloquea el recorrido, hay que releerlo.
+- **RN-8** — Sesión vencida: implementado como **corte** (decisión 3 del plan 29) en vez de pausa, porque no hay protocolo de reanudación y un Moodle con sesión vencida exige re-autenticar antes de poder seguir. Conserva los cursos ya terminados.
 - **RN-2** — Entran los cursos de años anteriores. Hoy hay 3, todos 2026; con más años, ruido.
 - **RN-15** — `esPaginaDelSitio` pasa a reclamar la portada; es lo único que toca el adaptador de un portal ya en producción.
 
