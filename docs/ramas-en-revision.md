@@ -16,23 +16,24 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## 🚧 En revisión
 
-### `moodle-ingenieria` (Plan 31) — **ya está en `main` (2026-10-06), mergeada SIN verificar en Chrome**
+### `moodle-ingenieria` (Plan 31) — en `main` (2026-10-06); verificada en navegador el 2026-10-10 con **un fallo (M-4)**
 
-Compuerta del merge: 87 archivos / 1313 tests, lint 0, tsc 0, build ok. Las casillas de abajo siguen sin hacer: no tratarlas como superadas.
+Compuerta del merge: 87 archivos / 1313 tests, lint 0, tsc 0, build ok.
 
 Sexto portal: Moodle de Ingeniería (`www.asignaturas.ing.unlp.edu.ar` y sin `www`).
 Escaneo de curso individual y recorrido completo desde `/my/` (modo `todos`).
 Destino por índice a `~/Boveda/Areas/Facultad/Ingenieria/` con H-1 resuelto en backend.
 
-#### Verificación en Chrome (dueño con sesión real en Moodle Ingeniería):
+Verificó tanda con Playwright (Chromium aparte, sesión real del dueño) contra el checklist **del plan**
+(`~/Boveda/Proyectos/courseDownloader/Planes/31 - …`, §Checklist manual), que es la fuente: la lista que
+estaba acá tenía otras letras y había perdido casillas. Resultado casilla por casilla en el plan.
 
-- [ ] **M-A (Curso individual con adjuntos)**: abrir un curso (ej: `course/view.php?id=3104`), abrir el popup, verificar que detecta el portal y lista los recursos/carpetas.
-- [ ] **M-B (Sección 0 con nombre propio - RN-4)**: verificar que los temas respetan su nombre real y la sección 0 conserva su título propio (o «Sin tema» si no tiene o dice «General»).
-- [ ] **M-C (Descarga de adjuntos directos y carpetas)**: descargar un recurso y verificar que el backend lo guarda sin duplicar extensión (`.pdf` no `.pdf.mp4`).
-- [ ] **M-D (Enlaces URL a accesos .md)**: verificar que los recursos de tipo `url` generan su correspondiente archivo de acceso `.md`.
-- [ ] **M-E (Recorrido multicurso desde `/my/` - M-1 y NFR-4)**: abrir `/my/`, abrir el popup, presionar «Escanear todos los cursos», verificar que recorre los 9 cursos secuencialmente y sin errores.
-- [ ] **M-F (Segundo plano - M-3)**: verificar que el escaneo progresa incluso si la pestaña de `/my/` queda en segundo plano.
-- [ ] **M-G (Destino por índice - H-1)**: verificar que los archivos descargados caen en `~/Boveda/Areas/Facultad/Ingenieria/` según el índice del curso.
+- ✅ M-A, M-1, M-3, M-B, M-C, M-D, M-E, M-F, M-G.
+- ❌ **M-4 (navegar a mitad del recorrido):** el curso a medias queda «fallido: error de red» en vez de
+  descartarse (RN-19) y el recorrido sigue «escaneando» hasta que el popup lo corta por vigencia con
+  «dejó de responder». Pendiente: plan de corrección.
+- Hallazgos menores: tarjetas «Curso 5935/5797/4768» sin nombre; textos de `/my/` heredados de Classroom;
+  los PDF de Moodle se guardan sin `.pdf`; el acceso de Mate C se guarda sin `.md`.
 
 ## Mergeado el 2026-10-06
 

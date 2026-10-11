@@ -1,4 +1,4 @@
-- [Verificación plan 31](project_verificacion_plan31.md) — LEER AL RETOMAR: a medias con Playwright; M-4 falla; faltan M-G, M-E, M-F
+- [Verificación plan 31](project_verificacion_plan31.md) — terminada: todo ✅ menos M-4; próxima ronda = plan de corrección (M-4, nombres, extensiones)
 - [Ficha en AGENTS.md](project_ficha_en_agents.md) — sin ficha en CLAUDE.md; qué docs de estado leer al arrancar y estado al 2026-09-25
 - [Organización del material](user_organizacion_material.md) — ~/U.N.L.P: árbol git+Obsidian por facultad/materia/docente; mirar antes de proponer layouts
 - [Google Classroom](project_google_classroom.md) — historia hasta el corte 2a; lo siguiente (2b, 2c) está en planes-2b-2c-moodle
