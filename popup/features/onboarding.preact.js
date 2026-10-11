@@ -132,11 +132,11 @@ export function Onboarding({ conexion, appState, sitio: sitioInyectado }) {
             <div class="onboarding-slide" inert=${slide !== 1 || undefined}>
               <div class="onboarding-icon">🌐</div>
               <h3>Página Correcta</h3>
-              <p>Usá la extensión dentro del listado de clases de tu materia en ${nombreSitio} para detectar los videos: <a href=${sitio.urlListado || '#'} target="_blank" class="onboarding-link">Ir al listado de clases 🌐</a></p>
+              <p>Usá la extensión dentro del listado de clases de tu materia en ${nombreSitio} para detectar las clases y el material: <a href=${sitio.urlListado || '#'} target="_blank" class="onboarding-link">Ir al listado de clases 🌐</a></p>
             </div>
             <div class="onboarding-slide" inert=${slide !== 2 || undefined}>
               <div class="onboarding-icon">🔍</div>
-              <h3>Clases y Videos</h3>
+              <h3>Qué escanear</h3>
               <p>${sitio.instruccionEscaneo}</p>
             </div>
             <div class="onboarding-slide" inert=${slide !== 3 || undefined}>

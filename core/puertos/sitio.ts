@@ -1,6 +1,10 @@
 /**
- * PUERTO DE SITIO (V1.11.0)
+ * PUERTO DE SITIO (V1.12.0)
  * ==========================================================================
+ * CHANGELOG v1.12.0:
+ * - [TEXTO OFERTA TODOS] Miembro nuevo `readonly textoOfertaTodos?: string;` (opcional):
+ *   descripción en texto plano (`\n` para saltos de línea) de la card de oferta de escanear todos (RN-29).
+ *
  * CHANGELOG v1.11.0:
  * - [AVISO FUERA DE LISTADO] Miembro nuevo `sugerenciaFueraDeListado?(url)` (opcional):
  *   texto plano cuando la URL pertenece al host del portal pero no es una página escaneable (RN-27, AC-12).
@@ -309,6 +313,13 @@ export interface PuertoSitio {
    * Corre en el POPUP, no en la pestaña.
    */
   sugerenciaFueraDeListado?(url: string | undefined): string | undefined;
+
+  /**
+   * [TEXTO OFERTA TODOS] Texto plano opcional que describe la oferta de escanear
+   * todos los cursos cuando el usuario está en la portada. `\n` representa salto de línea.
+   * Si no se define, el popup usa el texto por defecto (Classroom).
+   */
+  readonly textoOfertaTodos?: string;
 
   /**
    * [CANCELAR ESCANEO] `true` si el escaneo inyectado atiende `cancelar_escaneo`

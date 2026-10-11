@@ -82,8 +82,11 @@ const SitioMoodleAsignaturas: PuertoSitio = {
     return "https://asignaturas.info.unlp.edu.ar/my/";
   },
 
+  textoOfertaTodos:
+    "Escaneamos los cursos de tu Área personal, uno por uno. Suele tardar menos de un minuto.\nPodés cerrar este popup, pero no cambies de página en esta pestaña hasta que termine.",
+
   instruccionEscaneo:
-    "Abrí la página principal de la materia (course/view.php) y escaneá desde acá. Podés asociar la materia al árbol con 🗂️.",
+    "Escaneá desde la página principal de un curso o desde tu Área personal para escanear todos. Podés asociar la materia al árbol con 🗂️.",
 
   topeEscaneoMs: 60000,
 

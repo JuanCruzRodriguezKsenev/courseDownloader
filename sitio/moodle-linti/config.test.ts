@@ -12,6 +12,7 @@ describe("SitioMoodleLinti descriptor", () => {
     expect(SitioMoodleLinti.urlSondeoInternet).toBe("https://catedras.linti.unlp.edu.ar/favicon.ico");
     expect(SitioMoodleLinti.patronPestañas).toBe("https://catedras.linti.unlp.edu.ar/*");
     expect(SitioMoodleLinti.urlListado).toBe("https://catedras.linti.unlp.edu.ar/my/");
+    expect(SitioMoodleLinti.textoOfertaTodos).toContain("Área personal");
   });
 
   it("esPaginaDelSitio valida cursos con id numérico y portada /my/, y descarta otras URLs", () => {

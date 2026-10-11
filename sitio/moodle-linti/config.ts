@@ -77,6 +77,9 @@ const SitioMoodleLinti: PuertoSitio = {
     return "https://catedras.linti.unlp.edu.ar/my/";
   },
 
+  textoOfertaTodos:
+    "Escaneamos los cursos de tu Área personal, uno por uno. Suele tardar menos de un minuto.\nPodés cerrar este popup, pero no cambies de página en esta pestaña hasta que termine.",
+
   instruccionEscaneo:
     "Escaneá desde la página principal de un curso o desde «Mis cursos». Dejá esa pestaña al frente hasta que termine.",
 

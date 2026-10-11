@@ -2364,14 +2364,17 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
         }
 
         if (ofreciendoTodos) {
+          const textoOferta = sitio()?.textoOfertaTodos;
+          const descripcion = textoOferta
+            ? utils.escaparHtml(textoOferta).replace(/\n/g, '<br>')
+            : 'Escaneamos todos tus cursos, activos y archivados, uno por uno. Tarda unos 20 s por curso.<br>Dejá esta pestaña al frente hasta que termine. Podés cerrar este popup.';
           ListaClases.render({
             modo: 'card',
             card: {
               tipo: 'info',
               icono: '📚',
               titulo: 'Todas mis clases',
-              descripcion:
-                'Escaneamos todos tus cursos, activos y archivados, uno por uno. Tarda unos 20 s por curso.<br>Dejá esta pestaña al frente hasta que termine. Podés cerrar este popup.',
+              descripcion,
             },
           });
           return;

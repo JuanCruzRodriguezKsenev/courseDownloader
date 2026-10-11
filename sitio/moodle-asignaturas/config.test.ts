@@ -14,7 +14,8 @@ describe("SitioMoodleAsignaturas", () => {
     expect(SitioMoodleAsignaturas.credencialesAdjunto).toBe("include");
     expect(SitioMoodleAsignaturas.destinoPorIndice).toBe(true);
     expect(SitioMoodleAsignaturas.topeEscaneoMs).toBe(60000);
-    expect(SitioMoodleAsignaturas.instruccionEscaneo).toContain("course/view.php");
+    expect(SitioMoodleAsignaturas.instruccionEscaneo).toContain("Área personal");
+    expect(SitioMoodleAsignaturas.textoOfertaTodos).toContain("Área personal");
   });
 
   it("2. esPaginaDelSitio reconoce vistas de curso, portada /my/ y descarta otras URLs", () => {

@@ -21,7 +21,8 @@ describe("SitioMoodleIngenieria", () => {
     expect(SitioMoodleIngenieria.credencialesAdjunto).toBe("include");
     expect(SitioMoodleIngenieria.destinoPorIndice).toBe(true);
     expect(SitioMoodleIngenieria.topeEscaneoMs).toBe(60000);
-    expect(SitioMoodleIngenieria.instruccionEscaneo).toContain("course/view.php");
+    expect(SitioMoodleIngenieria.instruccionEscaneo).toContain("Área personal");
+    expect(SitioMoodleIngenieria.textoOfertaTodos).toContain("Área personal");
   });
 
   it("2. esPaginaDelSitio reconoce vistas de curso (con y sin www), portada /my/ y descarta otras URLs", () => {
