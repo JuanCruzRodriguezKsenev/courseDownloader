@@ -132,9 +132,91 @@ async function escanearListado(opciones = {}) {
 
       if (tipo === "resource") {
         const url = `${origen}/mod/resource/view.php?id=${cmid}`;
+        let texto = actName;
+        try {
+          const res = await fetch(url, { credentials: "include", signal: ctx.signal });
+          const urlFinal = res.url || "";
+          let pathname = "";
+          try {
+            pathname = new URL(urlFinal, origen || undefined).pathname;
+          } catch {}
+
+          if (
+            ctx.detectarLogin &&
+            (pathname.startsWith("/login/") || pathname === "/login")
+          ) {
+            sesionDetectada = true;
+            return [];
+          }
+
+          let nombreArchivo = "";
+          if (urlFinal.includes("pluginfile.php")) {
+            if (res.body && typeof res.body.cancel === "function") {
+              try {
+                res.body.cancel().catch(() => {});
+              } catch {}
+            }
+            const segmentos = pathname.split("/").filter(Boolean);
+            const ultimoSegmento = segmentos[segmentos.length - 1] || "";
+            try {
+              nombreArchivo = decodeURIComponent(ultimoSegmento);
+            } catch {
+              nombreArchivo = ultimoSegmento;
+            }
+          } else {
+            const html = await res.text();
+            if (ctx.detectarLogin) {
+              const parser = new DOMParser();
+              const docResource = parser.parseFromString(html, "text/html");
+              if (esPantallaLogin(docResource, pathname)) {
+                sesionDetectada = true;
+                return [];
+              }
+            }
+            const regexResource = /https?:\/\/[^\s"'><]+pluginfile\.php\/[^\s"'><]+mod_resource\/content\/[^\s"'><]+/;
+            const match = html.match(regexResource);
+            if (match) {
+              const enlaceEncontrado = match[0].replace(/&amp;/g, "&");
+              try {
+                const uObj = new URL(enlaceEncontrado, origen || undefined);
+                const segs = uObj.pathname.split("/").filter(Boolean);
+                const ultimoSeg = segs[segs.length - 1] || "";
+                nombreArchivo = decodeURIComponent(ultimoSeg);
+              } catch {
+                const sinQuery = enlaceEncontrado.split("?")[0];
+                const partes = sinQuery.split("/");
+                const ultimo = partes[partes.length - 1] || "";
+                try {
+                  nombreArchivo = decodeURIComponent(ultimo);
+                } catch {
+                  nombreArchivo = ultimo;
+                }
+              }
+            }
+          }
+
+          if (nombreArchivo) {
+            const mExt = /\.([a-z0-9]{1,8})$/i.exec(nombreArchivo);
+            if (mExt) {
+              const ext = mExt[1].toLowerCase();
+              const regexFinExt = new RegExp(`\\.${ext}$`, "i");
+              if (regexFinExt.test(actName)) {
+                texto = actName;
+              } else {
+                texto = `${actName}.${ext}`;
+              }
+            }
+          }
+        } catch (err) {
+          if (err && (err.name === "AbortError" || ctx.signal?.aborted)) {
+            throw err;
+          }
+          texto = actName;
+        }
+
         return [
           {
-            texto: actName,
+            texto,
             url,
             tipo: "adjunto",
             idArchivo: String(cmid),
@@ -717,6 +799,7 @@ async function escanearListado(opciones = {}) {
     cursoId,
     origen,
     signal: undefined,
+    detectarLogin: true,
   });
 }
 
