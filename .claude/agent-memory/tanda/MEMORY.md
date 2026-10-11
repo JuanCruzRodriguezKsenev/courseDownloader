@@ -1,3 +1,4 @@
+- [Verificación plan 31](project_verificacion_plan31.md) — LEER AL RETOMAR: a medias con Playwright; M-4 falla; faltan M-G, M-E, M-F
 - [Ficha en AGENTS.md](project_ficha_en_agents.md) — sin ficha en CLAUDE.md; qué docs de estado leer al arrancar y estado al 2026-09-25
 - [Organización del material](user_organizacion_material.md) — ~/U.N.L.P: árbol git+Obsidian por facultad/materia/docente; mirar antes de proponer layouts
 - [Google Classroom](project_google_classroom.md) — historia hasta el corte 2a; lo siguiente (2b, 2c) está en planes-2b-2c-moodle
@@ -26,3 +27,4 @@
 - [Moodle Asignaturas multicurso](project_moodle_asignaturas_multicurso.md) — spec draft 2026-10-05; /my/ tiene 1 curso; falta plan; separado de Ingeniería
 - [Sitios pendientes](project_sitios_pendientes.md) — LEER AL RETOMAR: 4 specs listas; plan 29 (Moodle LINTI+Info) escrito en Bóveda; faltan 30 (Ing) y 31 (IDEAS)
 - [Plan 31 Moodle Ingeniería](project_moodle_ingenieria_plan31.md) — plan escrito, hallazgo H-1 del backend, riesgo M-A (6 vs 9 cursos), IDEAS queda después
+- [Verificar con Playwright](feedback_verificar_con_playwright.md) — el dueño no mide a mano; receta probada para cargar la extensión y abrir el popup
