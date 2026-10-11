@@ -337,7 +337,9 @@ async function escanearListado(opciones = {}) {
     }
 
     let recorridoTerminado = false;
+    let paginaSaliendo = false;
     const oyentePagehide = () => {
+      paginaSaliendo = true;
       if (!recorridoTerminado) {
         try {
           if (
@@ -366,6 +368,7 @@ async function escanearListado(opciones = {}) {
     const avisar = (evento) => {
       const p = colaAvisos.then(async () => {
         try {
+          if (paginaSaliendo) return;
           if (
             typeof chrome !== "undefined" &&
             chrome.runtime &&

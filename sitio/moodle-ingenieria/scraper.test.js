@@ -627,4 +627,54 @@ describe("ScraperMoodleIngenieria.escanearListado (modo todos)", () => {
       "4099",
     ]);
   });
+
+  it("19. M-4 / RN-19 / AC-9: pagehide a mitad de recorrido silencia avisos posteriores y no emite curso fallido", async () => {
+    let rechazarCurso2;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        const u = String(url);
+        if (u.includes("id=4091")) {
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("4091", "C1", itemResource("1", "R1")),
+          };
+        }
+        if (u.includes("id=4092")) {
+          return new Promise((_, reject) => {
+            rechazarCurso2 = () => reject(new TypeError("Failed to fetch"));
+          });
+        }
+        return { ok: true, url: u, text: async () => "" };
+      })
+    );
+
+    const promesaEscaneo = ScraperMoodleIngenieria.escanearListado({
+      modo: "todos",
+      idRecorrido: 208,
+      tabId: 1,
+      sitioId: "moodle-ingenieria",
+    });
+
+    while (!rechazarCurso2) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
+
+    window.dispatchEvent(new Event("pagehide"));
+    rechazarCurso2();
+
+    await promesaEscaneo;
+
+    const evFinNav = mensajesEnviados.find(
+      (m) => m.tipo === "fin" && m.motivoCorte === "navegacion"
+    );
+    expect(evFinNav).toBeDefined();
+
+    const evCurso1 = mensajesEnviados.find(
+      (m) => m.tipo === "curso" && m.indice === 1
+    );
+    expect(evCurso1).toBeUndefined();
+  });
 });
+
