@@ -1,6 +1,10 @@
 /**
- * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V7.3.0)
+ * CLON DOWNLOADHELPER - SERVICE WORKER DE ORQUESTACIÓN (V7.4.0)
  * ==========================================================================
+ * CHANGELOG v7.4.0:
+ * - [RECORRIDO SERIALIZADO] Serialización de eventos en `recorrido_evento` con cola de
+ *   promesas para evitar que eventos concurrentes pisen estados terminales (M-4, RN-30, AC-15).
+ *
  * CHANGELOG v7.3.0:
  * - [CLASSROOM ESCANEAR TODAS] Manejador IPC `recorrido_evento`: reduce los eventos
  *   del recorrido multi-curso en `storage.local.recorridoTodos` (Paso 4).
@@ -267,18 +271,24 @@ export function iniciarServiceWorker({
   // privado de `core/cola/procesadorCola.ts` y se toca por su API (`arrancarSiNoCorre`,
   // `detener`, `abortarRafaga`). El objeto se exporta para tests.
   // ─────────────────────────────────────────────────────────────────────────────
+  let colaRecorrido = Promise.resolve();
+
   const manejadoresIPC = {
     // ─── EVENTOS DE RECORRIDO MULTI-CURSO ──────────────────────────────────────
     async recorrido_evento(request, sendResponse) {
-      const { recorridoTodos: prev } = await almacenamiento.obtenerLocal(["recorridoTodos"]);
-      const sig = recorrido.aplicarEvento(
-        recorrido.esRecorridoTodos(prev) ? prev : null,
-        request,
-        Date.now()
-      );
-      if (sig !== prev) {
-        await almacenamiento.guardarLocal({ recorridoTodos: sig });
-      }
+      const tarea = colaRecorrido.then(async () => {
+        const { recorridoTodos: prev } = await almacenamiento.obtenerLocal(["recorridoTodos"]);
+        const sig = recorrido.aplicarEvento(
+          recorrido.esRecorridoTodos(prev) ? prev : null,
+          request,
+          Date.now()
+        );
+        if (sig !== prev) {
+          await almacenamiento.guardarLocal({ recorridoTodos: sig });
+        }
+      });
+      colaRecorrido = tarea.catch(() => {});
+      await tarea;
       return sendResponse({ status: "ok" });
     },
 
