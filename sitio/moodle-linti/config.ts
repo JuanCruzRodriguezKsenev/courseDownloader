@@ -58,6 +58,17 @@ const SitioMoodleLinti: PuertoSitio = {
     return m ? m[1] : undefined;
   },
 
+  sugerenciaFueraDeListado(url) {
+    if (typeof url !== "string") return undefined;
+    if (
+      /^https?:\/\/catedras\.linti\.unlp\.edu\.ar(?:\/|$)/i.test(url) &&
+      !this.esPaginaDelSitio(url)
+    ) {
+      return "Andá a tu Área personal o a «Mis cursos» para escanear todos tus cursos, o abrí la página de un curso.";
+    }
+    return undefined;
+  },
+
   get patronPestañas() {
     return "https://catedras.linti.unlp.edu.ar/*";
   },

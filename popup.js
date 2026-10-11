@@ -1722,10 +1722,29 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           // cuáles obliga a adivinar, y una lista escrita a mano envejece en el próximo portal
           // (ADR-0010). Se escapan acá, al guardarlos, porque la descripción de la card viaja
           // por `dangerouslySetInnerHTML`.
-          escaneoMuerto = {
-            motivo: 'sin-portal',
-            portales: sitios.todos().map((s) => utils.escaparHtml(s.nombre)).join(' o '),
-          };
+          let portalConSugerencia = null;
+          let textoSugerencia = null;
+          for (const s of sitios.todos()) {
+            const sug = s.sugerenciaFueraDeListado?.(tab?.url);
+            if (sug) {
+              portalConSugerencia = s;
+              textoSugerencia = sug;
+              break;
+            }
+          }
+
+          if (portalConSugerencia && textoSugerencia) {
+            escaneoMuerto = {
+              motivo: 'fuera-de-listado',
+              portal: utils.escaparHtml(portalConSugerencia.nombre),
+              sugerencia: utils.escaparHtml(textoSugerencia),
+            };
+          } else {
+            escaneoMuerto = {
+              motivo: 'sin-portal',
+              portales: sitios.todos().map((s) => utils.escaparHtml(s.nombre)).join(' o '),
+            };
+          }
           sincronizarBloqueosDeAlerta();
           configurarBotonesUX("re-escanear", "Re-escanear 🔄", false);
           desbanearFiltros();
@@ -2407,6 +2426,11 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           'sin-portal': {
             titulo: 'No estás en un portal reconocido',
             descripcion: `Esta pestaña no es de ningún portal conocido.<br>Abrí una de <strong>${escaneoMuerto.portales}</strong> y tocá <strong>Re-escanear</strong>.`,
+            icono: '🧭',
+          },
+          'fuera-de-listado': {
+            titulo: 'Esta página no se escanea',
+            descripcion: `Estás en <strong>${escaneoMuerto.portal}</strong>, pero acá no hay material para escanear.<br>${escaneoMuerto.sugerencia}`,
             icono: '🧭',
           },
           portal: {

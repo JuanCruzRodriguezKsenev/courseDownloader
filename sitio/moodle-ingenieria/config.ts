@@ -60,6 +60,17 @@ const SitioMoodleIngenieria: PuertoSitio = {
     return m ? m[1] : undefined;
   },
 
+  sugerenciaFueraDeListado(url) {
+    if (typeof url !== "string") return undefined;
+    if (
+      /^https?:\/\/(?:www\.)?asignaturas\.ing\.unlp\.edu\.ar(?:\/|$)/i.test(url) &&
+      !this.esPaginaDelSitio(url)
+    ) {
+      return "Andá a tu Área personal para escanear todos tus cursos, o abrí la página de un curso.";
+    }
+    return undefined;
+  },
+
   get patronPestañas() {
     return "https://*.asignaturas.ing.unlp.edu.ar/*";
   },

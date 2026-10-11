@@ -1,6 +1,10 @@
 /**
- * PUERTO DE SITIO (V1.10.0)
+ * PUERTO DE SITIO (V1.11.0)
  * ==========================================================================
+ * CHANGELOG v1.11.0:
+ * - [AVISO FUERA DE LISTADO] Miembro nuevo `sugerenciaFueraDeListado?(url)` (opcional):
+ *   texto plano cuando la URL pertenece al host del portal pero no es una página escaneable (RN-27, AC-12).
+ *
  * CHANGELOG v1.10.0:
  * - [CANCELAR ESCANEO] Miembro nuevo `escaneoCancelable?: boolean;` (opcional):
  *   indica si el escaneo inyectado atiende `cancelar_escaneo`.
@@ -298,6 +302,13 @@ export interface PuertoSitio {
    * Corre en el popup, no en la pestaña.
    */
   esPortada?(url: string | undefined): boolean;
+
+  /**
+   * [AVISO FUERA DE LISTADO] Texto plano sugerido para una URL del host del portal
+   * que no es escaneable; `undefined` en cualquier otro caso.
+   * Corre en el POPUP, no en la pestaña.
+   */
+  sugerenciaFueraDeListado?(url: string | undefined): string | undefined;
 
   /**
    * [CANCELAR ESCANEO] `true` si el escaneo inyectado atiende `cancelar_escaneo`

@@ -143,4 +143,28 @@ describe("SitioMoodleAsignaturas", () => {
 
     delete (globalThis as Record<string, unknown>).ParserTitulosMoodleAsignaturas;
   });
+
+  it("7. sugerenciaFueraDeListado devuelve sugerencia en la raíz y undefined en páginas escaneables u otro host", () => {
+    const textoEsperado =
+      "Andá a tu Área personal o a «Mis cursos» para escanear todos tus cursos, o abrí la página de un curso.";
+    expect(
+      SitioMoodleAsignaturas.sugerenciaFueraDeListado?.(
+        "https://asignaturas.info.unlp.edu.ar/"
+      )
+    ).toBe(textoEsperado);
+    expect(
+      SitioMoodleAsignaturas.sugerenciaFueraDeListado?.(
+        "https://asignaturas.info.unlp.edu.ar/my/"
+      )
+    ).toBeUndefined();
+    expect(
+      SitioMoodleAsignaturas.sugerenciaFueraDeListado?.(
+        "https://asignaturas.info.unlp.edu.ar/course/view.php?id=1"
+      )
+    ).toBeUndefined();
+    expect(
+      SitioMoodleAsignaturas.sugerenciaFueraDeListado?.("https://otro-host.com/")
+    ).toBeUndefined();
+    expect(SitioMoodleAsignaturas.sugerenciaFueraDeListado?.(undefined)).toBeUndefined();
+  });
 });

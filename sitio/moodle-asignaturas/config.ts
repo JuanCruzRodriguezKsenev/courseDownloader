@@ -63,6 +63,17 @@ const SitioMoodleAsignaturas: PuertoSitio = {
     return m ? m[1] : undefined;
   },
 
+  sugerenciaFueraDeListado(url) {
+    if (typeof url !== "string") return undefined;
+    if (
+      /^https?:\/\/asignaturas\.info\.unlp\.edu\.ar(?:\/|$)/i.test(url) &&
+      !this.esPaginaDelSitio(url)
+    ) {
+      return "Andá a tu Área personal o a «Mis cursos» para escanear todos tus cursos, o abrí la página de un curso.";
+    }
+    return undefined;
+  },
+
   get patronPestañas() {
     return "https://asignaturas.info.unlp.edu.ar/*";
   },

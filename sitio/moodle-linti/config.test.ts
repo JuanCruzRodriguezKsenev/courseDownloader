@@ -61,4 +61,28 @@ describe("SitioMoodleLinti descriptor", () => {
       message: expect.stringContaining("este portal no tiene videos HLS"),
     });
   });
+
+  it("sugerenciaFueraDeListado devuelve sugerencia en la raíz y undefined en páginas escaneables u otro host", () => {
+    const textoEsperado =
+      "Andá a tu Área personal o a «Mis cursos» para escanear todos tus cursos, o abrí la página de un curso.";
+    expect(
+      SitioMoodleLinti.sugerenciaFueraDeListado?.(
+        "https://catedras.linti.unlp.edu.ar/"
+      )
+    ).toBe(textoEsperado);
+    expect(
+      SitioMoodleLinti.sugerenciaFueraDeListado?.(
+        "https://catedras.linti.unlp.edu.ar/my/"
+      )
+    ).toBeUndefined();
+    expect(
+      SitioMoodleLinti.sugerenciaFueraDeListado?.(
+        "https://catedras.linti.unlp.edu.ar/course/view.php?id=1"
+      )
+    ).toBeUndefined();
+    expect(
+      SitioMoodleLinti.sugerenciaFueraDeListado?.("https://otro-host.com/")
+    ).toBeUndefined();
+    expect(SitioMoodleLinti.sugerenciaFueraDeListado?.(undefined)).toBeUndefined();
+  });
 });

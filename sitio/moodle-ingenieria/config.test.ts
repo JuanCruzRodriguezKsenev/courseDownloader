@@ -183,4 +183,33 @@ describe("SitioMoodleIngenieria", () => {
 
     delete (globalThis as Record<string, unknown>).ParserTitulosMoodleIngenieria;
   });
+
+  it("7. sugerenciaFueraDeListado devuelve sugerencia en la raíz y undefined en páginas escaneables u otro host", () => {
+    const textoEsperado =
+      "Andá a tu Área personal para escanear todos tus cursos, o abrí la página de un curso.";
+    expect(
+      SitioMoodleIngenieria.sugerenciaFueraDeListado?.(
+        "https://www.asignaturas.ing.unlp.edu.ar/"
+      )
+    ).toBe(textoEsperado);
+    expect(
+      SitioMoodleIngenieria.sugerenciaFueraDeListado?.(
+        "https://asignaturas.ing.unlp.edu.ar/"
+      )
+    ).toBe(textoEsperado);
+    expect(
+      SitioMoodleIngenieria.sugerenciaFueraDeListado?.(
+        "https://www.asignaturas.ing.unlp.edu.ar/my/"
+      )
+    ).toBeUndefined();
+    expect(
+      SitioMoodleIngenieria.sugerenciaFueraDeListado?.(
+        "https://www.asignaturas.ing.unlp.edu.ar/course/view.php?id=1"
+      )
+    ).toBeUndefined();
+    expect(
+      SitioMoodleIngenieria.sugerenciaFueraDeListado?.("https://otro-host.com/")
+    ).toBeUndefined();
+    expect(SitioMoodleIngenieria.sugerenciaFueraDeListado?.(undefined)).toBeUndefined();
+  });
 });
