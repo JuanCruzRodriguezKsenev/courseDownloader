@@ -676,5 +676,55 @@ describe("ScraperMoodleIngenieria.escanearListado (modo todos)", () => {
     );
     expect(evCurso1).toBeUndefined();
   });
+
+  it("20. RN-28 / AC-13: resuelve el nombre del curso priorizando a.coursename visible y descartando textos sr-only", async () => {
+    document.documentElement.innerHTML = `
+      <div id="region-main">
+        <!-- id 1: imagen primero, luego a.coursename con sr-only -->
+        <a href="https://www.asignaturas.ing.unlp.edu.ar/course/view.php?id=1">
+          <img src="banner1.png" alt="" />
+        </a>
+        <a class="aalink coursename" href="https://www.asignaturas.ing.unlp.edu.ar/course/view.php?id=1">
+          <span class="sr-only">El curso es destacado</span><span class="sr-only">Nombre del curso</span> Física II
+        </a>
+
+        <!-- id 2: evento de calendario con texto antes de su a.coursename -->
+        <a href="https://www.asignaturas.ing.unlp.edu.ar/course/view.php?id=2">Consulta</a>
+        <a class="aalink coursename" href="https://www.asignaturas.ing.unlp.edu.ar/course/view.php?id=2">
+          Química
+        </a>
+
+        <!-- id 3: sólo una imagen sin texto -->
+        <a href="https://www.asignaturas.ing.unlp.edu.ar/course/view.php?id=3">
+          <img src="banner3.png" alt="" />
+        </a>
+      </div>
+    `;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        return {
+          ok: true,
+          url: String(url),
+          text: async () => armarCursoHtml("1", "C", itemResource("1", "R1")),
+        };
+      })
+    );
+
+    await ScraperMoodleIngenieria.escanearListado({
+      modo: "todos",
+      idRecorrido: 209,
+      tabId: 1,
+      sitioId: "moodle-ingenieria",
+    });
+
+    const evInicio = mensajesEnviados.find((m) => m.tipo === "inicio");
+    expect(evInicio).toBeDefined();
+    expect(evInicio.cursos).toHaveLength(3);
+    expect(evInicio.cursos[0]).toEqual({ id: "1", nombre: "Física II" });
+    expect(evInicio.cursos[1]).toEqual({ id: "2", nombre: "Química" });
+    expect(evInicio.cursos[2]).toEqual({ id: "3", nombre: "Curso 3" });
+  });
 });
 
