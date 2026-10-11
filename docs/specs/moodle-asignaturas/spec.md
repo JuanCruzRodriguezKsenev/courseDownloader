@@ -65,7 +65,7 @@ Esta spec define las reglas específicas para este portal.
 ### Qué se lista y cómo se llama
 
 - **RN-5** — La clave de archivo de un `resource` es el `cmid` de la actividad (`moodle-asignaturas:<cmid>`). La de un archivo dentro de un `folder` es `<cmid>/<ruta interna>`. La de un `url` es `acceso:<url>:<título>`.
-- **RN-6** — El nombre original de un archivo sale de la **URL de `pluginfile.php` decodificada** en su último segmento, nunca del header `Content-Disposition`.
+- **RN-6** — *(Reescrita el 2026-10-10, plan 34; decidido por el dueño.)* Un `resource` se guarda con el **título de la actividad + la extensión real**, en minúscula, sacada del último segmento decodificado de la URL de `pluginfile.php` (por 302 o por el enlace del HTML incrustado), sin query; sin extensión legible, el título solo. Un archivo de `folder` conserva el último segmento decodificado. Nunca `Content-Disposition`. Igual que `moodle-ingenieria/spec.md` RN-6.
 - **RN-7** — Las subcarpetas de un `folder` se aplanan: el destino lo decide el tema. Colisiones resuelven con ` - <actividad>` y ` - <subcarpeta>`.
 - **RN-8** — Cada ítem lleva `publicacion` = nombre de la actividad que lo contiene para alimentar la sugerencia de carpeta de `destino:RN-7a`.
 
@@ -105,6 +105,7 @@ AC-3 — Nombre de archivo desde URL codificada
   Dado un pluginfile con nombre codificado en la URL (ej. "Presentacion%20Programacion2.pdf")
   Cuando se descarga
   Entonces el archivo se guarda en disco con el nombre decodificado ("Presentacion Programacion2.pdf")
+  (Desde el 2026-10-10 esto vale para archivos de folder; un resource toma el título de la actividad + ".pdf", RN-6.)
 
 AC-4 — Carpeta con subcarpetas
   Dado un folder con estructura interna "1. imperativo/practica1.pdf"

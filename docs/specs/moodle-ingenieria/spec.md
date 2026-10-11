@@ -73,7 +73,7 @@ Hoy `/my/` no hace nada. Por curso se escanea con la pestaña dentro del curso; 
 ### Qué se lista y cómo se llama
 
 - **RN-5** — Clave de archivo: `resource` = `cmid`; archivo de un `folder` = `<cmid>/<ruta interna>`; `url` = `acceso:<url>:<título>`.
-- **RN-6** — El nombre original sale del último segmento **decodificado** de la URL de `pluginfile.php`, **sin la query** (`?forcedownload` no entra al nombre), nunca de `Content-Disposition`.
+- **RN-6** — *(Reescrita el 2026-10-10, plan 34; decidido por el dueño.)* Un `resource` se guarda con el **título de la actividad + la extensión real** del archivo, en minúscula, sacada del último segmento decodificado de la URL de `pluginfile.php` (sin query). Si el título ya termina en esa extensión no se repite; si no se puede leer la extensión, va el título solo. Un archivo de `folder` conserva el último segmento decodificado, sin query. Nunca `Content-Disposition`. *(Antes decía «el nombre real del archivo», como LINTI; el código nunca lo cumplió.)*
 - **RN-7** — Las subcarpetas de un `folder` se aplanan; el destino lo decide el tema. Las colisiones resuelven con ` - <actividad>` y ` - <subcarpeta>`.
 - **RN-8** — Cada ítem lleva `publicacion` = la actividad que lo contiene (`destino:RN-7a`).
 - **RN-9** — Un `url` se guarda como `.md` (`tipo: acceso`, `revisado: <hoy>`). El destino sale de la página intermedia (`.urlworkaround a, #region-main a[href^="http"]`); si no se lee, se guarda `mod/url/view.php?id=<cmid>`.
@@ -98,6 +98,13 @@ Hoy `/my/` no hace nada. Por curso se escanea con la pestaña dentro del curso; 
 - **RN-22** — El recorrido termina en la lista: no encola ni descarga nada. La lista agrupa por curso y **reemplaza** a la guardada; abrir el popup dentro de un curso sin recorrido en curso escanea ese curso y la reemplaza (`todas:RN-18`).
 - **RN-23** — Al terminar o cortarse hay un resumen: cursos con material, vacíos, fallidos con su motivo (`todas:RN-17`).
 - **RN-24** — La clave de cada ítem lleva su curso, así dos cursos nunca comparten clave (ADR-0014): un mismo PDF subido a dos cursos aparece dos veces.
+
+### Correcciones de la verificación (plan 34, 2026-10-10)
+
+- **RN-27** — En la raíz u otra página del portal que no es un curso ni `/my/`, el popup dice que se vaya al **Área personal** (o a un curso) en vez de «no es un portal conocido». Vale también para Informática y LINTI, con su propio texto.
+- **RN-28** — El nombre de un curso del recorrido es el primer texto visible no vacío entre **todos** sus enlaces de `/my/` (sin `.sr-only` ni `.accesshide`); `Curso <id>` sólo si ninguno tiene texto.
+- **RN-29** — La tarjeta «Escanear todos los cursos» usa un texto propio de cada portal Moodle: «Escaneamos los cursos de tu Área personal, uno por uno. Suele tardar menos de un minuto.» Classroom conserva el suyo.
+- **RN-30** — Al navegar a mitad (RN-19), el recorrido queda cortado **aunque** el aviso del curso a medias llegue al mismo tiempo: el service worker aplica los eventos de a uno.
 
 ### Lo heredado
 
@@ -143,7 +150,7 @@ AC-1 — Resolución de resource por redirección
   Dado un resource cuyo mod/resource/view.php responde 302 a pluginfile.php/293695/mod_resource/content/1/Repaso%20de%20Mate%20A.pdf
   Cuando se procesa para descarga
   Entonces el archivo se baja desde esa URL final
-    y se guarda como "Repaso de Mate A.pdf"
+    y se guarda como "<título de la actividad>.pdf" (RN-6, reescrita)
 
 AC-2 — Nombre sin query
   Dado un archivo de folder en pluginfile.php/384155/mod_folder/content/0/Pautas%20para%20elaborar%20el%20informe%20de%20laboratorio.pdf?forcedownload
@@ -197,6 +204,26 @@ AC-10 — Mismo PDF en dos cursos
   Dado un PDF con el mismo nombre en dos cursos distintos
   Cuando se escanea todo
   Entonces aparece dos veces, una por curso, con claves distintas
+
+AC-12 — Raíz del portal (RN-27)
+  Dado el popup abierto en https://www.asignaturas.ing.unlp.edu.ar/
+  Cuando intenta escanear
+  Entonces la tarjeta nombra al portal y dice que se vaya al Área personal o a un curso
+
+AC-13 — Nombre del curso (RN-28)
+  Dado un curso cuyo primer enlace en /my/ es una imagen sin texto y el segundo dice "Física II"
+  Cuando se enumera el recorrido
+  Entonces el curso se llama "Física II", no "Curso <id>"
+
+AC-14 — PDF con extensión (RN-6)
+  Dado un resource "Guía TP 1" cuyo view.php termina en pluginfile.php/…/TP1_v3.PDF?forcedownload=1
+  Cuando se escanea
+  Entonces el ítem se llama "Guía TP 1.pdf"
+
+AC-15 — Navegar con el aviso cruzado (RN-30)
+  Dado un recorrido escaneando
+  Cuando llegan a la vez el fin por navegación y el "fallido: error de red" del curso a medias
+  Entonces el recorrido queda cortado por navegación y el curso a medias no queda como fallido
 
 AC-11 — Sesión vencida
   Dado un resource cuya URL final redirige a /login/
