@@ -16,6 +16,28 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## 🚧 En revisión
 
+### `correccion-plan31` (Plan 34) — en revisión (2026-10-10)
+
+Compuerta: 87 archivos / 1330 tests, lint 0, tsc 0, build ok.
+
+Correcciones de la verificación del Plan 31 (M-4 y hallazgos menores):
+- M-4: Serialización de `recorrido_evento` en SW y silenciamiento de scrapers Moodle tras `pagehide`.
+- Nombres de curso en `/my/`: extracción de texto visible limpiando `.sr-only`/`.accesshide`/`.visually-hidden`.
+- Extensión real en recursos de Moodle (Ingeniería e Informática): resolución por 302 o HTML del visor.
+- Extensiones en Mate C: `.md` para accesos externos y `.pdf` para Drive no video.
+- Aviso en raíz de Moodle: sugerencia de ir a Área personal.
+- Textos de oferta de escaneo multi-curso específicos de Moodle y limpieza de bienvenida.
+
+Checklist en navegador (Playwright, perfil `~/.local/share/courseDownloader/perfil-playwright`):
+- [ ] V-1 (M-4 otra vez) — Ingeniería `/my/`, lanzar «Escanear todos», navegar a otra página del portal en el curso 2-3: en ≤ 5 s `recorridoTodos.estado === "cortado"`, `motivoCorte === "navegacion"`, los cursos completos con su resultado y **ningún** `fallido` por «error de red». Repetir una vez en Informática o LINTI.
+- [ ] V-2 (nombres) — Evento `inicio` de Ingeniería: los 9 con nombre, ninguno `Curso <id>` ni con «Nombre del curso». Lo mismo en Informática y LINTI.
+- [ ] V-3 (PDF) — Con `HOME` de prueba (`~/.local/share/courseDownloader/home-prueba`, servidor levantado con ese `HOME`): bajar un PDF de Ingeniería (`205818`) y uno de Informática (`4763`): en disco terminan en `.pdf` y el `original` del índice es «<título>.pdf».
+- [ ] V-4 (Mate C) — Mismo `HOME`: un acceso de YouTube cae como `.md`.
+- [ ] V-5 (raíz) — `/` de los tres Moodle: card «Esta página no se escanea» con el nombre del portal y el texto de su `config.ts`.
+- [ ] V-6 (oferta) — `/my/` de los tres: la tarjeta dice el texto de RN-29; en Classroom `/h`, el de siempre.
+- [ ] V-7 (tiempo) — `duracionMs` sumado del recorrido de Informática y LINTI. Si alguno pasa 60 s, va como hallazgo (el texto dice «menos de un minuto»).
+- [ ] V-8 (bienvenida) — Abrir el tutorial: sin «videos» en las slides 2 y 3.
+
 ### `moodle-ingenieria` (Plan 31) — en `main` (2026-10-06); verificada en navegador el 2026-10-10 con **un fallo (M-4)**
 
 Compuerta del merge: 87 archivos / 1313 tests, lint 0, tsc 0, build ok.
