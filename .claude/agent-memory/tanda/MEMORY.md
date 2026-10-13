@@ -1,4 +1,5 @@
-- [Plan 34, corrección del 31](project_verificacion_plan31.md) — V-1..V-8 verdes 2026-10-13; rama lista para merge, sigue plan 32
+- [Fábrica en este repo](project_fabrica_courseDownloader.md) — desde 2026-10-13 los planes van por la cola; orden 32→33→IDEAS; trampas
+- [Plan 34, corrección del 31](project_verificacion_plan31.md) — mergeado a6b2abd 2026-10-13
 - [Ficha en AGENTS.md](project_ficha_en_agents.md) — sin ficha en CLAUDE.md; qué docs de estado leer al arrancar y estado al 2026-09-25
 - [Organización del material](user_organizacion_material.md) — ~/U.N.L.P: árbol git+Obsidian por facultad/materia/docente; mirar antes de proponer layouts
 - [Google Classroom](project_google_classroom.md) — historia hasta el corte 2a; lo siguiente (2b, 2c) está en planes-2b-2c-moodle
@@ -30,4 +31,4 @@
 - [Verificar con Playwright](feedback_verificar_con_playwright.md) — el dueño no mide a mano; receta probada para cargar la extensión y abrir el popup
 - [Medir antes de suponer](feedback_medir_antes_de_suponer.md) — usar archivos bajados y la sesión Playwright `-s=verif` antes de inferir o preguntar
 - [Medir con clic y worktrees](feedback_medir_con_clic.md) — clic real en menús al medir; no hacer checkout con obra activo, usar git worktree
-- [Plan 32 Kaltura en Asignaturas](project_asignaturas_kaltura_plan32.md) — video de un label como acceso .md; va por fábrica (2026-10-13)
+- [Plan 32 Kaltura en Asignaturas](project_asignaturas_kaltura_plan32.md) — en la cola de fábrica desde 2026-10-13; spec ya en main

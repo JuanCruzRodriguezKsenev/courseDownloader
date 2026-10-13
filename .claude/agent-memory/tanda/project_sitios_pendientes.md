@@ -5,6 +5,8 @@ metadata:
   type: project
 ---
 
+## Actualización 2026-10-13 (tarde): 32 en cola de fábrica; ramas kaltura e ideas-info mergeadas (docs) y borradas; IDEAS después del 33
+
 ## Actualización 2026-10-13
 Ing, Info y LINTI multicurso: en main (planes 29, 31, 34) y verificados. Falta: plan 32 (Kaltura Info, rama vieja: mergear main y
 repasar refs de scraper.js), IDEAS (spec draft en worktree `ideas-info`, faltan M-1 y M-5, sin plan), plan 33 (migración docs). El dueño quiere terminar rápido.
