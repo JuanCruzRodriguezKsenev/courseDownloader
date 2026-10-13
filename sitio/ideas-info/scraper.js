@@ -1,8 +1,14 @@
 /**
- * ADAPTADOR DE SITIO — IDEAS (LIDI, UNLP): ESCANEO DEL LISTADO (V1.0.0)
+ * ADAPTADOR DE SITIO — IDEAS (LIDI, UNLP): ESCANEO DEL LISTADO (V1.1.0)
  * =====================================================================
- * CHANGELOG v1.0.0:
- * - [PLAN 35 / MODO PURO] Implementación del scraper para ideas.info.unlp.edu.ar.
+ * CHANGELOG:
+ * - v1.1.0 [PLAN 36]:
+ *   - Manejo estricto de errores del portal en Material, Secciones, Medioteca, Headers y EnterCourse (A1, RN-15).
+ *   - Orden de secciones preservado y Medioteca al final (RN-9).
+ *   - Filtrado de orígenes externos en enlaces de sección y Medioteca.
+ *   - Validación de slug con SLUG_VALIDO en recorrido y curso individual (RN-5).
+ *   - Lectura de texto de EnterCourse encapsulada en try-catch.
+ * - v1.0.0 [PLAN 35 / MODO PURO]: Implementación del scraper para ideas.info.unlp.edu.ar.
  *   - Escaneo de curso individual a través de Material y Medioteca (RN-2, RN-3, RN-5).
  *   - Lectura de content-disposition de cabeceras para obtener nombres de archivo y tipos (RN-6).
  *   - Desduplicación de colisiones en el mismo tema agregando sufijos (RN-6, AC-10).
@@ -17,6 +23,8 @@
  */
 
 async function escanearListado(opciones = {}) {
+  const SLUG_VALIDO = /^[a-z0-9-]+$/;
+
   function extraerNombreHeader(disposition, textoEnlaceFallback = "") {
     if (!disposition || typeof disposition !== "string") {
       return textoEnlaceFallback;
@@ -127,6 +135,15 @@ async function escanearListado(opciones = {}) {
       };
     }
 
+    if (!respMaterial.ok) {
+      return {
+        materia: "",
+        enlaces: [],
+        aviso: `IDEAS respondió HTTP ${respMaterial.status} al pedir el material`,
+        motivoAviso: "portal",
+      };
+    }
+
     const htmlMaterial = await respMaterial.text();
     const docMaterial = new DOMParser().parseFromString(htmlMaterial, "text/html");
 
@@ -162,11 +179,11 @@ async function escanearListado(opciones = {}) {
     }
 
     let sesionDetectada = false;
+    let fallaPortal = null;
 
     // Pedir cada Show/<guid> con concurrencia <= 4
-    const archivosCandidatos = [];
-    await mapearConConcurrencia(secciones, 4, async (sec) => {
-      if (sesionDetectada) return;
+    const resultadosPorSeccion = await mapearConConcurrencia(secciones, 4, async (sec) => {
+      if (sesionDetectada || (fallaPortal && signal?.aborted)) return [];
       const urlSec = `${origen}/${slug}/Contents/Material/View/Show/${sec.guid}`;
       try {
         const respSec = await fetch(urlSec, { credentials: "include", signal });
@@ -177,32 +194,46 @@ async function escanearListado(opciones = {}) {
         } catch {}
         if (esPantallaLogin(null, pathnameSec)) {
           sesionDetectada = true;
-          return;
+          return [];
+        }
+
+        if (!respSec.ok) {
+          if (!fallaPortal) {
+            fallaPortal = `IDEAS respondió HTTP ${respSec.status} al pedir la sección «${sec.titulo}»`;
+          }
+          return [];
         }
 
         const htmlSec = await respSec.text();
         const docSec = new DOMParser().parseFromString(htmlSec, "text/html");
         if (esPantallaLogin(docSec, pathnameSec)) {
           sesionDetectada = true;
-          return;
+          return [];
         }
 
         const links = Array.from(docSec.querySelectorAll("a.contentToView"));
+        const candidatosSec = [];
         for (const a of links) {
           const hrefRel = a.getAttribute("href") || "";
           const mGuid = hrefRel.match(/[0-9a-f-]{36}/i);
           if (!mGuid) continue;
-          const hrefAbs = new URL(hrefRel, origen).href;
-          archivosCandidatos.push({
-            href: hrefAbs,
+          const u = new URL(hrefRel, origen);
+          if (u.origin !== new URL(origen).origin) continue;
+          candidatosSec.push({
+            href: u.href,
             idArchivo: `${slug}/material/${mGuid[0]}`,
             tema: sec.titulo,
             publicacion: sec.titulo,
             textoEnlace: a.textContent.trim(),
           });
         }
+        return candidatosSec;
       } catch (err) {
         if (signal?.aborted) throw err;
+        if (!fallaPortal) {
+          fallaPortal = `error de red al pedir la sección «${sec.titulo}»`;
+        }
+        return [];
       }
     });
 
@@ -215,56 +246,86 @@ async function escanearListado(opciones = {}) {
       };
     }
 
+    if (fallaPortal) {
+      return {
+        materia: "",
+        enlaces: [],
+        aviso: fallaPortal,
+        motivoAviso: "portal",
+      };
+    }
+
+    const archivosCandidatos = resultadosPorSeccion.flat();
+
     // 4. Medioteca
     const urlMedioteca = `${origen}/${slug}/Resources/MediaLibrary/View/Show?courseTool`;
+    let respMedioteca;
     try {
-      const respMedioteca = await fetch(urlMedioteca, { credentials: "include", signal });
-      const urlMediotecaFinal = respMedioteca.url || "";
-      let pathnameMedioteca = "";
-      try {
-        pathnameMedioteca = new URL(urlMediotecaFinal, origen).pathname;
-      } catch {}
-      if (esPantallaLogin(null, pathnameMedioteca)) {
-        return {
-          materia: "",
-          enlaces: [],
-          aviso: "La sesión en IDEAS ha vencido o no está iniciada",
-          motivoAviso: "sesion",
-        };
-      }
-
-      const htmlMedioteca = await respMedioteca.text();
-      const docMedioteca = new DOMParser().parseFromString(htmlMedioteca, "text/html");
-      if (esPantallaLogin(docMedioteca, pathnameMedioteca)) {
-        return {
-          materia: "",
-          enlaces: [],
-          aviso: "La sesión en IDEAS ha vencido o no está iniciada",
-          motivoAviso: "sesion",
-        };
-      }
-
-      const linksMedioteca = Array.from(docMedioteca.querySelectorAll('a[href*="AccessResource"]'));
-      for (const a of linksMedioteca) {
-        const hrefRel = a.getAttribute("href") || "";
-        const mGuid = hrefRel.match(/[0-9a-f-]{36}/i);
-        if (!mGuid) continue;
-        const hrefAbs = new URL(hrefRel, origen).href;
-        archivosCandidatos.push({
-          href: hrefAbs,
-          idArchivo: `${slug}/medioteca/${mGuid[0]}`,
-          tema: "Medioteca",
-          publicacion: "Medioteca",
-          textoEnlace: a.textContent.trim(),
-        });
-      }
+      respMedioteca = await fetch(urlMedioteca, { credentials: "include", signal });
     } catch (err) {
       if (signal?.aborted) throw err;
+      return {
+        materia: "",
+        enlaces: [],
+        aviso: "error de red al pedir la Medioteca",
+        motivoAviso: "portal",
+      };
+    }
+
+    const urlMediotecaFinal = respMedioteca.url || "";
+    let pathnameMedioteca = "";
+    try {
+      pathnameMedioteca = new URL(urlMediotecaFinal, origen).pathname;
+    } catch {}
+    if (esPantallaLogin(null, pathnameMedioteca)) {
+      return {
+        materia: "",
+        enlaces: [],
+        aviso: "La sesión en IDEAS ha vencido o no está iniciada",
+        motivoAviso: "sesion",
+      };
+    }
+
+    if (!respMedioteca.ok) {
+      return {
+        materia: "",
+        enlaces: [],
+        aviso: `IDEAS respondió HTTP ${respMedioteca.status} al pedir la Medioteca`,
+        motivoAviso: "portal",
+      };
+    }
+
+    const htmlMedioteca = await respMedioteca.text();
+    const docMedioteca = new DOMParser().parseFromString(htmlMedioteca, "text/html");
+    if (esPantallaLogin(docMedioteca, pathnameMedioteca)) {
+      return {
+        materia: "",
+        enlaces: [],
+        aviso: "La sesión en IDEAS ha vencido o no está iniciada",
+        motivoAviso: "sesion",
+      };
+    }
+
+    const linksMedioteca = Array.from(docMedioteca.querySelectorAll('a[href*="AccessResource"]'));
+    for (const a of linksMedioteca) {
+      const hrefRel = a.getAttribute("href") || "";
+      const mGuid = hrefRel.match(/[0-9a-f-]{36}/i);
+      if (!mGuid) continue;
+      const u = new URL(hrefRel, origen);
+      if (u.origin !== new URL(origen).origin) continue;
+      archivosCandidatos.push({
+        href: u.href,
+        idArchivo: `${slug}/medioteca/${mGuid[0]}`,
+        tema: "Medioteca",
+        publicacion: "Medioteca",
+        textoEnlace: a.textContent.trim(),
+      });
     }
 
     // 5. Headers con concurrencia <= 4
+    let fallaHeader = null;
     const itemsObtenidos = await mapearConConcurrencia(archivosCandidatos, 4, async (cand) => {
-      if (sesionDetectada) return null;
+      if (sesionDetectada || (fallaHeader && signal?.aborted)) return null;
       try {
         const respHeader = await fetch(cand.href, { credentials: "include", signal });
         const urlHFinal = respHeader.url || "";
@@ -280,6 +341,18 @@ async function escanearListado(opciones = {}) {
 
         if (respHeader.status === 404 || respHeader.status === 410) {
           return null; // Archivo afuera (RN-12)
+        }
+
+        if (!respHeader.ok) {
+          if (respHeader.body && typeof respHeader.body.cancel === "function") {
+            try {
+              respHeader.body.cancel();
+            } catch {}
+          }
+          if (!fallaHeader) {
+            fallaHeader = `IDEAS respondió HTTP ${respHeader.status} al leer el nombre de «${cand.textoEnlace}»`;
+          }
+          return null;
         }
 
         const cd = respHeader.headers ? respHeader.headers.get("content-disposition") : null;
@@ -305,6 +378,9 @@ async function escanearListado(opciones = {}) {
         };
       } catch (err) {
         if (signal?.aborted) throw err;
+        if (!fallaHeader) {
+          fallaHeader = `error de red al leer el nombre de «${cand.textoEnlace}»`;
+        }
         return null;
       }
     });
@@ -315,6 +391,15 @@ async function escanearListado(opciones = {}) {
         enlaces: [],
         aviso: "La sesión en IDEAS ha vencido o no está iniciada",
         motivoAviso: "sesion",
+      };
+    }
+
+    if (fallaHeader) {
+      return {
+        materia: "",
+        enlaces: [],
+        aviso: fallaHeader,
+        motivoAviso: "portal",
       };
     }
 
@@ -569,6 +654,17 @@ async function escanearListado(opciones = {}) {
         const curso = cursos[i];
         const inicioCurso = Date.now();
 
+        if (!SLUG_VALIDO.test(curso.slug)) {
+          await avisar({
+            tipo: "curso",
+            indice: i,
+            resultado: "fallido",
+            motivo: `IDEAS devolvió un curso con un identificador que no se puede bajar («${curso.slug}»)`,
+            duracionMs: Date.now() - inicioCurso,
+          });
+          continue;
+        }
+
         await avisar({ tipo: "latido", indice: i });
 
         const timerLatido = setInterval(() => {
@@ -615,8 +711,35 @@ async function escanearListado(opciones = {}) {
             return { materia: "", enlaces: [], recorrido: true };
           }
 
-          const htmlEnter = await respEnter.text();
-          const docEnter = new DOMParser().parseFromString(htmlEnter, "text/html");
+          if (!respEnter.ok) {
+            await avisar({
+              tipo: "curso",
+              indice: i,
+              resultado: "fallido",
+              motivo: `HTTP ${respEnter.status}`,
+              duracionMs: Date.now() - inicioCurso,
+            });
+            continue;
+          }
+
+          let docEnter;
+          try {
+            const htmlEnter = await respEnter.text();
+            docEnter = new DOMParser().parseFromString(htmlEnter, "text/html");
+          } catch (err) {
+            if (cancelado) throw err;
+            const segs = Math.round(topeCursoMs / 1000);
+            const motivo = superoTope ? `superó el tope de ${segs} s` : "error de red";
+            await avisar({
+              tipo: "curso",
+              indice: i,
+              resultado: "fallido",
+              motivo,
+              duracionMs: Date.now() - inicioCurso,
+            });
+            continue;
+          }
+
           if (esPantallaLogin(docEnter, pathnameEnterFinal)) {
             await avisar({ tipo: "fin", estado: "cortado", motivoCorte: "sesion" });
             return { materia: "", enlaces: [], recorrido: true };
@@ -734,7 +857,7 @@ async function escanearListado(opciones = {}) {
     slug = segmentos[0] || "";
   }
 
-  if (!slug || slug === "home" || slug === "login") {
+  if (!slug || slug === "home" || slug === "login" || !SLUG_VALIDO.test(slug)) {
     return {
       materia: "",
       enlaces: [],
