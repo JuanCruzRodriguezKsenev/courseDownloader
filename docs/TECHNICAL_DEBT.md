@@ -726,6 +726,13 @@ Llegaron acá al mergear la tanda del toolbar (2026-08-13): vivían en
 - **Solución**: unificar cuando el editor de adopción use el núcleo de propuesta de la extensión o cuando se retire el script de adopción.
 - **Estado**: ⚪ abierto (hallado el 2026-09-30).
 
+### ⚪ Tres textos menores del popup vistos al verificar el plan 34
+
+- **Dónde**: `core/estado/recorridoTodos.ts:314, :318`; card `fuera-de-listado` de `popup.js`; `sitio/moodle-ingenieria/config.ts:117` (`faceta.etiqueta`) leído por `popup/features/onboarding.preact.js` (slide 5).
+- **Qué pasa**: (1) «Quedaron 1 sin recorrer» no concuerda en singular. (2) La card «Esta página no se escanea» muestra el botón «Re-escanear 🔄», que en esa página no tiene nada que escanear. (3) En Ingeniería, la slide 5 de la bienvenida dice «subcarpetas por materia y sin clasificación», porque usa la etiqueta de una faceta inerte.
+- **Solución**: (1) pluralizar con `sinRecorrer === 1`; (2) decidir si esa card lleva botón; (3) que la slide omita la faceta cuando es inerte.
+- **Estado**: ⚪ abierto (hallado el 2026-10-13 por tanda, Playwright).
+
 ### ✅ Ningún test serializa las funciones que se inyectan en la pestaña
 
 - **Dónde**: los tres `sitio/<portal>/scraper.js`; quien las inyecta es `popup.js:1258-1260` (`executeScript({ func: portal.escanearListado })`).
