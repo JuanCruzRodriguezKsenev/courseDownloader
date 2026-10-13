@@ -204,7 +204,7 @@ lecturas. Classroom quedó afuera (pedido del dueño).
 
 ### Hallazgos
 
-- **H-A (Asignaturas)** — En el curso 82, el `label` «Cierre de cursada» (`module-5411`, sección 0) **incrusta un video de Kaltura** (iframe `kaltura_player_…_ifp` creado por JavaScript; sin `src` en el HTML inicial). El scraper ignora los `label`, así que ese video **no aparece en ningún escaneo**, y la spec dice «no hay video». Los otros 37 `label` del curso son sólo texto. Pendiente de decisión del dueño: si los videos de Kaltura entran como enlace `.md` (política de video por portal: Moodle sólo guarda el enlace).
+- **H-A (Asignaturas)** — En el curso 82, el `label` «Cierre de cursada» (`module-5411`, sección 0) **incrusta un video de Kaltura** (iframe `kaltura_player_…_ifp` creado por JavaScript; sin `src` en el HTML inicial). El scraper ignora los `label`, así que ese video **no aparece en ningún escaneo**, y la spec dice «no hay video». Los otros 37 `label` del curso son sólo texto. **Resuelto el 2026-10-13 (plan 32, `ffbc4c4`):** el video entra como acceso `.md` con el enlace al reproductor (spec de Moodle Asignaturas, RN-15 a RN-18).
 - **H-B (Ingeniería)** — 5 de los 9 cursos no tienen archivos (2777, 3479 y los de sólo foro). Los `label` traen **enlaces sueltos** (Zoom, contacto, útiles) y, en el curso 3479, **un `pluginfile` dentro de un `label`**. El plan 31 excluye `label` (RN-2); ese archivo no se lista.
 - **H-C (Ingeniería)** — El curso 5935 (Física II 2025) tiene **4 secciones ocultas por restricción de acceso** (`.availabilityinfo`). El escaneo ve lo que el navegador del dueño ve, no lo restringido: es lo esperado, pero conviene que el resumen no lo cuente como «vacío».
 

@@ -16,10 +16,16 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## 🚧 En revisión
 
-Nada en una rama de este repo. El plan 32 (Kaltura en Moodle Asignaturas) entra por la cola de `fábrica`
-(`~/Boveda/Proyectos/courseDownloader/Cola/`); su estado vive en esa nota hasta que se mergee.
+Nada. Lo que se esté construyendo vive en la cola de `fábrica` (`~/Boveda/Proyectos/courseDownloader/Cola/`)
+hasta que se mergee.
 
 ## Mergeado el 2026-10-13
+
+### Plan 32 (Kaltura en Moodle Asignaturas) — en `main` (`ffbc4c4`, squash de fábrica)
+
+Compuerta (merge-gate sobre `main`): 87 archivos / 1334 tests, lint 0, tsc 0, build ok. Verificado por tanda con Playwright
+(M-1 a M-3 del plan) y los 5 escenarios ocultos; el registro casilla por casilla está en la nota de la cola,
+`~/Boveda/Proyectos/courseDownloader/Cola/Plan 32 - Kaltura en Moodle Asignaturas.md`.
 
 ### `correccion-plan31` (Plan 34) — en `main` (`a6b2abd`, 2026-10-13); V-1 a V-8 verificadas por tanda con Playwright el 2026-10-13
 
