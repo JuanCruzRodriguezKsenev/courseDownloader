@@ -1,8 +1,10 @@
 /**
- * ADAPTADOR DE SITIO — IDEAS (LIDI, UNLP): RESOLUCIÓN DE ADJUNTOS (V1.0.0)
+ * ADAPTADOR DE SITIO — IDEAS (LIDI, UNLP): RESOLUCIÓN DE ADJUNTOS (V1.1.0)
  * =======================================================================
- * CHANGELOG v1.0.0:
- * - [PLAN 35 / MODO PURO] Implementación del resolver de descargas para ideas.info.unlp.edu.ar.
+ * CHANGELOG:
+ * - v1.1.0 [PLAN 36]:
+ *   - REGEX_ID_ARCHIVO acepta GUID con caracteres hexadecimales en mayúsculas (RN-5).
+ * - v1.0.0 [PLAN 35 / MODO PURO]: Implementación del resolver de descargas para ideas.info.unlp.edu.ar.
  *   - Validación de idArchivo: <slug>/(material|medioteca)/<guid> (RN-5).
  *   - Construcción de URL para Material y Medioteca.
  *   - Detección de sesión vencida si response.url tiene pathname /login (RN-11).
@@ -12,7 +14,7 @@
  */
 
 const ORIGEN = "https://ideas.info.unlp.edu.ar";
-const REGEX_ID_ARCHIVO = /^([a-z0-9-]+)\/(material|medioteca)\/([0-9a-f-]{36})$/;
+const REGEX_ID_ARCHIVO = /^([a-z0-9-]+)\/(material|medioteca)\/([0-9a-fA-F-]{36})$/;
 
 function fallo(paso, detalle, extra) {
   const e = new Error(`[ideas-info] ${paso}: ${detalle}`);
