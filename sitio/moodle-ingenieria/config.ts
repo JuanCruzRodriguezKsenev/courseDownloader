@@ -60,6 +60,17 @@ const SitioMoodleIngenieria: PuertoSitio = {
     return m ? m[1] : undefined;
   },
 
+  sugerenciaFueraDeListado(url) {
+    if (typeof url !== "string") return undefined;
+    if (
+      /^https?:\/\/(?:www\.)?asignaturas\.ing\.unlp\.edu\.ar(?:\/|$)/i.test(url) &&
+      !this.esPaginaDelSitio(url)
+    ) {
+      return "Andá a tu Área personal para escanear todos tus cursos, o abrí la página de un curso.";
+    }
+    return undefined;
+  },
+
   get patronPestañas() {
     return "https://*.asignaturas.ing.unlp.edu.ar/*";
   },
@@ -68,8 +79,11 @@ const SitioMoodleIngenieria: PuertoSitio = {
     return "https://www.asignaturas.ing.unlp.edu.ar/my/";
   },
 
+  textoOfertaTodos:
+    "Escaneamos los cursos de tu Área personal, uno por uno. Suele tardar menos de un minuto.\nPodés cerrar este popup, pero no cambies de página en esta pestaña hasta que termine.",
+
   instruccionEscaneo:
-    "Abrí la página principal de la materia (course/view.php) y escaneá desde acá. Podés asociar la materia al árbol con 🗂️.",
+    "Escaneá desde la página principal de un curso o desde tu Área personal para escanear todos. Podés asociar la materia al árbol con 🗂️.",
 
   topeEscaneoMs: 60000,
 

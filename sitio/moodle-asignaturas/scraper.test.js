@@ -181,6 +181,111 @@ describe("ScraperMoodleAsignaturas.escanearListado", () => {
     await ScraperMoodleAsignaturas.escanearListado();
     expect(maxActivas).toBeLessThanOrEqual(4);
   });
+
+  it("RN-6 (a): 302 a pluginfile con extensión PDF agrega .pdf al texto", async () => {
+    window.fetch = vi.fn(async (url) => {
+      const u = String(url);
+      if (u.includes("/mod/resource/view.php?id=4697")) {
+        return {
+          ok: true,
+          url: "https://asignaturas.info.unlp.edu.ar/pluginfile.php/123/mod_resource/content/1/TP1_v3.PDF?forcedownload=1",
+          body: { cancel: vi.fn(async () => {}) },
+          text: async () => "",
+        };
+      }
+      return { ok: true, text: async () => "<html><body></body></html>" };
+    });
+
+    const res = await ScraperMoodleAsignaturas.escanearListado();
+    const item = res.enlaces.find((e) => e.idArchivo === "4697");
+    expect(item).toBeDefined();
+    expect(item?.texto).toBe("Presentación de la Asignatura 2024.pdf");
+  });
+
+  it("RN-6 (b): HTML con enlace a pluginfile agrega la extensión al texto", async () => {
+    window.fetch = vi.fn(async (url) => {
+      const u = String(url);
+      if (u.includes("/mod/resource/view.php?id=4697")) {
+        return {
+          ok: true,
+          url: u,
+          text: async () => `
+            <div>
+              <a href="https://asignaturas.info.unlp.edu.ar/pluginfile.php/51906/mod_resource/content/14/notasTPImperativo.docx.pdf">Descargar</a>
+            </div>
+          `,
+        };
+      }
+      return { ok: true, text: async () => "<html><body></body></html>" };
+    });
+
+    const res = await ScraperMoodleAsignaturas.escanearListado();
+    const item = res.enlaces.find((e) => e.idArchivo === "4697");
+    expect(item).toBeDefined();
+    expect(item?.texto).toBe("Presentación de la Asignatura 2024.pdf");
+  });
+
+  it("RN-6 (c): HTML sin enlace a pluginfile conserva actName como texto", async () => {
+    window.fetch = vi.fn(async (url) => {
+      const u = String(url);
+      if (u.includes("/mod/resource/view.php?id=4697")) {
+        return {
+          ok: true,
+          url: u,
+          text: async () => `<div>Texto sin enlaces</div>`,
+        };
+      }
+      return { ok: true, text: async () => "<html><body></body></html>" };
+    });
+
+    const res = await ScraperMoodleAsignaturas.escanearListado();
+    const item = res.enlaces.find((e) => e.idArchivo === "4697");
+    expect(item).toBeDefined();
+    expect(item?.texto).toBe("Presentación de la Asignatura 2024");
+  });
+
+  it("RN-6 (d): actName que ya termina en .<ext> no repite la extensión", async () => {
+    const el = document.querySelector("#module-4697 .activity-item");
+    if (el) el.setAttribute("data-activityname", "Programa.PDF");
+    const aEl = document.querySelector("#module-4697 .activityname");
+    if (aEl) aEl.textContent = "Programa.PDF";
+
+    window.fetch = vi.fn(async (url) => {
+      const u = String(url);
+      if (u.includes("/mod/resource/view.php?id=4697")) {
+        return {
+          ok: true,
+          url: "https://asignaturas.info.unlp.edu.ar/pluginfile.php/123/mod_resource/content/1/programa.pdf",
+          body: { cancel: vi.fn(async () => {}) },
+          text: async () => "",
+        };
+      }
+      return { ok: true, text: async () => "<html><body></body></html>" };
+    });
+
+    const res = await ScraperMoodleAsignaturas.escanearListado();
+    const item = res.enlaces.find((e) => e.idArchivo === "4697");
+    expect(item).toBeDefined();
+    expect(item?.texto).toBe("Programa.PDF");
+  });
+
+  it("RN-6 (e): 302 a /login/index.php emite motivoAviso sesion", async () => {
+    window.fetch = vi.fn(async (url) => {
+      const u = String(url);
+      if (u.includes("/mod/resource/")) {
+        return {
+          ok: true,
+          url: "https://asignaturas.info.unlp.edu.ar/login/index.php",
+          text: async () => "<html><body class='path-login'></body></html>",
+        };
+      }
+      return { ok: true, text: async () => "<html><body></body></html>" };
+    });
+
+    const res = await ScraperMoodleAsignaturas.escanearListado();
+    expect(res.enlaces).toHaveLength(0);
+    expect(res.motivoAviso).toBe("sesion");
+  });
 });
 
 describe("ScraperMoodleAsignaturas.escanearListado (modo todos)", () => {

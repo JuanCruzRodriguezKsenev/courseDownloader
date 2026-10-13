@@ -281,6 +281,109 @@ describe("ScraperMoodleIngenieria.escanearListado (curso individual)", () => {
     expect(accesos.every((a) => a.texto.endsWith(".md"))).toBe(true);
     expect(res.enlaces.every((e) => e.tema.startsWith("Sección "))).toBe(true);
   });
+
+  it("RN-6 (a): 302 a pluginfile con extensión PDF agrega .pdf al texto", async () => {
+    window.fetch = vi.fn(async (url) => {
+      const u = String(url);
+      if (u.includes("/mod/resource/view.php?id=4002")) {
+        return {
+          ok: true,
+          url: "https://www.asignaturas.ing.unlp.edu.ar/pluginfile.php/123/mod_resource/content/1/TP1_v3.PDF?forcedownload=1",
+          body: { cancel: vi.fn(async () => {}) },
+          text: async () => "",
+        };
+      }
+      return { ok: true, text: async () => "<html><body></body></html>" };
+    });
+
+    const res = await ScraperMoodleIngenieria.escanearListado();
+    const item = res.enlaces.find((e) => e.idArchivo === "4002");
+    expect(item).toBeDefined();
+    expect(item?.texto).toBe("Cronograma 2023.pdf");
+  });
+
+  it("RN-6 (b): HTML con enlace a pluginfile agrega la extensión al texto", async () => {
+    window.fetch = vi.fn(async (url) => {
+      const u = String(url);
+      if (u.includes("/mod/resource/view.php?id=4002")) {
+        return {
+          ok: true,
+          url: u,
+          text: async () => `
+            <div>
+              <a href="https://www.asignaturas.ing.unlp.edu.ar/pluginfile.php/51906/mod_resource/content/14/notasTPImperativo.docx.pdf">Descargar</a>
+            </div>
+          `,
+        };
+      }
+      return { ok: true, text: async () => "<html><body></body></html>" };
+    });
+
+    const res = await ScraperMoodleIngenieria.escanearListado();
+    const item = res.enlaces.find((e) => e.idArchivo === "4002");
+    expect(item).toBeDefined();
+    expect(item?.texto).toBe("Cronograma 2023.pdf");
+  });
+
+  it("RN-6 (c): HTML sin enlace a pluginfile conserva actName como texto", async () => {
+    window.fetch = vi.fn(async (url) => {
+      const u = String(url);
+      if (u.includes("/mod/resource/view.php?id=4002")) {
+        return {
+          ok: true,
+          url: u,
+          text: async () => `<div>Texto sin enlaces</div>`,
+        };
+      }
+      return { ok: true, text: async () => "<html><body></body></html>" };
+    });
+
+    const res = await ScraperMoodleIngenieria.escanearListado();
+    const item = res.enlaces.find((e) => e.idArchivo === "4002");
+    expect(item).toBeDefined();
+    expect(item?.texto).toBe("Cronograma 2023");
+  });
+
+  it("RN-6 (d): actName que ya termina en .<ext> no repite la extensión", async () => {
+    const el = document.querySelector("#module-4002 .instancename");
+    if (el) el.textContent = "Programa.PDF";
+
+    window.fetch = vi.fn(async (url) => {
+      const u = String(url);
+      if (u.includes("/mod/resource/view.php?id=4002")) {
+        return {
+          ok: true,
+          url: "https://www.asignaturas.ing.unlp.edu.ar/pluginfile.php/123/mod_resource/content/1/programa.pdf",
+          body: { cancel: vi.fn(async () => {}) },
+          text: async () => "",
+        };
+      }
+      return { ok: true, text: async () => "<html><body></body></html>" };
+    });
+
+    const res = await ScraperMoodleIngenieria.escanearListado();
+    const item = res.enlaces.find((e) => e.idArchivo === "4002");
+    expect(item).toBeDefined();
+    expect(item?.texto).toBe("Programa.PDF");
+  });
+
+  it("RN-6 (e): 302 a /login/index.php emite motivoAviso sesion", async () => {
+    window.fetch = vi.fn(async (url) => {
+      const u = String(url);
+      if (u.includes("/mod/resource/")) {
+        return {
+          ok: true,
+          url: "https://www.asignaturas.ing.unlp.edu.ar/login/index.php",
+          text: async () => "<html><body class='path-login'></body></html>",
+        };
+      }
+      return { ok: true, text: async () => "<html><body></body></html>" };
+    });
+
+    const res = await ScraperMoodleIngenieria.escanearListado();
+    expect(res.enlaces).toHaveLength(0);
+    expect(res.motivoAviso).toBe("sesion");
+  });
 });
 
 describe("ScraperMoodleIngenieria.escanearListado (modo todos)", () => {
@@ -627,4 +730,104 @@ describe("ScraperMoodleIngenieria.escanearListado (modo todos)", () => {
       "4099",
     ]);
   });
+
+  it("19. M-4 / RN-19 / AC-9: pagehide a mitad de recorrido silencia avisos posteriores y no emite curso fallido", async () => {
+    let rechazarCurso2;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        const u = String(url);
+        if (u.includes("id=4091")) {
+          return {
+            ok: true,
+            url: u,
+            text: async () => armarCursoHtml("4091", "C1", itemResource("1", "R1")),
+          };
+        }
+        if (u.includes("id=4092")) {
+          return new Promise((_, reject) => {
+            rechazarCurso2 = () => reject(new TypeError("Failed to fetch"));
+          });
+        }
+        return { ok: true, url: u, text: async () => "" };
+      })
+    );
+
+    const promesaEscaneo = ScraperMoodleIngenieria.escanearListado({
+      modo: "todos",
+      idRecorrido: 208,
+      tabId: 1,
+      sitioId: "moodle-ingenieria",
+    });
+
+    while (!rechazarCurso2) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
+
+    window.dispatchEvent(new Event("pagehide"));
+    rechazarCurso2();
+
+    await promesaEscaneo;
+
+    const evFinNav = mensajesEnviados.find(
+      (m) => m.tipo === "fin" && m.motivoCorte === "navegacion"
+    );
+    expect(evFinNav).toBeDefined();
+
+    const evCurso1 = mensajesEnviados.find(
+      (m) => m.tipo === "curso" && m.indice === 1
+    );
+    expect(evCurso1).toBeUndefined();
+  });
+
+  it("20. RN-28 / AC-13: resuelve el nombre del curso priorizando a.coursename visible y descartando textos sr-only", async () => {
+    document.documentElement.innerHTML = `
+      <div id="region-main">
+        <!-- id 1: imagen primero, luego a.coursename con sr-only -->
+        <a href="https://www.asignaturas.ing.unlp.edu.ar/course/view.php?id=1">
+          <img src="banner1.png" alt="" />
+        </a>
+        <a class="aalink coursename" href="https://www.asignaturas.ing.unlp.edu.ar/course/view.php?id=1">
+          <span class="sr-only">El curso es destacado</span><span class="sr-only">Nombre del curso</span> Física II
+        </a>
+
+        <!-- id 2: evento de calendario con texto antes de su a.coursename -->
+        <a href="https://www.asignaturas.ing.unlp.edu.ar/course/view.php?id=2">Consulta</a>
+        <a class="aalink coursename" href="https://www.asignaturas.ing.unlp.edu.ar/course/view.php?id=2">
+          Química
+        </a>
+
+        <!-- id 3: sólo una imagen sin texto -->
+        <a href="https://www.asignaturas.ing.unlp.edu.ar/course/view.php?id=3">
+          <img src="banner3.png" alt="" />
+        </a>
+      </div>
+    `;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        return {
+          ok: true,
+          url: String(url),
+          text: async () => armarCursoHtml("1", "C", itemResource("1", "R1")),
+        };
+      })
+    );
+
+    await ScraperMoodleIngenieria.escanearListado({
+      modo: "todos",
+      idRecorrido: 209,
+      tabId: 1,
+      sitioId: "moodle-ingenieria",
+    });
+
+    const evInicio = mensajesEnviados.find((m) => m.tipo === "inicio");
+    expect(evInicio).toBeDefined();
+    expect(evInicio.cursos).toHaveLength(3);
+    expect(evInicio.cursos[0]).toEqual({ id: "1", nombre: "Física II" });
+    expect(evInicio.cursos[1]).toEqual({ id: "2", nombre: "Química" });
+    expect(evInicio.cursos[2]).toEqual({ id: "3", nombre: "Curso 3" });
+  });
 });
+

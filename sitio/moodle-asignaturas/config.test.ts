@@ -14,7 +14,8 @@ describe("SitioMoodleAsignaturas", () => {
     expect(SitioMoodleAsignaturas.credencialesAdjunto).toBe("include");
     expect(SitioMoodleAsignaturas.destinoPorIndice).toBe(true);
     expect(SitioMoodleAsignaturas.topeEscaneoMs).toBe(60000);
-    expect(SitioMoodleAsignaturas.instruccionEscaneo).toContain("course/view.php");
+    expect(SitioMoodleAsignaturas.instruccionEscaneo).toContain("Área personal");
+    expect(SitioMoodleAsignaturas.textoOfertaTodos).toContain("Área personal");
   });
 
   it("2. esPaginaDelSitio reconoce vistas de curso, portada /my/ y descarta otras URLs", () => {
@@ -142,5 +143,29 @@ describe("SitioMoodleAsignaturas", () => {
     expect(res).toEqual({ catedra: "COMUN", carpeta: "prog2" });
 
     delete (globalThis as Record<string, unknown>).ParserTitulosMoodleAsignaturas;
+  });
+
+  it("7. sugerenciaFueraDeListado devuelve sugerencia en la raíz y undefined en páginas escaneables u otro host", () => {
+    const textoEsperado =
+      "Andá a tu Área personal o a «Mis cursos» para escanear todos tus cursos, o abrí la página de un curso.";
+    expect(
+      SitioMoodleAsignaturas.sugerenciaFueraDeListado?.(
+        "https://asignaturas.info.unlp.edu.ar/"
+      )
+    ).toBe(textoEsperado);
+    expect(
+      SitioMoodleAsignaturas.sugerenciaFueraDeListado?.(
+        "https://asignaturas.info.unlp.edu.ar/my/"
+      )
+    ).toBeUndefined();
+    expect(
+      SitioMoodleAsignaturas.sugerenciaFueraDeListado?.(
+        "https://asignaturas.info.unlp.edu.ar/course/view.php?id=1"
+      )
+    ).toBeUndefined();
+    expect(
+      SitioMoodleAsignaturas.sugerenciaFueraDeListado?.("https://otro-host.com/")
+    ).toBeUndefined();
+    expect(SitioMoodleAsignaturas.sugerenciaFueraDeListado?.(undefined)).toBeUndefined();
   });
 });

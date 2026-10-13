@@ -199,7 +199,7 @@ mismo trade-off sin transacciones que el resto de las claves, y el dato es infor
 }
 ```
 
-Eventos de ciclo de vida (`EventoRecorrido` vía mensaje IPC `recorrido_evento` al SW):
+Eventos de ciclo de vida (`EventoRecorrido` vía mensaje IPC `recorrido_evento` al SW — el SW los aplica de a uno, en el orden en que llegan, mediante una cola de promesas para evitar carreras entre lecturas y escrituras de `chrome.storage.local`, M-4):
 - `"inicio"`: `{ cursos, lanzadoEn? }`
 - `"latido"`: `{ indice }`
 - `"progreso"`: `{ indice, fase, verMas?, publicaciones?, archivos? }`

@@ -93,9 +93,10 @@ async function escanearListado() {
         const titulo = buscarTitulo(el, `Video ${tema} (${videoId})`);
         const urlCanonica = `https://www.youtube.com/watch?v=${videoId}`;
         const idArchivo = `acceso:${encodeURIComponent(urlCanonica)}:${encodeURIComponent(titulo)}`;
+        const texto = /\.md$/i.test(titulo) ? titulo : `${titulo}.md`;
 
         enlaces.push({
-          texto: titulo,
+          texto,
           href: urlCanonica,
           modulo: `Matemática C › ${tema}`,
           tema,
@@ -121,9 +122,10 @@ async function escanearListado() {
           ? `https://docs.google.com/forms/d/e/${formId}/viewform`
           : `https://docs.google.com/forms/d/${formId}/viewform`;
         const idArchivo = `acceso:${encodeURIComponent(urlCanonica)}:${encodeURIComponent(titulo)}`;
+        const texto = /\.md$/i.test(titulo) ? titulo : `${titulo}.md`;
 
         enlaces.push({
-          texto: titulo,
+          texto,
           href: urlCanonica,
           modulo: `Matemática C › ${tema}`,
           tema,
@@ -141,7 +143,7 @@ async function escanearListado() {
         const fileId = driveMatch[1];
         const titulo = buscarTitulo(el, `Archivo Drive (${fileId})`);
 
-        const esVideo = /\.(mp4|mov)(\?|$)/i.test(srcOrHref) || /\.(mp4|mov)$/i.test(titulo);
+        const esVideo = /\.(mp4|mov)(\?|$)/i.test(srcOrHref) || /\.(mp4|mov)(\.md)?$/i.test(titulo);
         const clave = `${esVideo ? "drive-video" : "drive"}:${fileId}`;
         if (clavesVistas.has(clave)) continue;
         clavesVistas.add(clave);
@@ -149,9 +151,10 @@ async function escanearListado() {
         if (esVideo) {
           const urlCanonica = `https://drive.google.com/file/d/${fileId}/view`;
           const idArchivo = `acceso:${encodeURIComponent(urlCanonica)}:${encodeURIComponent(titulo)}`;
+          const texto = /\.md$/i.test(titulo) ? titulo : `${titulo}.md`;
 
           enlaces.push({
-            texto: titulo,
+            texto,
             href: urlCanonica,
             modulo: `Matemática C › ${tema}`,
             tema,
@@ -161,8 +164,9 @@ async function escanearListado() {
             idArchivo,
           });
         } else {
+          const texto = /\.pdf$/i.test(titulo) ? titulo : `${titulo}.pdf`;
           enlaces.push({
-            texto: titulo,
+            texto,
             href: `https://drive.google.com/file/d/${fileId}/view`,
             modulo: `Matemática C › ${tema}`,
             tema,
@@ -182,8 +186,9 @@ async function escanearListado() {
         clavesVistas.add(clave);
 
         const titulo = buscarTitulo(el, `Documento ${tema}`);
+        const texto = /\.pdf$/i.test(titulo) ? titulo : `${titulo}.pdf`;
         enlaces.push({
-          texto: titulo,
+          texto,
           href: srcOrHref,
           modulo: `Matemática C › ${tema}`,
           tema,

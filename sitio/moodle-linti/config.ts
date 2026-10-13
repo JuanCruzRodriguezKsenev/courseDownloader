@@ -58,6 +58,17 @@ const SitioMoodleLinti: PuertoSitio = {
     return m ? m[1] : undefined;
   },
 
+  sugerenciaFueraDeListado(url) {
+    if (typeof url !== "string") return undefined;
+    if (
+      /^https?:\/\/catedras\.linti\.unlp\.edu\.ar(?:\/|$)/i.test(url) &&
+      !this.esPaginaDelSitio(url)
+    ) {
+      return "Andá a tu Área personal o a «Mis cursos» para escanear todos tus cursos, o abrí la página de un curso.";
+    }
+    return undefined;
+  },
+
   get patronPestañas() {
     return "https://catedras.linti.unlp.edu.ar/*";
   },
@@ -65,6 +76,9 @@ const SitioMoodleLinti: PuertoSitio = {
   get urlListado() {
     return "https://catedras.linti.unlp.edu.ar/my/";
   },
+
+  textoOfertaTodos:
+    "Escaneamos los cursos de tu Área personal, uno por uno. Suele tardar menos de un minuto.\nPodés cerrar este popup, pero no cambies de página en esta pestaña hasta que termine.",
 
   instruccionEscaneo:
     "Escaneá desde la página principal de un curso o desde «Mis cursos». Dejá esa pestaña al frente hasta que termine.",

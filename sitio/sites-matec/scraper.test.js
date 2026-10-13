@@ -65,6 +65,7 @@ describe("ScraperSitesMatec.escanearListado", () => {
       expect(yt.cursoId).toBe("matec");
       expect(yt.cursoNombre).toBe("Matemática C");
       expect(yt.texto).toBeTruthy();
+      expect(yt.texto.endsWith(".md")).toBe(true);
     }
 
     // 2 videos de Drive (.mp4 / .MOV)
@@ -77,6 +78,7 @@ describe("ScraperSitesMatec.escanearListado", () => {
       expect(dv.modulo).toBe("Matemática C › Series");
       expect(dv.tema).toBe("Series");
       expect(dv.cursoId).toBe("matec");
+      expect(dv.texto.endsWith(".md")).toBe(true);
     }
 
     // 8 PDFs de Drive
@@ -88,6 +90,7 @@ describe("ScraperSitesMatec.escanearListado", () => {
       expect(pdf.tema).toBe("Series");
       expect(pdf.cursoId).toBe("matec");
       expect(pdf.texto).toBeTruthy();
+      expect(pdf.texto.endsWith(".pdf")).toBe(true);
     }
   });
 
@@ -112,7 +115,7 @@ describe("ScraperSitesMatec.escanearListado", () => {
       expect(item.cursoId).toBe("matec");
       expect(item.cursoNombre).toBe("Matemática C");
       expect(item.idArchivo?.startsWith("acceso:https%3A%2F%2Fdocs.google.com%2Fforms")).toBe(true);
-      expect(item.texto).toMatch(/Autoevaluacion \d+/);
+      expect(item.texto).toMatch(/Autoevaluacion \d+.*\.md$/);
     }
   });
 
@@ -175,5 +178,63 @@ describe("ScraperSitesMatec.escanearListado", () => {
     expect(resultado.materia).toBe("Matemática C");
     // 8 subpáginas * 11 autoevaluaciones = 88 items
     expect(resultado.enlaces.length).toBe(88);
+  });
+
+  it("RN-2 a RN-4: asigna .md a accesos y .pdf a PDFs, sin duplicar si ya existen", async () => {
+    const htmlPrueba = `
+      <html><body>
+        <!-- 1. YouTube sin y con .md (11 chars videoId) -->
+        <a href="https://www.youtube.com/watch?v=aaa11111111">Clase Teórica 1</a>
+        <a href="https://www.youtube.com/watch?v=aaa22222222">Clase Teórica 2.md</a>
+
+        <!-- 2. Google Forms sin y con .md -->
+        <a href="https://docs.google.com/forms/d/fff111/viewform">Cuestionario 1</a>
+        <a href="https://docs.google.com/forms/d/fff222/viewform">Cuestionario 2.MD</a>
+
+        <!-- 3. Drive video sin y con .md -->
+        <a href="https://drive.google.com/file/d/vvv111/view">Video Demostrativo.mp4</a>
+        <a href="https://drive.google.com/file/d/vvv222/view">Video Demostrativo 2.mp4.md</a>
+
+        <!-- 4. Drive PDF sin y con .pdf -->
+        <a href="https://drive.google.com/file/d/ddd111/view">Apunte Teórico</a>
+        <a href="https://drive.google.com/file/d/ddd222/view">Apunte Teórico 2.PDF</a>
+
+        <!-- 5. PDF directo sin y con .pdf -->
+        <a href="https://ejemplo.com/material1.pdf">Guía Ejercicios</a>
+        <a href="https://ejemplo.com/material2.pdf">Guía Ejercicios 2.pdf</a>
+      </body></html>
+    `;
+
+    globalThis.fetch = vi.fn().mockImplementation((url) => {
+      let body = "<html><body></body></html>";
+      if (url.includes("/series")) body = htmlPrueba;
+      return Promise.resolve({
+        ok: true,
+        text: () => Promise.resolve(body),
+      });
+    });
+
+    const resultado = await escanearListado();
+    const items = resultado.enlaces.filter((it) => it.tema === "Series");
+
+    // YouTube
+    expect(items.find((it) => it.href.includes("aaa11111111"))?.texto).toBe("Clase Teórica 1.md");
+    expect(items.find((it) => it.href.includes("aaa22222222"))?.texto).toBe("Clase Teórica 2.md");
+
+    // Forms
+    expect(items.find((it) => it.href.includes("fff111"))?.texto).toBe("Cuestionario 1.md");
+    expect(items.find((it) => it.href.includes("fff222"))?.texto).toBe("Cuestionario 2.MD");
+
+    // Drive video
+    expect(items.find((it) => it.href.includes("vvv111"))?.texto).toBe("Video Demostrativo.mp4.md");
+    expect(items.find((it) => it.href.includes("vvv222"))?.texto).toBe("Video Demostrativo 2.mp4.md");
+
+    // Drive PDF
+    expect(items.find((it) => it.href.includes("ddd111"))?.texto).toBe("Apunte Teórico.pdf");
+    expect(items.find((it) => it.href.includes("ddd222"))?.texto).toBe("Apunte Teórico 2.PDF");
+
+    // PDF directo
+    expect(items.find((it) => it.href.includes("material1.pdf"))?.texto).toBe("Guía Ejercicios.pdf");
+    expect(items.find((it) => it.href.includes("material2.pdf"))?.texto).toBe("Guía Ejercicios 2.pdf");
   });
 });

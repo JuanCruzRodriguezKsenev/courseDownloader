@@ -21,7 +21,8 @@ describe("SitioMoodleIngenieria", () => {
     expect(SitioMoodleIngenieria.credencialesAdjunto).toBe("include");
     expect(SitioMoodleIngenieria.destinoPorIndice).toBe(true);
     expect(SitioMoodleIngenieria.topeEscaneoMs).toBe(60000);
-    expect(SitioMoodleIngenieria.instruccionEscaneo).toContain("course/view.php");
+    expect(SitioMoodleIngenieria.instruccionEscaneo).toContain("Área personal");
+    expect(SitioMoodleIngenieria.textoOfertaTodos).toContain("Área personal");
   });
 
   it("2. esPaginaDelSitio reconoce vistas de curso (con y sin www), portada /my/ y descarta otras URLs", () => {
@@ -182,5 +183,34 @@ describe("SitioMoodleIngenieria", () => {
     expect(res).toEqual({ catedra: "COMUN", carpeta: "mate_b3" });
 
     delete (globalThis as Record<string, unknown>).ParserTitulosMoodleIngenieria;
+  });
+
+  it("7. sugerenciaFueraDeListado devuelve sugerencia en la raíz y undefined en páginas escaneables u otro host", () => {
+    const textoEsperado =
+      "Andá a tu Área personal para escanear todos tus cursos, o abrí la página de un curso.";
+    expect(
+      SitioMoodleIngenieria.sugerenciaFueraDeListado?.(
+        "https://www.asignaturas.ing.unlp.edu.ar/"
+      )
+    ).toBe(textoEsperado);
+    expect(
+      SitioMoodleIngenieria.sugerenciaFueraDeListado?.(
+        "https://asignaturas.ing.unlp.edu.ar/"
+      )
+    ).toBe(textoEsperado);
+    expect(
+      SitioMoodleIngenieria.sugerenciaFueraDeListado?.(
+        "https://www.asignaturas.ing.unlp.edu.ar/my/"
+      )
+    ).toBeUndefined();
+    expect(
+      SitioMoodleIngenieria.sugerenciaFueraDeListado?.(
+        "https://www.asignaturas.ing.unlp.edu.ar/course/view.php?id=1"
+      )
+    ).toBeUndefined();
+    expect(
+      SitioMoodleIngenieria.sugerenciaFueraDeListado?.("https://otro-host.com/")
+    ).toBeUndefined();
+    expect(SitioMoodleIngenieria.sugerenciaFueraDeListado?.(undefined)).toBeUndefined();
   });
 });

@@ -55,4 +55,4 @@
 - [Marca Resaltador, correcciones de la revisión (Plan 28)](project_marca_resaltador_correcciones_plan28.md) — anchos de grilla (84px para materia), box-sizing en chips/badges/botones, centrado de badges y desacople de ráfagaEnCurso desde rafagaCorriendo del SW; compuerta en 82 archivos / 1250 tests
 - [Escaneo multicurso en Moodle LINTI e Informática (Plan 29)](project_moodle_multicurso_plan29.md) — recorrido /my/ en Moodle LINTI e Informática, extracción escanearCurso, paridad byte a byte y corte por sesión; compuerta en 82 archivos / 1262 tests
 - [Moodle Ingeniería, el sexto portal (Plan 31)](project_moodle_ingenieria_plan31.md) — sexto portal Moodle Ingeniería por curso y multicurso desde /my/, sección 0 con nombre propio (RN-4), H-1 resuelto y paridad tripartita; compuerta en 87 archivos / 1313 tests
-
+- [Correcciones de la verificación del Plan 31 (Plan 34)](project_correcciones_verificacion_plan31_plan34.md) — serialización FIFO IPC SW, silenciado tras pagehide en scrapers Moodle, extensión real y miembros 21-22 en PuertoSitio; compuerta en 87 archivos / 1330 tests

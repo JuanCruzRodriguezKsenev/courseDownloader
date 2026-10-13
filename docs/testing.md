@@ -30,12 +30,21 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **87 archivos, 1313 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
+| `pnpm test` | **87 archivos, 1330 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
 
-**De dónde sale el 1313** (2026-10-06, plan `31 - Moodle Ingenieria, el sexto portal`, rama `moodle-ingenieria`): son los 1273 de abajo más **+40** tests (+4 archivos nuevos en `sitio/moodle-ingenieria/`):
+**De dónde sale el 1330** (2026-10-10, plan `34 - Correcciones de la verificacion del plan 31`, rama `correccion-plan31`): son los 1313 de abajo más **+17** tests (sin archivos nuevos):
+- **+1** en `background.test.js` (serialización de `recorrido_evento` en cola de promesas contra carreras en storage, M-4),
+- **+1** en `sitio/moodle-ingenieria/scraper.test.js` (silenciamiento de avisos tras `pagehide`, M-4),
+- **+1** en `sitio/moodle-ingenieria/scraper.test.js` (extracción de nombres visibles en `/my/` sin `.sr-only` ni «Nombre del curso»),
+- **+5** en `sitio/moodle-ingenieria/scraper.test.js` (resolución de extensión real en recursos: 302, HTML con enlace, sin enlace, sin duplicar, y sesión),
+- **+5** en `sitio/moodle-asignaturas/scraper.test.js` (misma resolución de extensión real en recursos),
+- **+1** en `sitio/sites-matec/scraper.test.js` (asignación de `.md` a accesos de YouTube/Forms/Drive y `.pdf` a PDFs directos/Drive),
+- **+3** en `sitio/moodle-ingenieria/config.test.ts`, `sitio/moodle-asignaturas/config.test.ts` y `sitio/moodle-linti/config.test.ts` (`sugerenciaFueraDeListado` en raíz vs páginas escaneables u otro host).
+
+**De dónde salía el 1313** (2026-10-06, plan `31 - Moodle Ingenieria, el sexto portal`, rama `moodle-ingenieria`): son los 1273 de abajo más **+40** tests (+4 archivos nuevos en `sitio/moodle-ingenieria/`):
 - **+7** en `sitio/moodle-ingenieria/config.test.ts` (esPaginaDelSitio, esPortada, claveDeListado, metadatos y aislamiento),
 - **+7** en `sitio/moodle-ingenieria/descargarAdjunto.test.js` (soporte de 302, folder, sesión expirada /login/ y rechazo 404),
 - **+3** en `sitio/moodle-ingenieria/parserTitulos.test.js` (limpieza de sufijo tipo archivo de Moodle),

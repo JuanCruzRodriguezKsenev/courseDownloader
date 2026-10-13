@@ -12,6 +12,7 @@ describe("SitioMoodleLinti descriptor", () => {
     expect(SitioMoodleLinti.urlSondeoInternet).toBe("https://catedras.linti.unlp.edu.ar/favicon.ico");
     expect(SitioMoodleLinti.patronPestañas).toBe("https://catedras.linti.unlp.edu.ar/*");
     expect(SitioMoodleLinti.urlListado).toBe("https://catedras.linti.unlp.edu.ar/my/");
+    expect(SitioMoodleLinti.textoOfertaTodos).toContain("Área personal");
   });
 
   it("esPaginaDelSitio valida cursos con id numérico y portada /my/, y descarta otras URLs", () => {
@@ -60,5 +61,29 @@ describe("SitioMoodleLinti descriptor", () => {
       tipoPortal: "rechazo",
       message: expect.stringContaining("este portal no tiene videos HLS"),
     });
+  });
+
+  it("sugerenciaFueraDeListado devuelve sugerencia en la raíz y undefined en páginas escaneables u otro host", () => {
+    const textoEsperado =
+      "Andá a tu Área personal o a «Mis cursos» para escanear todos tus cursos, o abrí la página de un curso.";
+    expect(
+      SitioMoodleLinti.sugerenciaFueraDeListado?.(
+        "https://catedras.linti.unlp.edu.ar/"
+      )
+    ).toBe(textoEsperado);
+    expect(
+      SitioMoodleLinti.sugerenciaFueraDeListado?.(
+        "https://catedras.linti.unlp.edu.ar/my/"
+      )
+    ).toBeUndefined();
+    expect(
+      SitioMoodleLinti.sugerenciaFueraDeListado?.(
+        "https://catedras.linti.unlp.edu.ar/course/view.php?id=1"
+      )
+    ).toBeUndefined();
+    expect(
+      SitioMoodleLinti.sugerenciaFueraDeListado?.("https://otro-host.com/")
+    ).toBeUndefined();
+    expect(SitioMoodleLinti.sugerenciaFueraDeListado?.(undefined)).toBeUndefined();
   });
 });

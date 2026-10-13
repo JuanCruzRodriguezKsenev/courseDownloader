@@ -132,9 +132,91 @@ async function escanearListado(opciones = {}) {
 
       if (tipo === "resource") {
         const url = `${origen}/mod/resource/view.php?id=${cmid}`;
+        let texto = actName;
+        try {
+          const res = await fetch(url, { credentials: "include", signal: ctx.signal });
+          const urlFinal = res.url || "";
+          let pathname = "";
+          try {
+            pathname = new URL(urlFinal, origen || undefined).pathname;
+          } catch {}
+
+          if (
+            ctx.detectarLogin &&
+            (pathname.startsWith("/login/") || pathname === "/login")
+          ) {
+            sesionDetectada = true;
+            return [];
+          }
+
+          let nombreArchivo = "";
+          if (urlFinal.includes("pluginfile.php")) {
+            if (res.body && typeof res.body.cancel === "function") {
+              try {
+                res.body.cancel().catch(() => {});
+              } catch {}
+            }
+            const segmentos = pathname.split("/").filter(Boolean);
+            const ultimoSegmento = segmentos[segmentos.length - 1] || "";
+            try {
+              nombreArchivo = decodeURIComponent(ultimoSegmento);
+            } catch {
+              nombreArchivo = ultimoSegmento;
+            }
+          } else {
+            const html = await res.text();
+            if (ctx.detectarLogin) {
+              const parser = new DOMParser();
+              const docResource = parser.parseFromString(html, "text/html");
+              if (esPantallaLogin(docResource, pathname)) {
+                sesionDetectada = true;
+                return [];
+              }
+            }
+            const regexResource = /https?:\/\/[^\s"'><]+pluginfile\.php\/[^\s"'><]+mod_resource\/content\/[^\s"'><]+/;
+            const match = html.match(regexResource);
+            if (match) {
+              const enlaceEncontrado = match[0].replace(/&amp;/g, "&");
+              try {
+                const uObj = new URL(enlaceEncontrado, origen || undefined);
+                const segs = uObj.pathname.split("/").filter(Boolean);
+                const ultimoSeg = segs[segs.length - 1] || "";
+                nombreArchivo = decodeURIComponent(ultimoSeg);
+              } catch {
+                const sinQuery = enlaceEncontrado.split("?")[0];
+                const partes = sinQuery.split("/");
+                const ultimo = partes[partes.length - 1] || "";
+                try {
+                  nombreArchivo = decodeURIComponent(ultimo);
+                } catch {
+                  nombreArchivo = ultimo;
+                }
+              }
+            }
+          }
+
+          if (nombreArchivo) {
+            const mExt = /\.([a-z0-9]{1,8})$/i.exec(nombreArchivo);
+            if (mExt) {
+              const ext = mExt[1].toLowerCase();
+              const regexFinExt = new RegExp(`\\.${ext}$`, "i");
+              if (regexFinExt.test(actName)) {
+                texto = actName;
+              } else {
+                texto = `${actName}.${ext}`;
+              }
+            }
+          }
+        } catch (err) {
+          if (err && (err.name === "AbortError" || ctx.signal?.aborted)) {
+            throw err;
+          }
+          texto = actName;
+        }
+
         return [
           {
-            texto: actName,
+            texto,
             url,
             tipo: "adjunto",
             idArchivo: String(cmid),
@@ -329,7 +411,9 @@ async function escanearListado(opciones = {}) {
     }
 
     let recorridoTerminado = false;
+    let paginaSaliendo = false;
     const oyentePagehide = () => {
+      paginaSaliendo = true;
       if (!recorridoTerminado) {
         try {
           if (
@@ -358,6 +442,7 @@ async function escanearListado(opciones = {}) {
     const avisar = (evento) => {
       const p = colaAvisos.then(async () => {
         try {
+          if (paginaSaliendo) return;
           if (
             typeof chrome !== "undefined" &&
             chrome.runtime &&
@@ -418,21 +503,79 @@ async function escanearListado(opciones = {}) {
       }
 
       // 5. Enumerar
-      const cursosVistos = new Set();
-      const cursos = [];
+      const textoVisible = (el) => {
+        if (!el) return "";
+        const clon = el.cloneNode(true);
+        if (typeof clon.querySelectorAll === "function") {
+          clon
+            .querySelectorAll(".sr-only, .accesshide, .visually-hidden")
+            .forEach((s) => s.remove());
+        }
+        return (clon.textContent || "").trim().replace(/\s+/g, " ");
+      };
+
+      const ordenIds = [];
+      const enlacesPorId = new Map();
       for (const a of enlaces) {
         const m = /[?&]id=(\d+)/.exec(a.href);
         if (!m) continue;
         const id = m[1];
-        if (cursosVistos.has(id)) continue;
-        cursosVistos.add(id);
+        if (!enlacesPorId.has(id)) {
+          ordenIds.push(id);
+          enlacesPorId.set(id, []);
+        }
+        enlacesPorId.get(id).push(a);
+      }
 
-        let nombre = (a.getAttribute("aria-label") || a.textContent || "")
-          .trim()
-          .replace(/\s+/g, " ");
+      const cursos = [];
+      for (const id of ordenIds) {
+        const lista = enlacesPorId.get(id) || [];
+        let nombre = "";
+
+        // 1. el texto visible del primer a.coursename del id
+        const primerCoursename = lista.find(
+          (a) =>
+            (typeof a.matches === "function" && a.matches("a.coursename, .coursename")) ||
+            (a.classList && typeof a.classList.contains === "function" && a.classList.contains("coursename")) ||
+            (typeof a.querySelector === "function" && a.querySelector(".coursename"))
+        );
+        if (primerCoursename) {
+          nombre = textoVisible(primerCoursename);
+        }
+
+        // 2. si no hay, el primer texto visible no vacío entre sus enlaces
+        if (!nombre) {
+          for (const a of lista) {
+            const txt = textoVisible(a);
+            if (txt) {
+              nombre = txt;
+              break;
+            }
+          }
+        }
+
+        // 3. si no hay, el primer aria-label o textContent no vacío (lo de hoy)
+        if (!nombre) {
+          for (const a of lista) {
+            const fallback = (
+              (typeof a.getAttribute === "function" && a.getAttribute("aria-label")) ||
+              a.textContent ||
+              ""
+            )
+              .trim()
+              .replace(/\s+/g, " ");
+            if (fallback) {
+              nombre = fallback;
+              break;
+            }
+          }
+        }
+
+        // 4. si no, Curso <id>
         if (!nombre) {
           nombre = `Curso ${id}`;
         }
+
         cursos.push({ id, nombre });
       }
 
@@ -656,6 +799,7 @@ async function escanearListado(opciones = {}) {
     cursoId,
     origen,
     signal: undefined,
+    detectarLogin: true,
   });
 }
 

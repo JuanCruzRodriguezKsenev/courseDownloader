@@ -22,3 +22,10 @@ Receta probada (2026-10-10, playwright-cli 0.1.22):
 - La sesión del portal: el dueño inicia sesión una vez, en modo headed, en un perfil persistente. Yo no tipeo contraseñas.
 - El recorrido ya mide `duracionMs` por curso (`sitio/moodle-ingenieria/scraper.js:468-522`): M-1 se lee de ahí.
 Esto reemplaza la vieja restricción de que yo no usara Chrome: aquella era sobre el Chrome real del dueño, y esto es un navegador aparte.
+
+**Trampa (2026-10-13):** `MoodleSession` es cookie de sesión (`expires=-1`): muere al cerrarse el navegador `-s=verif`,
+aunque el perfil sea persistente. Si `playwright-cli list` dice «no browsers», el login se perdió en los tres Moodle.
+El paso [USUARIO] tiene que decir «logueate en esta ventana y **no la cierres**»; yo la abro con
+`cd ~/.local/share/courseDownloader && playwright-cli -s=verif open --config=pw.json <url>` y no la cierro hasta terminar las V.
+**El dueño (2026-10-13):** el perfil guarda usuario y contraseña autocompletados; si el login aparece ya relleno,
+lo envío yo (Enter / clic en «Acceder») sin pedírselo. Sólo le pido el login si los campos están vacíos.

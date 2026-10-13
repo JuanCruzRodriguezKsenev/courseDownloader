@@ -801,4 +801,43 @@ describe('recorrido_evento', () => {
     expect(store.local.recorridoTodos.cursos[0].resultado).toBe('ok');
     expect(store.local.recorridoTodos.cursos[0].enlaces).toHaveLength(1);
   });
+
+  it('serializa eventos concurrentes evitando que curso pise fin por navegación (M-4, RN-30, AC-15)', async () => {
+    await mensajeria.enviar({
+      action: 'recorrido_evento',
+      tipo: 'inicio',
+      idRecorrido: 500,
+      tabId: 1,
+      sitioId: 'moodle-ingenieria',
+      cursos: [
+        { id: 'c1', nombre: 'Curso 1' },
+        { id: 'c2', nombre: 'Curso 2' },
+      ],
+    });
+
+    // Sin await entre medio
+    const pFin = mensajeria.enviar({
+      action: 'recorrido_evento',
+      tipo: 'fin',
+      idRecorrido: 500,
+      tabId: 1,
+      sitioId: 'moodle-ingenieria',
+      estado: 'cortado',
+      motivoCorte: 'navegacion',
+    });
+    const pCurso = mensajeria.enviar({
+      action: 'recorrido_evento',
+      tipo: 'curso',
+      idRecorrido: 500,
+      indice: 0,
+      resultado: 'fallido',
+      motivo: 'error de red',
+    });
+
+    await Promise.all([pFin, pCurso]);
+
+    expect(store.local.recorridoTodos.estado).toBe('cortado');
+    expect(store.local.recorridoTodos.motivoCorte).toBe('navegacion');
+    expect(store.local.recorridoTodos.cursos[0].resultado).toBeUndefined();
+  });
 });
