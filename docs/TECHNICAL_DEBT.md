@@ -733,6 +733,19 @@ Llegaron acá al mergear la tanda del toolbar (2026-08-13): vivían en
 - **Solución**: (1) pluralizar con `sinRecorrer === 1`; (2) decidir si esa card lleva botón; (3) que la slide omita la faceta cuando es inerte.
 - **Estado**: ⚪ abierto (hallado el 2026-10-13 por tanda, Playwright).
 
+### ⚪ Los accesos `.md` de Moodle Asignaturas copian la URL scrapeada sin validarla
+
+- **Dónde**: `sitio/moodle-asignaturas/scraper.js`, ramas `kaltura` (`entry_id` y host del `<script src>`, plan 32) y `url` (el `href` de la página intermedia); las dos terminan en `core/destino/accesoMd.ts` (`accesoADataUri`), que escribe la URL tal cual como última línea del `.md`.
+- **Qué pasa**: un `entry_id` con `)`, `<`, `\n` o `[x](javascript:…)` llega entero al `.md` (probado por tanda el 2026-10-13 con un `label` sintético). No ejecuta nada: es texto en un archivo local. Pero contradice la regla de `docs/security.md`, que pide tratar como no confiable el texto scrapeado.
+- **Solución**: validar `entry_id` contra la forma real (`^\d+_[a-z0-9]+$`) y no emitir ítem si no cumple; para las dos ramas, que `accesoADataUri` rechace una URL que no sea `http(s)` o que tenga saltos de línea.
+- **Estado**: ⚪ abierto (sugerido por `revisor-seguridad` en la revisión del plan 32; tanda lo bajó a deuda porque no abre superficie nueva).
+
+### ⚪ Dos tests de `moodle-asignaturas/scraper.test.js` que prueban menos de lo que dicen
+
+- **Dónde**: `sitio/moodle-asignaturas/scraper.test.js`, test 3 (busca `idArchivo === "module-5411"`, una forma que el scraper nunca emite, así que no puede fallar) y AC-6 (cuenta ítems con `embedIframeJs`, que no prueba que los 37 `label` de texto no generen ítem; eso sólo lo cubre el total 111 del test 2).
+- **Solución**: test 3, buscar por `publicacion` de un `label` de texto real; AC-6, comparar el total con y sin la rama `kaltura`, o contar ítems cuyo `cmid` es de un `label`.
+- **Estado**: ⚪ abierto (hallado por `revisor-codigo` en la revisión del plan 32, 2026-10-13).
+
 ### ✅ Ningún test serializa las funciones que se inyectan en la pestaña
 
 - **Dónde**: los tres `sitio/<portal>/scraper.js`; quien las inyecta es `popup.js:1258-1260` (`executeScript({ func: portal.escanearListado })`).
