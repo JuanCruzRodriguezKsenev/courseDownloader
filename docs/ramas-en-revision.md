@@ -16,7 +16,12 @@ información con fecha de vencimiento: cambia con cada merge, y mientras vivió 
 
 ## 🚧 En revisión
 
-### `correccion-plan31` (Plan 34) — en revisión (2026-10-10); V-1 a V-8 verificadas por tanda con Playwright el 2026-10-13
+Nada en una rama de este repo. El plan 32 (Kaltura en Moodle Asignaturas) entra por la cola de `fábrica`
+(`~/Boveda/Proyectos/courseDownloader/Cola/`); su estado vive en esa nota hasta que se mergee.
+
+## Mergeado el 2026-10-13
+
+### `correccion-plan31` (Plan 34) — en `main` (`a6b2abd`, 2026-10-13); V-1 a V-8 verificadas por tanda con Playwright el 2026-10-13
 
 Compuerta: 87 archivos / 1330 tests, lint 0, tsc 0, build ok.
 
@@ -38,7 +43,7 @@ Checklist en navegador (Playwright, perfil `~/.local/share/courseDownloader/perf
 - [x] V-7 (tiempo) — `duracionMs` sumado del recorrido de Informática y LINTI. Si alguno pasa 60 s, va como hallazgo (el texto dice «menos de un minuto»). ✅ 2026-10-13: LINTI 14,3 s (3 cursos), Informática 8,1 s (2 cursos).
 - [x] V-8 (bienvenida) — Abrir el tutorial: sin «videos» en las slides 2 y 3. ✅ 2026-10-13: slide 2 «para detectar las clases y el material», slide 3 «Qué escanear» con la `instruccionEscaneo` nueva; sin «videos».
 
-### `moodle-ingenieria` (Plan 31) — en `main` (2026-10-06); verificada en navegador el 2026-10-10 con **un fallo (M-4)**
+### `moodle-ingenieria` (Plan 31) — en `main` (2026-10-06); verificada en navegador el 2026-10-10 con **un fallo (M-4)**, cerrado por el plan 34
 
 Compuerta del merge: 87 archivos / 1313 tests, lint 0, tsc 0, build ok.
 
