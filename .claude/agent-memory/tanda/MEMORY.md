@@ -30,3 +30,4 @@
 - [Verificar con Playwright](feedback_verificar_con_playwright.md) — el dueño no mide a mano; receta probada para cargar la extensión y abrir el popup
 - [Medir antes de suponer](feedback_medir_antes_de_suponer.md) — usar archivos bajados y la sesión Playwright `-s=verif` antes de inferir o preguntar
 - [Medir con clic y worktrees](feedback_medir_con_clic.md) — clic real en menús al medir; no hacer checkout con obra activo, usar git worktree
+- [Plan 32 Kaltura en Asignaturas](project_asignaturas_kaltura_plan32.md) — video de un label como acceso .md; va por fábrica (2026-10-13)
