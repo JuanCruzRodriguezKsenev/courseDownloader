@@ -30,7 +30,7 @@
  * CHANGELOG v2.0.0:
  * - [CAPA 1 + TS] Movido desde `shared/bunClient.js` a `core/backend/` y tipado. Es el
  *   primer archivo del núcleo genérico y el primero en TypeScript (Fase 4 de
- *   docs/rearquitectura-diseno.md). Califica porque no toca `chrome.*` ni Ramón Net:
+ *   ~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md). Califica porque no toca `chrome.*` ni Ramón Net:
  *   es fetch puro contra el contrato del backend local. Lógica sin cambios; lo que suma
  *   TypeScript son los tipos de los errores, que hasta hoy eran convención documentada
  *   en comentarios (ver `ErrorBackend`).
@@ -173,7 +173,7 @@ export interface RespuestaCursoVisto {
  * vivo, así que reintentar el mismo fragmento no los cura y el SW salta la clase. Los
  * 5xx NO se marcan a propósito: pueden ser transitorios y conservan pausa + autoheal.
  * Tiparlo es el motivo por el que este archivo estrena TypeScript: era la convención
- * más fácil de romper en silencio (ver el bug 400 en docs/TECHNICAL_DEBT.md).
+ * más fácil de romper en silencio (ver el bug 400 en ~/Boveda/Proyectos/courseDownloader/Deuda.md).
  */
 export interface ErrorBackend extends Error {
   httpStatus?: number;

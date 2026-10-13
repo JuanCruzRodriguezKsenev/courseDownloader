@@ -1,6 +1,6 @@
 # Seguridad
 
-Postura de seguridad actual del proyecto y por qué se tomó cada decisión de permisos. Para el tracking de issues abiertos, ver `docs/TECHNICAL_DEBT.md` (sección Seguridad) — este documento describe el estado deseado/la política, no la lista de pendientes.
+Postura de seguridad actual del proyecto y por qué se tomó cada decisión de permisos. Para el tracking de issues abiertos, ver `~/Boveda/Proyectos/courseDownloader/Deuda.md` (sección Seguridad) — este documento describe el estado deseado/la política, no la lista de pendientes.
 
 ## Regla: contenido scrapeado nunca va a `.innerHTML`
 
@@ -8,7 +8,7 @@ Todo texto que provenga del scraper de **cualquier** portal (`sitio/<portal>/scr
 
 - ✅ Correcto: `label.innerText = clase.titulo` (patrón usado en `renderers.js:74`, `:124`).
 - ✅ Correcto cuando el string HTML es inevitable (mezcla markup fijo + dato de terceros): escapar el dato con `Utils.escaparHtml` antes de interpolarlo — patrón aplicado en `popup.js:renderizarListadoInterfaz` al pasar el título a la tarjeta de estado (que pinta vía `.innerHTML`). Desde la isla Preact #4, la lista en vivo se pinta con los componentes `<TarjetaEstado>`/`<FilaClase>` de `popup/features/listaClases.preact.js` (las versiones de `renderers.js` quedaron como referencia muerta), así que la misma obligación de escapar aplica en el límite del view-model `window.ListaClases` que alimenta esos componentes.
-- ❌ Incorrecto: `` card.innerHTML = `<p>${clase.titulo}</p>` `` (patrón que causó el XSS ya corregido; ver `docs/TECHNICAL_DEBT.md`, sección Resuelto).
+- ❌ Incorrecto: `` card.innerHTML = `<p>${clase.titulo}</p>` `` (patrón que causó el XSS ya corregido; ver `~/Boveda/Proyectos/courseDownloader/Deuda.md`, sección Resuelto).
 
 Esta es la **fuente canónica** de la regla. `docs/coding-standards.md` la referencia con una versión de una línea (para verla al escribir código), pero el detalle y el rationale viven acá.
 
@@ -33,7 +33,7 @@ Esta es la **fuente canónica** de la regla. `docs/coding-standards.md` la refer
 - `https://ramonnet.com.ar/*`, `http://.../*` — necesario para el scraping y el fetch del HTML de cada clase con `credentials: "include"` (para reusar la sesión autenticada del usuario en el navegador).
 - `https://*.bunnyinfra.net/*`, `https://*.b-cdn.net/*` — CDN que sirve los manifiestos `.m3u8` y los fragmentos `.ts`.
 
-**Portal 2 — Anatomy by Chris (Hotmart Club):** son cinco porque su cadena de video pasa por cinco hosts distintos, todos medidos (ver `docs/portal-anatomy-by-chris-diseno.md` §La cadena de video). Olvidar el del CDN no se ve como un error de permisos sino como descargas que fallan en el primer fragmento.
+**Portal 2 — Anatomy by Chris (Hotmart Club):** son cinco porque su cadena de video pasa por cinco hosts distintos, todos medidos (ver `~/Boveda/Proyectos/courseDownloader/Diseños/portal-anatomy-by-chris-diseno.md` §La cadena de video). Olvidar el del CDN no se ve como un error de permisos sino como descargas que fallan en el primer fragmento.
 
 - `https://hotmart.com/*` — el club: scraping del listado.
 - `https://api-club-course-consumption-gateway-ga.cb.hotmart.com/*` — API de lecciones (paso 1 de `resolverManifiesto`).

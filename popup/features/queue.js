@@ -45,10 +45,10 @@
  * - [SPLIT] Extraídas de popup.js las dos operaciones de MUTACIÓN de la cola:
  *   encolarItemsEnCaliente (agregar con optimistic update + rollback) y
  *   quitarItemsDeColaEnLote (sacar un lote y volverlo a 'pending'). Sin cambios
- *   de comportamiento respecto a popup.js v5.7.1. Ver ADR-0005, ROADMAP Fase 2.
+ *   de comportamiento respecto a popup.js v5.7.1. Ver ADR-0005, ~/Boveda/Proyectos/courseDownloader/Diseños/ROADMAP.md Fase 2.
  * ==========================================================================
  * Módulo 3/4 de la reorganización feature-driven de popup.js
- * (ver docs/adr/0005-feature-driven-popup-split.md, docs/ROADMAP.md Fase 2).
+ * (ver docs/adr/0005-feature-driven-popup-split.md, ~/Boveda/Proyectos/courseDownloader/Diseños/ROADMAP.md Fase 2).
  *
  * Encapsula las operaciones que MUTAN la cola de descarga (AppState.colaDescargas)
  * y sincronizan con el service worker por IPC:

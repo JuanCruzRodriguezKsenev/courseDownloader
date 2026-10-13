@@ -370,7 +370,7 @@
        tomaba su `:disabled` de `base.css` (apagada, `cursor: not-allowed`) y el texto "Todos"
        se quedaba con el `cursor: pointer` y el color plenos de la regla de arriba. O sea que
        la mitad derecha del mismo control **decía "clickeame"** mientras la izquierda decía lo
-       contrario. Es el defecto de "dos densidades" del §2.1 de alertas-y-bloqueo-diseno.md,
+       contrario. Es el defecto de "dos densidades" del §2.1 de ~/Boveda/Proyectos/courseDownloader/Diseños/alertas-y-bloqueo-diseno.md,
        reentrando por el bloqueo individual en vez de por el de región.
 
        El tinte va en el LABEL para que alcance al texto, y por eso hay que neutralizar el

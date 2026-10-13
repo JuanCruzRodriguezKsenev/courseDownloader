@@ -44,7 +44,7 @@
  * CHANGELOG v5.2.1:
  * - [FIX] inicializarSincronizacionStorage normaliza un estado 'error' heredado de storage
  *   viejo (fix bug 400 previo, ya revertido) a 'pending' al cargar, para que esas clases
- *   sean re-encolables y se rendericen bien. Ver background.js v5.10.1, docs/notificaciones-fallos-diseno.md.
+ *   sean re-encolables y se rendericen bien. Ver background.js v5.10.1, ~/Boveda/Proyectos/courseDownloader/Diseños/notificaciones-fallos-diseno.md.
  * CHANGELOG v5.2.0:
  * - [FIX] limpiarSesionLocal: ahora resetea listadoClasesGlobal y ráfagaEnCurso en memoria.
  *   Antes solo limpiaba el storage, dejando el estado en memoria inconsistente si el popup
@@ -258,7 +258,7 @@ export function crearAppState(almacenamiento: PuertoAlmacenamiento, mensajeria: 
       // Normalización defensiva: un estado 'error' heredado de storage viejo (el fix del
       // bug 400 lo usó al principio, ya revertido a 'pending') no lo reconoce el resto del
       // popup — se lo trata como 'pending' para que sea re-encolable y se renderice bien.
-      // Ver docs/notificaciones-fallos-diseno.md.
+      // Ver ~/Boveda/Proyectos/courseDownloader/Diseños/notificaciones-fallos-diseno.md.
       //
       // Y normalización de `sitioId` (ADR-0010): lo persistido antes del multi-sitio no lo
       // trae. Se completa acá, al cargar, para que el resto del código pueda asumir que

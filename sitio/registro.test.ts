@@ -249,7 +249,7 @@ describe("topeEscaneoMs: el techo del escaneo es una medición, no un default", 
 
   it("Anatomy le deja margen real a sus ~11 s medidos", () => {
     // /v1/navigation ~4,0 s + el pool de 114 materiales 7,1 s → ~11,1 s
-    // (docs/escaneo-api-anatomy-diseno.md). El tope tiene que estar por ENCIMA con holgura:
+    // (~/Boveda/Proyectos/courseDownloader/Diseños/escaneo-api-anatomy-diseno.md). El tope tiene que estar por ENCIMA con holgura:
     // si alguien lo baja a "11 s porque eso mide", vuelve el error falso en la primera
     // conexión lenta.
     expect(SitioAnatomyByChris.topeEscaneoMs).toBeGreaterThan(15000);

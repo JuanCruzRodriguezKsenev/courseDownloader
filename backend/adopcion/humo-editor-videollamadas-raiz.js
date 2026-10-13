@@ -1,5 +1,5 @@
 // Humo en jsdom para Plan 23: videollamadas en bloque y raíz decidida en editor de adopción
-// Verifica los criterios AC-1 a AC-13 según docs/specs/editor-ignorar-y-raiz/spec.md
+// Verifica los criterios AC-1 a AC-13 según ~/Boveda/Proyectos/courseDownloader/Specs/editor-ignorar-y-raiz/spec.md
 
 import { JSDOM, VirtualConsole } from "jsdom";
 import fs from "node:fs";

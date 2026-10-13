@@ -24,14 +24,14 @@
  *   `.ts` no puede importar un `.js`, así que mientras este archivo fuera `.js`,
  *   `plataforma/composicion.ts` no podía importarlo — y sin eso no se le puede
  *   inyectar la URL de sondeo al daemon de conexión, que es lo único que lo retiene
- *   en `shared/` en vez de `core/`. Ver docs/rearquitectura-diseno.md §El próximo paso.
+ *   en `shared/` en vez de `core/`. Ver ~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md §El próximo paso.
  * - Los módulos hermanos (`ResolverManifiesto`, `Scraper`, `ParserTitulos`) siguen
  *   siendo `.js` y se siguen leyendo como globals, ahora vía `declare const`. No se
  *   importan a propósito: eso es lo que mantiene perezosas las puertas de abajo.
  *
  * CHANGELOG v1.0.0:
  * - [CAPA 2] Primer archivo del adaptador de sitio (ver ADR-0008 y
- *   docs/rearquitectura-diseno.md). Concentra lo que hoy estaba hardcodeado en
+ *   ~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md). Concentra lo que hoy estaba hardcodeado en
  *   la UI: el concepto de "cátedra" (etiquetas, centinelas COMUN/TODAS, copy del
  *   modal). La UI pasa a consumir este descriptor en vez de conocer Ramón Net.
  * ==========================================================================

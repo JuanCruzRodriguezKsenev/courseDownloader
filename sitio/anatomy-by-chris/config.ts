@@ -17,7 +17,7 @@
  * Los VALORES de este portal. La forma —qué tiene que traer un adaptador y qué significa cada
  * miembro— vive en `core/puertos/sitio.ts`, que es su hogar canónico. El detalle de la
  * medición (selectores, contrato de la API, las cuatro trampas del DOM) está en
- * `docs/portal-anatomy-by-chris-diseno.md`.
+ * `~/Boveda/Proyectos/courseDownloader/Diseños/portal-anatomy-by-chris-diseno.md`.
  *
  * DOS COSAS QUE ESTE PORTAL HACE DISTINTO DE RAMÓN NET
  * -----------------------------------------------------
@@ -136,12 +136,12 @@ const SitioAnatomyByChris: SitioAnatomyDescriptor = {
 
   // Acá no hay selector de materia ni botón de mostrar: el escaneo le pide el árbol entero
   // a la API del club y trae todos los módulos con sus clases de una. Ver
-  // docs/escaneo-api-anatomy-diseno.md. Texto plano: lo escapa la isla del onboarding.
+  // ~/Boveda/Proyectos/courseDownloader/Diseños/escaneo-api-anatomy-diseno.md. Texto plano: lo escapa la isla del onboarding.
   instruccionEscaneo:
     "Un solo escaneo trae todos los módulos del curso con sus clases y sus PDF: no hay que elegir materia ni apretar nada más.",
 
   // 30 s contra los ~11 s medidos (/v1/navigation ~4,0 s + el pool de 114 materiales 7,1 s,
-  // los dos en docs/escaneo-api-anatomy-diseno.md). El margen es deliberado: el pool sale a
+  // los dos en ~/Boveda/Proyectos/courseDownloader/Diseños/escaneo-api-anatomy-diseno.md). El margen es deliberado: el pool sale a
   // la red 114 veces y una conexión lenta lo estira sin que eso sea una falla. Los 6 s que
   // había fijos en popup.js quedaban DEBAJO del caso normal, así que este portal mostraba un
   // error falso en cada escaneo.

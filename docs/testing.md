@@ -310,7 +310,7 @@ bloqueador reutilizable, los controles que siguen al resultado, los carteles de 
 capa flotante compartida:
 
 - **+10** en **`popup/features/bloqueo.test.js`, archivo nuevo** (de ahí 35 → 36 archivos). Fija
-  el contrato del §2 de `alertas-y-bloqueo-diseno.md`, que hasta ahora vivía copiado en tres
+  el contrato del §2 de `~/Boveda/Proyectos/courseDownloader/Diseños/alertas-y-bloqueo-diseno.md`, que hasta ahora vivía copiado en tres
   funciones de `popup.js` — o sea, **en el único archivo que la suite no puede ver**. Lo que más
   vale de los diez es el que fija la asimetría: liberar NO escribe `disabled = false`. Esa regla
   estaba sólo en prosa y es la que, violada, enciende el buscador sin lista.
@@ -409,7 +409,7 @@ Ramón Net — `allowJs` está en `false`. De la carpeta del portal nuevo sólo 
 figura en la lista pero **aporta cero archivos** — los dos son `.js`, y ahí está la trampa, no
 la salida. Una carpeta con `.ts` que no esté listada pasa la compuerta en
 verde sin que nadie la mire; fue el caso de `shared/` y `plataforma/` entre la Fase 5b y el
-2026-08-03 (ver `docs/TECHNICAL_DEBT.md` §Testing). Al migrar `.ts` a una raíz nueva,
+2026-08-03 (ver `~/Boveda/Proyectos/courseDownloader/Deuda.md` §Testing). Al migrar `.ts` a una raíz nueva,
 agregala al `include` y confirmá con `pnpm exec tsc --noEmit --listFiles`.
 
 ## Cómo correr los tests
@@ -453,7 +453,7 @@ Casos de borde a cubrir explícitamente para `formatTitleStructured`/`clasificar
 
 ### 4. `popup.js` — parcial: lo ya extraído está cubierto, el núcleo sigue bloqueado
 
-El `popup.js` original era un único closure `DOMContentLoaded` con ~50 funciones anidadas no exportables — no testeable así. La Fase 2 (cerrada) extrajo la lógica cohesiva a `popup/features/*` (y a islas Preact), y esos módulos **sí** se testean de forma aislada: hay tests para `serverConnection`, `queue`, `filters`, `faceta` (el módulo que hasta el cierre de la Fase 2 se llamó `catedra`) y las seis islas Preact. Lo que queda sin cubrir es el núcleo de `popup.js` que por diseño permanece en el closure (init + wiring + orquestación de scraping/render, que ADR-0005 define como estado final) — ver `docs/ROADMAP.md` Fase 2 y `docs/adr/0005-feature-driven-popup-split.md`.
+El `popup.js` original era un único closure `DOMContentLoaded` con ~50 funciones anidadas no exportables — no testeable así. La Fase 2 (cerrada) extrajo la lógica cohesiva a `popup/features/*` (y a islas Preact), y esos módulos **sí** se testean de forma aislada: hay tests para `serverConnection`, `queue`, `filters`, `faceta` (el módulo que hasta el cierre de la Fase 2 se llamó `catedra`) y las seis islas Preact. Lo que queda sin cubrir es el núcleo de `popup.js` que por diseño permanece en el closure (init + wiring + orquestación de scraping/render, que ADR-0005 define como estado final) — ver `~/Boveda/Proyectos/courseDownloader/Diseños/ROADMAP.md` Fase 2 y `docs/adr/0005-feature-driven-popup-split.md`.
 
 ## Qué NO testear (por ahora)
 

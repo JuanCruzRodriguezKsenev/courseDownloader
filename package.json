@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "packageManager": "pnpm@11.1.1",
-  "description": "Extensión Course Downloader. Empaquetada con WXT (ver docs/rearquitectura-diseno.md); la carpeta a cargar en el navegador es .output/chrome-mv3/. El backend Bun que la acompaña vive en backend/ (ver docs/fusion-monorepo-diseno.md).",
+  "description": "Extensión Course Downloader. Empaquetada con WXT (ver ~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md); la carpeta a cargar en el navegador es .output/chrome-mv3/. El backend Bun que la acompaña vive en backend/ (ver ~/Boveda/Proyectos/courseDownloader/Diseños/fusion-monorepo-diseno.md).",
   "scripts": {
     "dev": "wxt",
     "build": "wxt build",

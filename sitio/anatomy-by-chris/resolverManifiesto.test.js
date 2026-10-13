@@ -3,7 +3,7 @@
  *
  * Las respuestas de los tres fetch son las MEDIDAS en el navegador el 2026-08-07 (contrato de
  * la API del club, `__NEXT_DATA__` del embed y master de Akamai), recortadas a lo que el
- * algoritmo lee. Ver `docs/portal-anatomy-by-chris-diseno.md`.
+ * algoritmo lee. Ver `~/Boveda/Proyectos/courseDownloader/Diseños/portal-anatomy-by-chris-diseno.md`.
  *
  * Lo que estos tests protegen, y es lo que más caro sale si se rompe: que se devuelva la
  * **variante** y no el master. `core/hls/hlsEngine.ts` no los distingue y falla en silencio —

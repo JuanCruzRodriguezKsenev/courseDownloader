@@ -19,7 +19,7 @@ Qué se usa, por qué, y qué alternativas se consideraron y se descartaron. Par
 > balance no fue que aquellos argumentos fueran malos, sino la re-arquitectura: la
 > conversión de globales a módulos ES había que hacerla igual para los puertos, así que el
 > bundler dejó de ser costo puro. Ver ADR-0008 (supersede a ADR-0001) y
-> `docs/rearquitectura-diseno.md`.
+> `~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md`.
 
 ## Por qué JS vanilla sin bundler (histórico — vigente hasta la Fase 3)
 

@@ -14,7 +14,7 @@
 ## 1. Por qué hacía falta una marca propia
 
 La extensión se llamó *RamonNet Video Downloader* hasta la fusión, y el rename a Course
-Downloader (`ee32c0c`, ver `docs/copy-generico-diseno.md` §5.2) cambió el **nombre** pero no la
+Downloader (`ee32c0c`, ver `~/Boveda/Proyectos/courseDownloader/Diseños/copy-generico-diseno.md` §5.2) cambió el **nombre** pero no la
 **imagen**. Hoy sirve a tres portales y sigue vistiendo la ropa del primero:
 
 - el ícono (`public/icons/*.png`, también en el header del popup) es la "R" de Ramón Net;

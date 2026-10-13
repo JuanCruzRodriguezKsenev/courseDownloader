@@ -7,7 +7,7 @@
  *   quedaba en el motor de descarga; con esto `HlsEngine` pasa a ser genérico y sólo
  *   recibe una URL .m3u8 ya resuelta. Misma lógica, mismos fallbacks, mismos errores
  *   tipados; los hosts/plantilla del CDN y la marca de ruta salen ahora del config
- *   del sitio. Ver ADR-0008 y docs/rearquitectura-diseno.md.
+ *   del sitio. Ver ADR-0008 y ~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md.
  * ==========================================================================
  * QUÉ HACE
  * --------

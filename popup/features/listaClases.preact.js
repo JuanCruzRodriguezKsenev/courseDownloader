@@ -365,7 +365,7 @@ export function ListaClases() {
 
   // [CLASSROOM CORTE 1] La nota del escaneo va DENTRO de la lista, como `.cola-divisor`: la
   // región sigue teniendo un solo dueño (esta isla) y un solo `if`, que es la regla de
-  // `docs/alertas-y-bloqueo-diseno.md` §1. Texto plano: no usa dangerouslySetInnerHTML.
+  // `~/Boveda/Proyectos/courseDownloader/Diseños/alertas-y-bloqueo-diseno.md` §1. Texto plano: no usa dangerouslySetInnerHTML.
   const nota = ctx.nota
     ? html`<p class="lista-nota ${ctx.onNotaClick ? 'clickable' : ''}" key="nota" onClick=${ctx.onNotaClick}>${ctx.nota}</p>`
     : null;

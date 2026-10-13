@@ -7,7 +7,7 @@ _metadata/
 # Dev dependencies
 node_modules/
 
-# Salidas del bundler WXT (Fase 3 — ver docs/rearquitectura-diseno.md)
+# Salidas del bundler WXT (Fase 3 — ver ~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md)
 #  .output/ : la extensión compilada (es lo que se carga en chrome://extensions/)
 #  .wxt/    : types y config generados por `wxt prepare`
 .output/
@@ -16,9 +16,9 @@ node_modules/
 # Evidencia de medición, NO fuente. Las dos viven donde todo lo demás sí es fuente, así que
 # se ignoran para que un `git add -A` no las commitee (~4 MB de HTML + los .json):
 #  sitio/nuevo sitio/ : las páginas guardadas de Hotmart Club con las que se midió el portal 2
-#                       (docs/portal-anatomy-by-chris-diseno.md). No es un adaptador.
+#                       (~/Boveda/Proyectos/courseDownloader/Diseños/portal-anatomy-by-chris-diseno.md). No es un adaptador.
 #  descargas/         : las mediciones de /v1/navigation, los materiales y la corrida completa
-#                       (docs/escaneo-api-anatomy-diseno.md).
+#                       (~/Boveda/Proyectos/courseDownloader/Diseños/escaneo-api-anatomy-diseno.md).
 # El fixture que los tests SÍ leen no está acá: es sitio/anatomy-by-chris/__fixtures__/, y va
 # versionado.
 sitio/nuevo sitio/
@@ -30,7 +30,7 @@ Thumbs.db
 *.log
 *.part
 
-# Evidencia de medición del portal Google Classroom (docs/portal-google-classroom-diseno.md §4):
+# Evidencia de medición del portal Google Classroom (~/Boveda/Proyectos/courseDownloader/Diseños/portal-google-classroom-diseno.md §4):
 # páginas guardadas, HAR y la sonda descartable del service worker. Los HAR pueden llevar datos
 # de la cuenta aunque se exporten sanitizados. eslint.config.js también la ignora.
 docs/muestras/

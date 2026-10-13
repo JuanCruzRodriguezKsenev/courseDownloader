@@ -1,5 +1,5 @@
 // Humo en jsdom para Plan 24: filtros y orden en editor de adopción
-// Verifica los criterios AC-1 a AC-16 según docs/specs/editor-filtros-orden/spec.md
+// Verifica los criterios AC-1 a AC-16 según ~/Boveda/Proyectos/courseDownloader/Specs/editor-filtros-orden/spec.md
 
 import { JSDOM, VirtualConsole } from "jsdom";
 import fs from "node:fs";

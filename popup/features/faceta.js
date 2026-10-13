@@ -22,7 +22,7 @@
  * CHANGELOG v1.0.0:
  * - [SPLIT] Extraída de popup.js toda la lógica de cátedra (badge, autoselección,
  *   asistente multicátedra y su modal). Cerró la Fase 2 del split feature-driven
- *   (ver ADR-0005, docs/ROADMAP.md).
+ *   (ver ADR-0005, ~/Boveda/Proyectos/courseDownloader/Diseños/ROADMAP.md).
  * ==========================================================================
  * QUÉ HACE
  * --------

@@ -9,7 +9,7 @@
  *   y el orden de limpieza del título. `Utils` queda con lo genérico (sanitizado,
  *   escapado HTML, acentos, cripto, fetch con reintentos, telemetría).
  *   Sin cambio de comportamiento: los 39 tests de caracterización se mudaron con el
- *   código. Ver ADR-0008 y docs/rearquitectura-diseno.md.
+ *   código. Ver ADR-0008 y ~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md.
  * ==========================================================================
  * QUÉ HACE
  * --------

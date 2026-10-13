@@ -10,7 +10,7 @@ Este proyecto trata la documentación con la misma disciplina que el código (`d
 - [ ] Si cambié cómo se comunican popup/SW/offscreen, o agregué una acción IPC nueva → actualicé `docs/architecture.md` y/o `docs/patterns.md`.
 - [ ] Si tomé una decisión de arquitectura significativa → agregué un ADR nuevo en `docs/adr/` (nunca edito uno existente).
 - [ ] Si mi cambio toca manejo de contenido scrapeado o de terceros → revisé `docs/security.md`.
-- [ ] Si resolví un ítem de `docs/TECHNICAL_DEBT.md` → lo marqué como resuelto ahí.
+- [ ] Si resolví un ítem de `~/Boveda/Proyectos/courseDownloader/Deuda.md` → lo marqué como resuelto ahí.
 
 ## Cómo se probó
 

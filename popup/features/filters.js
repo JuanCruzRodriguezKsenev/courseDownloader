@@ -54,10 +54,10 @@
  *   (desbanearFiltros). Además se unificó el predicado de filtrado de la pestaña Cola
  *   —antes duplicado en 3 lugares de popup.js (masterCheck, renderizarListadoInterfaz,
  *   actualizarMasterCheckState)— en coincideConFiltrosCola(clase, busqueda). Sin
- *   cambio de comportamiento respecto a popup.js v5.10.0. Ver ADR-0005, ROADMAP Fase 2.
+ *   cambio de comportamiento respecto a popup.js v5.10.0. Ver ADR-0005, ~/Boveda/Proyectos/courseDownloader/Diseños/ROADMAP.md Fase 2.
  * ==========================================================================
  * Módulo 4/4 de la reorganización feature-driven de popup.js
- * (ver docs/adr/0005-feature-driven-popup-split.md, docs/ROADMAP.md Fase 2).
+ * (ver docs/adr/0005-feature-driven-popup-split.md, ~/Boveda/Proyectos/courseDownloader/Diseños/ROADMAP.md Fase 2).
  *
  * El objeto de estado `filtrosActivos` (Sets estados/materias/valoresFaceta) sigue viviendo
  * en popup.js y se pasa POR REFERENCIA en ctx (objeto compartido, igual que queue.js
@@ -249,7 +249,7 @@ const FilterFeature = {
      * hace nada es peor que uno apagado: mueve la duda al usuario.
      *
      * **Mira el resultado FILTRADO, y acá sí corresponde** — ojo con esto, porque parece
-     * contradecir la trampa del §2.2 de alertas-y-bloqueo-diseno.md ("el bloqueo mira la
+     * contradecir la trampa del §2.2 de ~/Boveda/Proyectos/courseDownloader/Diseños/alertas-y-bloqueo-diseno.md ("el bloqueo mira la
      * COLECCIÓN, jamás el resultado filtrado"). No la contradice: esa regla protege la SALIDA
      * —el buscador y las pastillas—, porque apagarlos con un filtro que dejó cero **encierra al
      * usuario**, que ya no puede sacar el filtro que lo dejó así. "Todos" no es salida: es una
@@ -296,7 +296,7 @@ const FilterFeature = {
     function desbanearFiltros() {
       // EL BUSCADOR Y LOS FILTROS NO LLEVAN CONDICIÓN, y es deliberado: son **la salida**.
       // Apagarlos porque el filtro dejó cero resultados encierra al usuario, que ya no puede
-      // sacar el filtro que lo dejó así (§2.2 de alertas-y-bloqueo-diseno.md). Lo único que
+      // sacar el filtro que lo dejó así (§2.2 de ~/Boveda/Proyectos/courseDownloader/Diseños/alertas-y-bloqueo-diseno.md). Lo único que
       // los apaga es la COLECCIÓN vacía, y eso lo decide `bloquearToolbar` afuera.
       nodos.search.disabled = false;
       if (nodos.btnRescan) nodos.btnRescan.disabled = false;

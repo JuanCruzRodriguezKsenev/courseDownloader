@@ -6,14 +6,14 @@
  *   ahora recibe un `PuertoAlmacenamiento` por inyección y se instancia en los
  *   entrypoints (composición). Pasa de objeto singleton a factory `crearHistorialFallos`.
  *   Sin cambios de comportamiento; sus 11 tests dejaron de mockear `chrome` a mano y
- *   corren contra `AlmacenamientoEnMemoria`. Fase 5 de docs/rearquitectura-diseno.md.
+ *   corren contra `AlmacenamientoEnMemoria`. Fase 5 de ~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md.
  * CHANGELOG v1.0.0:
  * - [NUEVO] Fuente de verdad del historial de fallos terminales de la cola.
  * ==========================================================================
  * Historial acotado (últimos 50, más-reciente-primero) de fallos terminales de la cola
  * (rechazo 4xx / sesión / servidor / internet). Lo escribe el service worker; lo lee y
  * lo muta el popup (campanita). Schema en docs/data-model.md; diseño completo en
- * docs/notificaciones-fallos-diseno.md.
+ * ~/Boveda/Proyectos/courseDownloader/Diseños/notificaciones-fallos-diseno.md.
  *
  * A diferencia del daemon de conexión, NO mantiene espejo en memoria: el storage es la
  * única fuente. `suscribir(cb)` sólo avisa "algo cambió" y el suscriptor vuelve a pedir

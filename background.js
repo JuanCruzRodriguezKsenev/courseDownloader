@@ -72,12 +72,12 @@
  *   background.test.js —incluidos los 12 de caracterización del bucle y el auto-heal
  *   escritos ANTES de esta migración— pasan sin tocar una sola aserción.
  *   Lo que sigue en chrome.* acá: runtime (IPC), alarms, notifications, tabs, windows,
- *   downloads y offscreen, cada uno esperando su puerto. Ver docs/rearquitectura-diseno.md.
+ *   downloads y offscreen, cada uno esperando su puerto. Ver ~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md.
  * CHANGELOG v5.11.0:
  * - [CAPA 2] El SW ahora carga el adaptador de sitio primero (importScripts de
  *   sitio/ramonnet/config.js + resolverManifiesto.js) y la resolución del .m3u8 se
  *   pide a `SitioActivo.resolverManifiesto(...)` en vez de a HlsEngine, que quedó
- *   genérico (v1.1.0). Ver ADR-0008 y docs/rearquitectura-diseno.md.
+ *   genérico (v1.1.0). Ver ADR-0008 y ~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md.
  * CHANGELOG v5.10.1:
  * - [FIX] El aviso de fallos (v5.10.0) frenaba la cola y no mostraba notificaciones si
  *   chrome.notifications no estaba disponible (permiso no aplicado hasta recargar la
@@ -87,7 +87,7 @@
  *   existencia de chrome.notifications, usa iconUrl absoluta (chrome.runtime.getURL) y
  *   loguea lastError; en la rama "rechazo" el aviso corre DESPUÉS del sendMessage+setTimeout
  *   (la cola sigue aun si el aviso falla); el listener onClicked se registra con guarda para
- *   no romper la carga del SW. Ver docs/notificaciones-fallos-diseno.md.
+ *   no romper la carga del SW. Ver ~/Boveda/Proyectos/courseDownloader/Diseños/notificaciones-fallos-diseno.md.
  * - [FIX] La clase rechazada por el 4xx vuelve a 'pending' (antes 'error'): el estado
  *   'error' no lo reconocía el resto del popup (filtros de selección/encolado piden
  *   'pending', y no hay CSS .badge.error) → la clase quedaba con render roto y sin poder
@@ -102,7 +102,7 @@
  *   pausarColaPorErrorDeConexion (tipos "sesion"/"servidor"/"internet"). Nuevo
  *   listener chrome.notifications.onClicked: enfoca (o abre) la pestaña de Ramón Net.
  *   Requiere el permiso "notifications" (manifest v5.2.0). Ver
- *   docs/notificaciones-fallos-diseno.md, docs/patterns.md §Circuit breaker.
+ *   ~/Boveda/Proyectos/courseDownloader/Diseños/notificaciones-fallos-diseno.md, docs/patterns.md §Circuit breaker.
  * CHANGELOG v5.9.0:
  * - [FIX bug 400] Rama nueva en el catch de procesarSiguienteElementoDeLaCola para el
  *   rechazo aplicativo 4xx del backend (errDescarga.tipoBackend==="rechazo", propagado
@@ -114,7 +114,7 @@
  *   (igual que "sesion"): se marca la clase 'error', se la saca de la cola con un .set()
  *   atómico de las 3 claves (patrón del path de éxito), se emite "clase_con_error" con
  *   título+motivo y se sigue con la próxima. Sin pausa, sin alarma. El 5xx/red conserva
- *   el flujo pausa+autoheal. Ver docs/TECHNICAL_DEBT.md y docs/patterns.md §Circuit breaker.
+ *   el flujo pausa+autoheal. Ver ~/Boveda/Proyectos/courseDownloader/Deuda.md y docs/patterns.md §Circuit breaker.
  * CHANGELOG v5.8.0:
  * - [FIX] Nuevo tipo de falla "sesion": cuando se intenta descargar sin sesión
  *   iniciada en Ramón Net, HlsEngine detecta el redirect al login y lanza un error
@@ -132,7 +132,7 @@
  *   despachado por lookup. Cada handler es async (request, sendResponse); el
  *   listener los envuelve en el mismo IIFE async + try/catch global y devuelve
  *   `true` síncrono. Comportamiento idéntico (los handlers siguen mutando
- *   loopActivo/controladorGraficoActivo por closure). Ver docs/TECHNICAL_DEBT.md
+ *   loopActivo/controladorGraficoActivo por closure). Ver ~/Boveda/Proyectos/courseDownloader/Deuda.md
  *   y docs/patterns.md §IPC.
  * CHANGELOG v5.6.5:
  * - [LOG] Una cancelación del usuario ya no se loguea como error fatal. El catch
@@ -144,7 +144,7 @@
  * - [LIMPIEZA] Eliminada la función muerta marcarClaseComoPendiente (la destapó
  *   ESLint no-unused-vars). Su lógica de "sacar de la cola + volver a 'pending'"
  *   ya vive inline en el handler remover_item_de_cola; la función quedó sin
- *   call-sites desde el commit inicial del repo. Ver docs/TECHNICAL_DEBT.md.
+ *   call-sites desde el commit inicial del repo. Ver ~/Boveda/Proyectos/courseDownloader/Deuda.md.
  *   (La escritura atómica que v5.6.3 aplicó sobre ella era, por tanto, sobre
  *   código sin uso — los otros 2 puntos de v5.6.3 siguen vigentes.)
  * CHANGELOG v5.6.3:
@@ -155,11 +155,11 @@
  *   otro .set() separado → si el SW se suspendía en el medio, quedaban
  *   desincronizadas (ej. ítem 'process' en progreso pero ya fuera de la cola).
  *   Ahora un único .set() por operación, siguiendo el patrón del handler
- *   inyectar_items_en_cola_activa. Ver docs/TECHNICAL_DEBT.md, ROADMAP Fase 3.
+ *   inyectar_items_en_cola_activa. Ver ~/Boveda/Proyectos/courseDownloader/Deuda.md, ~/Boveda/Proyectos/courseDownloader/Diseños/ROADMAP.md Fase 3.
  * CHANGELOG v5.6.2:
  * - [DEBT] Los catch(e){} silenciosos ahora dejan rastro con console.warn: el
  *   cierre del documento offscreen y el abort() de limpieza del controlador de
- *   gráfico activo (ver docs/TECHNICAL_DEBT.md, sección Menores/de proceso).
+ *   gráfico activo (ver ~/Boveda/Proyectos/courseDownloader/Deuda.md, sección Menores/de proceso).
  * CHANGELOG v5.6.1:
  * - [FIX] La clasificación de fin de descarga ya no confunde una caída de conexión
  *   con una cancelación del usuario. Antes usaba controladorGraficoActivo.signal.

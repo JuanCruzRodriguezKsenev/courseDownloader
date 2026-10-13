@@ -24,7 +24,7 @@
  *   (ERR_BLOCKED_BY_RESPONSE.NotSameSite), marcando "sin internet". `/favicon.ico` responde 404
  *   sin CORP y el daemon no mira el status. Esta URL nunca se abre en pestaña (para eso está
  *   `urlListado`). Medido el 2026-09-12 en la consola del popup; ver
- *   `docs/portal-google-classroom-diseno.md` §8.
+ *   `~/Boveda/Proyectos/courseDownloader/Diseños/portal-google-classroom-diseno.md` §8.
  *
  * CHANGELOG v1.0.0:
  * - [CLASSROOM CORTE 1] Primer descriptor de Google Classroom. Portal sin videos HLS:
@@ -60,7 +60,7 @@ const SitioGoogleClassroom: PuertoSitio = {
   // extensión rechaza (`ERR_BLOCKED_BY_RESPONSE.NotSameSite`), lo que marcaba "sin internet".
   // `/favicon.ico` responde 404 sin CORP y el daemon no mira el status. Esta URL no se abre
   // nunca en una pestaña: para eso está `urlListado`. Medido el 2026-09-12 en la consola del
-  // popup; ver `docs/portal-google-classroom-diseno.md` §8.
+  // popup; ver `~/Boveda/Proyectos/courseDownloader/Diseños/portal-google-classroom-diseno.md` §8.
   urlSondeoInternet: "https://classroom.google.com/favicon.ico",
 
   esPaginaDelSitio(url) {

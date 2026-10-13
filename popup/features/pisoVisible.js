@@ -22,7 +22,7 @@
  * correcto **no** es estirarlo, es no mostrar nada. **Ese corolario todavía NO está
  * construido acá**: este módulo sólo garantiza el piso de lo que ya salió a pantalla. La
  * demora para aparecer es la otra mitad del par y sigue abierta como deuda
- * (`docs/TECHNICAL_DEBT.md` §El loader del popup no tiene dueño). Se dice acá porque un
+ * (`~/Boveda/Proyectos/courseDownloader/Deuda.md` §El loader del popup no tiene dueño). Se dice acá porque un
  * módulo que se llama "piso visible" invita a suponer que las dos mitades están.
  *
  * ── POR QUÉ EL VALOR ES UNA FUNCIÓN Y NO UN TEXTO ───────────────────────────────────────
@@ -55,7 +55,7 @@
  * ── LO QUE ESTE MÓDULO NO HACE ──────────────────────────────────────────────────────────
  *
  * No es dueño de ningún nodo: no sabe qué escribe ni puede impedir que otro escriba el mismo
- * nodo por atrás. Eso es el corte del dueño único (`docs/TECHNICAL_DEBT.md` §El loader del
+ * nodo por atrás. Eso es el corte del dueño único (`~/Boveda/Proyectos/courseDownloader/Deuda.md` §El loader del
  * popup no tiene dueño), que es **otra** deuda y sigue abierta. Éste resuelve el tiempo; aquél
  * resuelve quién. Si alguien escribe el nodo salteándose este módulo, el piso no lo alcanza.
  */

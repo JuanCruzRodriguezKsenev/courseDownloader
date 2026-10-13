@@ -57,3 +57,6 @@
 - [Moodle Ingeniería, el sexto portal (Plan 31)](project_moodle_ingenieria_plan31.md) — sexto portal Moodle Ingeniería por curso y multicurso desde /my/, sección 0 con nombre propio (RN-4), H-1 resuelto y paridad tripartita; compuerta en 87 archivos / 1313 tests
 - [Correcciones de la verificación del Plan 31 (Plan 34)](project_correcciones_verificacion_plan31_plan34.md) — serialización FIFO IPC SW, silenciado tras pagehide en scrapers Moodle, extensión real y miembros 21-22 en PuertoSitio; compuerta en 87 archivos / 1330 tests
 - [Kaltura en Moodle Asignaturas (Plan 32)](project_kaltura_asignaturas_plan32.md) — label con Kaltura como acceso .md; el plan omitió test 7 y inyeccion.test.js; base de worktree vieja, rebase a main
+- [Mudanza de docs a la bóveda (Plan 33)](project_mudanza_docs_boveda_plan33.md) — qué quedó en docs/, dónde está lo mudado y tabla de rutas viejas
+- [Guardas de fábrica sobre la bóveda](feedback_fabrica_guardas_boveda.md) — grep/find recursivo en la bóveda y git -C con ~ bloqueados; scripts con lista explícita y rutas absolutas
+- [G3 y comentarios de bloque](feedback_g3_comentarios_de_bloque.md) — continuaciones de comentarios HTML/CSS dan falsos positivos en el chequeo de sólo comentarios

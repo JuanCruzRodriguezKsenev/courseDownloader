@@ -32,5 +32,6 @@ Registro formal de las decisiones de arquitectura significativas del proyecto.
 | [0017](0017-indice-de-destino-en-la-raiz.md) | Índice de destino en la raíz del árbol | Aceptada (1 y 2 superados por 0018) |
 | [0018](0018-raiz-en-la-boveda-indice-versionado.md) | La raíz es la bóveda y el índice se versiona | Aceptada |
 | [0019](0019-raiz-por-portal-y-backend-decide-lo-descargado.md) | Raíz de destino por portal y el backend decide lo descargado | Aceptada |
+| [0020](0020-trabajo-en-la-boveda-referencia-en-el-repo.md) | El trabajo vive en la bóveda; en el repo, la referencia del código | Aceptada |
 
 Estados posibles: `Propuesta` → `Aceptada` | `Rechazada` | `Diferida` → (eventualmente) `Superseded by NNNN`.

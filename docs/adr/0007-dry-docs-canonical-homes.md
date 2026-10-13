@@ -35,3 +35,5 @@ Es el mismo argumento de DRY / *single source of truth* que sostiene el resto de
 - Citar **ejemplos** (2–3 acciones IPC de muestra, no la lista completa).
 - Una regla de seguridad **accionable** replicada en forma de una línea donde se necesita verla al codear (`coding-standards.md` → `security.md`), siempre que el detalle/rationale viva sólo en el canónico.
 - El `README.md` (audiencia usuario final) y los **ADR** (registros de decisión inmutables, fechados) no son fuente canónica viva y quedan fuera del alcance de recorte.
+
+> **Parcialmente superado** en cuanto a la ubicación de los hogares por [ADR-0020](0020-trabajo-en-la-boveda-referencia-en-el-repo.md) (2026-10-13).

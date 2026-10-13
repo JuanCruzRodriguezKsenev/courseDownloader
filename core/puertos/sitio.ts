@@ -357,7 +357,7 @@ export interface PuertoSitio {
    * el flujo de Ramón Net, así que el onboarding del segundo portal describía una UI que ahí
    * no existe.
    *
-   * **Obligatorio a propósito, no opcional.** El diseño (`copy-generico-diseno.md` §5.3) lo
+   * **Obligatorio a propósito, no opcional.** El diseño (`~/Boveda/Proyectos/courseDownloader/Diseños/copy-generico-diseno.md` §5.3) lo
    * proponía opcional; se ejecutó como requerido porque el motivo entero de meterlo al puerto
    * era que `tsc` obligue a cada portal nuevo a escribir la suya. Con `?` el portal que la
    * olvide compila igual y hereda un texto ajeno o vacío — que es exactamente el defecto que

@@ -86,7 +86,7 @@ describe('Isla Preact: Onboarding', () => {
     expect(root.querySelector('.onboarding-link').getAttribute('href')).toBe('https://falso.test/listado');
   });
 
-  // CORTE 2 de copy-generico-diseno.md: la slide "Clases y Videos" describía un FLUJO
+  // CORTE 2 de ~/Boveda/Proyectos/courseDownloader/Diseños/copy-generico-diseno.md: la slide "Clases y Videos" describía un FLUJO
   // ("el selector", "👁️ mostrar") que sólo existe en Ramón Net — en Anatomy un escaneo trae
   // el curso entero. Ahora sale de `PuertoSitio.instruccionEscaneo`. Lo que este test cuida
   // es que NO vuelva a hardcodearse: si alguien reescribe la frase en el componente, el

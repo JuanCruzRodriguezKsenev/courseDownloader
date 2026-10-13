@@ -12,7 +12,7 @@
  *   descriptor (`sitio.urlListado`), así que el label no tiene por qué nombrarla.
  * - [PENDIENTE, y es el corte 2] La frase del selector + "👁️ mostrar" describe un flujo
  *   que en Anatomy no existe. No se toca acá: necesita un miembro nuevo en PuertoSitio
- *   para que cada portal traiga su instrucción → docs/copy-generico-diseno.md §5.3.
+ *   para que cada portal traiga su instrucción → ~/Boveda/Proyectos/courseDownloader/Diseños/copy-generico-diseno.md §5.3.
  * ==========================================================================
  * Tercera "isla" de la migración incremental del popup a Preact (ver
  * docs/adr/0006-adopt-preact-islands-in-popup.md, docs/preact-migration.md).

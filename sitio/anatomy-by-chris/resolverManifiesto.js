@@ -11,7 +11,7 @@
  * CHANGELOG v1.0.0:
  * - [CORTE 7] Nace con el segundo portal. Todo el algoritmo está MEDIDO en el navegador el
  *   2026-08-07 — cadena de video, contrato de la API y auth incluidos. Ver
- *   `docs/portal-anatomy-by-chris-diseno.md`.
+ *   `~/Boveda/Proyectos/courseDownloader/Diseños/portal-anatomy-by-chris-diseno.md`.
  * ==========================================================================
  *
  * LOS TRES TIPOS DE FALLO, Y POR QUÉ LA DIFERENCIA IMPORTA

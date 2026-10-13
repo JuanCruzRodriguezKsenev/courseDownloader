@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import Bloqueo from './bloqueo.js';
 
 /**
- * Lo que fija este archivo es el CONTRATO del §2 de alertas-y-bloqueo-diseno.md, que hasta
+ * Lo que fija este archivo es el CONTRATO del §2 de ~/Boveda/Proyectos/courseDownloader/Diseños/alertas-y-bloqueo-diseno.md, que hasta
  * ahora vivía copiado en tres funciones de popup.js —o sea, en el único archivo que la suite
  * no puede ver—. Cada caso de acá corresponde a un defecto real que el proyecto ya pagó.
  */

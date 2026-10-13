@@ -1,7 +1,7 @@
 /**
  * BLOQUEO — el contrato de "esto ahora no se puede tocar", en un solo lugar (V1.0.0)
  * ==========================================================================
- * Hogar canónico del §2 de `docs/alertas-y-bloqueo-diseno.md`. Ahí está el POR QUÉ; acá está
+ * Hogar canónico del §2 de `~/Boveda/Proyectos/courseDownloader/Diseños/alertas-y-bloqueo-diseno.md`. Ahí está el POR QUÉ; acá está
  * el cómo, y existe porque el cómo estaba copiado en tres funciones de `popup.js`
  * (`bloquearToolbar`, `bloquearFilaDePortal`, `bloquearRegionesDeAlerta`) que repetían las
  * mismas tres decisiones con distinta letra — y cada control nuevo obligaba a acordarse de las

@@ -1,6 +1,6 @@
 import { defineConfig } from 'wxt';
 
-// Configuración de empaquetado (Fase 3 de docs/rearquitectura-diseno.md).
+// Configuración de empaquetado (Fase 3 de ~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md).
 //
 // El manifest deja de escribirse a mano: WXT lo GENERA desde este bloque + los
 // entrypoints detectados en `entrypoints/`. El `manifest.json` de la raíz queda como
@@ -42,7 +42,7 @@ export default defineConfig({
       'https://*.b-cdn.net/*',
       // --- Portal 2: Anatomy by Chris (Hotmart Club) ---
       // Los cinco orígenes salen de medir la cadena entera (ver
-      // docs/portal-anatomy-by-chris-diseno.md §La cadena de video). Olvidar el del CDN se ve
+      // ~/Boveda/Proyectos/courseDownloader/Diseños/portal-anatomy-by-chris-diseno.md §La cadena de video). Olvidar el del CDN se ve
       // como descargas que fallan en el primer fragmento, no como un error de permisos.
       'https://hotmart.com/*',                                             // el club
       'https://api-club-course-consumption-gateway-ga.cb.hotmart.com/*',   // API de lecciones

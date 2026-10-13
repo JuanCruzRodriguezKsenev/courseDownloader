@@ -27,7 +27,7 @@
   }
 
   /* Con detalle el loader dura minutos: fondo opaco y disposición en tarjetas (maqueta:
-     docs/specs/loader-con-progreso/maqueta-loader.png). Sin detalle, lo de arriba tal cual. */
+     ~/Boveda/Proyectos/courseDownloader/Specs/loader-con-progreso/maqueta-loader.png). Sin detalle, lo de arriba tal cual. */
   &:has(.loader-detalle) {
     background-color: var(--bg-main);
     backdrop-filter: none;

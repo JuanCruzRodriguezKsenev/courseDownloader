@@ -13,7 +13,7 @@
  * - [COPY GENÉRICA — corte 1] "Analizando aula virtual…" → "Analizando…". El texto era
  *   idéntico al de popup.js:573 y este archivo es el camino de RECUPERACIÓN TRAS CAÍDA
  *   DEL SERVER: si se arreglaba uno solo, el usuario veía una copy u otra según por
- *   dónde entrara. Los dos van siempre juntos → docs/copy-generico-diseno.md §5.1.
+ *   dónde entrara. Los dos van siempre juntos → ~/Boveda/Proyectos/courseDownloader/Diseños/copy-generico-diseno.md §5.1.
  *
  * CHANGELOG v1.10.0:
  * - [ISLA #4 · Etapa 2] Dejó de tocar el DOM de #ui-list directo (innerHTML="" +
@@ -80,7 +80,7 @@
  *   pasiva del servidor. Absorbido por el detector unificado de v1.2.0.
  * ==========================================================================
  * Módulo 2/4 de la reorganización feature-driven de popup.js
- * (ver docs/adr/0005-feature-driven-popup-split.md, docs/ROADMAP.md Fase 2).
+ * (ver docs/adr/0005-feature-driven-popup-split.md, ~/Boveda/Proyectos/courseDownloader/Diseños/ROADMAP.md Fase 2).
  *
  * Encapsula la detección de estado del servidor Bun y el auto-healing:
  * el polling de reconexión (internet + servidor) y la UI de "offline".

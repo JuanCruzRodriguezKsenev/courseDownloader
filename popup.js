@@ -93,7 +93,7 @@
  *   (conmutar de pestaña alcanzaba). Tercera vez que este archivo paga el mismo error, después
  *   del watchdog y del error de inyección. Se fueron con ella tres `disabled` puestos a mano.
  * - [BLOQUEO REUTILIZABLE] `popup/features/bloqueo.js`: el contrato del §2 de
- *   alertas-y-bloqueo-diseno.md dejó de estar copiado en `bloquearToolbar`,
+ *   ~/Boveda/Proyectos/courseDownloader/Diseños/alertas-y-bloqueo-diseno.md dejó de estar copiado en `bloquearToolbar`,
  *   `bloquearFilaDePortal` y `bloquearRegionesDeAlerta`. Elige la forma por elemento
  *   (`disabled` vs `aria-disabled`) y hace ESTRUCTURAL la asimetría: `aplicar()` nunca escribe
  *   `disabled = false`, sólo el `restaurar` de quien llama. Y estrena tests, que es medio
@@ -106,7 +106,7 @@
  * - [FEEDBACK DE INYECCIÓN] El escaneo que muere porque Chrome rechazó la inyección ya avisa.
  *   Era la ÚNICA de las salidas del escaneo sin tarjeta: escribía en `nodos.txtEstado` —el
  *   `<p>` del footer, que está oculto por un `display:none` inline que nadie le saca (hallazgo
- *   §6.8 de alertas-y-bloqueo-diseno.md, sin arreglar acá)— y encima restauraba la lista vieja,
+ *   §6.8 de ~/Boveda/Proyectos/courseDownloader/Diseños/alertas-y-bloqueo-diseno.md, sin arreglar acá)— y encima restauraba la lista vieja,
  *   con lo cual la pantalla quedaba idéntica a un escaneo exitoso. Se detectó con el banco de
  *   pruebas: la rama corría (el botón pasaba a "Re-escanear") y no se veía nada.
  *   `escaneoMuertoPorTimeout` pasa a ser `escaneoMuerto` con un campo `motivo`
@@ -144,7 +144,7 @@
  *       lanzaba un segundo escaneo concurrente sobre el primero;
  *   (d) el mensaje va a la TARJETA de la lista, no al footer, donde convivía con el
  *       diagnóstico de conexión —que tiene otro dueño— y quedaba pisado.
- *   Estado del ítem → docs/TECHNICAL_DEBT.md; detalle → docs/alertas-y-bloqueo-diseno.md §6.1.
+ *   Estado del ítem → ~/Boveda/Proyectos/courseDownloader/Deuda.md; detalle → ~/Boveda/Proyectos/courseDownloader/Diseños/alertas-y-bloqueo-diseno.md §6.1.
  *
  * CHANGELOG v5.20.0:
  * - [BANNER OCUPA LISTA + TOOLBAR] Con la cola pausada, la card de error ocupaba #ui-list
@@ -186,7 +186,7 @@
  *   con dos portales era falso la mitad de las veces: "Analizando aula virtual…" (:573),
  *   los cinco "Re-escanear aula virtual 🔄", el ejemplo de carpeta "'RamonNet'" (:671) y
  *   el cartel de escaneo (:857) quedaron genéricos. Los dos console.log de la pestaña
- *   fueron de arrastre. Inventario y regla de decisión → docs/copy-generico-diseno.md.
+ *   fueron de arrastre. Inventario y regla de decisión → ~/Boveda/Proyectos/courseDownloader/Diseños/copy-generico-diseno.md.
  * - [OJO con el cartel de :857] Es genérico A PROPÓSITO, no por falta de ganas: ahí
  *   `sitioActivo` todavía es el portal anterior. El comentario en el sitio lo explica.
  * - [NO entró] La instrucción de escaneo del onboarding (necesita un miembro nuevo en
@@ -221,14 +221,14 @@
  *   perteneceASeleccionFaceta(clase). Renombres: actualizarBadgeCatedra →
  *   actualizarBadgeFaceta, verificarYMostrarAsistenteMulticatedra →
  *   verificarYMostrarAsistenteFaceta, filtrosActivos.catedras → .valoresFaceta.
- *   Sin cambio de comportamiento. Ver ADR-0008 y docs/rearquitectura-diseno.md.
+ *   Sin cambio de comportamiento. Ver ADR-0008 y ~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md.
  * CHANGELOG v5.15.0:
  * - [FIX] El handler "clase_con_error" ahora vuelve la clase rechazada a 'pending' (antes
  *   'error'). El estado 'error' no lo reconocía el resto del popup: los filtros de
  *   selección/encolado piden 'pending' (no se podía re-encolar) y no hay CSS .badge.error
  *   (render roto). Ahora la clase se ve como una pendiente normal y es re-encolable; el
  *   fallo se comunica por la campanita + notificación. Espejo del SW en background.js
- *   v5.10.1. Ver docs/notificaciones-fallos-diseno.md.
+ *   v5.10.1. Ver ~/Boveda/Proyectos/courseDownloader/Diseños/notificaciones-fallos-diseno.md.
  * CHANGELOG v5.14.0:
  * - [SPLIT] Extraída la lógica de cátedra/multicátedra a la feature
  *   popup/features/catedra.js (CatedraFeature.crear(ctx)): actualizarBadgeCatedra,
@@ -239,7 +239,7 @@
  *   verificarYMostrarAsistenteMulticatedra en scraping) — sin cambiar call-sites. El
  *   cálculo de cátedras presentes (Array.from(new Set(...))), antes triplicado, se
  *   unificó en detectarCatedras() dentro de la feature. Sin cambio de comportamiento.
- *   Cierra la Fase 2 del split feature-driven (ADR-0005, ROADMAP). Ver docs/patterns.md.
+ *   Cierra la Fase 2 del split feature-driven (ADR-0005, ~/Boveda/Proyectos/courseDownloader/Diseños/ROADMAP.md). Ver docs/patterns.md.
  * CHANGELOG v5.13.0:
  * - [FIX bug 400] El handler "clase_con_error" ahora NOMBRA la clase saltada y limpia la
  *   cola local. Antes mostraba un texto genérico ("Error de red en fragmentos. Saltando...")
@@ -247,7 +247,7 @@
  *   (background.js v5.9.0), el SW emite "clase_con_error" {titulo, motivo}: el popup marca la
  *   clase 'error', la saca de AppState.colaDescargas, respalda, actualiza el badge y avisa
  *   cuál se saltó y por qué (título vía textContent — regla anti-XSS de docs/security.md).
- *   Espeja la limpieza de "clase_guardada_ok". Ver docs/TECHNICAL_DEBT.md, docs/patterns.md.
+ *   Espeja la limpieza de "clase_guardada_ok". Ver ~/Boveda/Proyectos/courseDownloader/Deuda.md, docs/patterns.md.
  * CHANGELOG v5.12.0:
  * - [FIX] Nuevo tipo de falla "sesion" (descargar sin sesión iniciada en Ramón Net).
  *   renderizarListadoInterfaz pinta una card dedicada ("Sesión no iniciada" 🔑) y
@@ -265,7 +265,7 @@
  *   filtrado de la pestaña Cola —antes duplicado en masterCheck,
  *   renderizarListadoInterfaz y actualizarMasterCheckState— en
  *   _filters.coincideConFiltrosCola(clase, busqueda). Sin cambio de comportamiento.
- *   Ver ADR-0005, ROADMAP Fase 2, filters.test.js.
+ *   Ver ADR-0005, ~/Boveda/Proyectos/courseDownloader/Diseños/ROADMAP.md Fase 2, filters.test.js.
  * CHANGELOG v5.10.0:
  * - [ISLA #4 · Etapa 2] La isla Preact ahora es dueña también de los ATRIBUTOS del
  *   host #ui-list. Se quitó nodos.lista: la opacidad de sincronización de disco pasó
@@ -314,7 +314,7 @@
  *   se extrajeron a la feature popup/features/queue.js (QueueFeature.crear(ctx)).
  *   popup.js las recibe por ctx (nodos + callbacks aplicarFiltros/actualizarContadores/
  *   resetSeleccionFila) y las expone como alias locales — los call-sites no cambian.
- *   Sin cambio de comportamiento. Ver ADR-0005, ROADMAP Fase 2, queue.test.js.
+ *   Sin cambio de comportamiento. Ver ADR-0005, ~/Boveda/Proyectos/courseDownloader/Diseños/ROADMAP.md Fase 2, queue.test.js.
  * CHANGELOG v5.7.1:
  * - [FIX] encolarItemsEnCaliente hacía optimistic update (AppState.colaDescargas +
  *   DOM + estado 'process') y disparaba inyectar_items_en_cola_activa SIN verificar
@@ -322,8 +322,8 @@
  *   mostrando ítems "en cola" nunca persistidos en background.js (estado inconsistente
  *   popup↔SW hasta el próximo sincronizarConBackground). Ahora el sendMessage tiene
  *   callback: ante lastError o status != "encolados_ok" revierte la cola (por id),
- *   restaura estado/selección de los ítems y re-renderiza. Ver docs/TECHNICAL_DEBT.md
- *   (Robustez del flujo de datos), ROADMAP Fase 3.
+ *   restaura estado/selección de los ítems y re-renderiza. Ver ~/Boveda/Proyectos/courseDownloader/Deuda.md
+ *   (Robustez del flujo de datos), ~/Boveda/Proyectos/courseDownloader/Diseños/ROADMAP.md Fase 3.
  * CHANGELOG v5.7.0:
  * - [MIGRACIÓN] El texto de la ruta del disco (📁 PC:) pasó a ser la isla Preact #1b
  *   (features/rutaDisco.preact.js). Se quitó nodos.pcPath: los sets de texto/título/
@@ -353,7 +353,7 @@
  * CHANGELOG v5.5.4:
  * - [LIMPIEZA] Se borra el wrapper muerto clasificarCatedraYCarpeta (solo
  *   reenviaba a Utils.clasificarCatedraYCarpeta); ningún call-site lo usaba —
- *   los 5 reales llaman directo a Utils.* (ver docs/TECHNICAL_DEBT.md).
+ *   los 5 reales llaman directo a Utils.* (ver ~/Boveda/Proyectos/courseDownloader/Deuda.md).
  * CHANGELOG v5.5.3:
  * - [REFACTOR] El init arranca el único detector de estado de serverConnection
  *   (iniciarDetectorEstado), que reemplaza al monitor + latido separados. El
@@ -558,7 +558,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     // Pintarla una vez fue el bug de la primera versión: conmutar de pestaña repintaba la
     // lista encima y quedaba visible PERO bloqueada, ni tarjeta ni toolbar usable.
     //
-    // Regla, que es la del §1 de alertas-y-bloqueo-diseno.md: **la tarjeta y el bloqueo son el
+    // Regla, que es la del §1 de ~/Boveda/Proyectos/courseDownloader/Diseños/alertas-y-bloqueo-diseno.md: **la tarjeta y el bloqueo son el
     // mismo estado**. Si se pueden desincronizar, se van a desincronizar.
     //
     // **Lleva `motivo` porque el escaneo muere de DOS maneras**, y se unificaron acá a
@@ -569,7 +569,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
     //
     // El error de inyección **no tenía tarjeta**: escribía en la línea de estado del footer y
     // devolvía la lista vieja desde storage. Dos motivos por los que eso no se veía: el `<p>`
-    // del footer está oculto (ver el hallazgo en alertas-y-bloqueo-diseno.md §6.8), y aunque
+    // del footer está oculto (ver el hallazgo en ~/Boveda/Proyectos/courseDownloader/Diseños/alertas-y-bloqueo-diseno.md §6.8), y aunque
     // no lo estuviera, ese destino ya se había descartado para el watchdog por quedar pisado
     // por el diagnóstico de conexión, que es de otro dueño.
     let escaneoMuerto = null;
@@ -1139,7 +1139,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
           // depende del portal —Ramón Net abre un nivel por cátedra, Anatomy no tiene eje de
           // clasificación (`faceta.id: "ninguna"`)— y el descriptor no expone un nombre honesto
           // para ese nivel cuando no existe: interpolar `faceta.etiqueta` acá imprimiría
-          // "por materia y sin clasificación" en Anatomy. Ver copy-generico-diseno.md §5.1.
+          // "por materia y sin clasificación" en Anatomy. Ver ~/Boveda/Proyectos/courseDownloader/Diseños/copy-generico-diseno.md §5.1.
           cuerpo: "Por favor, seleccioná tu carpeta principal (ej: 'Clases').<br><br>El sistema creará y organizará automáticamente las subcarpetas dentro de ella.<br><br><strong>Nota:</strong> Evitá elegir directamente subcarpetas específicas de materias.",
           checkboxKey: "ocultarAdvExplorar",
           onConfirm: () => {
@@ -1681,7 +1681,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // Genérica OBLIGATORIA: acá `sitioActivo` es todavía el portal ANTERIOR (o el legado por
       // defecto). El portal de este escaneo se resuelve recién ~17 líneas abajo, así que
       // interpolarlo acá anunciaría el portal equivocado justo al cambiar de portal.
-      // Caso C de copy-generico-diseno.md §3; la trampa entera, en su §4.
+      // Caso C de ~/Boveda/Proyectos/courseDownloader/Diseños/copy-generico-diseno.md §3; la trampa entera, en su §4.
       mostrarLoader("Escaneando la pestaña...");
       desdeEscaneoActual = Date.now();
       ultimoNombreCursoEscaneado = null;
@@ -1859,7 +1859,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
 
             // [FEEDBACK DE INYECCIÓN] Esta rama no pintaba NADA que el usuario pudiera ver:
             // mandaba el texto a `nodos.txtEstado` (el `<p>` del footer, que está oculto — ver
-            // alertas-y-bloqueo-diseno.md §6.8) y era la única salida del escaneo sin tarjeta,
+            // ~/Boveda/Proyectos/courseDownloader/Diseños/alertas-y-bloqueo-diseno.md §6.8) y era la única salida del escaneo sin tarjeta,
             // mientras su hermana la del watchdog sí la tenía. Ahora entra por el MISMO estado
             // que aquélla, con su mismo contrato: no se pinta acá, se registra y se pide el
             // repintado, así ningún render posterior le gana la región.
@@ -2410,7 +2410,7 @@ export function iniciarPopup({ appState, conexion, mensajeria, utils, backend, s
       // distinta: ante el timeout se reintenta; ante la inyección rechazada, reintentar en la
       // misma pestaña vuelve a fallar — primero hay que pararse en la pestaña del portal.
       // El botón sigue diciendo "Re-escanear" en los dos casos, y la tarjeta es la que dice
-      // qué pasa: es la regla del §3 de alertas-y-bloqueo-diseno.md.
+      // qué pasa: es la regla del §3 de ~/Boveda/Proyectos/courseDownloader/Diseños/alertas-y-bloqueo-diseno.md.
       if (escaneoMuertoDominaLaPestaña()) {
         // Las formas de morir del escaneo (timeout, inyección, sin-portal, portal), con copy propia cada una
         // porque la acción del usuario es distinta. 'cancelado' no es una muerte sino la quinta entrada,

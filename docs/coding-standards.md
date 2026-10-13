@@ -63,7 +63,7 @@ ahí, en el punto correcto de la cadena** — si no, su global no existe cuando 
 
 **TypeScript**: el núcleo migrado (`core/`) ya está en `.ts` con el mismo footer
 (`(globalThis as Record<string, unknown>).X = X; export default X`). La migración es
-incremental — ver `docs/rearquitectura-diseno.md`.
+incremental — ver `~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md`.
 
 ## Orden de carga de scripts
 
@@ -73,7 +73,7 @@ Los dos entrypoints (`entrypoints/popup/main.js` y `entrypoints/background.js`) 
 
 - Los errores esperables de red usan `Utils.fetchConReintentos` (retry con backoff) en vez de un `fetch` directo — ver `docs/patterns.md`.
 - En el código que **todavía** llama a `chrome.*` por callback, los errores se chequean con `chrome.runtime.lastError` dentro del callback y no con try/catch (es lo que exige esa API) — referencias vivas: los callbacks de `chrome.tabs`/`chrome.scripting` en `popup.js`, y `plataforma/chrome/mensajeria.ts`, que usa la forma callback justamente porque es la única que expone `lastError`. En el código ya migrado a un puerto la regla es la contraria: los puertos devuelven promesas, así que el fallo se maneja con `.catch()`/try-catch normal (ver en `core/estado/appState.ts` el `respaldar()`, que además deja el `void` explícito porque es fire-and-forget, y `sincronizarConBackground()`, donde el `lastError` de antes es hoy el rechazo del `PuertoMensajeria`).
-- `catch (e) {}` completamente silenciosos deben evitarse — como mínimo, un `console.warn` con el mensaje del error. Los 3 casos que había se resolvieron (ver `docs/TECHNICAL_DEBT.md`, sección Resuelto); mantené la regla en código nuevo.
+- `catch (e) {}` completamente silenciosos deben evitarse — como mínimo, un `console.warn` con el mensaje del error. Los 3 casos que había se resolvieron (ver `~/Boveda/Proyectos/courseDownloader/Deuda.md`, sección Resuelto); mantené la regla en código nuevo.
 
 ## CSS: los colores viven sólo en `styles/variables.css`
 
@@ -98,7 +98,7 @@ grep -rnE '#[0-9a-fA-F]{3,8}\b|rgba?\([0-9]' styles/ --include=*.css | grep -v v
 
 ## Seguridad al pintar contenido de terceros en el DOM
 
-Los títulos de clase y cualquier otro texto scrapeado de Ramón Net **no son confiables** — deben pintarse con `.textContent`/`.innerText`, nunca interpolados en un string que se asigna a `.innerHTML`. Ver `docs/security.md` para el detalle y el caso conocido donde esto se violó (`docs/TECHNICAL_DEBT.md`).
+Los títulos de clase y cualquier otro texto scrapeado de Ramón Net **no son confiables** — deben pintarse con `.textContent`/`.innerText`, nunca interpolados en un string que se asigna a `.innerHTML`. Ver `docs/security.md` para el detalle y el caso conocido donde esto se violó (`~/Boveda/Proyectos/courseDownloader/Deuda.md`).
 
 ## Nomenclatura de commits
 

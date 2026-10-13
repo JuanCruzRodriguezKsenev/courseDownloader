@@ -63,7 +63,7 @@ Ortogonal a las zonas de ejecución, el código se está reorganizando en capas 
 **Convive con la estructura vieja**: lo migrado está en su capa, lo que falta sigue en
 `popup.js`, `renderers.js` y `background.js` (`shared/` se vació en la Fase 6a y ya no
 existe). El avance por fases vive en
-`docs/rearquitectura-diseno.md` §Estado de avance — ése es el doc a leer para saber qué
+`~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md` §Estado de avance — ése es el doc a leer para saber qué
 sigue.
 
 | Capa | Carpeta | Regla | Estado |
@@ -121,7 +121,7 @@ no se empaqueta — por eso no puede usar imports ES y habla `chrome.runtime` di
 >
 > Y el residuo que sí existe **no es deuda**: los puertos que faltan (`notifications`,
 > `tabs`/`windows`, `scripting`) están conscientemente sin construir y no bloquean nada
-> (`docs/rearquitectura-diseno.md` §El próximo paso).
+> (`~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md` §El próximo paso).
 
 `core/estado/appState.ts` fue el primero de la Fase 5b: ya no toca `chrome.storage` (recibe el puerto
 por inyección). El `sendMessage` de `sincronizarConBackground()` —que es **IPC y no
@@ -134,7 +134,7 @@ Las dos secciones de arriba dicen *dónde* vive cada cosa (zonas y capas). Ésta
 contiene cada archivo y qué hay que respetar al tocarlo** — es el detalle operativo que antes
 vivía duplicado en las reglas de agente (`AGENTS.md`, en la raíz), que ahora conservan sólo el
 resumen y apuntan acá. La
-historia de qué se migró en qué fase no está acá: vive en `docs/rearquitectura-diseno.md`.
+historia de qué se migró en qué fase no está acá: vive en `~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md`.
 
 ### Popup
 
@@ -161,10 +161,10 @@ historia de qué se migró en qué fase no está acá: vive en `docs/rearquitect
   | `serverConnection.js` | UI de conexión + auto-heal | Consume el daemon `Conexion`, no sondea por su cuenta. |
   | `queue.js` (`QueueFeature`) | Ciclo de vida completo de la cola: encolar/quitar, cancelar, arrancar, reanudar tras caída | Sin `chrome.*`: el puerto le llega como `ctx.mensajeria`. |
   | `filters.js` (`FilterFeature`) | Búsqueda + filtros por estado/materia/faceta + popover | Dueña del predicado unificado `coincideConFiltrosCola`. **Trampa**: su objeto `filtrosActivos` viaja **por referencia** en `ctx`, porque algunos call-sites de `popup.js` todavía lo mutan. |
-  | `faceta.js` (`FacetaFeature`) | Badge + asistente/modal de autoselección del eje de clasificación del sitio | **Genérica**: el vocabulario lo pone el descriptor del sitio (ver §UI de `rearquitectura-diseno.md`). |
+  | `faceta.js` (`FacetaFeature`) | Badge + asistente/modal de autoselección del eje de clasificación del sitio | **Genérica**: el vocabulario lo pone el descriptor del sitio (ver §UI de `~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md`). |
   | `orden.js` (`OrdenFeature`) | Criterio de orden (llegada/nombre/faceta/portal) + sentido ↑↓ y su popover | Entró con el corte 6b del multi-sitio. En la Cola el orden que se ve **es** el orden en que se baja. |
-  | `bloqueo.js` (`Bloqueo`) | El contrato de "este control no se puede usar ahora", en un solo lugar | Estaba copiado en tres funciones de `popup.js`. `pointer-events` **no** es un bloqueo: deja pasar el teclado. Las cuatro reglas → `docs/alertas-y-bloqueo-diseno.md` §2. |
-  | `pisoVisible.js` (`crearPisoVisible`) | El mínimo de tiempo que un cartel de "estoy trabajando" se queda en pantalla | **No es dueño de ningún nodo**: resuelve el *cuándo*, no el *quién* — escribir el nodo por atrás lo saltea en silencio. La mitad que falta (la demora para aparecer) sigue en `docs/TECHNICAL_DEBT.md`. |
+  | `bloqueo.js` (`Bloqueo`) | El contrato de "este control no se puede usar ahora", en un solo lugar | Estaba copiado en tres funciones de `popup.js`. `pointer-events` **no** es un bloqueo: deja pasar el teclado. Las cuatro reglas → `~/Boveda/Proyectos/courseDownloader/Diseños/alertas-y-bloqueo-diseno.md` §2. |
+  | `pisoVisible.js` (`crearPisoVisible`) | El mínimo de tiempo que un cartel de "estoy trabajando" se queda en pantalla | **No es dueño de ningún nodo**: resuelve el *cuándo*, no el *quién* — escribir el nodo por atrás lo saltea en silencio. La mitad que falta (la demora para aparecer) sigue en `~/Boveda/Proyectos/courseDownloader/Deuda.md`. |
   | `destino.js` | Consulta de estado y destino resuelto al backend por índice | Módulo puro de Capa 2: agrupa por curso, consulta POST `/api/destino/estado` en paralelo (D-6) y gestiona bloqueos ("sin-asociar", "omitido", "indice-ilegible") y `sinAsignar` (D-5). Expone `bloquearSeleccion` (embudo, D-4) y `puedeBajar` (cola, D-4). |
 
   No son features, pero viven en la misma carpeta y conviene no confundirlas: `capa.preact.js`
@@ -195,7 +195,7 @@ historia de qué se migró en qué fase no está acá: vive en `docs/rearquitect
   | Las islas Preact dejan inline **sólo** lo *computado* (`style=${...}` para un transform, un cursor, un highlight por fila) | Su apariencia estática va a `styles/components/`, o el estilo del componente queda partido en dos lugares. |
 
   El split genérico-vs-sitio que la Fase 6c había diseñado para estos archivos se **evaluó y se
-  descartó** — rationale en `docs/rearquitectura-diseno.md` §Registro de la Fase 6c.
+  descartó** — rationale en `~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md` §Registro de la Fase 6c.
 
 ### Service worker
 
@@ -357,7 +357,7 @@ desde el Plan 22 `/api/destino/estado` tipa el campo `movido` en los ítems y `r
 historial acotado —últimos 50, más nuevo primero— de fallos terminales de la cola bajo la
 clave local `historialFallos`, que respalda la campanita; lo escribe el SW en `registrarFallo`
 y lo lee/muta el popup. Schema → `docs/data-model.md`; diseño →
-`docs/notificaciones-fallos-diseno.md`).
+`~/Boveda/Proyectos/courseDownloader/Diseños/notificaciones-fallos-diseno.md`).
 
 **`PuertoProgramador` no es "un timer con otra cara"** (`core/puertos/programador.ts`, 2026-08-03).
 Su razón de existir es que en MV3 el service worker se suspende y con él muere cualquier
@@ -558,7 +558,7 @@ WXT lo copie tal cual a esa ruta exacta, que es la que referencia `wxt.config.ts
 propio en el manifest. Los dos existentes hacen cosas distintas: el de Ramón Net **bloquea**
 requests a `bunnyinfra.net`; el de Anatomy by Chris **pone un header** (`Referer`) que `fetch` no
 puede setear y sin el cual el embed contesta 401. El config lleva además el **descriptor de
-faceta**, cuya forma campo por campo está en `docs/rearquitectura-diseno.md` §UI.
+faceta**, cuya forma campo por campo está en `~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md` §UI.
 
 ### `Utils` ya no es un archivo: es un ensamblado
 

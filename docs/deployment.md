@@ -14,7 +14,7 @@ desde la Fase 3 la extensión se compila con WXT y lo que se carga es `.output/c
 
 ## El backend Bun (`backend/`)
 
-**Vive en este mismo repo desde el 2026-08-12** (ADR-0015; el cómo, en `docs/fusion-monorepo-diseno.md`). Antes era un repo aparte llamado `ramonnet-bun-backend`, y separarlos tenía un costo concreto: un cambio de contrato quedaba partido en dos commits sin vínculo, y una extensión nueva contra un backend viejo **no falla — guarda `Atlas.pdf.mp4`**. Ahora ese cambio es un solo commit.
+**Vive en este mismo repo desde el 2026-08-12** (ADR-0015; el cómo, en `~/Boveda/Proyectos/courseDownloader/Diseños/fusion-monorepo-diseno.md`). Antes era un repo aparte llamado `ramonnet-bun-backend`, y separarlos tenía un costo concreto: un cambio de contrato quedaba partido en dos commits sin vínculo, y una extensión nueva contra un backend viejo **no falla — guarda `Atlas.pdf.mp4`**. Ahora ese cambio es un solo commit.
 
 - Está en `backend/`, no hay nada que clonar aparte.
 - Tener [Bun](https://bun.sh/) instalado, o usar el ejecutable empaquetado.
@@ -71,7 +71,7 @@ que el dueño los reacomode dentro de `raíz/<portal>/`. Se decidió así porque
 usuario es irreversible y el backend no tenía historial (ahora sí: se versionó en el mismo
 cambio).
 
-**El status de `/api/bypass-stream` es contrato, no detalle**: un **4xx** se interpreta como rechazo aplicativo con el server vivo → se reintenta N=3 y se **salta esa clase** sin pausar la cola; un **5xx** o un timeout se interpretan como caída → **pausa + auto-heal**. Un backend que devuelva 4xx ante una condición transitoria hace que la extensión descarte clases recuperables (es exactamente el bug 400 — ver `docs/TECHNICAL_DEBT.md` y `docs/patterns.md` §Circuit breaker).
+**El status de `/api/bypass-stream` es contrato, no detalle**: un **4xx** se interpreta como rechazo aplicativo con el server vivo → se reintenta N=3 y se **salta esa clase** sin pausar la cola; un **5xx** o un timeout se interpretan como caída → **pausa + auto-heal**. Un backend que devuelva 4xx ante una condición transitoria hace que la extensión descarte clases recuperables (es exactamente el bug 400 — ver `~/Boveda/Proyectos/courseDownloader/Deuda.md` y `docs/patterns.md` §Circuit breaker).
 
 **Un archivo suelto (un PDF adjunto) viaja por el MISMO endpoint**, desde el corte 5 del escaneo
 por API: `/api/bypass-stream` no sabe qué es un video —recibe bytes con `x-chunk-index` /

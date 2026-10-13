@@ -3,13 +3,13 @@
  * ==========================================================================
  * Contrato de IPC del núcleo (Capa 1 de ADR-0008), hermano de `almacenamiento.ts`.
  * Es el canal por el que popup y service worker se hablan: hoy `chrome.runtime`, mañana
- * lo que sea. Ver docs/rearquitectura-diseno.md §Fase 5c.
+ * lo que sea. Ver ~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md §Fase 5c.
  *
  * POR QUÉ DOS FORMAS DE ENVIAR
  * ----------------------------
  * `chrome.runtime.sendMessage` mezcla dos intenciones bajo una firma: con callback espera
  * respuesta, sin callback es fire-and-forget. Esa ambigüedad ya causó un bug real en este
- * proyecto (el optimistic update que no verificaba la respuesta — ver `docs/TECHNICAL_DEBT.md`
+ * proyecto (el optimistic update que no verificaba la respuesta — ver `~/Boveda/Proyectos/courseDownloader/Deuda.md`
  * §Resuelto). Acá se separan:
  *
  *   - `enviar()`   espera respuesta y **rechaza** si el canal falla (receptor dormido o

@@ -8,22 +8,22 @@ de "un solo portal" que habían quedado. Todo verificado en navegador.
 Hotmart Club, y vive en `sitio/anatomy-by-chris/`. **La verificación en navegador está a medias**:
 el escaneo ya pasó —o sea que `escanearListado` sobrevive a la serialización, que era el riesgo
 grande—, falta bajar una clase y mirar el popup con las dos colas mezcladas. →
-**Si venís a eso: lo específico de ese portal está en `portal-anatomy-by-chris-diseno.md`, y el
+**Si venís a eso: lo específico de ese portal está en `~/Boveda/Proyectos/courseDownloader/Diseños/portal-anatomy-by-chris-diseno.md`, y el
 cómo genérico acá, en §Cómo escribir un portal nuevo — el paso a paso.**
 
 > **Sexto portal (2026-10-06):** el Moodle de Ingeniería (`asignaturas.ing.unlp.edu.ar`), implementado por curso y
 > con recorrido de todos los cursos desde `/my/`. El *qué* vive en
-> [`specs/moodle-ingenieria/spec.md`](./specs/moodle-ingenieria/spec.md). Los scripts de consola con los que se
+> `~/Boveda/Proyectos/courseDownloader/Specs/moodle-ingenieria/spec.md`. Los scripts de consola con los que se
 > mide un portal antes de escribir su spec están en [`medicion-de-portales.md`](./medicion-de-portales.md).
 >
 > **Multicurso de Informática (2026-10-05):** «Escanear todos» para `moodle-asignaturas`. El *qué* vive en
-> [`specs/moodle-asignaturas-multicurso/spec.md`](./specs/moodle-asignaturas-multicurso/spec.md).
+> `~/Boveda/Proyectos/courseDownloader/Specs/moodle-asignaturas-multicurso/spec.md`.
 >
 > **Multicurso del LINTI (2026-10-05):** «Escanear todos» para `moodle-linti`. El *qué* vive en
-> [`specs/moodle-linti-multicurso/spec.md`](./specs/moodle-linti-multicurso/spec.md).
+> `~/Boveda/Proyectos/courseDownloader/Specs/moodle-linti-multicurso/spec.md`.
 >
 > **IDEAS del LIDI (2026-10-05):** portal nuevo con multicurso. El *qué* vive en
-> [`specs/ideas-info/spec.md`](./specs/ideas-info/spec.md).
+> `~/Boveda/Proyectos/courseDownloader/Specs/ideas-info/spec.md`.
 
 Lo que **no** se pudo verificar y no hay que dar por bueno: todo lo que exige dos portales a la
 vez (la sección Portal del 6c, el criterio `portal` del 6b, y la mitad "el otro portal no se ve
@@ -35,7 +35,7 @@ verdadera hasta abrir el popup con clases de los dos portales encoladas**.
 runtime* sobre *una build por portal*, [ADR-0010](adr/0010-el-sitio-es-del-item.md) resuelve
 el punto que la 0009 no vio, y [ADR-0011](adr/0011-el-orden-de-la-cola-lo-decide-el-popup.md)
 decide quién manda sobre el orden de la cola. Este doc es el **cómo**, igual que
-`rearquitectura-diseno.md` es el cómo de ADR-0008.
+`~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md` es el cómo de ADR-0008.
 
 > **Objetivo**: que la MISMA extensión instalada maneje N portales. La UI no cambia — está
 > pulida y es genérica; lo que se suma por portal es el adaptador de Capa 2 (scraper, parser,
@@ -390,7 +390,7 @@ globals que el resto consume perezosamente:
 
 Las cuatro de siempre (`npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`) **y el
 navegador**, que acá no es confirmación sino la única detección que existe para el punto de
-abajo. El checklist son los 7 puntos de `rearquitectura-diseno.md` §Verificación en navegador:
+abajo. El checklist son los 7 puntos de `~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md` §Verificación en navegador:
 sumar un portal toca manifest y adaptador de sitio, que es su disparador declarado.
 
 ### La trampa que más fácil se rompe
@@ -473,7 +473,7 @@ clave `anatomy-by-chris|Miologia 1` las trata como una sola. El modo de fallar e
 corte D cerró: completar una **saca de la cola a la otra**, que nunca se baja y desaparece sin error.
 
 Y no hace falta ningún cambio para que pase: alcanza con escanear un módulo, encolar, escanear el
-otro y encolar. **Está roto hoy**, y por eso vive en `TECHNICAL_DEBT.md` §🔴 Abierto.
+otro y encolar. **Está roto hoy**, y por eso vive en `~/Boveda/Proyectos/courseDownloader/Deuda.md` §🔴 Abierto.
 
 **La regla que sale**: la identidad es **(portal, módulo, título)**, donde el módulo es el **origen**
 de la clase y no su carpeta de destino. La distinción importa: si la clave usara el destino, editar
@@ -501,7 +501,7 @@ otro termina. La clave no falla por ser vieja: falla por ser *más chica que el 
 sumar cualquier cosa a lo que la extensión enumera, la pregunta es si dos de esas cosas pueden
 compartir clave.
 
-*(El diseño completo, con los cinco cortes: `escaneo-api-anatomy-diseno.md`.)*
+*(El diseño completo, con los cinco cortes: `~/Boveda/Proyectos/courseDownloader/Diseños/escaneo-api-anatomy-diseno.md`.)*
 
 ---
 
@@ -561,7 +561,7 @@ encadenadas, esa única pasada ejercitó **los siete cortes que faltaban verific
 cuatro (4, 8, 6a, 6b) que venían sin verificar desde el 2026-08-05. Es lo que destrabó el merge.
 
 Los tres commits que entraron después de esa prueba (el corte 5 ya estaba) tocaron **sólo docs**
-—`CLAUDE.md`, `TECHNICAL_DEBT.md` y este archivo—, así que lo verificado es exactamente el código
+—`CLAUDE.md`, `~/Boveda/Proyectos/courseDownloader/Deuda.md` y este archivo—, así que lo verificado es exactamente el código
 que se mergeó.
 
 **Lo que esa pasada NO pudo cubrir, y no es un descuido: el corte 6c.** Su sección "Portal" sólo
@@ -577,7 +577,7 @@ popovers podían quedar abiertos a la vez—. Ninguno era de lógica; los tres e
 de aspecto, que es exactamente el punto ciego declarado del proyecto.
 
 **El checklist que se corrió** —y el que hay que volver a correr si se rebasa o se retoca el
-stack— son los 7 puntos de `rearquitectura-diseno.md` §Verificación en navegador, más estos, que
+stack— son los 7 puntos de `~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md` §Verificación en navegador, más estos, que
 son de lo que tocaron estos cortes:
 
 - Con una descarga en curso: que la fila quede clavada arriba de la divisoria y **no se mueva**
@@ -633,7 +633,7 @@ array de `sitio/registro.ts`, y en `wxt.config.ts` los `host_permissions` + su r
 ninguna global ni constante propia— no la detecta nada salvo el navegador.
 
 **El checklist de Chrome que quedó fijado por esta tanda** —además de los 7 puntos de
-`rearquitectura-diseno.md` y los de más arriba—, todo del corte 6d, que es el único de los tres
+`~/Boveda/Proyectos/courseDownloader/Diseños/rearquitectura-diseno.md` y los de más arriba—, todo del corte 6d, que es el único de los tres
 últimos que se puede observar sin un segundo portal:
 
 - Con el backend Bun andando: encolar 3 clases, **invertir el orden** y confirmar que se baja la

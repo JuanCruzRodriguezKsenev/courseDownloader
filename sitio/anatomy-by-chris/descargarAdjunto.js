@@ -17,7 +17,7 @@
  * mandárselos al backend. Acá vive sólo lo que es de Hotmart.
  *
  * Es el paso 2 de la cadena de tres que está medida entera en
- * `docs/portal-anatomy-by-chris-diseno.md` §Apéndice B:
+ * `~/Boveda/Proyectos/courseDownloader/Diseños/portal-anatomy-by-chris-diseno.md` §Apéndice B:
  *
  *   1. listado   → `/v1/pages/<hash>/complementary-content`  (lo hace el scraper, al escanear)
  *   2. **firma** → `/rest/v3/attachment/<uuid>/download`     ← ESTE ARCHIVO
