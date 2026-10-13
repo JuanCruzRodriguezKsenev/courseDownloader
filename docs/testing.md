@@ -30,10 +30,12 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **87 archivos, 1330 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
+| `pnpm test` | **87 archivos, 1334 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 1334** (2026-10-13, plan 32, Kaltura en Moodle Asignaturas): los 1330 de abajo más **+4** tests en `sitio/moodle-asignaturas/scraper.test.js` (AC-5, AC-6, AC-7 y desduplicación RN-17), sin archivos nuevos.
 
 **De dónde sale el 1330** (2026-10-10, plan `34 - Correcciones de la verificacion del plan 31`, rama `correccion-plan31`): son los 1313 de abajo más **+17** tests (sin archivos nuevos):
 - **+1** en `background.test.js` (serialización de `recorrido_evento` en cola de promesas contra carreras en storage, M-4),

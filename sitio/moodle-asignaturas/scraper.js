@@ -81,6 +81,7 @@ async function escanearListado(opciones = {}) {
     const origen = ctx.origen || "";
     const vistos = new Set();
     const actividades = [];
+    const entriesKaltura = new Set();
 
     const sections = doc.querySelectorAll("[data-for=\"section\"], .section");
     for (const s of sections) {
@@ -105,6 +106,27 @@ async function escanearListado(opciones = {}) {
         if (act.classList.contains("modtype_resource")) tipo = "resource";
         else if (act.classList.contains("modtype_url")) tipo = "url";
         else if (act.classList.contains("modtype_folder")) tipo = "folder";
+        let kaltura = null;
+        if (!tipo && act.classList.contains("modtype_label")) {
+          // RN-15/16: video Kaltura embebido; el iframe lo crea el script, así que se arma del HTML crudo
+          let entryId = "";
+          let embed = null;
+          for (const sc of act.querySelectorAll("script")) {
+            const src = sc.getAttribute("src") || "";
+            const ms = src.match(/^https?:\/\/([^/]+)\/p\/(\d+)\/sp\/\d+\/embedIframeJs\/uiconf_id\/(\d+)\/partner_id\/(\d+)/);
+            if (ms && !embed) embed = { host: ms[1], pid: ms[2], uiconf: ms[3] };
+            const txt = sc.textContent || "";
+            if (!entryId && txt.includes("kWidget.embed")) {
+              const me = txt.match(/"entry_id"\s*:\s*"([^"]+)"/);
+              if (me) entryId = me[1];
+            }
+          }
+          if (entryId && embed && !entriesKaltura.has(entryId)) {
+            entriesKaltura.add(entryId);
+            tipo = "kaltura";
+            kaltura = { ...embed, entryId };
+          }
+        }
         if (!tipo) continue;
 
         vistos.add(cmid);
@@ -126,6 +148,7 @@ async function escanearListado(opciones = {}) {
           tipo,
           tema,
           actName: actName.trim(),
+          kaltura,
         });
       }
     }
@@ -298,6 +321,25 @@ async function escanearListado(opciones = {}) {
         } catch {
           return [];
         }
+      }
+
+      if (tipo === "kaltura") {
+        const { host, pid, uiconf, entryId } = act.kaltura;
+        const urlVideo = `https://${host}/p/${pid}/sp/${pid}00/embedIframeJs/uiconf_id/${uiconf}/partner_id/${pid}?iframeembed=true&entry_id=${entryId}`;
+        const titulo = actName || `Video ${entryId}`;
+        return [
+          {
+            texto: titulo.endsWith(".md") ? titulo : `${titulo}.md`,
+            url: urlVideo,
+            tipo: "adjunto",
+            idArchivo: `acceso:${encodeURIComponent(urlVideo)}:${encodeURIComponent(titulo)}`,
+            modulo,
+            tema,
+            publicacion: actName,
+            cursoId,
+            cursoNombre,
+          },
+        ];
       }
 
       if (tipo === "url") {

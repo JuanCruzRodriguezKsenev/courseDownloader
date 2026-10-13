@@ -54,7 +54,7 @@ describe("ScraperMoodleAsignaturas.escanearListado", () => {
     expect(res.enlaces[0].cursoNombre).toBe("2024_CURSADA REGULAR_Programación II");
   });
 
-  it("2. AC-1: desduplica por cmid en Moodle 4 (80 resources, 28 urls y 1 folder con 2 archivos = 110 enlaces)", async () => {
+  it("2. AC-1: desduplica por cmid en Moodle 4 (80 resources, 28 urls, 1 video Kaltura y 1 folder con 2 archivos = 111 enlaces)", async () => {
     // En el DOM sin filtrar hay 160 .modtype_resource y 56 .modtype_url por la duplicación de bloques de Moodle
     expect(document.querySelectorAll(".modtype_resource").length).toBe(160);
     expect(document.querySelectorAll(".modtype_url").length).toBe(56);
@@ -63,13 +63,16 @@ describe("ScraperMoodleAsignaturas.escanearListado", () => {
     const res = await ScraperMoodleAsignaturas.escanearListado();
 
     const resources = res.enlaces.filter((e) => !e.idArchivo.startsWith("acceso:") && !e.idArchivo.includes("/"));
-    const urls = res.enlaces.filter((e) => e.idArchivo.startsWith("acceso:"));
+    const accesos = res.enlaces.filter((e) => e.idArchivo.startsWith("acceso:"));
+    const videos = accesos.filter((e) => e.texto === "Cierre de cursada.md");
+    const urls = accesos.filter((e) => e.texto !== "Cierre de cursada.md");
     const folderFiles = res.enlaces.filter((e) => e.idArchivo.includes("/"));
 
     expect(resources.length).toBe(80);
     expect(urls.length).toBe(28);
+    expect(videos.length).toBe(1);
     expect(folderFiles.length).toBe(2);
-    expect(res.enlaces.length).toBe(110);
+    expect(res.enlaces.length).toBe(111);
 
     // No hay idArchivo duplicado
     const ids = res.enlaces.map((e) => e.idArchivo);
@@ -77,7 +80,7 @@ describe("ScraperMoodleAsignaturas.escanearListado", () => {
     expect(unicos.size).toBe(ids.length);
   });
 
-  it("3. descarta actividades no soportadas (forum, label, quiz, assign, choicegroup) (RN-2)", async () => {
+  it("3. descarta actividades no soportadas (forum, quiz, assign, choicegroup, label de sólo texto); el label con Kaltura sí entra (RN-2, RN-15)", async () => {
     const res = await ScraperMoodleAsignaturas.escanearListado();
 
     // No debe contener títulos de actividades de foro o tareas
@@ -86,6 +89,54 @@ describe("ScraperMoodleAsignaturas.escanearListado", () => {
 
     const entregas = res.enlaces.find((e) => e.idArchivo === "module-5411");
     expect(entregas).toBeUndefined();
+  });
+
+  it("AC-5. el label con Kaltura sale como acceso .md con el enlace al reproductor (RN-15, RN-16)", async () => {
+    const res = await ScraperMoodleAsignaturas.escanearListado();
+    const video = res.enlaces.find((e) => e.texto === "Cierre de cursada.md");
+
+    expect(video).toBeDefined();
+    expect(video.idArchivo.startsWith("acceso:")).toBe(true);
+    expect(video.tipo).toBe("adjunto");
+    expect(video.url).toBe(
+      "https://videos.unlp.edu.ar/p/117/sp/11700/embedIframeJs/uiconf_id/23448245/partner_id/117?iframeembed=true&entry_id=0_p4y3czcv"
+    );
+    expect(video.tema).toBe("Sin tema");
+    expect(video.publicacion).toBe("Cierre de cursada");
+  });
+
+  it("AC-6. de los label del curso sale un solo ítem", async () => {
+    expect(document.querySelectorAll(".modtype_label").length).toBeGreaterThanOrEqual(38);
+    const res = await ScraperMoodleAsignaturas.escanearListado();
+    const deLabel = res.enlaces.filter((e) => e.url.includes("embedIframeJs"));
+    expect(deLabel.length).toBe(1);
+  });
+
+  describe("label con Kaltura sintético", () => {
+    const labelHtml = (cmid, { conSrc = true, entry = "0_abc" } = {}) => `
+      <li id="module-${cmid}" class="activity label modtype_label" data-for="cmitem">
+        <div class="activity-item" data-activityname="Video ${cmid}">
+          ${conSrc ? '<script src="https://videos.unlp.edu.ar/p/117/sp/11700/embedIframeJs/uiconf_id/23448245/partner_id/117"></script>' : ""}
+          <script>kWidget.embed({ "targetId": "k", "wid": "_117", "uiconf_id": 23448245, "entry_id": "${entry}" })</script>
+        </div>
+      </li>`;
+    const armar = (lis) => {
+      document.documentElement.innerHTML = `<head><title>Curso: X</title></head><body><h1>X</h1>
+        <ul><li class="section" id="section-1" data-number="1"><h3 class="sectionname">Tema</h3><ul>${lis}</ul></li></ul></body>`;
+    };
+
+    it("AC-7. sin el <script src> de embedIframeJs no genera ítem (RN-16)", async () => {
+      armar(labelHtml(901, { conSrc: false }));
+      const res = await ScraperMoodleAsignaturas.escanearListado();
+      expect(res.enlaces.length).toBe(0);
+    });
+
+    it("RN-17. dos label con el mismo entry_id generan un solo ítem", async () => {
+      armar(labelHtml(902) + labelHtml(903));
+      const res = await ScraperMoodleAsignaturas.escanearListado();
+      expect(res.enlaces.length).toBe(1);
+      expect(res.enlaces[0].url).toContain("entry_id=0_abc");
+    });
   });
 
   it("4. campos por ítem cumplen RN-1, RN-8 y el contrato de EnlaceListado", async () => {
@@ -139,7 +190,7 @@ describe("ScraperMoodleAsignaturas.escanearListado", () => {
     });
 
     const res = await ScraperMoodleAsignaturas.escanearListado();
-    const urlItem = res.enlaces.find((e) => e.idArchivo.startsWith("acceso:"));
+    const urlItem = res.enlaces.find((e) => e.idArchivo.startsWith("acceso:") && !e.url.includes("embedIframeJs"));
     expect(urlItem).toBeDefined();
     expect(urlItem?.url).toContain("/mod/url/view.php?id=");
   });

@@ -243,7 +243,7 @@ describe('inyección sobre DOM real con fixtures (sites-matec y moodle-asignatur
     const res = await fnInyectada();
     expect(res.materia).toBe('2024_CURSADA REGULAR_Programación II');
     expect(res.enlaces.length).toBeGreaterThan(0);
-    expect(res.enlaces.length).toBe(110);
+    expect(res.enlaces.length).toBe(111);
   });
 
   it('moodle-ingenieria: evalúa escanearListado en ventana JSDOM limpia con fixtures y resuelve enlaces > 0 sin ReferenceError', async () => {
