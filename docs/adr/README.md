@@ -19,7 +19,7 @@ Registro formal de las decisiones de arquitectura significativas del proyecto.
 | [0004](0004-defer-result-pattern.md) | No adoptar Result Pattern sin TypeScript | Diferida |
 | [0005](0005-feature-driven-popup-split.md) | Reorganización de `popup.js` como feature-driven | Aceptada |
 | [0006](0006-adopt-preact-islands-in-popup.md) | Adoptar Preact (islas) en el popup, sin build | Aceptada |
-| [0007](0007-dry-docs-canonical-homes.md) | Documentación DRY: un hogar canónico por concepto | Aceptada |
+| [0007](0007-dry-docs-canonical-homes.md) | Documentación DRY: un hogar canónico por concepto | Aceptada; superada en parte por [0020](0020-trabajo-en-la-boveda-referencia-en-el-repo.md) |
 | [0008](0008-arquitectura-nucleo-adaptadores.md) | Arquitectura núcleo genérico + adaptadores (hexagonal) + TypeScript | Aceptada (diseño) |
 | [0009](0009-registro-de-sitios-en-runtime.md) | Selección del sitio en runtime (registro por URL), no una build por portal | Aceptada |
 | [0010](0010-el-sitio-es-del-item.md) | El sitio es una propiedad del ítem, no de la build | Aceptada |

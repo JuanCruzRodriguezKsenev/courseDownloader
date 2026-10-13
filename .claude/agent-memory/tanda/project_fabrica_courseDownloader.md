@@ -21,7 +21,7 @@ Orden decidido: 32 → 33 (migración docs) → IDEAS (después del 33).
 - El checklist en Chrome lo corro yo con Playwright en `espera-juan`, antes del `merge-gate --juan`. Escenarios ocultos en `~/Boveda/Sistema/Escenarios/courseDownloader/`.
 - Plan 33 hay que revisarlo para fábrica (rama `migracion-docs`, mover notas en la bóveda desde un worktree con las guardas) antes de cargarlo.
 
-**Plan 32 mergeado ffbc4c4 y pusheado (e5d6146) por pedido de Juan, 2026-10-13. Próximo: revisar plan 33 para fábrica.**
+**32 (ffbc4c4) y 33 (8516824) mergeados. Fábrica en pausa por pedido de Juan: [[participativo-sin-fabrica]].**
 
 **Primera corrida (2026-10-13), plan 32 → espera-juan en ~10 min, 87/1334 en verde, 2 PASS.** Trampas medidas:
 - El worktree de `isolation: worktree` sale de **origin/main**, no del main local: si main tiene commits sin pushear, obra

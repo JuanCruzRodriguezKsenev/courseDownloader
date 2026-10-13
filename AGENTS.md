@@ -75,6 +75,43 @@ edit here, never there.
 
 Course Downloader (Turbo Edition) is a Manifest V3 Chrome/Brave browser extension that bulk-downloads HLS-streamed recorded classes — and their PDF attachments — from three learning portals. It scrapes or queries the class listing, resolves each class's HLS `.m3u8` manifest, downloads and decrypts (AES-128-CBC) the `.ts` fragments concurrently, and streams the decrypted fragments to a companion local Bun backend server running on `http://localhost:3001`, which assembles them on disk. **That backend lives in `backend/`, in this same repo**, since 2026-08-12 (ADR-0015) — it used to be a separate repo, and the split let a contract change (`x-file-name`) land as two unlinked commits whose skew fails *silently* (`Atlas.pdf.mp4`). It is still another runtime: a separate Bun process, started by `backend/iniciar.bat`, sharing no code — only the HTTP contract in `docs/deployment.md`. It has its own `backend/package.json` (`"type": "module"`, because the root one declares no `type`) and its own ESLint block with Node+Bun globals. **Don't confuse `backend/` (the server) with `core/backend/` (the client that talks to it).** The extension was named *RamonNet Video Downloader* until the fusion; both halves of that name had gone stale — it serves three portals, and `TipoContenido` is `"video" | "adjunto"`. **The extension is compiled** (since 2026-08-02, Phase 3 of the re-architecture): WXT + Vite bundle it into `.output/chrome-mv3/`, which is the folder loaded in the browser — *not* the repo root. `manifest.json` is no longer hand-written; it is generated from `wxt.config.ts`. ADR-0001 (no bundler) is superseded by ADR-0008. **The core is now TypeScript and lives in `core/`** — ports, download queue, HLS engine, connection daemon, popup state, backend client, failure history and pure utilities; `plataforma/` holds the Chrome side of every port, and `sitio/<portal>/` everything about each portal — **there are three since 2026-09-12**: `sitio/ramonnet/`, `sitio/anatomy-by-chris/` (Hotmart Club) and `sitio/google-classroom/`. `chrome.*` does still appear outside `plataforma/`, deliberately — the inventory (by API, not by file) is in `docs/architecture.md` §Las capas, and you want it before touching Phase 7 or 8. What is still vanilla JS — **and the list matters, because `allowJs` is `false` and it's exactly which files are `.js` that sizes every migration slice**: `popup.js` (the orchestrator), `renderers.js`, `background.js` (now mostly wiring), **each** site adapter's `.js` siblings (**ten files now**: three for Ramón Net, four for Anatomy and three for Classroom), **every `popup/features/*.js`** (the count is deliberately not written here — it has drifted three times in a week and was wrong twice; get it with `ls popup/features/*.js | grep -v test`, the same rule the test counts follow), and the **two entrypoints** (`entrypoints/background.js` + `entrypoints/popup/main.js` — that last pair is why `tsc` skips the whole import graph; see the `allowJs` section below).
 
+## Proyecto
+
+- Extensión MV3 para Chrome/Brave, personal y nunca publicada, que baja clases HLS y adjuntos de varios portales (Ramón Net, Anatomy, Classroom, Google Sites, tres Moodle).
+- TypeScript en `core/`, `plataforma/` y `sitio/`; JS vanilla y islas Preact en el popup; WXT + Vite; Vitest, ESLint 9 y `tsc`; pnpm.
+- Backend Bun en `backend/` (`localhost:3001`), que arma los archivos en disco. El detalle está en `## Project Overview`.
+
+## Comandos
+
+```bash
+pnpm install                                   # primero, en un clon o worktree nuevo: genera .wxt/ (postinstall)
+pnpm run dev                                   # WXT en modo watch con HMR, fuentes legibles
+pnpm run build                                 # → .output/chrome-mv3/ (la carpeta que se carga en Chrome)
+pnpm exec vitest run popup/features/queue.test.js   # un archivo
+pnpm exec vitest run -t "<test name>"          # un test
+HOME=~/.local/share/courseDownloader/home-prueba bun backend/server.js   # backend con una raíz de prueba, sin tocar la real
+```
+
+No hay base de datos: el estado vive en `chrome.storage` (`docs/data-model.md`). `pnpm run zip` existe y no tiene uso (ver `## Development Workflow`).
+
+## Verificación
+
+**La compuerta: los cuatro, en verde, antes de empezar y antes de entregar.** Los números esperados están **sólo** en `docs/testing.md` §Baseline:
+
+```bash
+pnpm test --exclude '.worktrees/**' --exclude '.claude/worktrees/**'   # Vitest, una corrida
+pnpm run lint                                  # ESLint 9; un warning nuevo también es regresión
+pnpm exec tsc --noEmit                         # typecheck limpio
+pnpm run build                                 # compila a .output/chrome-mv3/
+```
+
+Trampas:
+
+- **Worktrees dentro del repo.** No hay `vitest.config.*` y ESLint ignora `.worktrees/**` pero no `.claude/worktrees/**`. Si existe un worktree de agente, `pnpm test` corre sus tests y `eslint .` lo lintea. Hay que pasar los `--exclude`, o borrar el worktree.
+- **Un worktree recién creado no tiene `node_modules`.** Corré primero `pnpm install --frozen-lockfile`.
+- **La compuerta no cubre `backend/`**, que no tiene tests ni `tsc` (ver `## Development Workflow`).
+- **Lo que la suite no ve se verifica en Chrome.** La sesión de Playwright usa `cd ~/.local/share/courseDownloader && playwright-cli -s=verif open --config=pw.json <url>`, y carga la `.output/chrome-mv3/` del checkout principal. Los puntos que hay que mirar están en `Diseños/rearquitectura-diseno.md` §Verificación en navegador.
+
 ## Mapa de docs
 
 El trabajo de este proyecto vive en la bóveda, no en `docs/`. Se busca **primero ahí**: `~/Boveda/Proyectos/courseDownloader/` (tarjeta: `courseDownloader.md`).
@@ -92,6 +129,23 @@ El trabajo de este proyecto vive en la bóveda, no en `docs/`. Se busca **primer
 - **Se queda en el repo:** `README.md`, este `AGENTS.md` (y `CLAUDE.md`, puntero), la referencia del código (`docs/architecture.md`, `data-model.md`, `patterns.md`, `coding-standards.md`, `contributing.md`, `deployment.md`, `security.md`, `testing.md`, `tech-stack.md`), el how-to vigente (`docs/multisitio-diseno.md` §Cómo escribir un portal nuevo, `docs/medicion-de-portales.md`, `docs/preact-migration.md`, `docs/marca-diseno.md` y `docs/marca/`), los ADR (`docs/adr/`), los RFC (`docs/proposals/`, hoy no hay) y las fixtures (`docs/muestras/`, local y gitignorada). También `.claude/agent-memory/`.
 - **Rutas viejas:** los ADR y las notas de `.claude/agent-memory/` citan `docs/plan-*`, `docs/specs/…`, `docs/ramas-en-revision.md` y `docs/*-diseno.md` de antes de la mudanza (2026-10-13). La tabla de equivalencias está en `~/Boveda/Proyectos/courseDownloader/Diseños/Mudanza de docs 2026-10-13.md`.
 - **Al terminar un plan:** el informe va a `Informes/`, el estado a `Estado.md`; el `Mapa de docs` no se edita por cada merge.
+
+## Restricciones
+
+- **No se publica nunca** en la Chrome Web Store. No se ponderan la revisión de la tienda, la óptica de permisos ni el empaquetado (ver `## Documentation as Code`, al final).
+- **No se editan** `.output/`, `.wxt/` (artefactos), `manifest.json` (se genera desde `wxt.config.ts`) ni un ADR existente: una decisión que cambia lleva un ADR nuevo.
+- **Los números de la compuerta viven sólo en `docs/testing.md`.** No se copian acá ni en otro lado.
+- **`sitio/nuevo sitio/` y `descargas/` son evidencia gitignorada, no código.** Se stagea por ruta, nunca con `git add -A`.
+- **Política de video por portal:** sólo Ramón Net y Anatomy descargan video. Classroom, los Moodle y Google Sites guardan un acceso `.md`.
+- **`main` se usa a diario.** Nada se mergea sin probarlo en Chrome.
+
+## Referencias
+
+- Tarjeta y trabajo del proyecto: `~/Boveda/Proyectos/courseDownloader/` (ver `## Mapa de docs`).
+- Escenarios ocultos de verificación: `~/Boveda/Sistema/Escenarios/courseDownloader/`.
+- Perfil de Playwright y `HOME` de prueba: `~/.local/share/courseDownloader/` (`pw.json`, `home-prueba/`).
+- Medir un portal nuevo: `docs/medicion-de-portales.md`. Escribir uno: `docs/multisitio-diseno.md` §Cómo escribir un portal nuevo.
+- Repo remoto: GitHub, por HTTPS con `gh`.
 
 ## Documentation as Code
 
@@ -121,27 +175,11 @@ Security rule (operational summary — full policy and rationale in `docs/securi
 
 The extension is built with WXT (`pnpm run build` → `.output/chrome-mv3/`). Vitest + ESLint + `tsc` cover the source.
 
-**The gate — run all four before starting work, and they must all be green** (expected numbers → `docs/testing.md`, never repeated here):
-
-```bash
-pnpm test                              # Vitest, single run (the suite)
-pnpm run lint                          # ESLint 9 flat config — a new *warning* is a regression too
-pnpm exec tsc --noEmit                      # typecheck
-pnpm run build                         # → .output/chrome-mv3/  (what you load in Chrome)
-```
+**The gate — run all four before starting work, and they must all be green**: the exact commands and their traps are in `## Verificación`; the expected numbers are in `docs/testing.md`, never repeated here.
 
 **The gate does not cover `backend/` the way it covers the extension, and that asymmetry is easy to assume away now that both live in one repo.** Only lint reaches it — `pnpm run lint` runs `eslint .`, so the Bun server is under the same net (its own block in `eslint.config.js`, Node + `Bun` globals, no rule loosened). `pnpm test` does not: **the backend has no tests.** `pnpm exec tsc --noEmit` does not either: it isn't in `tsconfig.json`'s `include`, and it's plain `.js` besides. So a change in `backend/` that breaks the HTTP contract is caught by **nothing** but the browser — which is exactly the failure mode ADR-0015 exists for (`Atlas.pdf.mp4`), moved from "two repos" to "one repo, one gate that only half-applies". Verify a contract change end-to-end in Chrome, per `~/Boveda/Proyectos/courseDownloader/Diseños/fusion-monorepo-diseno.md` §5.
 
-Day-to-day:
-
-```bash
-pnpm exec vitest run popup/features/queue.test.js   # one file
-pnpm exec vitest run -t "<test name>"       # one test
-pnpm run dev                           # WXT watch mode + HMR, readable sources
-pnpm run zip                           # WXT store bundle — exists, and there is no reason to run it
-```
-
-That last one is listed to be dismissed: this extension is loaded unpacked and never published (the constraint stated just above this section), so `pnpm run zip` has no consumer. It is not part of the gate and producing a `.zip` is not a build check — `pnpm run build` is.
+Day-to-day commands → `## Comandos`. `pnpm run zip` (WXT store bundle) exists and there is no reason to run it: this extension is loaded unpacked and never published (the constraint stated just above this section), so `pnpm run zip` has no consumer. It is not part of the gate and producing a `.zip` is not a build check — `pnpm run build` is.
 
 The bullets below are the *why* behind each.
 

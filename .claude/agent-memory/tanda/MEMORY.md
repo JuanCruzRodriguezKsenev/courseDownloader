@@ -1,4 +1,5 @@
-- [Fábrica en este repo](project_fabrica_courseDownloader.md) — desde 2026-10-13 los planes van por la cola; orden 32→33→IDEAS; trampas
+- [Sin fábrica hasta que Juan diga](feedback_participativo_sin_fabrica.md) — desde 2026-10-13 tarde: Juan participa en todo; nada a la cola
+- [Fábrica en este repo](project_fabrica_courseDownloader.md) — 32 y 33 corrieron por fábrica (mergeados); trampas medidas, en pausa
 - [Plan 34, corrección del 31](project_verificacion_plan31.md) — mergeado a6b2abd 2026-10-13
 - [Ficha en AGENTS.md](project_ficha_en_agents.md) — sin ficha en CLAUDE.md; qué docs de estado leer al arrancar y estado al 2026-09-25
 - [Organización del material](user_organizacion_material.md) — ~/U.N.L.P: árbol git+Obsidian por facultad/materia/docente; mirar antes de proponer layouts
@@ -32,3 +33,4 @@
 - [Medir antes de suponer](feedback_medir_antes_de_suponer.md) — usar archivos bajados y la sesión Playwright `-s=verif` antes de inferir o preguntar
 - [Medir con clic y worktrees](feedback_medir_con_clic.md) — clic real en menús al medir; no hacer checkout con obra activo, usar git worktree
 - [Plan 32 Kaltura en Asignaturas](project_asignaturas_kaltura_plan32.md) — en la cola de fábrica desde 2026-10-13; spec ya en main
+- [AC del build](feedback_criterio_build.md) — «mismos números» excluye el tamaño si se tocan comentarios de .html

@@ -11,3 +11,5 @@ nombre.
 **No agregues reglas acá.** Una regla en este archivo sólo la ve Claude Code, y va a divergir de
 `AGENTS.md` sin que nada lo detecte — que es exactamente el modo de falla contra el que existe la
 convención DRY del proyecto (`docs/adr/0007-dry-docs-canonical-homes.md`).
+
+@AGENTS.md
