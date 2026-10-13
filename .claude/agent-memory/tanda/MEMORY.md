@@ -27,10 +27,11 @@
 - [Moodle Ingeniería](project_moodle_ingenieria.md) — spec del sexto portal 2026-10-05; mediciones, falta M-1..M-3 y plan; 2º sitio sin dar
 - [Scripts de medición](reference_scripts_medicion_portales.md) — scripts A–E en docs/medicion-de-portales.md; flujo para sumar un portal
 - [Moodle Asignaturas multicurso](project_moodle_asignaturas_multicurso.md) — spec draft 2026-10-05; /my/ tiene 1 curso; falta plan; separado de Ingeniería
-- [Sitios pendientes](project_sitios_pendientes.md) — IDEAS: spec aprobada y plan 35 para obra (rama ideas-info, 2026-10-13); el resto en main
+- [Sitios pendientes](project_sitios_pendientes.md) — IDEAS: plan 35 ejecutado, revisión CHANGES → plan 36 (reescribe ideas-info, no pushear); luego Chrome
 - [Plan 31 Moodle Ingeniería](project_moodle_ingenieria_plan31.md) — plan escrito, hallazgo H-1 del backend, riesgo M-A (6 vs 9 cursos), IDEAS queda después
 - [Verificar con Playwright](feedback_verificar_con_playwright.md) — yo mido portales; el checklist de un diff es de verificador/revisor-ux; receta
 - [Medir antes de suponer](feedback_medir_antes_de_suponer.md) — usar archivos bajados y la sesión Playwright `-s=verif` antes de inferir o preguntar
 - [Medir con clic y worktrees](feedback_medir_con_clic.md) — clic real en menús al medir; no hacer checkout con obra activo, usar git worktree
 - [Plan 32 Kaltura en Asignaturas](project_asignaturas_kaltura_plan32.md) — en la cola de fábrica desde 2026-10-13; spec ya en main
 - [AC del build](feedback_criterio_build.md) — «mismos números» excluye el tamaño si se tocan comentarios de .html
+- [Scrapers: response.ok](feedback_scraper_respuesta_ok.md) — nombrar en el plan qué hace cada fetch ante !ok y red; error del portal = curso fallido
