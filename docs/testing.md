@@ -30,12 +30,20 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **87 archivos, 1334 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
+| `pnpm test` | **91 archivos, 1372 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
 
-**De dónde sale el 1334** (2026-10-13, plan 32, Kaltura en Moodle Asignaturas): los 1330 de abajo más **+4** tests en `sitio/moodle-asignaturas/scraper.test.js` (AC-5, AC-6, AC-7 y desduplicación RN-17), sin archivos nuevos.
+**De dónde sale el 1372** (2026-10-13, plan 35, IDEAS - LIDI, UNLP): los 1334 de abajo más **+38** tests (+4 archivos nuevos en `sitio/ideas-info/`):
+- **+8** en `sitio/ideas-info/config.test.ts` (esPaginaDelSitio, esPortada, claveDeListado, metadatos y aislamiento),
+- **+7** en `sitio/ideas-info/descargarAdjunto.test.js` (URLs de material y medioteca, validación de idArchivo, sesión en /login y rechazo 404/410),
+- **+3** en `sitio/ideas-info/parserTitulos.test.js` (clasificarCarpeta con COMUN y nombre saneado),
+- **+15** en `sitio/ideas-info/scraper.test.js` (escaneo de curso con 33 ítems reales, desduplicación de choques con texto y sufijos, recorrido multicurso, cortes y tope),
+- **+2** en `sitio/registro.test.ts` (resolución de IDEAS y aislamiento de /login),
+- **+3** en `sitio/inyeccion.test.js` (evaluación JSDOM con fixtures reales de IDEAS sin ReferenceError, más 2 por iteración de Sitios.todos()).
+
+**De dónde salía el 1334** (2026-10-13, plan 32, Kaltura en Moodle Asignaturas): los 1330 de abajo más **+4** tests en `sitio/moodle-asignaturas/scraper.test.js` (AC-5, AC-6, AC-7 y desduplicación RN-17), sin archivos nuevos.
 
 **De dónde sale el 1330** (2026-10-10, plan `34 - Correcciones de la verificacion del plan 31`, rama `correccion-plan31`): son los 1313 de abajo más **+17** tests (sin archivos nuevos):
 - **+1** en `background.test.js` (serialización de `recorrido_evento` en cola de promesas contra carreras en storage, M-4),
