@@ -20,3 +20,12 @@ Orden decidido: 32 → 33 (migración docs) → IDEAS (después del 33).
 - `pnpm test`/`eslint .` en el checkout principal agarran `.claude/worktrees/**` (vitest sin config de exclude): pasar `--exclude`.
 - El checklist en Chrome lo corro yo con Playwright en `espera-juan`, antes del `merge-gate --juan`. Escenarios ocultos en `~/Boveda/Sistema/Escenarios/courseDownloader/`.
 - Plan 33 hay que revisarlo para fábrica (rama `migracion-docs`, mover notas en la bóveda desde un worktree con las guardas) antes de cargarlo.
+
+**Primera corrida (2026-10-13), plan 32 → espera-juan en ~10 min, 87/1334 en verde, 2 PASS.** Trampas medidas:
+- El worktree de `isolation: worktree` sale de **origin/main**, no del main local: si main tiene commits sin pushear, obra
+  construye sobre base vieja (esta vez hizo rebase solo). Antes de correr fábrica: pedirle a Juan que pushee, o avisar en la nota.
+- El verificador dijo «sin escenarios ocultos» aunque existían → correrlos yo en `espera-juan` hasta que forja lo arregle.
+- Informe a forja: `~/Boveda/Sistema/Informes/Informe para forja - primera corrida de fábrica en courseDownloader 2026-10-13.md`.
+- Para el checklist en Chrome: copiar `.output/chrome-mv3` del worktree a la del checkout principal (la que carga `pw.json`) y
+  **reabrir** `-s=verif` (con `chrome.runtime.reload()` se pierde el SW). El login de Asignaturas viene autocompletado: clic en `#loginbtn`.
+  Servidor de prueba: `HOME=~/.local/share/courseDownloader/home-prueba bun backend/server.js`.
