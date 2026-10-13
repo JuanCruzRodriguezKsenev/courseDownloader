@@ -13,6 +13,7 @@ export const PORTALES_VALIDOS = new Set([
   "moodle-asignaturas",
   "sites-matec",
   "moodle-ingenieria",
+  "ideas-info",
 ]);
 
 export const PORTALES_CON_DESTINO_INDICE = new Set([
@@ -21,6 +22,7 @@ export const PORTALES_CON_DESTINO_INDICE = new Set([
   "moodle-asignaturas",
   "sites-matec",
   "moodle-ingenieria",
+  "ideas-info",
 ]);
 
 /**
