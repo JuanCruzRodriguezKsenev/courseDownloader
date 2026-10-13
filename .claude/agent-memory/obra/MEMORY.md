@@ -60,3 +60,4 @@
 - [Mudanza de docs a la bóveda (Plan 33)](project_mudanza_docs_boveda_plan33.md) — qué quedó en docs/, dónde está lo mudado y tabla de rutas viejas
 - [Guardas de fábrica sobre la bóveda](feedback_fabrica_guardas_boveda.md) — grep/find recursivo en la bóveda y git -C con ~ bloqueados; scripts con lista explícita y rutas absolutas
 - [G3 y comentarios de bloque](feedback_g3_comentarios_de_bloque.md) — continuaciones de comentarios HTML/CSS dan falsos positivos en el chequeo de sólo comentarios
+- [IDEAS, el octavo portal (Plan 35)](project_ideas_octavo_portal_plan35.md) — octavo portal IDEAS (LIDI) por curso y multicurso desde /home, compuerta M-1 desde SW, content-disposition y desduplicación
