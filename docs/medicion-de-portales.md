@@ -183,3 +183,28 @@ planos). Para saber si hay subcarpetas, mirá la ruta de `ejemplos`: `content/0/
 agrega un segmento antes del nombre.
 
 Firmado: tanda claude sonnet 5.5
+
+---
+
+## Pasada con clic real (2026-10-06)
+
+**Por qué:** los scripts de arriba sólo leen el HTML inicial y no abren los menús; lo que un menú carga al abrirse
+no se veía. Se repitió la medición **abriendo todo lo plegable** (`aria-expanded="false"`, `details`,
+`collapse`) con la sesión del dueño en Chrome y comparando enlaces, actividades y texto antes y después. Sólo
+lecturas. Classroom quedó afuera (pedido del dueño).
+
+| Portal | Resultado |
+|---|---|
+| **IDEAS** | Confirmado con clic: «Información de cátedra» y «Promoción» están vacías (el panel repite el título). «Notas Examen Práctico» tiene **3 archivos**, ya contados entre los 32. |
+| **Moodle LINTI** (curso 1352) | Abrir los 8 plegables no sumó ningún recurso: 22 actividades y 12 secciones antes y después. Sólo se probó **un** curso. |
+| **Moodle Asignaturas** (curso 82) | Los 18 plegables (índice del curso, botones de sección) no sumaron recursos: 158 actividades antes y después. **Hallazgo H-A** abajo. |
+| **Moodle Ingeniería** (los 9 cursos, HTML crudo) | Sin video en ninguno. **Hallazgos H-B y H-C** abajo. |
+| **Google Sites Mate C** | Los 9 enlaces del menú coinciden con los 9 `slug` del scraper. En «Series» el DOM vivo tiene 8 videos de YouTube y 10 de Drive, igual que el HTML crudo; no hay bloques plegables. |
+| **Ramón Net** y **Anatomy by Chris** | **No medidos:** la sesión del dueño no está abierta en el navegador (piden login). Hay que medirlos con la sesión iniciada. |
+
+### Hallazgos
+
+- **H-A (Asignaturas)** — En el curso 82, el `label` «Cierre de cursada» (`module-5411`, sección 0) **incrusta un video de Kaltura** (iframe `kaltura_player_…_ifp` creado por JavaScript; sin `src` en el HTML inicial). El scraper ignora los `label`, así que ese video **no aparece en ningún escaneo**, y la spec dice «no hay video». Los otros 37 `label` del curso son sólo texto. Pendiente de decisión del dueño: si los videos de Kaltura entran como enlace `.md` (política de video por portal: Moodle sólo guarda el enlace).
+- **H-B (Ingeniería)** — 5 de los 9 cursos no tienen archivos (2777, 3479 y los de sólo foro). Los `label` traen **enlaces sueltos** (Zoom, contacto, útiles) y, en el curso 3479, **un `pluginfile` dentro de un `label`**. El plan 31 excluye `label` (RN-2); ese archivo no se lista.
+- **H-C (Ingeniería)** — El curso 5935 (Física II 2025) tiene **4 secciones ocultas por restricción de acceso** (`.availabilityinfo`). El escaneo ve lo que el navegador del dueño ve, no lo restringido: es lo esperado, pero conviene que el resumen no lo cuente como «vacío».
+

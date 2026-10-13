@@ -6,7 +6,7 @@ Decididos por el dueño el 2026-10-05 (ronda de 4 preguntas):
 |---|---|---|
 | 1 | Las secciones «Notas…» **se bajan** como cualquier otra (5 PDF de resultados) | resuelto (contra mi recomendación; ver filo en la spec) |
 | 2 | Nombre del archivo = el del header `content-disposition`, leído al escanear | resuelto |
-| 3 | Las secciones sin archivos (Información de cátedra, Promoción) se guardan como `.md` con su texto | resuelto |
+| 3 | Las secciones sin archivos (Información de cátedra, Promoción) se guardan como `.md` con su texto | **invalidado por la medición del 2026-10-06**: no tienen texto (confirmado con clic). Se omiten; si un docente carga texto se vuelve a medir |
 | 4 | La Medioteca se incluye | resuelto |
 
 Asumidos por mí (no preguntados; el dueño puede rechazarlos):
