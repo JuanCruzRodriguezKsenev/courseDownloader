@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="es">
+    <head>
+        <!-- Global site tag (gtag.js) - Google Analytics -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-T4WB70F9LM"></script>
+        <script>
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+
+          gtag('config', 'G-T4WB70F9LM');
+        </script>
+        <meta charset="UTF-8" />
+        <title>IDEAS</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="icon" type="image/x-icon" href="/favicon.ico" />    
+
+        <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv-printshiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
+<![endif]-->
+  
+
+                    <!-- Bootstrap -->
+            <link href="/css/bootstrap.min.css" rel="stylesheet" media="screen">
+            <link href="/css/bootstrap-theme.min.css" rel="stylesheet" media="screen">
+            <link href="/css/bootstrap2-toggle.min.css" rel="stylesheet">
+            <!-- HTML5 Shim and Respond.js add IE8 support of HTML5 elements and media queries -->
+            <link href="/css/styles.css" rel="stylesheet">
+            <link href="/sass/main.css" rel="stylesheet">
+
+            <link rel="stylesheet" href="//code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css">
+            <link href="/css/Course/unified.css" rel="stylesheet">
+             
+
+                        <link href="/css/alertify.min.css" rel="stylesheet">
+            <link href="/css/alertify.bootstrap.min.css" rel="stylesheet">
+        
+                    <link href="/css/remodal.css" rel="stylesheet"> 
+            <link href="/css/remodal-default-theme.css" rel="stylesheet">
+                
+                    <!-- jQuery (necessary for Bootstraps JavaScript plugins) -->
+            <script src="/js/jquery.js"></script>      
+            <!-- Include all JavaScripts, compiled by Assetic -->
+            <script src="/js/bootstrap.min.js"></script>
+            <script src="//code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
+            <script src="/js/generalFunctions.js"></script>
+            <script src="/js/menu_content_toggle.js"></script>
+            <script src="/js/course_description_toggle.js"></script>
+            <script src="/js/menu_toggle_bar_auto_height.js"></script>
+
+                        <script src="/js/alertify.min.js"></script>
+            <script src="/js/alert_manager.js"></script>
+            <script>
+            function loadNoneSelectedCkeditorAlert(){
+                var ap = new AlertProperties(
+                    'Enlazar con término del Glosario',
+                    'No se ha seleccionada ningún texto. Para realizar esta acción debe seleccionar al menos un caracter.',
+                    'Aceptar');
+                var am = new AlertManager();
+                am.showAlertDialog(ap, function() {
+                    //No hace nada mas, simplemente cierra el cartel.
+                });
+            }//End function
+            </script>
+                            <script src="/js/sticky_bar.js"></script>
+                <script src="/js/sticky_toggle_button.js"></script>
+                <script src="/js/select_current_menu_area.js"></script>
+                <script src="//code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
+                <script src="/js/bootstrap2-toggle.min.js"></script>
+                
+                        
+            <script>
+                let inputHover = false;
+
+                $(document).ready(function() {
+                    $(this).tooltip({
+                        content: $(this).data('help'),
+                        close: function(event, ui)
+                        {
+                            ui.tooltip.hover(function()
+                                {
+                                    $(this).fadeOut('500', function()
+                                    {
+                                        $(this).remove();
+                                    });
+                                },
+                                function()
+                                {
+                                    $(this).fadeOut('500', function()
+                                    {
+                                        $(this).remove();
+                                    });
+                                });
+                        }
+                    });
+                });
+                /*
+                $(document).ready(function(){
+                    $('[data-toggle="tooltip"]').tooltip(); 
+                });*/
+            </script>
+        
+                    <script src="/js/remodal.js"></script> 
+            <script type="text/javascript">              
+                $( window ).load(function(){
+                    inst = $('[data-remodal-id=modal]').remodal();
+                    $( ".modal-link" ).click(function(e) {
+                        e.preventDefault();
+                        $(".remodal").load($(this).attr("href"), function() {
+                            inst.open();
+                        });
+                    });
+                    $(document).on('closing', '.remodal', function (e) {
+                    	$(".remodal").empty();
+        			});
+
+                    $(document).on('opened', '.remodal', function () {
+                        $( ".modal-glossary" ).click(function(e) {
+                                e.preventDefault();
+                                $(".remodal").load($(this).attr("href"), function() {
+                                    inst.open();
+                                });
+                            }); 
+                    });
+                    
+                })
+            </script>
+        
+                    <script type="text/javascript">              
+                $( window ).load(function(){
+                    $( ".modal-glossary" ).click(function(e) {
+                        e.preventDefault();
+                        $(".remodal").load($(this).attr("href"), function() {
+                            inst.open();
+                        });
+                    });                    
+                })
+            </script>
+        
+    </head>
+    <body>
+                    <div class="container-fluid"  aria-hidden="true" >
+            <div class="container-fluid row header-not-responsive">
+            <header id="small">
+                    
+                <div class="pull-left col-md-4">
+                    <a href="/home" style="height: 10px; text-decoration: none"><img class="pull-left logo-web img-responsive" alt="Logo de IDEAS - Integrando el mundo Digital para Enseñar y Aprender Siempre" title="Logo de IDEAS - Integrando el mundo Digital para Enseñar y Aprender Siempre" src="/images/logo.svg"/></a>
+                    
+                    <a data-remodal-target="modal" href="/menu-modal/contact" class="upperMenu modal-link">Contacto</a>
+                    <a data-remodal-target="modal" href="/menu-modal/help" class="upperMenu modal-link">Ayuda</a>
+                    <a data-remodal-target="modal" href="/menu-modal/about" class="upperMenu modal-link">Acerca</a>
+                    
+                </div>
+                <div class="pull-left col-md-2"></div>
+                <div class="pull-right col-md-6">
+                    <div class="pull-left col-md-2">
+                        <img src="/getUserPicture/00000000-0000-4000-8000-000000000000/" class="img-circle-profile-header" alt="Imagen de perfil" title="Imagen de perfil" width="50" height="50">
+                    </div>     
+                    <div class="pull-left style-responsive-header-profile col-md-6">
+                        <div class="row header-name">
+                            Alumno Prueba
+                            <hr class="name">
+                        </div>
+                        <div class="row header-mail">    
+                            alumno@example.com
+                        </div>
+                    </div>     
+                    <div class="pull-right col-md-4">
+                                                            <div class="row">
+    <div class="pull-right col-md-12 first-row" >
+                <a class="link-personal-bar"  href="/profile/edit"><img src="/images/headerProfile.png" title="Editar perfil" alt="Editar perfil" class="img-header-circle"></a>
+        <a class="link-personal-bar"  href="/profile/Notifications"><img src="/images/headerNotification.png" title="Editar notificaciones" alt="Editar notificaciones" class="img-header-circle"></a>
+        
+    </div>
+</div>
+<div class="row">
+    <div class="pull-right col-xs-12 col-sm-12 col-md-12 second-row" >
+                <a  class="link-personal-bar" href="/Search/Course"><img src="/images/headerSearch.png" title="Buscar Curso" alt="Buscar Curso" class="img-header-circle"></a>
+        <a  class="link-personal-bar" href="/logout"><img src="/images/headerLogout.png" title="Cerrar Sesión" alt="Cerrar Sesión" class="img-header-circle"></a> 
+        
+    </div>
+</div>                                                </div>
+                                    </div>
+            </header>
+        </div>
+                
+        <div class="container-fluid row header-responsive">
+           
+            <header id="small"> 
+                 
+                        
+                <div class="first-column-responsive col-md-2">
+                    <a href="/home"><img class="logo-responsive" alt="Logo de IDEAS - Integrando el mundo Digital para Enseñar y Aprender Siempre" title="Logo de IDEAS - Integrando el mundo Digital para Enseñar y Aprender Siempre" src="/images/logoResponsive.svg"/></a>
+                </div>
+                <div class="second-column-responsive col-md-8">
+                    <div class="col-md-4">
+                        <img src="/getUserPicture/00000000-0000-4000-8000-000000000000/" class="pull-left img-circle-profile-header" alt="Imagen de perfil" title="Imagen de perfil" width="50" height="50">
+                    </div>
+                    <div class="col-md-8 header-name">
+                        Alumno Prueba
+                    </div>
+                </div>
+                <div class="third-column-responsive col-md-2"> 
+                    <a class="btn btn-bg" data-toggle="collapse" data-target="#header-responsive-menu" aria-controls="#header-responsive-menu"><img class="img-sandwich" src="/images/menu-sandwich.svg"/></a>
+                </div>  
+               
+            </header>  
+        </div>    
+            <div id="header-responsive-menu" class="collapse" >
+                <div id= "div-menu-modal" class="pull-left col-xs-6 col-sm-6 col-md-6">
+                    <div class="row row-responsive"><a data-remodal-target="modal" href="/menu-modal/contact" class="menu-modal-responsive modal-link">Contacto</a></div>
+                    <div class="row row-responsive"><a data-remodal-target="modal" href="/menu-modal/help" class="menu-modal-responsive modal-link">Ayuda</a></div>
+                    <div class="row row-responsive"><a data-remodal-target="modal" href="/menu-modal/about" class="menu-modal-responsive modal-link">Acerca</a> </div>
+                </div>
+                <div class="col-xs-6 col-sm-6 col-md-6">
+                    <div class="row">
+                        <div class="pull-right col-xs-12 col-sm-12 col-md-12 first-row" >
+                                                        <a class="link-personal-bar"  href="/profile/edit"><img src="/images/headerProfile.png" title="Editar perfil" alt="Editar perfil" class="img-header-circle"></a>
+                            <a class="link-personal-bar"  href="/profile/Notifications"><img src="/images/headerNotification.png" title="Editar notificaciones" alt="Editar notificaciones" class="img-header-circle"></a>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="pull-right col-xs-12 col-sm-12 col-md-12 second-row" >
+                                                        <a  class="link-personal-bar"  href="/Search/Course"><img src="/images/headerSearch.png" title="Buscar Curso" alt="Buscar Curso" class="img-header-circle"></a>
+                            <a  class="link-personal-bar" href="/logout"><img src="/images/headerLogout.png" title="Cerrar Sesión" alt="Cerrar Sesión" class="img-header-circle"></a> 
+                        </div>
+                    </div>
+                </div>
+            </div>
+    </div>            
+        
+            
+            <div class="container-fluid courseList">
+            	
+
+
+
+<script>
+    $(document).ready(function(){
+        $("#flash-msg").click(function() {
+            $("#flash-msg").fadeOut("slow");
+        });
+    });
+</script>                    <script>
+        $(document).ready(function(){
+            $('#criteria').on('change', function() {
+                var url = "/home/orderCriteria";
+                url= url.replace("orderCriteria", $('#criteria').val());
+                window.location = url;
+                });
+        });
+    </script>
+
+<div class="course-list-conteiner">
+
+    
+        <div class="col-md-8 title-my-courses hidden-xs hidden-sm hidden-md">
+            <p>
+                MIS <b>CURSOS</b>
+                                    COMO <b>ESTUDIANTE</b>
+                            </p>
+        </div>
+        <div class="col-md-4 title-my-courses-order hidden-xs hidden-sm hidden-md">
+            <select id="criteria" name="order">
+                <optgroup label="Orden">
+                    <option value="title" selected>
+                        Título
+                    </option>
+                    <option value="lastAccessDate" >
+                        Última fecha de acceso
+                    </option>
+                    <option value="accessCant" >
+                        Cantidad de accesos
+                    </option>
+                </optgroup>
+            </select>
+        </div>
+        <div class="col-md-12 title-my-courses-separator hidden-xs hidden-sm hidden-md"></div>
+        <div class="col-md-12 content-my-courses">
+            <div class="row course-box-list">
+                                                <div class="col-md-6">
+                        <div class="course-box">
+                            <div class="row">
+    <div class="col-md-12 course-list-items-separator"></div>
+</div>
+
+<div class="row course-image-data">
+    <div class="col-md-3 course-image hidden-xs hidden-sm hidden-md">
+        <img class="img-responsive" title="Conceptos de Bases de Datos" src="/images/course_no_pic_1.svg" />
+    </div>
+    <div class="col-md-9 course-data">
+        <div class="row">
+           	<div class="col-xs-11 course-title-header">
+        		<p class="title">
+        		    <a href="/conceptos-de-bases-de-datos-1/Start/Welcome/View/Show/EnterCourse/192c14f9-4d0d-40f2-81d8-79f98067e1de">
+        		        Conceptos de Bases de Datos
+        		    </a>
+        		</p>
+                <p class="course-professor-header">Profesor: Dapoto Sebastián H.</p>
+            </div>
+            <div class="col-xs-1 toggle-element"></div>
+        	<div class="col-xs-12 course-description-header" >  		
+        		<p class="toggle-element-hided">Conceptos de Bases de Datos</p>
+        	</div>
+        	<div class="col-xs-12 course-icon-tools" >
+                                                                            <a href="/conceptos-de-bases-de-datos-1/Start/Welcome/View/Show/EnterCourse/192c14f9-4d0d-40f2-81d8-79f98067e1de">
+                        <div class="img-icon">
+                                                    <img class="img-icon" width="30" height="30" title="No hay novedades en Bienvenida" alt="No hay novedades en Bienvenida" src="/images/notificationIcons/welcome_disable.svg" />
+                            <div class="img-circle">0</div>                        
+                                                </div>
+                    </a>
+                                                                            <a href="/conceptos-de-bases-de-datos-1/Contents/Material/View/Show/EnterCourse?idCourseTool=212b727d-d34c-11e6-b6fb-b26a7e7cf880">
+                        <div class="img-icon">
+                                                    <img class="img-icon" width="30" height="30" title="No hay novedades en Materiales y actividades" alt="No hay novedades en Materiales y actividades" src="/images/notificationIcons/syllabus_disable.svg" />
+                            <div class="img-circle">0</div>                        
+                                                </div>
+                    </a>
+                                                                            <a href="/conceptos-de-bases-de-datos-1/Communication/Messaging/View/List/EnterCourse?idCourseTool=fc71d663-9809-4020-b006-a377a2fe1cf3">
+                        <div class="img-icon">
+                                                    <img class="img-icon" width="30" height="30" title="No hay novedades en Mensajería" alt="No hay novedades en Mensajería" src="/images/notificationIcons/messaging_disable.svg" />
+                            <div class="img-circle">0</div>                        
+                                                </div>
+                    </a>
+                                                                            <a href="/conceptos-de-bases-de-datos-1/Communication/Board/View/List/EnterCourse?idCourseTool=3b9491de-f6c3-4c41-9f85-0e958ed4531f">
+                        <div class="img-icon">
+                                                    <img class="img-icon" width="30" height="30" title="No hay novedades en Cartelera" alt="No hay novedades en Cartelera" src="/images/notificationIcons/board_disable.svg" />
+                            <div class="img-circle">0</div>                        
+                                                </div>
+                    </a>
+                                                                            <a href="/conceptos-de-bases-de-datos-1/Communication/Forum/View/Show/EnterCourse?idCourseTool=9378667c-801b-11eb-a91d-b26a7e7cf880">
+                        <div class="img-icon">
+                                                    <img class="img-icon" width="30" height="30" title="No hay novedades en Foro" alt="No hay novedades en Foro" src="/images/notificationIcons/forum_disable.svg" />
+                            <div class="img-circle">0</div>                        
+                                                </div>
+                    </a>
+                                                                            <a href="/conceptos-de-bases-de-datos-1/Evaluation/SelfAssessment/View/Show/EnterCourse?idCourseTool=421c999f-d419-11e6-ad0a-aa9c84f4df6a">
+                        <div class="img-icon">
+                                                    <img class="img-icon" width="30" height="30" title="No hay novedades en Autoevaluaciones" alt="No hay novedades en Autoevaluaciones" src="/images/notificationIcons/selfAssessment_disable.svg" />
+                            <div class="img-circle">0</div>                        
+                                                </div>
+                    </a>
+                                                                            <a href="/conceptos-de-bases-de-datos-1/Evaluation/Task/View/Show/EnterCourse?idCourseTool=421c86db-d419-11e6-ad0a-aa9c84f4df6a">
+                        <div class="img-icon">
+                                                    <img class="img-icon" width="30" height="30" title="No hay novedades en Tareas" alt="No hay novedades en Tareas" src="/images/notificationIcons/task_disable.svg" />
+                            <div class="img-circle">0</div>                        
+                                                </div>
+                    </a>
+                                                                            <a href="/conceptos-de-bases-de-datos-1/Resources/MediaLibrary/View/EnterCourse?idCourseTool=10c6f86b-6eed-4f43-8a53-b87d8c6197fd">
+                        <div class="img-icon">
+                                                    <img class="img-icon" width="30" height="30" title="No hay novedades en Medioteca" alt="No hay novedades en Medioteca" src="/images/notificationIcons/mediaLibrary_disable.svg" />
+                            <div class="img-circle">0</div>                        
+                                                </div>
+                    </a>
+                        	</div>
+    	</div>
+    </div>
+</div>                        </div>
+                    </div>
+                                        </div>
+        </div>
+
+    
+</div>            </div>
+	        
+                    <div class="container-fluid">
+        <footer> 
+            <p>
+                Instituto de Investigación en Informática LIDI. Entorno virtual de enseñanza y aprendizaje. 
+            </p>
+        </footer>
+</div>        
+                    <div class="remodal" data-remodal-id="modal"></div>
+        
+    </body>
+</html>

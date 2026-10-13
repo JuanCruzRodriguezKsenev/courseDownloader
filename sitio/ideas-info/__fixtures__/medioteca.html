@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="es">
+    <head>
+        <!-- Global site tag (gtag.js) - Google Analytics -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-T4WB70F9LM"></script>
+        <script>
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+
+          gtag('config', 'G-T4WB70F9LM');
+        </script>
+        <meta charset="UTF-8" />
+        <title>IDEAS</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="icon" type="image/x-icon" href="/favicon.ico" />    
+
+        <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv-printshiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
+<![endif]-->
+  
+
+                        <!-- Bootstrap -->
+            <link href="/css/bootstrap.min.css" rel="stylesheet" media="screen">
+            <link href="/css/bootstrap-theme.min.css" rel="stylesheet" media="screen">
+            <link href="/css/bootstrap2-toggle.min.css" rel="stylesheet">
+            <!-- HTML5 Shim and Respond.js add IE8 support of HTML5 elements and media queries -->
+            <link href="/css/styles.css" rel="stylesheet">
+            <link href="/sass/main.css" rel="stylesheet">
+
+            <link rel="stylesheet" href="//code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css">
+            <link href="/css/Course/unified.css" rel="stylesheet">
+             
+
+                        <link href="/css/alertify.min.css" rel="stylesheet">
+            <link href="/css/alertify.bootstrap.min.css" rel="stylesheet">
+        
+    <link href="/css/Course/Resources/MediaLibrary/mediaLibrary.css" rel="stylesheet">
+    <link href="/css/Course/table.css" rel="stylesheet">
+
+                    <link href="/css/remodal.css" rel="stylesheet"> 
+            <link href="/css/remodal-default-theme.css" rel="stylesheet">
+                
+                        <!-- jQuery (necessary for Bootstraps JavaScript plugins) -->
+            <script src="/js/jquery.js"></script>      
+            <!-- Include all JavaScripts, compiled by Assetic -->
+            <script src="/js/bootstrap.min.js"></script>
+            <script src="//code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
+            <script src="/js/generalFunctions.js"></script>
+            <script src="/js/menu_content_toggle.js"></script>
+            <script src="/js/course_description_toggle.js"></script>
+            <script src="/js/menu_toggle_bar_auto_height.js"></script>
+
+                        <script src="/js/alertify.min.js"></script>
+            <script src="/js/alert_manager.js"></script>
+            <script>
+            function loadNoneSelectedCkeditorAlert(){
+                var ap = new AlertProperties(
+                    'Enlazar con término del Glosario',
+                    'No se ha seleccionada ningún texto. Para realizar esta acción debe seleccionar al menos un caracter.',
+                    'Aceptar');
+                var am = new AlertManager();
+                am.showAlertDialog(ap, function() {
+                    //No hace nada mas, simplemente cierra el cartel.
+                });
+            }//End function
+            </script>
+                            <script src="/js/sticky_bar.js"></script>
+                <script src="/js/sticky_toggle_button.js"></script>
+                <script src="/js/select_current_menu_area.js"></script>
+                <script src="//code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
+                <script src="/js/bootstrap2-toggle.min.js"></script>
+                
+                        
+            <script>
+                let inputHover = false;
+
+                $(document).ready(function() {
+                    $(this).tooltip({
+                        content: $(this).data('help'),
+                        close: function(event, ui)
+                        {
+                            ui.tooltip.hover(function()
+                                {
+                                    $(this).fadeOut('500', function()
+                                    {
+                                        $(this).remove();
+                                    });
+                                },
+                                function()
+                                {
+                                    $(this).fadeOut('500', function()
+                                    {
+                                        $(this).remove();
+                                    });
+                                });
+                        }
+                    });
+                });
+                /*
+                $(document).ready(function(){
+                    $('[data-toggle="tooltip"]').tooltip(); 
+                });*/
+            </script>
+        
+    <script type="text/javascript">
+        
+         $(document).ready(function() {
+
+            $('#resources_items_type').on('change', function() {
+                selection = $('#resources_items_type').val();
+                var filter = "resources_items_type";
+                var criteria = $( "#resources_items_type option:selected" ).val();
+            
+                if (criteria === 'none'){
+                    filter = "none";
+                }
+                var url = "/conceptos-de-bases-de-datos-1/Resources/MediaLibrary/View/Show/filter=criteria";
+                url= url.replace("filter", filter);
+                url= url.replace("criteria", selection);
+  
+                window.location = url;
+            });
+
+        });
+        
+        $(document).ready(function() {
+            $('#searchContent').keydown(function(event) {
+                if(event.keyCode == 13) {
+                    event.preventDefault();
+                    searchBy();
+                }
+            });
+            
+            $('#rightFilter').click(function (){
+                var value = $('#searchContent').val().trim();
+                if (value.length > 0) { // input is not empty
+                    var filter = 'searchContent'
+                    var url = "/conceptos-de-bases-de-datos-1/Resources/MediaLibrary/View/Show/filter=none/value";
+                    url= url.replace("value", value);
+                    url= url.replace("filter", filter);
+                }
+                else{
+                     var url = "/conceptos-de-bases-de-datos-1/Resources/MediaLibrary/View/Show";
+                }
+                window.location = url;
+            });
+        }); 
+
+        
+        function searchBy(filter){
+            
+            var searchcriteria = $('input[id=searchContent]').val();
+            
+            if(filter === 'none' || searchcriteria === ''){
+                 searchcriteria = '';
+            }
+            else{
+                filter = 'searchContent';
+            }
+            var url = "/conceptos-de-bases-de-datos-1/Resources/MediaLibrary/View/Show/filter=none/searchcriteria";
+            
+            url= url.replace("filter", filter);
+            url= url.replace("searchcriteria", searchcriteria);
+            location.href = url;
+        }
+
+    </script>
+
+        
+			<link href="/css/footable.bootstrap.min.css" rel="stylesheet">
+	    <script src="/js/footable.min.js"></script>
+	    
+	    <script>
+	        $( window ).load(function(){
+	            $('.table').footable();
+	        });
+	    </script>
+
+	
+
+
+
+                    <script src="/js/remodal.js"></script> 
+            <script type="text/javascript">              
+                $( window ).load(function(){
+                    inst = $('[data-remodal-id=modal]').remodal();
+                    $( ".modal-link" ).click(function(e) {
+                        e.preventDefault();
+                        $(".remodal").load($(this).attr("href"), function() {
+                            inst.open();
+                        });
+                    });
+                    $(document).on('closing', '.remodal', function (e) {
+                    	$(".remodal").empty();
+        			});
+
+                    $(document).on('opened', '.remodal', function () {
+                        $( ".modal-glossary" ).click(function(e) {
+                                e.preventDefault();
+                                $(".remodal").load($(this).attr("href"), function() {
+                                    inst.open();
+                                });
+                            }); 
+                    });
+                    
+                })
+            </script>
+        
+                    <script type="text/javascript">              
+                $( window ).load(function(){
+                    $( ".modal-glossary" ).click(function(e) {
+                        e.preventDefault();
+                        $(".remodal").load($(this).attr("href"), function() {
+                            inst.open();
+                        });
+                    });                    
+                })
+            </script>
+        
+    </head>
+    <body>
+                    <div class="container-fluid"  aria-hidden="true" >
+            <div class="container-fluid row header-not-responsive">
+            <header id="small">
+                    
+                <div class="pull-left col-md-4">
+                    <a href="/home" style="height: 10px; text-decoration: none"><img class="pull-left logo-web img-responsive" alt="Logo de IDEAS - Integrando el mundo Digital para Enseñar y Aprender Siempre" title="Logo de IDEAS - Integrando el mundo Digital para Enseñar y Aprender Siempre" src="/images/logo.svg"/></a>
+                    
+                    <a data-remodal-target="modal" href="/menu-modal/contact" class="upperMenu modal-link">Contacto</a>
+                    <a data-remodal-target="modal" href="/menu-modal/help" class="upperMenu modal-link">Ayuda</a>
+                    <a data-remodal-target="modal" href="/menu-modal/about" class="upperMenu modal-link">Acerca</a>
+                    
+                </div>
+                <div class="pull-left col-md-2"></div>
+                <div class="pull-right col-md-6">
+                    <div class="pull-left col-md-2">
+                        <img src="/getUserPicture/00000000-0000-4000-8000-000000000000/" class="img-circle-profile-header" alt="Imagen de perfil" title="Imagen de perfil" width="50" height="50">
+                    </div>     
+                    <div class="pull-left style-responsive-header-profile col-md-6">
+                        <div class="row header-name">
+                            Alumno Prueba
+                            <hr class="name">
+                        </div>
+                        <div class="row header-mail">    
+                            alumno@example.com
+                        </div>
+                    </div>     
+                    <div class="pull-right col-md-4">
+                                                            <div class="row">
+    <div class="pull-right col-md-12 first-row" >
+                <a class="link-personal-bar"  href="/profile/edit"><img src="/images/headerProfile.png" title="Editar perfil" alt="Editar perfil" class="img-header-circle"></a>
+        <a class="link-personal-bar"  href="/profile/Notifications"><img src="/images/headerNotification.png" title="Editar notificaciones" alt="Editar notificaciones" class="img-header-circle"></a>
+        
+    </div>
+</div>
+<div class="row">
+    <div class="pull-right col-xs-12 col-sm-12 col-md-12 second-row" >
+                <a  class="link-personal-bar" href="/Search/Course"><img src="/images/headerSearch.png" title="Buscar Curso" alt="Buscar Curso" class="img-header-circle"></a>
+        <a  class="link-personal-bar" href="/logout"><img src="/images/headerLogout.png" title="Cerrar Sesión" alt="Cerrar Sesión" class="img-header-circle"></a> 
+        
+    </div>
+</div>                                                </div>
+                                    </div>
+            </header>
+        </div>
+                
+        <div class="container-fluid row header-responsive">
+           
+            <header id="small"> 
+                 
+                        
+                <div class="first-column-responsive col-md-2">
+                    <a href="/home"><img class="logo-responsive" alt="Logo de IDEAS - Integrando el mundo Digital para Enseñar y Aprender Siempre" title="Logo de IDEAS - Integrando el mundo Digital para Enseñar y Aprender Siempre" src="/images/logoResponsive.svg"/></a>
+                </div>
+                <div class="second-column-responsive col-md-8">
+                    <div class="col-md-4">
+                        <img src="/getUserPicture/00000000-0000-4000-8000-000000000000/" class="pull-left img-circle-profile-header" alt="Imagen de perfil" title="Imagen de perfil" width="50" height="50">
+                    </div>
+                    <div class="col-md-8 header-name">
+                        Alumno Prueba
+                    </div>
+                </div>
+                <div class="third-column-responsive col-md-2"> 
+                    <a class="btn btn-bg" data-toggle="collapse" data-target="#header-responsive-menu" aria-controls="#header-responsive-menu"><img class="img-sandwich" src="/images/menu-sandwich.svg"/></a>
+                </div>  
+               
+            </header>  
+        </div>    
+            <div id="header-responsive-menu" class="collapse" >
+                <div id= "div-menu-modal" class="pull-left col-xs-6 col-sm-6 col-md-6">
+                    <div class="row row-responsive"><a data-remodal-target="modal" href="/menu-modal/contact" class="menu-modal-responsive modal-link">Contacto</a></div>
+                    <div class="row row-responsive"><a data-remodal-target="modal" href="/menu-modal/help" class="menu-modal-responsive modal-link">Ayuda</a></div>
+                    <div class="row row-responsive"><a data-remodal-target="modal" href="/menu-modal/about" class="menu-modal-responsive modal-link">Acerca</a> </div>
+                </div>
+                <div class="col-xs-6 col-sm-6 col-md-6">
+                    <div class="row">
+                        <div class="pull-right col-xs-12 col-sm-12 col-md-12 first-row" >
+                                                        <a class="link-personal-bar"  href="/profile/edit"><img src="/images/headerProfile.png" title="Editar perfil" alt="Editar perfil" class="img-header-circle"></a>
+                            <a class="link-personal-bar"  href="/profile/Notifications"><img src="/images/headerNotification.png" title="Editar notificaciones" alt="Editar notificaciones" class="img-header-circle"></a>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="pull-right col-xs-12 col-sm-12 col-md-12 second-row" >
+                                                        <a  class="link-personal-bar"  href="/Search/Course"><img src="/images/headerSearch.png" title="Buscar Curso" alt="Buscar Curso" class="img-header-circle"></a>
+                            <a  class="link-personal-bar" href="/logout"><img src="/images/headerLogout.png" title="Cerrar Sesión" alt="Cerrar Sesión" class="img-header-circle"></a> 
+                        </div>
+                    </div>
+                </div>
+            </div>
+    </div>            
+        
+                    <div class="courseBar row col-md-12">
+    <span class="col-md-8">
+                    <h4>Conceptos de Bases de Datos</h4>
+            </span>
+    <div id="mode" class="col-md-4">
+           </div>
+</div>
+
+              
+                    
+            <div class="container-fluid">
+                <div class="row central">
+                    <div class="col-xs-3 col-menu">
+                                                    <div class="courseMenu-wrapper">
+
+    <div class="collapse_button col-xs-1" >
+        <nav class="menu-opener">
+            <div class="menu-opener-inner"></div>
+        </nav>
+    </div>
+    <div class="courseMenu col-xs-10 collapse in width" id="democontent">
+
+                                    <div class="courseMenuParent panel-heading">
+                    <p>Inicio
+                        <a alt="abrir/cerrar menu" class="toggle-subItems" data-toggle=start href="#collapseManagement"><i class="img_menu glyphicon glyphicon-menu-down"></i><span class="sr-only">Cerrar sección</span></a>
+
+                    </p>
+                </div>
+
+                <div class="toolsItemsMenu" data-toggle=start>
+                    
+                        
+                                                                            <div class="courseMenuChild " title="Bienvenida">
+                                <a href="/conceptos-de-bases-de-datos-1/Start/Welcome/View/Show?idCourseTool=04f272e0-b135-11d7-a0ec-00e04c98a516">
+                                    Bienvenida </a>                                                                                                
+                                                                                                                                                                                                                                                            <div class="tool-news ">
+                                        <a href="/conceptos-de-bases-de-datos-1/Start/Welcome/View/Show?courseTool=192c14f9-4d0d-40f2-81d8-79f98067e1de"class="news-text-disable">
+                                            <img src="/images/Icon-news/welcome_disable.svg" alt="No hay novedades en Bienvenida" title="No hay novedades en Bienvenida"  width="37" height="37">
+                                            0
+                                        </a>
+                                    </div>
+
+                                                            </div>
+                                                    
+                    
+                </div>
+                                                <div class="courseMenuParent panel-heading">
+                    <p>Itinerario
+                        <a alt="abrir/cerrar menu" class="toggle-subItems" data-toggle=contents href="#collapseManagement"><i class="img_menu glyphicon glyphicon-menu-down"></i><span class="sr-only">Cerrar sección</span></a>
+
+                    </p>
+                </div>
+
+                <div class="toolsItemsMenu" data-toggle=contents>
+                    
+                        
+                                                                            <div class="courseMenuChild " title="Cátedra">
+                                <a href="/conceptos-de-bases-de-datos-1/Contents/Introduction/View/Show?idCourseTool=0af8207b-2770-11e6-8b11-aa9c84f4df6a">
+                                    Cátedra </a>                                                                                                
+                                                            </div>
+                                                    
+                    
+                        
+                                                                            <div class="courseMenuChild " title="Materiales">
+                                <a href="/conceptos-de-bases-de-datos-1/Contents/Material/View/Show?idCourseTool=30e0e6e4-27f5-11e6-b67b-9e71128cae77">
+                                    Materiales </a>                                                                                                
+                                                                                                                                                                                                                                                            <div class="tool-news ">
+                                        <a href="/conceptos-de-bases-de-datos-1/Contents/Material/View/Show?courseTool=212b727d-d34c-11e6-b6fb-b26a7e7cf880"class="news-text-disable">
+                                            <img src="/images/Icon-news/syllabus_disable.svg" alt="No hay novedades en Materiales y actividades" title="No hay novedades en Materiales y actividades"  width="37" height="37">
+                                            0
+                                        </a>
+                                    </div>
+
+                                                            </div>
+                                                    
+                    
+                </div>
+                                                <div class="courseMenuParent panel-heading">
+                    <p>Comunicación
+                        <a alt="abrir/cerrar menu" class="toggle-subItems" data-toggle=communication href="#collapseManagement"><i class="img_menu glyphicon glyphicon-menu-down"></i><span class="sr-only">Cerrar sección</span></a>
+
+                    </p>
+                </div>
+
+                <div class="toolsItemsMenu" data-toggle=communication>
+                    
+                        
+                                                                            <div class="courseMenuChild " title="Mensajeria">
+                                <a href="/conceptos-de-bases-de-datos-1/Communication/Messaging/View/List?courseTool=fc71d663-9809-4020-b006-a377a2fe1cf3">
+                                    Mensajeria 
+                                </a>
+                                                                                                                                	                                                                                                                                                                                        <div class="tool-news ">
+                                        <a class="news-text-disable" href="/conceptos-de-bases-de-datos-1/Communication/Messaging/View/List?courseTool=fc71d663-9809-4020-b006-a377a2fe1cf3">
+                                            <img src="/images/Icon-news/messaging_disable.svg" alt="No hay novedades en Mensajería" title="No hay novedades en Mensajería"  width="37" height="37">
+                                            0
+                                        </a>
+                                    </div>
+
+                                
+                                                                                                
+                                
+                                                            </div>
+                        
+                    
+                        
+                                                                            <div class="courseMenuChild " title="Cartelera">
+                                <a href="/conceptos-de-bases-de-datos-1/Communication/Board/View/show?idCourseTool=b6baef25-ef8e-41e1-9419-8086a6335278">
+                                    Cartelera de Novedades </a>                                                                                                
+                                                                                                                                                                                                                                                            <div class="tool-news ">
+                                        <a href="/conceptos-de-bases-de-datos-1/Communication/Board/View/show?courseTool=3b9491de-f6c3-4c41-9f85-0e958ed4531f"class="news-text-disable">
+                                            <img src="/images/Icon-news/board_disable.svg" alt="No hay novedades en Cartelera" title="No hay novedades en Cartelera"  width="37" height="37">
+                                            0
+                                        </a>
+                                    </div>
+
+                                                            </div>
+                                                    
+                    
+                        
+                                                                            <div class="courseMenuChild " title="Herramienta para la creación de temas de debate.">
+                                <a href="/conceptos-de-bases-de-datos-1/Communication/Forum/View/Show?idCourseTool=4a7d7d4c-aabb-4ae3-9ea4-eeeec27ed23c">
+                                    Foro </a>                                                                                                
+                                                                                                                                                                                                                                                            <div class="tool-news ">
+                                        <a href="/conceptos-de-bases-de-datos-1/Communication/Forum/View/Show?courseTool=9378667c-801b-11eb-a91d-b26a7e7cf880"class="news-text-disable">
+                                            <img src="/images/Icon-news/forum_disable.svg" alt="No hay novedades en Foro" title="No hay novedades en Foro"  width="37" height="37">
+                                            0
+                                        </a>
+                                    </div>
+
+                                                            </div>
+                                                    
+                    
+                </div>
+                                                <div class="courseMenuParent panel-heading">
+                    <p>Colaboración
+                        <a alt="abrir/cerrar menu" class="toggle-subItems" data-toggle=collaboration href="#collapseManagement"><i class="img_menu glyphicon glyphicon-menu-down"></i><span class="sr-only">Cerrar sección</span></a>
+
+                    </p>
+                </div>
+
+                <div class="toolsItemsMenu" data-toggle=collaboration>
+                    
+                        
+                                                                            <div class="courseMenuChild " title="Herramienta para la gestión de grupos.">
+                                <a href="/conceptos-de-bases-de-datos-1/Collaboration/Groups/View/show?idCourseTool=1e22b98c-a188-4aee-af77-a405d408d1d6">
+                                    Grupos </a>                                                                                                
+                                                            </div>
+                                                    
+                    
+                </div>
+                                                                    <div class="courseMenuParent panel-heading">
+                    <p>Otros recursos
+                        <a alt="abrir/cerrar menu" class="toggle-subItems" data-toggle=resources href="#collapseManagement"><i class="img_menu glyphicon glyphicon-menu-down"></i><span class="sr-only">Cerrar sección</span></a>
+
+                    </p>
+                </div>
+
+                <div class="toolsItemsMenu" data-toggle=resources>
+                    
+                        
+                                                                            <div class="courseMenuChild menu-item-selected" title="Medioteca">
+                                <a href="/conceptos-de-bases-de-datos-1/Resources/MediaLibrary/View/Show?idCourseTool=9b64ff2a-0c2e-467c-9229-d6327b1c0bf6">
+                                    Medioteca </a>                                                                                                
+                                                                                                                                                                                                                                                            <div class="tool-news menu-item-selected">
+                                        <a href="/conceptos-de-bases-de-datos-1/Resources/MediaLibrary/View/Show?courseTool=10c6f86b-6eed-4f43-8a53-b87d8c6197fd"class="news-text-disable">
+                                            <img src="/images/Icon-news/mediaLibrary_disable.svg" alt="No hay novedades en Medioteca" title="No hay novedades en Medioteca"  width="37" height="37">
+                                            0
+                                        </a>
+                                    </div>
+
+                                                            </div>
+                                                    
+                    
+                </div>
+                    
+    </div>
+
+
+</div>
+
+<script>
+    $( ".toggle-subItems" ).click(function() {
+
+    	//Get the name of the section to toggle.
+        id= $(this).attr("data-toggle");
+
+        //Get state of the section before toggled. It's done this way because the value after the toggle is allways the same.
+        var state = $( ".toolsItemsMenu[data-toggle='" + id + "']" ).is(":visible");
+        $( ".toolsItemsMenu[data-toggle='" + id + "']" ).toggle( "slow" );
+
+        //Change the text to the screen reader.
+        if(state){
+        	$(this).children(".sr-only").text("Abrir sección");
+        }
+        else{
+        	$(this).children(".sr-only").text("Cerrar sección");
+        }
+    });
+
+    $(document).ready(function() {
+        var x = $('.courseMenu').height();
+        //$('.collapse_button').css('height', x+10);
+    });
+
+
+
+
+</script>
+
+
+                                            </div>
+                    <div class="col-xs-9 col-content">
+                                                    
+
+
+
+<script>
+    $(document).ready(function(){
+        $("#flash-msg").click(function() {
+            $("#flash-msg").fadeOut("slow");
+        });
+    });
+</script>                                                            <div class="row">
+<div class="col-md-12 message">
+        <div class="folderName">
+            <p class="category_name" id="management_title">
+                Medioteca   
+            </p>     
+        </div>
+        <div class="headerLinks">
+                            <select id="resources_items_type" name="resources_items_type" class="folderSelect" aria-label="Tipo">
+                    <optgroup label="Ver">
+                        <option value="none" selected > Todos </option>
+                                                                                <option value="article"> Articulo </option>
+                                                                                <option value="other"> Otro </option>
+                                                                                <option value="animation"> Animación </option>
+                                                                                <option value="journal"> Revista </option>
+                                                                                <option value="link"> Enlace de interés </option>
+                                                                                <option value="book"> Libro </option>
+                                                                                <option value="handout"> Apunte </option>
+                                                                                <option value="assignment"> Trabajo </option>
+                                                                                <option value="image"> Imagen </option>
+                                                                                <option value="audio"> Audio </option>
+                                                                                <option value="video"> Video </option>
+                                            </optgroup>
+                </select>
+
+                <span class="bar"></span>
+                
+                <input type="text" id="searchContent" name="searchContent" aria-label="Buscar" placeholder="Título o autor" value="">
+                <a id="rightFilter" href="#"><img alt="Buscar" src="/images/lupa.svg" height="25" width="25"/></a>
+
+                    </div>
+        <table   class="table ideasTable ideasTableNumber6">
+                        <thead>
+                <tr>
+                    <th class="hiddenSwitch">v</th>
+                    <th class="headerCheck" data-column-id="actions" >Tipo</th>
+                    <th class="headerName" data-column-id="title">Título</th>
+                    <th data-breakpoints="xs" class="headerName" data-column-id="author1">Autores</th>
+                    <th data-breakpoints="xs" class="headerDescription" data-column-id="description">Descripción</th>
+                    <th class="headerName" data-column-id="publicationDate">Publicado</th>
+                    <th data-breakpoints="xs" class="headerActions" data-column-id="actions">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                                                                        <tr class="color_news">
+                             
+                                                                                <td class="hiddenSwitch colorhidden">&nbsp</td>
+                            <td class="headerCheck"><div class="td-div with-images"><img title="Animación" alt="Animación" src="/images/resourcesItemType/iconAnimation.svg"/></div></td>
+                            <td><div class="" id="medialibrary_text" title="Dev Pascal"><a class="contentToView" href="/conceptos-de-bases-de-datos-1/Resources/MediaLibrary/View/AccessResource/27166a1f-5321-436e-96ae-4adac17fd3a4" target="_blank">Dev Pascal</a></div></td>
+                            <td><div class="" id="medialibrary_text" title="Dev Pascal">Dev Pascal</div></td>
+                            <td><div class="" id="medialibrary_text" title=""></div></td>
+                            <td><div class="">15/03/16 (GMT-3)</div></td>
+                           <td class="headerActions">
+                                <div class="td-div with-images">
+                                    <a data-remodal-target="modal"  href="/conceptos-de-bases-de-datos-1/Resources/MediaLibrary/View/Details/27166a1f-5321-436e-96ae-4adac17fd3a4" class="modal-link"><img title="Ver detalle" alt="Ver detalle" src="/images/details.svg" /></a>
+                                </div>
+                            </td>
+                        </tr>
+                            </tbody>
+                    </table>
+        <div class="navigation"></div>
+       
+</div>
+</div>
+
+                        </div>
+                </div>
+            </div>
+                      
+        
+                    <div class="container-fluid">
+        <footer> 
+            <p>
+                Instituto de Investigación en Informática LIDI. Entorno virtual de enseñanza y aprendizaje. 
+            </p>
+        </footer>
+</div>        
+                    <div class="remodal" data-remodal-id="modal"></div>
+        
+    </body>
+</html>
