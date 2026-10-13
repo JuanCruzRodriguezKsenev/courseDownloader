@@ -59,6 +59,10 @@ import '../sitio/moodle-ingenieria/config.ts';
 import '../sitio/moodle-ingenieria/parserTitulos.js';
 import '../sitio/moodle-ingenieria/descargarAdjunto.js';
 
+import '../sitio/ideas-info/config.ts';
+import '../sitio/ideas-info/parserTitulos.js';
+import '../sitio/ideas-info/descargarAdjunto.js';
+
 import BunClient from '../core/backend/bunClient.ts';
 import { aplicarEvento, esRecorridoTodos } from '../core/estado/recorridoTodos.ts';
 // [MULTISITIO CORTE 8] Acá se importaba `sitioAsumido`: el SW era el último lector del andamio

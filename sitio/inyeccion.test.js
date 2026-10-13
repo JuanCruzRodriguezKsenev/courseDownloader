@@ -23,6 +23,7 @@ import './moodle-linti/scraper.js';
 import './sites-matec/scraper.js';
 import './moodle-asignaturas/scraper.js';
 import './moodle-ingenieria/scraper.js';
+import './ideas-info/scraper.js';
 import { Sitios } from './registro.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -36,6 +37,13 @@ const moodleUrlHtml = fs.readFileSync(path.join(__dirname, 'moodle-asignaturas/_
 const moodleIngCursoHtml = fs.readFileSync(path.join(__dirname, 'moodle-ingenieria/__fixtures__/curso.html'), 'utf-8');
 const moodleIngCarpetaHtml = fs.readFileSync(path.join(__dirname, 'moodle-ingenieria/__fixtures__/carpeta.html'), 'utf-8');
 const moodleIngUrlHtml = fs.readFileSync(path.join(__dirname, 'moodle-ingenieria/__fixtures__/url-intermedia.html'), 'utf-8');
+const ideasMaterialHtml = fs.readFileSync(path.join(__dirname, 'ideas-info/__fixtures__/material.html'), 'utf-8');
+const ideasMediotecaHtml = fs.readFileSync(path.join(__dirname, 'ideas-info/__fixtures__/medioteca.html'), 'utf-8');
+const ideasIndice = JSON.parse(fs.readFileSync(path.join(__dirname, 'ideas-info/__fixtures__/indice.json'), 'utf-8'));
+const ideasSecHtml = {};
+for (const s of ideasIndice.secciones) {
+  ideasSecHtml[s.guid] = fs.readFileSync(path.join(__dirname, `ideas-info/__fixtures__/secciones/${s.n}.html`), 'utf-8');
+}
 
 const compilaComoExpresion = (fn) => new Function(`return (${fn.toString()});`);
 
@@ -286,6 +294,82 @@ describe('inyección sobre DOM real con fixtures (sites-matec y moodle-asignatur
     expect(res.materia).toBe('Matemática B3 (2023)');
     expect(res.enlaces.length).toBeGreaterThan(0);
     expect(res.enlaces.length).toBe(9);
+  });
+
+  it('ideas-info: evalúa escanearListado en ventana JSDOM limpia con fixtures y resuelve 33 enlaces sin ReferenceError', async () => {
+    const sitio = Sitios.obtener('ideas-info');
+    expect(sitio).toBeDefined();
+
+    const dom = new JSDOM(ideasMaterialHtml, {
+      url: 'https://ideas.info.unlp.edu.ar/conceptos-de-bases-de-datos-1/Contents/Material/View/Show?courseTool',
+      runScripts: 'outside-only',
+    });
+    const ctx = dom.getInternalVMContext();
+    ctx.fetch = async (url) => {
+      const urlStr = String(url);
+      if (urlStr.includes('/Contents/Material/View/Show?courseTool')) {
+        return {
+          ok: true,
+          status: 200,
+          url: urlStr,
+          text: async () => ideasMaterialHtml,
+        };
+      }
+      if (urlStr.includes('/Resources/MediaLibrary/View/Show?courseTool')) {
+        return {
+          ok: true,
+          status: 200,
+          url: urlStr,
+          text: async () => ideasMediotecaHtml,
+        };
+      }
+      for (const [guid, html] of Object.entries(ideasSecHtml)) {
+        if (urlStr.includes(`/Show/${guid}`)) {
+          return {
+            ok: true,
+            status: 200,
+            url: urlStr,
+            text: async () => html,
+          };
+        }
+      }
+      let pathname = '';
+      try {
+        pathname = new URL(urlStr, 'https://ideas.info.unlp.edu.ar').pathname;
+      } catch {
+        pathname = urlStr;
+      }
+      if (ideasIndice.headers[pathname]) {
+        const h = ideasIndice.headers[pathname];
+        return {
+          ok: h.status === 200,
+          status: h.status,
+          url: urlStr,
+          headers: new dom.window.Headers({
+            'content-type': h.ct || 'application/octet-stream',
+            'content-disposition': h.cd || '',
+          }),
+          body: { cancel: () => {} },
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        url: urlStr,
+        headers: new dom.window.Headers(),
+        text: async () => '',
+        body: { cancel: () => {} },
+      };
+    };
+
+    const fnCodigo = `(${sitio.escanearListado.toString()})`;
+    const fnInyectada = vm.runInContext(fnCodigo, ctx);
+    expect(typeof fnInyectada).toBe('function');
+
+    const res = await fnInyectada();
+    expect(res.materia).toBe('Conceptos de Bases de Datos');
+    expect(res.enlaces).toBeDefined();
+    expect(res.enlaces.length).toBe(33);
   });
 });
 
