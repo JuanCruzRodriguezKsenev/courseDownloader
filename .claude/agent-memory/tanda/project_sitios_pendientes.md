@@ -1,9 +1,14 @@
 ---
 name: sitios-pendientes-antes-de-planificar
-description: Estado al 2026-10-05 (noche): 4 specs de multicurso/portal listas (Ing, Info, LINTI, IDEAS), sin planes; leer al retomar
+description: Al 2026-10-13 sólo falta IDEAS (spec draft, M-1 y M-5 sin medir) y el plan 32 (Kaltura Info); Ing/Info/LINTI multicurso ya en main
 metadata:
   type: project
 ---
+
+## Actualización 2026-10-13
+Ing, Info y LINTI multicurso: en main (planes 29, 31, 34) y verificados. Falta: plan 32 (Kaltura Info, rama vieja: mergear main y
+repasar refs de scraper.js), IDEAS (spec draft en worktree `ideas-info`, faltan M-1 y M-5, sin plan), plan 33 (migración docs). El dueño quiere terminar rápido.
+Lo de abajo es historia.
 
 ## Reglas del dueño (2026-10-05)
 - "Faltan más sitios": **medir todos los sitios que quiera sumar antes de planificar**. No escribir planes de portales hasta entonces

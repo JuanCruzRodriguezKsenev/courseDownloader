@@ -25,7 +25,7 @@
 - [Moodle Ingeniería](project_moodle_ingenieria.md) — spec del sexto portal 2026-10-05; mediciones, falta M-1..M-3 y plan; 2º sitio sin dar
 - [Scripts de medición](reference_scripts_medicion_portales.md) — scripts A–E en docs/medicion-de-portales.md; flujo para sumar un portal
 - [Moodle Asignaturas multicurso](project_moodle_asignaturas_multicurso.md) — spec draft 2026-10-05; /my/ tiene 1 curso; falta plan; separado de Ingeniería
-- [Sitios pendientes](project_sitios_pendientes.md) — LEER AL RETOMAR: 4 specs listas; plan 29 (Moodle LINTI+Info) escrito en Bóveda; faltan 30 (Ing) y 31 (IDEAS)
+- [Sitios pendientes](project_sitios_pendientes.md) — al 2026-10-13 sólo falta IDEAS (M-1, M-5) y plan 32; los 3 Moodle multicurso en main
 - [Plan 31 Moodle Ingeniería](project_moodle_ingenieria_plan31.md) — plan escrito, hallazgo H-1 del backend, riesgo M-A (6 vs 9 cursos), IDEAS queda después
 - [Verificar con Playwright](feedback_verificar_con_playwright.md) — el dueño no mide a mano; receta probada para cargar la extensión y abrir el popup
 - [Medir antes de suponer](feedback_medir_antes_de_suponer.md) — usar archivos bajados y la sesión Playwright `-s=verif` antes de inferir o preguntar
