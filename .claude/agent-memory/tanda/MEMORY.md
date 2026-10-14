@@ -33,3 +33,4 @@
 - [Plan 32 Kaltura en Asignaturas](project_asignaturas_kaltura_plan32.md) — mergeado (ffbc4c4)
 - [AC del build](feedback_criterio_build.md) — «mismos números» excluye el tamaño si se tocan comentarios de .html
 - [Scrapers: response.ok](feedback_scraper_respuesta_ok.md) — nombrar en el plan qué hace cada fetch ante !ok y red; error del portal = curso fallido
+- [Descargas sólo en prueba](feedback_descargas_solo_en_prueba.md) — backend de prueba con HOME=home-prueba; nunca la Bóveda real
