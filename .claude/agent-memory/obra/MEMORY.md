@@ -60,3 +60,4 @@
 - [Mudanza de docs a la bóveda (Plan 33)](project_mudanza_docs_boveda_plan33.md) — qué quedó en docs/, dónde está lo mudado y tabla de rutas viejas
 - [Guardas de fábrica sobre la bóveda](feedback_fabrica_guardas_boveda.md) — grep/find recursivo en la bóveda y git -C con ~ bloqueados; scripts con lista explícita y rutas absolutas
 - [G3 y comentarios de bloque](feedback_g3_comentarios_de_bloque.md) — continuaciones de comentarios HTML/CSS dan falsos positivos en el chequeo de sólo comentarios
+- [Plan 37: subcarpeta de tema repetida](project_carpeta_tema_repetida_plan37.md) — helper subcarpetaAplica, copia propia en editor.html y casilla del editor pendiente; 87 archivos / 1341 tests
