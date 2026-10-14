@@ -17,3 +17,5 @@ Medido en vivo: 21 cursos (Classroom 7, LINTI 3, Asig 1, Ing 8 —el 31 midió 9
 **Respaldo de la config movido** (2026-10-14, para dejar limpio el árbol antes del plan 40): `~/.local/share/courseDownloader/config_usuario.antes-plan39.json`. Restaurar desde ahí en §6.3.
 
 **Plan 40** (choques de nombre, sufijo `_N`) nació en este §6: Ingeniería rebotó ~49 con `DESTINO_OCUPADO`. Física 1 se resolvió a mano en el índice de `_Ultima descarga` (`Teorias/Mendoza/2023` y `/2024`, confirmado por Juan); Mate para Ing (3104) espera el plan 40. Mate A, Química y Mate C quedaron con 0 archivos: sin confirmar si se escanearon.
+
+**Plan 40 ejecutado** (2026-10-14, rama `choques-sufijo-n`, `a28ee24`+`563c730`). H-1 del informe corregido por tanda: el backend renombra con `_N` sólo si el destino REAL (tras RN-14) está ocupado, no por `accion === "renombrar"`. Falta §7 [USUARIO]: merge, build, reiniciar backend, rebajar Ingeniería (3104) y ver los `*_2.*`; después sigue el §6 del 39.

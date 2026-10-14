@@ -286,7 +286,8 @@ export async function finalizarEnDestino({
     } catch {
       destinoOcupado = false;
     }
-    if (accion === "renombrar" || destinoOcupado) {
+    // Se mide en el destino real (RN-14 puede cambiar ruta o nombre): renombrar sólo si está ocupado (H-1 del plan 40)
+    if (destinoOcupado) {
       const nombreOriginal = nombreDefinitivo;
       try {
         nombreDefinitivo = await nombreLibre(carpetaDestinoFinal, nombreDefinitivo);
