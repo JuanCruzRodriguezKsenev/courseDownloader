@@ -22,7 +22,8 @@ cómo genérico acá, en §Cómo escribir un portal nuevo — el paso a paso.**
 > **Multicurso del LINTI (2026-10-05):** «Escanear todos» para `moodle-linti`. El *qué* vive en
 > `~/Boveda/Proyectos/courseDownloader/Specs/moodle-linti-multicurso/spec.md`.
 >
-> **IDEAS del LIDI (2026-10-05):** portal nuevo con multicurso. El *qué* vive en
+> **Octavo portal (2026-10-13):** IDEAS del LIDI (`ideas.info.unlp.edu.ar`), implementado por curso y
+> con recorrido multicurso desde `/home` (plan 35). El *qué* vive en
 > `~/Boveda/Proyectos/courseDownloader/Specs/ideas-info/spec.md`.
 
 Lo que **no** se pudo verificar y no hay que dar por bueno: todo lo que exige dos portales a la

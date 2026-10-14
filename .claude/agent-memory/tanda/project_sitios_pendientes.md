@@ -1,11 +1,22 @@
 ---
 name: sitios-pendientes-antes-de-planificar
-description: Al 2026-10-13 sólo falta IDEAS (spec draft, M-1 y M-5 sin medir) y el plan 32 (Kaltura Info); Ing/Info/LINTI multicurso ya en main
+description: Al 2026-10-13 sólo falta IDEAS: planes 35 y 36 ejecutados en ideas-info, falta el checklist en Chrome; el resto en main
 metadata:
   type: project
 ---
 
-## Actualización 2026-10-13 (tarde): 32 en cola de fábrica; ramas kaltura e ideas-info mergeadas (docs) y borradas; IDEAS después del 33
+## Actualización 2026-10-13 (cierre): plan 36 ejecutado y verificado
+Compuerta 91/1386 verde, historia sin GUID real, diff del 36 sólo en sitio/ideas-info + docs. El `git diff main` de la verificación
+literal muestra backend/destino (es del plan 35, 52df57e, a propósito): error mío del plan, comparar contra 85fe80e la próxima.
+Falta: checklist Chrome C-1..C-6 + M-1 (plan 35/36) con verificador (lo lanzo yo cuando Juan avisa); Juan reabre `-s=verif` logueado. No pushear.
+
+## Actualización 2026-10-13 (noche): IDEAS con spec aprobada y plan 35 escrito
+Plan `~/Boveda/Proyectos/courseDownloader/Planes/35 - IDEAS, el octavo portal (un curso y todos los cursos).md`, rama `ideas-info`
+(desde 23455a5). Paso 1 = compuerta M-1 (cookie PHPSESSID desde el SW). M-5 no medible (1 curso) → RN-13 supuesto.
+Decidí: choques de nombre con ` - <texto del enlace>` (la sección = tema, no desambigua); idArchivo `<slug>/material|medioteca/<guid>`.
+Al volver el informe de obra: verificador (compuerta + navegador). Los revisores del híbrido ya no existen; la revisión del diff la hago yo.
+
+## Actualización 2026-10-13 (tarde): 32 corrido por fábrica (flujo ya revertido); ramas kaltura e ideas-info mergeadas (docs) y borradas; IDEAS después del 33
 
 ## Actualización 2026-10-13
 Ing, Info y LINTI multicurso: en main (planes 29, 31, 34) y verificados. Falta: plan 32 (Kaltura Info, rama vieja: mergear main y

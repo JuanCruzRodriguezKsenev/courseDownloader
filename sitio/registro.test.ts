@@ -7,6 +7,7 @@ import { SitioMoodleLinti } from "./moodle-linti/config";
 import { SitioSitesMatec } from "./sites-matec/config";
 import { SitioMoodleAsignaturas } from "./moodle-asignaturas/config";
 import { SitioMoodleIngenieria } from "./moodle-ingenieria/config";
+import { SitioIdeasInfo } from "./ideas-info/config";
 
 /**
  * Tests del registro de sitios (multi-sitio, corte 2; ampliado en el corte 7, classroom-corte-1 y plan 14-B).
@@ -28,6 +29,7 @@ describe("Sitios.obtener (por id, como viene de un ítem persistido)", () => {
     expect(Sitios.obtener("sites-matec")).toBe(SitioSitesMatec);
     expect(Sitios.obtener("moodle-asignaturas")).toBe(SitioMoodleAsignaturas);
     expect(Sitios.obtener("moodle-ingenieria")).toBe(SitioMoodleIngenieria);
+    expect(Sitios.obtener("ideas-info")).toBe(SitioIdeasInfo);
   });
 
   it("un id desconocido devuelve undefined y NO cae al portal por defecto", () => {
@@ -109,6 +111,17 @@ describe("Sitios.resolverPorUrl (para la pestaña activa)", () => {
     ).toBe(SitioMoodleIngenieria);
   });
 
+  it("reconoce IDEAS por portada /home y por URL de curso", () => {
+    expect(
+      Sitios.resolverPorUrl("https://ideas.info.unlp.edu.ar/home")
+    ).toBe(SitioIdeasInfo);
+    expect(
+      Sitios.resolverPorUrl(
+        "https://ideas.info.unlp.edu.ar/conceptos-de-bases-de-datos-1/Contents/Material/View/Show?courseTool"
+      )
+    ).toBe(SitioIdeasInfo);
+  });
+
   it("una URL ajena no resuelve a ningún portal", () => {
     expect(Sitios.resolverPorUrl("https://www.google.com/")).toBeUndefined();
   });
@@ -123,7 +136,13 @@ describe("Sitios.resolverPorUrl (para la pestaña activa)", () => {
     ).toBeUndefined();
   });
 
-  it("los siete portales son DISJUNTOS: ninguno reclama la URL del otro", () => {
+  it("⚠️ login de IDEAS NO lo reclama nadie", () => {
+    expect(
+      Sitios.resolverPorUrl("https://ideas.info.unlp.edu.ar/login")
+    ).toBeUndefined();
+  });
+
+  it("los ocho portales son DISJUNTOS: ninguno reclama la URL del otro", () => {
     const urls = [
       "https://ramonnet.com.ar/usuario/clases-grabadas",
       "https://hotmart.com/es/club/anatomy-by-chris/products/6083220/content/ABC",
@@ -143,6 +162,8 @@ describe("Sitios.resolverPorUrl (para la pestaña activa)", () => {
       "https://asignaturas.ing.unlp.edu.ar/course/view.php?id=4091",
       "https://www.asignaturas.ing.unlp.edu.ar/my/",
       "https://asignaturas.ing.unlp.edu.ar/my/",
+      "https://ideas.info.unlp.edu.ar/home",
+      "https://ideas.info.unlp.edu.ar/conceptos-de-bases-de-datos-1/Contents/Material/View/Show?courseTool",
     ];
     for (const url of urls) {
       const reclaman = Sitios.todos().filter((s) => s.esPaginaDelSitio(url));

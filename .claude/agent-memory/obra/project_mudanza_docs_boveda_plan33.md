@@ -13,7 +13,7 @@ Desde el plan 33, en `docs/` quedan sólo la referencia del código, el how-to v
 
 Dónde el plan se quedó corto (para tanda):
 - P-0 pedía "sólo tu worktree" y había otro de un lanzamiento abortado de fábrica (sin commits, proceso muerto): se siguió y se informó.
-- Los comandos literales de S3/S4 con `grep -r` sobre la bóveda y `git -C ~/Boveda` los rechaza la guarda de fábrica → [[feedback-fabrica-guardas-boveda]].
+- Los comandos literales de S3/S4 con `grep -r` sobre la bóveda y `git -C ~/Boveda` los rechazaba la guarda de fábrica (flujo revertido el 2026-10-13; sin fábrica corren normalmente).
 - G3 da 3 falsos positivos (continuaciones de comentario) → [[feedback-g3-comentarios-de-bloque]].
 - §5.3 contaba también menciones sin `docs/` (p. ej. `alertas-y-bloqueo-diseno.md` en `popup.js`, `bloqueo.test.js`, `filters.css`), aunque G1/G2 sólo buscan con prefijo `docs/`: se reescribieron las dos formas.
 - Reescribir enlaces en la bóveda pide un script con casos que el plan no enumeraba: links markdown dentro de code spans, acentos graves escapados, alias con `\|` dentro de tablas, y `[[Deuda]]` ambiguo (se usó la ruta).

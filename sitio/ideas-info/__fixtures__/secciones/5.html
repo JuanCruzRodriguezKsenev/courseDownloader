@@ -1,0 +1,29 @@
+
+<div class="columns">
+                            <div class="left-column half-width">
+        <p>Notas Evaluaci&oacute;n Te&oacute;rica</p>
+    </div>
+            <div class="right-column half-width">
+            <p class="title-meterial">Materiales</p>
+                            <div>
+                                                                                                                            <a class="contentToView  link-material" href="/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/11da200f-6679-11e7-929a-b26a7e7cf880" target="_blank">
+                        <img class="img-material" width="19" src="/images/resourcesItemType/iconHandout.svg" alt="Apunte" title="Apunte"/>
+                        <span class="material-title">Notas Evaluacion Teórica </span>
+                                                    <img class="viewed" src="/images/Course/Contents/materialsVisto.svg" alt="Material ya visto" title="Material ya visto" >
+                                            </a>
+                </div>
+                    </div>
+    </div>
+<div class="nonVisibility">
+            <label class="label_new_windows">Nueva ventana de presentación de Materiales</label>
+</div>
+<script>
+    $( ".contentToView" ).click(function(e) {
+        enlace = $(this);
+       	if(enlace.next().length == 0 ){
+		    var elem = document.createElement("img");
+			elem.setAttribute("src", "/images/materialVisto.svg");
+			enlace.parent().append(elem);
+		}
+    });
+</script>

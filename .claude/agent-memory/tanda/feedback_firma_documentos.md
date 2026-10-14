@@ -7,6 +7,9 @@ metadata:
 
 # Formato obligatorio de firma de tanda (decisión del dueño 2026-10-01)
 
+**Actualización 2026-10-13:** el nombre de la firma es el del agente y el modelo que **realmente** escriben
+(desde Claude Code: `tanda claude opus 5.5`). «tanda agy 3.8 flash high» era el de las sesiones de Antigravity. El formato no cambia.
+
 Todo lo que tanda escriba o genere en la documentación del repo (`docs/`) y en la Bóveda (`~/Boveda`) debe estar explícitamente firmado con el formato estandarizado:
 
 ## 1. En planes (`~/Boveda/Proyectos/.../Planes/`)

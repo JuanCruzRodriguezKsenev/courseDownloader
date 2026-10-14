@@ -1,0 +1,216 @@
+{
+ "secciones": [
+  {
+   "n": 1,
+   "guid": "529ec66c-72a9-11eb-afbb-b26a7e7cf880",
+   "titulo": "Información de cátedra"
+  },
+  {
+   "n": 2,
+   "guid": "becf3256-72a9-11eb-afbb-b26a7e7cf880",
+   "titulo": "Metodología de cursada y Cronograma de evaluaciones"
+  },
+  {
+   "n": 3,
+   "guid": "488e6dae-753c-11eb-a91d-b26a7e7cf880",
+   "titulo": "Bilbiografía"
+  },
+  {
+   "n": 4,
+   "guid": "6701263b-6678-11e7-929a-b26a7e7cf880",
+   "titulo": "Promoción"
+  },
+  {
+   "n": 5,
+   "guid": "7e047250-6678-11e7-929a-b26a7e7cf880",
+   "titulo": "Notas Evaluación Teórica"
+  },
+  {
+   "n": 6,
+   "guid": "a6e09458-7885-11e7-a1e4-b26a7e7cf880",
+   "titulo": "Notas Evaluación Teórica Rec."
+  },
+  {
+   "n": 7,
+   "guid": "0b5d4664-496b-11e7-929a-b26a7e7cf880",
+   "titulo": "Notas Examen Práctico"
+  },
+  {
+   "n": 8,
+   "guid": "d29d925c-6943-4b2a-9025-88139d53cfde",
+   "titulo": "Teorías"
+  },
+  {
+   "n": 9,
+   "guid": "3a0c73df-1c8d-11f1-90f7-3292d73aa1e7",
+   "titulo": "Material de práctica"
+  }
+ ],
+ "headers": {
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/42220dbd-72ab-11eb-afbb-b26a7e7cf880": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"CBD2026-Metodologia-y-Cronograma.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/5d83cc51-753c-11eb-a91d-b26a7e7cf880": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"Bibliografia  CBD2021.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/11da200f-6679-11e7-929a-b26a7e7cf880": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"CBD2026-Notas-promocion.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/c6a25dab-7885-11e7-a1e4-b26a7e7cf880": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"CBD2026-Notas-EvaluacionREC..pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/a07f1783-1f85-11ee-a284-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"CBD2026-Resultados-1ra-fecha.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/1455f169-742b-11f1-852a-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"CBD2026-Notas-2da-fecha.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/ffd82ba4-7f83-11f1-852a-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"CBD2026-Notas.xlsx---Resultados-3ra-fecha.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/83b0b66f-1ecf-11f1-90f7-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"INNOVACION-2026.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/595453dd-1ecf-11f1-90f7-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"CBD2026-Clase-1.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/99773abf-1ecf-11f1-90f7-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"CBD2026-Clase-2.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/190c78ba-2473-11f1-90f7-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"CBD2026-Clase-3.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/84061650-2c28-11f1-90f7-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"CBD2026-Clase-4.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/9fa7e66c-3da0-11f1-a5ac-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"CBD2026-Clase-5.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/741c0db2-3fd7-11f1-a5ac-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"CBD2026-Clase-6.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/8453fe52-4560-11f1-a5ac-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"CBD2026-Clase-7.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/91d688bf-4560-11f1-a5ac-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"CBD2026-Clase-8.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/5df00795-1c8d-11f1-90f7-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"1.-CBD---Explicacion-1-Introduccion-2026.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/6fc2cb69-1c8d-11f1-90f7-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"2.-CBD-Practica1-2026.docx.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/4a59853f-2228-11f1-90f7-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/zip",
+   "cd": "inline; filename=\"3.-CBD---Explicacion-2-Algoritmica-Clasica.pptx\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/5c69faad-2228-11f1-90f7-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"4.-CBD-Practica2-2026.docx.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/6d6cee62-2228-11f1-90f7-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"5.-Explicacion-2-adicional---Ejemplo-Actualizacion-Maestro-Detalle-con-N-detalles.pptx.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/925eb2be-2228-11f1-90f7-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"6.-Adicional-1.docx.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/9c0799a4-32a1-11f1-90f7-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"7.-CBD---Explicacion-3-Bajas-2026.pptx.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/b4c21ae8-32a1-11f1-90f7-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"8.-CBD-Practica3-2026.docx.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/c5d628d6-32a1-11f1-90f7-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"9.-Adicional-2---Bajas.docx.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/05cf2bc2-3da9-11f1-a5ac-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"10.-Explicacion-4-Arboles.pptx.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/2f1f9a70-3da9-11f1-a5ac-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"11.-Explicacion-5-Arboles-Bmas.pptx.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/40ed36ad-3da9-11f1-a5ac-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"12.-CBD-Practica4-2026.docx.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/373c5f6c-4266-11f1-a5ac-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"13.-Ejercicio-adicional-arboles-B-y-Bmas.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/d25cb8d8-48a8-11f1-a5ac-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"14.-Explicacion-6-Hashing-dinamico.pptx.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/f36edf9b-48a8-11f1-a5ac-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"15.-CBD-Practica5-2026.docx.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/25de93a1-48a9-11f1-a5ac-3292d73aa1e7": {
+   "status": 200,
+   "ct": "application/pdf",
+   "cd": "inline; filename=\"16.-ejercicio-adicional-hashing.pdf\""
+  },
+  "/conceptos-de-bases-de-datos-1/Resources/MediaLibrary/View/AccessResource/27166a1f-5321-436e-96ae-4adac17fd3a4": {
+   "status": 200,
+   "ct": "application/x-rar",
+   "cd": "inline; filename=\"dev-pascal.rar\""
+  }
+ }
+}

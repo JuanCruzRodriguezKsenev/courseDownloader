@@ -65,6 +65,8 @@ export default defineConfig({
       'https://asignaturas.info.unlp.edu.ar/*',
       // --- Portal 7: Moodle Ingeniería (UNLP) ---
       'https://*.asignaturas.ing.unlp.edu.ar/*',
+      // --- Portal 8: IDEAS (LIDI, UNLP) ---
+      'https://ideas.info.unlp.edu.ar/*',
       // --- Backend local ---
       'http://localhost:3001/*',
     ],

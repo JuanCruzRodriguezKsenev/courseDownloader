@@ -1,0 +1,19 @@
+
+<div class="columns">
+                            <div class="left-column full-width">
+        <p>Promoci&oacute;n</p>
+    </div>
+    </div>
+<div class="nonVisibility">
+            <label class="label_new_windows">Nueva ventana de presentación de Materiales</label>
+</div>
+<script>
+    $( ".contentToView" ).click(function(e) {
+        enlace = $(this);
+       	if(enlace.next().length == 0 ){
+		    var elem = document.createElement("img");
+			elem.setAttribute("src", "/images/materialVisto.svg");
+			enlace.parent().append(elem);
+		}
+    });
+</script>

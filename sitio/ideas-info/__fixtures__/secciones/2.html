@@ -1,0 +1,31 @@
+
+<div class="columns">
+                            <div class="left-column half-width">
+        <p>- Metodolog&iacute;a de cursada</p>
+
+<p>- Cronograma de evaluaciones de pr&aacute;ctica y de promoci&oacute;n</p>
+    </div>
+            <div class="right-column half-width">
+            <p class="title-meterial">Materiales</p>
+                            <div>
+                                                                                                                            <a class="contentToView  link-material" href="/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/42220dbd-72ab-11eb-afbb-b26a7e7cf880" target="_blank">
+                        <img class="img-material" width="19" src="/images/resourcesItemType/iconArticle.svg" alt="Articulo" title="Articulo"/>
+                        <span class="material-title">Metodología de cursada y Cronograma de evaluaciones </span>
+                                                    <img class="viewed" src="/images/Course/Contents/materialsVisto.svg" alt="Material ya visto" title="Material ya visto" >
+                                            </a>
+                </div>
+                    </div>
+    </div>
+<div class="nonVisibility">
+            <label class="label_new_windows">Nueva ventana de presentación de Materiales</label>
+</div>
+<script>
+    $( ".contentToView" ).click(function(e) {
+        enlace = $(this);
+       	if(enlace.next().length == 0 ){
+		    var elem = document.createElement("img");
+			elem.setAttribute("src", "/images/materialVisto.svg");
+			enlace.parent().append(elem);
+		}
+    });
+</script>

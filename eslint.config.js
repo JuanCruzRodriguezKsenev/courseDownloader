@@ -76,6 +76,12 @@ const globalesDelProyecto = {
   ScraperMoodleIngenieria: "readonly",
   ParserTitulosMoodleIngenieria: "readonly",
   DescargarAdjuntoMoodleIngenieria: "readonly",
+
+  // Portal 8: IDEAS (UNLP).
+  SitioIdeasInfo: "readonly",
+  ScraperIdeasInfo: "readonly",
+  ParserTitulosIdeasInfo: "readonly",
+  DescargarAdjuntoIdeasInfo: "readonly",
 };
 
 module.exports = [
