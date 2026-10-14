@@ -48,7 +48,7 @@ export function decidirAntes(entrada: DecidirAntesEntrada): DecidirAntesResultad
   return { accion: "bajar", fila: "4" };
 }
 
-export type AccionDespues = "no-escribir" | "descartar" | "escribir" | "rechazar";
+export type AccionDespues = "no-escribir" | "descartar" | "escribir" | "renombrar";
 
 export interface DecidirDespuesEntrada {
   destinoEsMd: boolean;
@@ -59,7 +59,7 @@ export interface DecidirDespuesEntrada {
 }
 
 /**
- * Evalúa la acción a tomar tras completarse la descarga según las filas 0, 5, 6 y rechazo (D-7).
+ * Evalúa la acción a tomar tras completarse la descarga según las filas 0, 5, 6 y renombrar (RN-16c).
  */
 export function decidirDespues(entrada: DecidirDespuesEntrada): AccionDespues {
   // Fila 0: destino es .md y ya existe en destino -> no escribir (RN-30)
@@ -72,9 +72,9 @@ export function decidirDespues(entrada: DecidirDespuesEntrada): AccionDespues {
     return "descartar";
   }
 
-  // Rechazo por destino ocupado con otro contenido (D-7 del plan 02, NFR-4)
+  // RN-16c: destino ocupado por otro contenido → se guarda con `_N`
   if (entrada.existeDestinoConOtroContenido) {
-    return "rechazar";
+    return "renombrar";
   }
 
   // Fila 6: no existe -> escribir con el nombre propuesto

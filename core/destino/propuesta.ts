@@ -45,6 +45,21 @@ function agregarSufijoMaterial(nombre: string, publicacion?: string | null, fall
 }
 
 /**
+ * RN-16b: numera con `_N` (N ≥ 2) un nombre que sigue chocando después del sufijo de RN-16.
+ * Elige el menor N cuyo nombre (en minúsculas) no esté en `ocupados`.
+ */
+function numerarResiduo(nombre: string, ocupados: Set<string>): string {
+  const matchExt = nombre.match(/\.([a-z0-9]{1,5})$/i);
+  const tieneExt = Boolean(matchExt && matchExt.index !== undefined);
+  const base = tieneExt ? nombre.slice(0, matchExt!.index) : nombre;
+  const ext = tieneExt ? matchExt![0] : "";
+  for (let n = 2; ; n++) {
+    const candidato = `${base}_${n}${ext}`;
+    if (!ocupados.has(candidato.toLowerCase())) return candidato;
+  }
+}
+
+/**
  * Propone nombre, carpeta y marcas (sinAsignar, omitido) para cada ítem de un curso (B-7).
  */
 export function proponerParaCurso({
@@ -230,6 +245,45 @@ export function proponerParaCurso({
       const target = resultados.find((r) => r.clave === fila.clave);
       if (target && !target.fijoEnIndice && target.nombre) {
         target.nombre = agregarSufijoMaterial(target.nombre, target.publicacion, target.idArchivo);
+      }
+    }
+  }
+
+  // RN-16b: lo que sigue chocando después del sufijo se numera con _N, en el orden del escaneo
+  const rutaDe = (r: { carpeta: string | null; tema: string }) =>
+    (r.carpeta ?? `(sin asociar)/${r.tema}`).replace(/\/+$/, "");
+  const vivos = resultados.filter((r) => !r.omitido && r.nombre !== null);
+  const residuos = buscarChoques(
+    vivos.map((r) => ({
+      clave: r.clave,
+      ruta: r.carpeta ?? `(sin asociar)/${r.tema}`,
+      nombre: r.nombre!,
+      md5: r.md5 || r.idArchivo,
+    }))
+  );
+  if (residuos.length > 0) {
+    const ocupadosPorRuta = new Map<string, Set<string>>();
+    for (const r of vivos) {
+      const ruta = rutaDe(r);
+      const set = ocupadosPorRuta.get(ruta) || new Set<string>();
+      set.add(r.nombre!.toLowerCase());
+      ocupadosPorRuta.set(ruta, set);
+    }
+    for (const grupo of residuos) {
+      const filasGrupo = grupo.filas
+        .map((f) => resultados.find((r) => r.clave === f.clave))
+        .filter((r): r is (typeof resultados)[number] => Boolean(r));
+      const hayFija = filasGrupo.some((r) => r.fijoEnIndice);
+      let primeraLibreConserva = !hayFija;
+      for (const r of filasGrupo) {
+        if (r.fijoEnIndice) continue;
+        if (primeraLibreConserva) {
+          primeraLibreConserva = false;
+          continue;
+        }
+        const ocupados = ocupadosPorRuta.get(rutaDe(r))!;
+        r.nombre = numerarResiduo(r.nombre!, ocupados);
+        ocupados.add(r.nombre.toLowerCase());
       }
     }
   }

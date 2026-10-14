@@ -109,6 +109,60 @@ describe("core/destino/propuesta.ts", () => {
     expect(props[1]!.nombre).toBe("plantilla_laboratorio_2.docx");
   });
 
+  describe("residuo de choque después del sufijo (RN-16b, AC-15)", () => {
+    const itemClase4 = (idArchivo: string) => ({
+      idArchivo,
+      original: "Clase 4 (1).pdf",
+      tema: "Clases Teóricas",
+      publicacion: "Clase 4 (1)",
+    });
+
+    it("dos ítems con el mismo original y la misma publicacion reciben nombres distintos; el segundo lleva _2", () => {
+      const props = proponerParaCurso({ curso: cursoBase, items: [itemClase4("c4a"), itemClase4("c4b")] });
+
+      expect(props[0]!.nombre).not.toBe(props[1]!.nombre);
+      expect(props[0]!.nombre).not.toMatch(/_2\.pdf$/);
+      expect(props[1]!.nombre).toMatch(/_2\.pdf$/);
+      expect(props[1]!.nombre).toBe(props[0]!.nombre!.replace(/\.pdf$/, "_2.pdf"));
+    });
+
+    it("tres ítems iguales reciben el nombre sin _N, _2 y _3", () => {
+      const props = proponerParaCurso({
+        curso: cursoBase,
+        items: [itemClase4("c4a"), itemClase4("c4b"), itemClase4("c4c")],
+      });
+      const base = props[0]!.nombre!;
+
+      expect(base).not.toMatch(/_[23]\.pdf$/);
+      expect(props[1]!.nombre).toBe(base.replace(/\.pdf$/, "_2.pdf"));
+      expect(props[2]!.nombre).toBe(base.replace(/\.pdf$/, "_3.pdf"));
+    });
+
+    it("un ítem fijo en el índice conserva su nombre y el nuevo que choca con él toma _2", () => {
+      const sinFijar = proponerParaCurso({ curso: cursoBase, items: [itemClase4("c4a"), itemClase4("c4b")] });
+      const nombreSufijado = sinFijar[0]!.nombre!;
+      const archivos: Record<string, ArchivoIndice> = {
+        "google-classroom:c4b": {
+          curso: "google-classroom:f2",
+          nombre: nombreSufijado,
+          ruta: "Teorias/Palacio",
+          md5: "aaaa",
+          original: "Clase 4 (1).pdf",
+        },
+      };
+      // c4b ya bajó con el nombre sufijado; c4a y c4c son nuevos, chocan entre sí y RN-16 los lleva a ese mismo nombre
+      const props = proponerParaCurso({
+        curso: cursoBase,
+        items: [itemClase4("c4a"), itemClase4("c4b"), itemClase4("c4c")],
+        archivos,
+      });
+
+      expect(props[1]!.nombre).toBe(nombreSufijado);
+      expect(props[0]!.nombre).toBe(nombreSufijado.replace(/\.pdf$/, "_2.pdf"));
+      expect(props[2]!.nombre).toBe(nombreSufijado.replace(/\.pdf$/, "_3.pdf"));
+    });
+  });
+
   it("choque de Novedades se resuelve con la primera frase del anuncio (RN-16a)", () => {
     const items = [
       {
