@@ -384,6 +384,9 @@ try {
     { dest: "Teorias", doc: "Rey Grange", tema: "Clases teóricas - Módulo I" },
     { dest: "Practicas", doc: null, tema: "TP 1: Límites / Derivadas" },
     { dest: "Teorias", doc: null, tema: ".." },
+    { dest: "Teorias", doc: null, tema: "Teorías" },
+    { dest: "Teorias", doc: "Palacio", tema: "Teorías" },
+    { dest: "Practicas", doc: null, tema: "Teorías" },
   ];
   for (const c of casosParidad) {
     const resCore = resolverCarpetaCore(c.dest, c.doc, c.tema);

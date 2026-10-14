@@ -1431,4 +1431,65 @@ describe("core/destino/vistas.ts", () => {
       expect("movido" in (res.indice.cursos[cursoClave] ?? {})).toBe(false);
     });
   });
+
+  describe("tema que repite el destino (plan 37, AC-6, AC-7, AC-9)", () => {
+    const vistos: VistoCurso[] = [
+      {
+        sitio: "ideas",
+        idCurso: "c9",
+        nombre: "Bases de Datos",
+        items: [{ idArchivo: "t1", original: "innovacion.pdf", tema: "Teorías" }],
+      },
+    ];
+
+    it("ida y vuelta de «Teorías» bajo Teorias: flag no y carpeta Teorias, byte-idéntica", () => {
+      const indice: Indice = {
+        version: 1,
+        cursos: {
+          "ideas:c9": {
+            nombre: "Bases de Datos",
+            materia: "Informatica/Bases",
+            docente: "",
+            temas: { "Teorías": "Teorias" },
+            omitidos: [],
+          },
+        },
+        archivos: {},
+      };
+      const filas = indiceAFilasEditor({ indice, vistos });
+      expect(filas.temas[0]!.destino).toBe("Teorias");
+      expect(filas.temas[0]!.subcarpeta).toBe("no");
+      const res = filasEditorAIndice({ indice, filas, vistos });
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+      expect(res.indice.cursos["ideas:c9"]!.temas["Teorías"]).toBe("Teorias");
+      expect(serializarIndice(res.indice)).toBe(serializarIndice(indice));
+    });
+
+    it("una carpeta ya guardada Teorias/Teorias da editable false y no se reescribe", () => {
+      expect(invertirCarpeta("Teorias/Teorias", "", "Teorías")).toEqual({
+        destino: "Teorias/Teorias",
+        editable: false,
+        subcarpeta: false,
+      });
+      const indice: Indice = {
+        version: 1,
+        cursos: {
+          "ideas:c9": {
+            nombre: "Bases de Datos",
+            materia: "Informatica/Bases",
+            docente: "",
+            temas: { "Teorías": "Teorias/Teorias" },
+            omitidos: [],
+          },
+        },
+        archivos: {},
+      };
+      const filas = indiceAFilasEditor({ indice, vistos });
+      const res = filasEditorAIndice({ indice, filas, vistos });
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+      expect(res.indice.cursos["ideas:c9"]!.temas["Teorías"]).toBe("Teorias/Teorias");
+    });
+  });
 });

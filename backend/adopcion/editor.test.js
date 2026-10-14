@@ -146,7 +146,7 @@ describe("backend/adopcion/editor.js (modo=indice y modo TSV)", () => {
     expect(cursoEnIndice).toBeDefined();
     expect(cursoEnIndice.materia).toBe("Ingenieria/Algebra");
     expect(cursoEnIndice.docente).toBe("Perez");
-    expect(cursoEnIndice.temas["Teorías"]).toBe("Teorias/Perez/Teorias");
+    expect(cursoEnIndice.temas["Teorías"]).toBe("Teorias/Perez");
   });
 
 

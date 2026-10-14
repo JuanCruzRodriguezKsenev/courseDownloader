@@ -30,10 +30,12 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **87 archivos, 1334 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
+| `pnpm test` | **87 archivos, 1341 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
+
+**De dónde sale el 1341** (2026-10-14, plan 37, subcarpeta de tema que repite el destino): los 1334 de abajo más **+7** tests, sin archivos nuevos: **+5** en `core/destino/carpetas.test.ts` (`Teorias/Teorias`, con docente, otro destino, tema distinto y `subcarpetaAplica`) y **+2** en `core/destino/vistas.test.ts` (ida y vuelta byte-idéntica y carpeta `Teorias/Teorias` ya guardada con `editable: false`). Más 3 casos de paridad en `humo-editor-indice.js` (AC-14); los 4 humos dan 0 errores.
 
 **De dónde sale el 1334** (2026-10-13, plan 32, Kaltura en Moodle Asignaturas): los 1330 de abajo más **+4** tests en `sitio/moodle-asignaturas/scraper.test.js` (AC-5, AC-6, AC-7 y desduplicación RN-17), sin archivos nuevos.
 

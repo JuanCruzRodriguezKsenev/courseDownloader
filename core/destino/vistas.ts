@@ -6,7 +6,7 @@
  * Pura, sin fs (D-1, D-2, D-3, D-4, D-6, D-7).
  */
 
-import { DESTINOS, resolverCarpeta, sugerirDestino, nombreSubcarpetaTema } from "./carpetas";
+import { DESTINOS, resolverCarpeta, sugerirDestino, subcarpetaAplica } from "./carpetas";
 import { claveCurso } from "./indice";
 import type { Indice, CursoIndice } from "./indice";
 import { proponerParaCurso } from "./propuesta";
@@ -250,7 +250,7 @@ export function indiceAFilasEditor({
         if (carpIndice === "-" || carpIndice === ".") {
           destino = carpIndice;
           regla = "si";
-          subcarpeta = nombreSubcarpetaTema(nombreTema) !== "" ? "si" : "no";
+          subcarpeta = subcarpetaAplica(destino, nombreTema) ? "si" : "no";
         } else {
           const inv = invertirCarpeta(carpIndice, cursoIndice.docente, nombreTema);
           destino = inv.destino;
@@ -263,7 +263,7 @@ export function indiceAFilasEditor({
         const sug = sugerirDestino(nombreTema, pubs);
         destino = sug.destino;
         regla = sug.regla ? "si" : "no";
-        subcarpeta = nombreSubcarpetaTema(nombreTema) !== "" ? "si" : "no";
+        subcarpeta = subcarpetaAplica(destino, nombreTema) ? "si" : "no";
       }
 
       temas.push({

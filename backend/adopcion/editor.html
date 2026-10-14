@@ -1382,17 +1382,25 @@ button {
       return s.charAt(0).toUpperCase() + s.slice(1);
     }
 
+    function normalizarComparacion(x) {
+      return x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    }
+
+    function subcarpetaAplica(destino, tema) {
+      if (destino === "." || destino === "-") return false;
+      const sub = nombreSubcarpetaTema(tema);
+      if (sub === "") return false;
+      return normalizarComparacion(sub) !== normalizarComparacion(destino);
+    }
+
     function resolverCarpeta(destino, docente, subcarpetaTema) {
       const d = (docente || "").trim();
       let base = destino;
       if (destino === "Teorias" && d.length > 0) {
         base = `Teorias/${d}`;
       }
-      if (destino !== "." && destino !== "-" && subcarpetaTema) {
-        const sub = nombreSubcarpetaTema(subcarpetaTema);
-        if (sub.length > 0) {
-          return `${base}/${sub}`;
-        }
+      if (subcarpetaAplica(destino, subcarpetaTema)) {
+        return `${base}/${nombreSubcarpetaTema(subcarpetaTema)}`;
       }
       return base;
     }

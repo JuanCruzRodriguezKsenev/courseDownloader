@@ -96,6 +96,26 @@ export function nombreSubcarpetaTema(tema?: string | null): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+function normalizarComparacion(x: string): string {
+  return x.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
+/**
+ * ¿Lleva subcarpeta de tema? No si el destino es `.`/`-`, si el tema no da nombre,
+ * ni si el nombre repite el destino (sin tildes ni mayúsculas): `Teorias/Teorias`.
+ * No se compara con el docente.
+ */
+export function subcarpetaAplica(destino: string, tema?: string | null): boolean {
+  if (destino === "." || destino === "-") {
+    return false;
+  }
+  const sub = nombreSubcarpetaTema(tema);
+  if (sub === "") {
+    return false;
+  }
+  return normalizarComparacion(sub) !== normalizarComparacion(destino);
+}
+
 export function resolverCarpeta(
   destino: string,
   docente?: string | null,
@@ -106,11 +126,8 @@ export function resolverCarpeta(
   if (destino === "Teorias" && d.length > 0) {
     base = `Teorias/${d}`;
   }
-  if (destino !== "." && destino !== "-" && subcarpetaTema) {
-    const sub = nombreSubcarpetaTema(subcarpetaTema);
-    if (sub.length > 0) {
-      return `${base}/${sub}`;
-    }
+  if (subcarpetaAplica(destino, subcarpetaTema)) {
+    return `${base}/${nombreSubcarpetaTema(subcarpetaTema)}`;
   }
   return base;
 }

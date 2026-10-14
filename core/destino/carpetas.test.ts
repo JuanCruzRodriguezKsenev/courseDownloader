@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { DESTINOS, sugerirDestino, resolverCarpeta, nombreSubcarpetaTema } from "./carpetas";
+import { DESTINOS, sugerirDestino, resolverCarpeta, nombreSubcarpetaTema, subcarpetaAplica } from "./carpetas";
 
 describe("core/destino/carpetas.ts", () => {
   it("DESTINOS contiene los 8 destinos canónicos", () => {
@@ -187,6 +187,33 @@ describe("core/destino/carpetas.ts", () => {
       expect(nombreSubcarpetaTema(".")).toBe("");
       expect(nombreSubcarpetaTema("..")).toBe("");
       expect(nombreSubcarpetaTema("???")).toBe("");
+    });
+  });
+
+  describe("subcarpeta de tema que repite el destino (plan 37)", () => {
+    it("no crea Teorias/Teorias para el tema «Teorías»", () => {
+      expect(resolverCarpeta("Teorias", "", "Teorías")).toBe("Teorias");
+    });
+
+    it("con docente queda Teorias/Palacio (no se compara con el docente)", () => {
+      expect(resolverCarpeta("Teorias", "Palacio", "Teorías")).toBe("Teorias/Palacio");
+    });
+
+    it("otro destino sí lleva la subcarpeta", () => {
+      expect(resolverCarpeta("Practicas", "", "Teorías")).toBe("Practicas/Teorias");
+    });
+
+    it("un tema distinto sigue creando subcarpeta (sin regresión)", () => {
+      expect(resolverCarpeta("Teorias", "", "Clase 1")).toBe("Teorias/Clase 1");
+    });
+
+    it("subcarpetaAplica compara sin tildes ni mayúsculas y excluye . y -", () => {
+      expect(subcarpetaAplica("Teorias", "TEORÍAS")).toBe(false);
+      expect(subcarpetaAplica("Teorias", "Clase 1")).toBe(true);
+      expect(subcarpetaAplica(".", "Clase 1")).toBe(false);
+      expect(subcarpetaAplica("-", "Clase 1")).toBe(false);
+      expect(subcarpetaAplica("Teorias", "Novedades")).toBe(false);
+      expect(subcarpetaAplica("Teorias", null)).toBe(false);
     });
   });
 

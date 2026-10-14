@@ -5,7 +5,7 @@ import crypto from "node:crypto";
 import { sanitizarNombreArchivo } from "../utils.js";
 import { sanearNombreCarpeta } from "../../core/util/texto.ts";
 import { claveCurso, claveArchivo } from "../../core/destino/indice.ts";
-import { sugerirDestino, resolverCarpeta, nombreSubcarpetaTema } from "../../core/destino/carpetas.ts";
+import { sugerirDestino, resolverCarpeta, subcarpetaAplica } from "../../core/destino/carpetas.ts";
 import { proponerNombre } from "../../core/destino/nombres.ts";
 import { buscarChoques, renombrarChoquesNovedades } from "../../core/destino/choques.ts";
 import { leerUltimoValor } from "./leerStorage.js";
@@ -230,7 +230,7 @@ export function ejecutarGenerar(opts = parseArgs()) {
   for (const [parKey, { cant, publicaciones }] of paresTemaCurso.entries()) {
     const [cKey, tema] = parKey.split("\t");
     const sugerencia = sugerirDestino(tema, publicaciones);
-    const sub = nombreSubcarpetaTema(tema) !== "" && sugerencia.destino !== "." ? "si" : "no";
+    const sub = subcarpetaAplica(sugerencia.destino, tema) ? "si" : "no";
     sugerenciasPorPar.set(parKey, { ...sugerencia, sub });
     if (!sugerencia.regla) temasSinRegla++;
     lineasTemas.push(`${cKey}\t${tema}\t${sugerencia.destino}\t${sugerencia.regla ? "si" : "no"}\t${cant}\t${sub}`);
