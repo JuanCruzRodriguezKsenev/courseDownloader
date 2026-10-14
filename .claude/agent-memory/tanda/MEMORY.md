@@ -35,3 +35,4 @@
 - [Scrapers: response.ok](feedback_scraper_respuesta_ok.md) — nombrar en el plan qué hace cada fetch ante !ok y red; error del portal = curso fallido
 - [Descargas sólo en prueba](feedback_descargas_solo_en_prueba.md) — backend de prueba con HOME=home-prueba; nunca la Bóveda real
 - [Bóveda: sólo lo del proyecto](feedback_boveda_solo_lo_del_proyecto.md) — nunca git add -A en ~/Boveda; commitear rutas del proyecto
+- [Plan 39 última descarga](project_ultima_descarga_plan39.md) — aprobado 2026-10-14: 21 cursos a _Ultima descarga; después encargo a bibliotecario y restaurar config
