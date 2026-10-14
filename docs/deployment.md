@@ -143,11 +143,12 @@ Cuando la extensión envía `x-destino-ruta`, el backend activa el guardado dire
   - `DESTINO_REQUERIDO` (400): si un portal configurado para destino por índice (`google-classroom`, `moodle-linti`, `moodle-asignaturas`, `sites-matec`, `moodle-ingenieria`, `ideas-info`) llega sin `x-destino-ruta` (D-9).
 - **Escritura y decisión al finalizar**:
   - `preservarDestino`: no se borra ningún archivo previo al abrir el `.part`.
-  - Al completar los fragmentos, se evalúa `decidirDespues` (filas 0, 5, 6 y D-7):
+  - Al completar los fragmentos, se evalúa `decidirDespues` (filas 0, 5, 6 y renombrar):
     - `escrito`: archivo nuevo guardado y anotado en el índice.
     - `descartado`: archivo de igual MD5 ya existente en la carpeta destino; se borra el `.part` y se anota el archivo existente en el índice.
     - `existente`: archivo `.md` preexistente; no se sobreescribe y se anota si faltaba (RN-30).
-    - `DESTINO_OCUPADO` (409): el destino ya existe con otro contenido; se borra el `.part` y se rechaza la descarga sin tocar el disco ni el índice (D-7, NFR-4).
+    - Destino ocupado con otro contenido (RN-16c, ADR-0021): se guarda con el primer `<base>_<n><ext>` libre (`n` de 2 a 999), se anota ese nombre en el índice y responde `escrito`; el archivo que ya estaba no se toca (NFR-4). El log del backend deja un `WARN` «`<ruta>/<nombre>` ya existía con otro contenido: se guardó como `<nombre_N>`».
+    - `DESTINO_OCUPADO` (409): queda sólo si no hay `_N` libre hasta 999; se borra el `.part` y se rechaza la descarga.
 
 ## Versionado
 
