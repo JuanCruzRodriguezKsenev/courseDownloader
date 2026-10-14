@@ -30,12 +30,16 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **91 archivos, 1372 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
+| `pnpm test` | **91 archivos, 1386 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
 
-**De dónde sale el 1372** (2026-10-13, plan 35, IDEAS - LIDI, UNLP): los 1334 de abajo más **+38** tests (+4 archivos nuevos en `sitio/ideas-info/`):
+**De dónde sale el 1386** (2026-10-13, plan 36, correcciones de la revisión del plan 35 - IDEAS): los 1372 de abajo más **+14** tests (sin archivos nuevos):
+- **+2** en `sitio/ideas-info/descargarAdjunto.test.js` (GUID en mayúsculas y rechazo de slugs inválidos, RN-5),
+- **+12** en `sitio/ideas-info/scraper.test.js` (errores del portal en Material, Secciones, Medioteca, Headers y EnterCourse, orden de secciones, enlace externo y slug inválido, T-1 a T-12).
+
+**De dónde salía el 1372** (2026-10-13, plan 35, IDEAS - LIDI, UNLP): los 1334 de abajo más **+38** tests (+4 archivos nuevos en `sitio/ideas-info/`):
 - **+8** en `sitio/ideas-info/config.test.ts` (esPaginaDelSitio, esPortada, claveDeListado, metadatos y aislamiento),
 - **+7** en `sitio/ideas-info/descargarAdjunto.test.js` (URLs de material y medioteca, validación de idArchivo, sesión en /login y rechazo 404/410),
 - **+3** en `sitio/ideas-info/parserTitulos.test.js` (clasificarCarpeta con COMUN y nombre saneado),

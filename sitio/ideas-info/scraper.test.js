@@ -22,6 +22,7 @@ import sec8Html from "./__fixtures__/secciones/8.html?raw";
 import sec9Html from "./__fixtures__/secciones/9.html?raw";
 
 import ScraperIdeasInfo from "./scraper.js";
+import DescargarAdjuntoIdeasInfo from "./descargarAdjunto.js";
 
 const SEC_HTML_BY_GUID = {
   "529ec66c-72a9-11eb-afbb-b26a7e7cf880": sec1Html,
@@ -39,8 +40,17 @@ function crearFetchRealFixtures(overrides = {}) {
   return vi.fn(async (url, init) => {
     const u = String(url);
 
-    if (overrides[u]) {
-      return overrides[u](url, init);
+    if (typeof overrides === "function") {
+      const resCustom = await overrides(url, init);
+      if (resCustom !== undefined) return resCustom;
+    } else if (overrides[u]) {
+      return typeof overrides[u] === "function" ? overrides[u](url, init) : overrides[u];
+    } else {
+      for (const [clave, handler] of Object.entries(overrides)) {
+        if (u.includes(clave)) {
+          return typeof handler === "function" ? handler(url, init) : handler;
+        }
+      }
     }
 
     if (u.includes("/Contents/Material/View/Show?courseTool")) {
@@ -376,6 +386,194 @@ describe("ScraperIdeasInfo.escanearListado (curso individual)", () => {
     const res = await ScraperIdeasInfo.escanearListado();
     expect(res.motivoAviso).toBe("sesion");
   });
+
+  it("T-1. Material de un curso solo responde 500 (A1)", async () => {
+    window.fetch = vi.fn(async (url) => {
+      if (String(url).includes("/Contents/Material/View/Show?courseTool")) {
+        return {
+          ok: false,
+          status: 500,
+          url: String(url),
+          text: async () => "Error interno",
+        };
+      }
+      return { ok: true, status: 200, url: String(url), text: async () => "" };
+    });
+
+    const res = await ScraperIdeasInfo.escanearListado({
+      slug: "conceptos-de-bases-de-datos-1",
+      origen: "https://ideas.info.unlp.edu.ar",
+    });
+
+    expect(res.enlaces).toEqual([]);
+    expect(res.aviso).toContain("HTTP 500");
+    expect(res.motivoAviso).toBe("portal");
+    expect(res.motivoAviso).not.toBe("sin-material");
+  });
+
+  it("T-4. Una sección responde 500 deja el curso con aviso (RN-15)", async () => {
+    const fetchBase = crearFetchRealFixtures({
+      "Contents/Material/View/Show/529ec66c": () => ({
+        ok: false,
+        status: 500,
+        url: "https://ideas.info.unlp.edu.ar/conceptos-de-bases-de-datos-1/Contents/Material/View/Show/529ec66c-72a9-11eb-afbb-b26a7e7cf880",
+        text: async () => "Error",
+      }),
+    });
+    window.fetch = fetchBase;
+
+    const res = await ScraperIdeasInfo.escanearListado({
+      slug: "conceptos-de-bases-de-datos-1",
+      origen: "https://ideas.info.unlp.edu.ar",
+    });
+
+    expect(res.enlaces).toEqual([]);
+    expect(res.aviso).toContain("HTTP 500");
+    expect(res.aviso).toContain("Información de cátedra");
+    expect(res.motivoAviso).toBe("portal");
+  });
+
+  it("T-5. El fetch de una sección rechaza sin aborto genera error de red (RN-15)", async () => {
+    const fetchBase = crearFetchRealFixtures({
+      "Contents/Material/View/Show/529ec66c": () => {
+        throw new Error("Conexión perdida");
+      },
+    });
+    window.fetch = fetchBase;
+
+    const res = await ScraperIdeasInfo.escanearListado({
+      slug: "conceptos-de-bases-de-datos-1",
+      origen: "https://ideas.info.unlp.edu.ar",
+    });
+
+    expect(res.enlaces).toEqual([]);
+    expect(res.aviso).toContain("error de red");
+    expect(res.aviso).toContain("Información de cátedra");
+    expect(res.motivoAviso).toBe("portal");
+  });
+
+  it("T-6. La Medioteca responde 500 deja el curso con aviso (RN-15)", async () => {
+    const fetchBase = crearFetchRealFixtures({
+      "Resources/MediaLibrary/View/Show?courseTool": () => ({
+        ok: false,
+        status: 500,
+        url: "https://ideas.info.unlp.edu.ar/conceptos-de-bases-de-datos-1/Resources/MediaLibrary/View/Show?courseTool",
+        text: async () => "Error",
+      }),
+    });
+    window.fetch = fetchBase;
+
+    const res = await ScraperIdeasInfo.escanearListado({
+      slug: "conceptos-de-bases-de-datos-1",
+      origen: "https://ideas.info.unlp.edu.ar",
+    });
+
+    expect(res.enlaces).toEqual([]);
+    expect(res.aviso).toContain("HTTP 500");
+    expect(res.aviso).toContain("Medioteca");
+    expect(res.motivoAviso).toBe("portal");
+  });
+
+  it("T-7. El header de un archivo responde 503 deja el curso con aviso (RN-12)", async () => {
+    const fetchBase = crearFetchRealFixtures({
+      "Access/595453dd-1ecf-11f1-90f7-3292d73aa1e7": () => ({
+        ok: false,
+        status: 503,
+        url: "https://ideas.info.unlp.edu.ar/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/595453dd-1ecf-11f1-90f7-3292d73aa1e7",
+        body: { cancel: vi.fn() },
+      }),
+    });
+    window.fetch = fetchBase;
+
+    const res = await ScraperIdeasInfo.escanearListado({
+      slug: "conceptos-de-bases-de-datos-1",
+      origen: "https://ideas.info.unlp.edu.ar",
+    });
+
+    expect(res.enlaces).toEqual([]);
+    expect(res.aviso).toContain("HTTP 503");
+    expect(res.motivoAviso).toBe("portal");
+  });
+
+  it("T-9. Enlace a otro.example en una sección se descarta sin fetch (seguridad)", async () => {
+    const secConEnlaceExterno = `
+      <div>
+        <a class="contentToView" href="https://otro.example/x/11111111-2222-3333-4444-555555555555">Externo</a>
+      </div>
+    `;
+    const fetchBase = crearFetchRealFixtures({
+      "Contents/Material/View/Show/529ec66c": () => ({
+        ok: true,
+        status: 200,
+        url: "https://ideas.info.unlp.edu.ar/conceptos-de-bases-de-datos-1/Contents/Material/View/Show/529ec66c-72a9-11eb-afbb-b26a7e7cf880",
+        text: async () => secConEnlaceExterno,
+      }),
+    });
+    window.fetch = fetchBase;
+
+    const res = await ScraperIdeasInfo.escanearListado({
+      slug: "conceptos-de-bases-de-datos-1",
+      origen: "https://ideas.info.unlp.edu.ar",
+    });
+
+    expect(res.enlaces.some((e) => e.url && e.url.includes("otro.example"))).toBe(false);
+    expect(window.fetch.mock.calls.some(([arg]) => String(arg).includes("otro.example"))).toBe(false);
+  });
+
+  it("T-10. Orden de secciones preservado aunque la sección 1 demore más (RN-9)", async () => {
+    const fetchBase = crearFetchRealFixtures({
+      "Contents/Material/View/Show/becf3256": async (u) => {
+        await new Promise((r) => setTimeout(r, 40));
+        return {
+          ok: true,
+          status: 200,
+          url: String(u),
+          text: async () => SEC_HTML_BY_GUID["becf3256-72a9-11eb-afbb-b26a7e7cf880"],
+        };
+      },
+    });
+    window.fetch = fetchBase;
+
+    const res = await ScraperIdeasInfo.escanearListado({
+      slug: "conceptos-de-bases-de-datos-1",
+      origen: "https://ideas.info.unlp.edu.ar",
+    });
+
+    expect(res.enlaces.length).toBeGreaterThan(0);
+    expect(res.enlaces[0].tema).toBe("Metodología de cursada y Cronograma de evaluaciones");
+    expect(res.enlaces[res.enlaces.length - 1].tema).toBe("Medioteca");
+  });
+
+  it("T-12. Cada idArchivo de las muestras reales es aceptado por el resolver (RN-5)", async () => {
+    window.fetch = crearFetchRealFixtures();
+
+    const res = await ScraperIdeasInfo.escanearListado({
+      slug: "conceptos-de-bases-de-datos-1",
+      origen: "https://ideas.info.unlp.edu.ar",
+    });
+
+    expect(res.enlaces.length).toBe(33);
+
+    const mockFetchAdjunto = vi.fn(async (url) => ({
+      ok: true,
+      status: 200,
+      url: String(url),
+      body: { cancel: vi.fn() },
+    }));
+    const fetchGlobalOriginal = globalThis.fetch;
+    globalThis.fetch = mockFetchAdjunto;
+
+    try {
+      for (const enlace of res.enlaces) {
+        expect(enlace.idArchivo).toBeDefined();
+        await expect(
+          DescargarAdjuntoIdeasInfo.resolver(enlace.idArchivo)
+        ).resolves.toBeTruthy();
+      }
+    } finally {
+      globalThis.fetch = fetchGlobalOriginal;
+    }
+  });
 });
 
 describe("ScraperIdeasInfo.escanearListado (modo todos)", () => {
@@ -648,5 +846,200 @@ describe("ScraperIdeasInfo.escanearListado (modo todos)", () => {
     expect(evFin).toBeDefined();
     expect(evFin.estado).toBe("cortado");
     expect(evFin.motivoCorte).toBe("navegacion");
+  });
+
+  it("T-2. Recorrido de 3 cursos: EnterCourse del curso 2 responde 503 (AC-9, todas:RN-8)", async () => {
+    document.querySelector(".content-my-courses").innerHTML = `
+      <div class="course-box">
+        <div class="course-title-header"><p class="title"><a href="/c1/Start/Welcome/View/Show/EnterCourse/1">Curso 1</a></p></div>
+      </div>
+      <div class="course-box">
+        <div class="course-title-header"><p class="title"><a href="/c2/Start/Welcome/View/Show/EnterCourse/2">Curso 2</a></p></div>
+      </div>
+      <div class="course-box">
+        <div class="course-title-header"><p class="title"><a href="/c3/Start/Welcome/View/Show/EnterCourse/3">Curso 3</a></p></div>
+      </div>
+    `;
+
+    const fetchBase = crearFetchRealFixtures();
+    window.fetch = vi.fn(async (url, init) => {
+      const u = String(url);
+      if (u.includes("/c2/Start/Welcome/View/Show/EnterCourse/")) {
+        return { ok: false, status: 503, url: u, text: async () => "Service Unavailable" };
+      }
+      const uEquiv = u.replace(/\/(?:c1|c3)\//, "/conceptos-de-bases-de-datos-1/");
+      return fetchBase(uEquiv, init);
+    });
+
+    await ScraperIdeasInfo.escanearListado({
+      modo: "todos",
+      idRecorrido: 201,
+      tabId: 1,
+      sitioId: "ideas-info",
+    });
+
+    const evCursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+    expect(evCursos).toHaveLength(3);
+    expect(evCursos[0].resultado).toBe("ok");
+    expect(evCursos[1].resultado).toBe("fallido");
+    expect(evCursos[1].motivo).toBe("HTTP 503");
+    expect(evCursos[2].resultado).toBe("ok");
+
+    const evFin = mensajesEnviados.find((m) => m.tipo === "fin");
+    expect(evFin).toBeDefined();
+    expect(evFin.estado).toBe("terminado");
+  });
+
+  it("T-3. Recorrido: el Material del curso 2 responde 403 (A1, RN-15)", async () => {
+    document.querySelector(".content-my-courses").innerHTML = `
+      <div class="course-box">
+        <div class="course-title-header"><p class="title"><a href="/c1/Start/Welcome/View/Show/EnterCourse/1">Curso 1</a></p></div>
+      </div>
+      <div class="course-box">
+        <div class="course-title-header"><p class="title"><a href="/c2/Start/Welcome/View/Show/EnterCourse/2">Curso 2</a></p></div>
+      </div>
+    `;
+
+    window.fetch = vi.fn(async (url) => {
+      const u = String(url);
+      if (u.includes("/c2/Contents/Material/View/Show?courseTool")) {
+        return { ok: false, status: 403, url: u, text: async () => "Forbidden" };
+      }
+      if (u.includes("EnterCourse")) {
+        return { ok: true, status: 200, url: u, text: async () => "<html><body></body></html>" };
+      }
+      if (u.includes("Contents/Material")) {
+        return {
+          ok: true,
+          status: 200,
+          url: u,
+          text: async () => "<span class='col-md-8'><h4>C</h4></span>",
+        };
+      }
+      return { ok: true, status: 200, url: u, text: async () => "" };
+    });
+
+    await ScraperIdeasInfo.escanearListado({
+      modo: "todos",
+      idRecorrido: 202,
+      tabId: 1,
+      sitioId: "ideas-info",
+    });
+
+    const evCursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+    expect(evCursos).toHaveLength(2);
+    expect(evCursos[1].resultado).toBe("fallido");
+    expect(evCursos[1].resultado).not.toBe("vacio");
+    expect(evCursos[1].motivo).toContain("HTTP 403");
+  });
+
+  it("T-8. Recorrido con tope: text() de EnterCourse del curso 2 rechaza al abortar (AC-9)", async () => {
+    document.querySelector(".content-my-courses").innerHTML = `
+      <div class="course-box">
+        <div class="course-title-header"><p class="title"><a href="/c1/Start/Welcome/View/Show/EnterCourse/1">Curso 1</a></p></div>
+      </div>
+      <div class="course-box">
+        <div class="course-title-header"><p class="title"><a href="/c2/Start/Welcome/View/Show/EnterCourse/2">Curso 2</a></p></div>
+      </div>
+      <div class="course-box">
+        <div class="course-title-header"><p class="title"><a href="/c3/Start/Welcome/View/Show/EnterCourse/3">Curso 3</a></p></div>
+      </div>
+    `;
+
+    window.fetch = vi.fn(async (url, init) => {
+      const u = String(url);
+      if (u.includes("/c2/Start/Welcome/View/Show/EnterCourse/")) {
+        return {
+          ok: true,
+          status: 200,
+          url: u,
+          text: async () => {
+            return new Promise((_, reject) => {
+              if (init?.signal) {
+                init.signal.addEventListener("abort", () => {
+                  reject(new DOMException("Aborted", "AbortError"));
+                });
+              }
+            });
+          },
+        };
+      }
+      if (u.includes("EnterCourse")) {
+        return { ok: true, status: 200, url: u, text: async () => "<html><body></body></html>" };
+      }
+      if (u.includes("Contents/Material")) {
+        return {
+          ok: true,
+          status: 200,
+          url: u,
+          text: async () => "<span class='col-md-8'><h4>C</h4></span>",
+        };
+      }
+      return { ok: true, status: 200, url: u, text: async () => "" };
+    });
+
+    await ScraperIdeasInfo.escanearListado({
+      modo: "todos",
+      idRecorrido: 203,
+      tabId: 1,
+      sitioId: "ideas-info",
+      topeCursoMs: 50,
+    });
+
+    const evCursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+    expect(evCursos).toHaveLength(3);
+    expect(evCursos[0].resultado).toBe("vacio");
+    expect(evCursos[1].resultado).toBe("fallido");
+    expect(evCursos[1].motivo).toContain("superó el tope");
+    expect(evCursos[2].resultado).toBe("vacio");
+
+    const evFin = mensajesEnviados.find((m) => m.tipo === "fin");
+    expect(evFin).toBeDefined();
+    expect(evFin.estado).toBe("terminado");
+  });
+
+  it("T-11. Recorrido con slug inválido Curso_X sale fallido sin fetch y el siguiente sigue (RN-5)", async () => {
+    document.querySelector(".content-my-courses").innerHTML = `
+      <div class="course-box">
+        <div class="course-title-header"><p class="title"><a href="/Curso_X/Start/Welcome/View/Show/EnterCourse/1">Curso X</a></p></div>
+      </div>
+      <div class="course-box">
+        <div class="course-title-header"><p class="title"><a href="/curso-valido/Start/Welcome/View/Show/EnterCourse/2">Curso Válido</a></p></div>
+      </div>
+    `;
+
+    window.fetch = vi.fn(async (url) => {
+      const u = String(url);
+      if (u.includes("Curso_X")) {
+        throw new Error("No debe llamar fetch para Curso_X");
+      }
+      if (u.includes("EnterCourse")) {
+        return { ok: true, status: 200, url: u, text: async () => "<html><body></body></html>" };
+      }
+      if (u.includes("Contents/Material")) {
+        return {
+          ok: true,
+          status: 200,
+          url: u,
+          text: async () => "<span class='col-md-8'><h4>Válido</h4></span>",
+        };
+      }
+      return { ok: true, status: 200, url: u, text: async () => "" };
+    });
+
+    await ScraperIdeasInfo.escanearListado({
+      modo: "todos",
+      idRecorrido: 204,
+      tabId: 1,
+      sitioId: "ideas-info",
+    });
+
+    const evCursos = mensajesEnviados.filter((m) => m.tipo === "curso");
+    expect(evCursos).toHaveLength(2);
+    expect(evCursos[0].resultado).toBe("fallido");
+    expect(evCursos[0].motivo).toContain("Curso_X");
+    expect(evCursos[1].resultado).toBe("vacio");
+
+    expect(window.fetch.mock.calls.some(([arg]) => String(arg).includes("Curso_X"))).toBe(false);
   });
 });

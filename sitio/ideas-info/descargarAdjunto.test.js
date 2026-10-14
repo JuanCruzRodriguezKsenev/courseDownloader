@@ -116,4 +116,35 @@ describe("DescargarAdjuntoIdeasInfo.resolver", () => {
       tipoPortal: "rechazo",
     });
   });
+
+  it("8. un idArchivo con el GUID en mayúsculas se acepta y arma la URL con ese mismo GUID (RN-5)", async () => {
+    const guidMayus = "595453DD-1ECF-11F1-90F7-3292D73AA1E7";
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      url: `https://ideas.info.unlp.edu.ar/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/${guidMayus}`,
+      body: { cancel: vi.fn() },
+    }));
+
+    const id = `conceptos-de-bases-de-datos-1/material/${guidMayus}`;
+    const res = await DescargarAdjuntoIdeasInfo.resolver(id);
+
+    expect(res).toBe(
+      `https://ideas.info.unlp.edu.ar/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/${guidMayus}`
+    );
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      `https://ideas.info.unlp.edu.ar/conceptos-de-bases-de-datos-1/Contents/Material/View/Access/${guidMayus}`,
+      expect.objectContaining({ credentials: "include" })
+    );
+  });
+
+  it("9. Curso_X/material/<guid> y ../x/material/<guid> se rechazan con tipoPortal: rechazo (RN-5)", async () => {
+    const guid = "595453dd-1ecf-11f1-90f7-3292d73aa1e7";
+    await expect(DescargarAdjuntoIdeasInfo.resolver(`Curso_X/material/${guid}`)).rejects.toMatchObject({
+      tipoPortal: "rechazo",
+    });
+    await expect(DescargarAdjuntoIdeasInfo.resolver(`../x/material/${guid}`)).rejects.toMatchObject({
+      tipoPortal: "rechazo",
+    });
+  });
 });
