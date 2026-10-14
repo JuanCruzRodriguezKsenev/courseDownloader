@@ -269,7 +269,8 @@ auto-heal reintentaría contra el login; (3) `tipoBackend: "rechazo"` (4xx), que
 esa clase** — es el fix del bug 400; y (4) cualquier otro, que pausa CON alarma. **El orden
 importa**: los tres primeros se clasifican antes de consultar al daemon. Desde el Corte 2b-3,
 los errores con `codigo` del backend se mapean directamente (`INDICE_ILEGIBLE` a bloqueo sin alarma,
-`DESTINO_OCUPADO` / `MATERIA_INEXISTENTE` / `RUTA_INSEGURA` / `DESTINO_REQUERIDO` a rechazo), y los
+`DESTINO_OCUPADO` / `MATERIA_INEXISTENTE` / `RUTA_INSEGURA` / `DESTINO_REQUERIDO` a rechazo; desde
+RN-16c el backend sólo emite `DESTINO_OCUPADO` si no hay `_N` libre hasta 999), y los
 adjuntos con `destino` propagan cabeceras `x-destino-*`, usan `destino.nombre` y guardan `resultadoDestino`.
 
 `loopActivo` y el `AbortController` de la ráfaga eran variables de módulo compartidas entre el
@@ -372,8 +373,8 @@ en el adaptador ni releer call-sites buscando cuál quedó en la unidad vieja.
 auto-heal). De esa distinción depende el fix del bug 400.
 
 **`core/destino/` agrupa la lógica pura de indexación y destino del árbol del usuario**:
-- **`core/destino/decidir.ts`**: dos funciones puras (`decidirAntes`, `decidirDespues`) que implementan la tabla de decisión de la spec para determinar si un adjunto se descarga, descarta o escribe (ampliada por el Plan 22 con `md5ExisteEnRaiz` y descarte previo a rechazo en destino ocupado).
-- **`core/destino/propuesta.ts`**: `proponerParaCurso`, asignación pura de carpeta destino, resolución de nombres y detección de choques (RN-16/16a).
+- **`core/destino/decidir.ts`**: dos funciones puras (`decidirAntes`, `decidirDespues`) que implementan la tabla de decisión de la spec para determinar si un adjunto se descarga, descarta o escribe (ampliada por el Plan 22 con `md5ExisteEnRaiz` y descarte previo al destino ocupado; desde el Plan 40, destino ocupado con otro contenido → `"renombrar"`, RN-16c, ADR-0021).
+- **`core/destino/propuesta.ts`**: `proponerParaCurso`, asignación pura de carpeta destino, resolución de nombres y detección de choques (RN-16/16a); lo que sigue chocando después del sufijo de RN-16 se numera con `_N` en el orden del escaneo, y las filas fijas en el índice conservan su nombre (RN-16b).
 - **`core/destino/vistas.ts`**: `indiceAFilasEditor` y `filasEditorAIndice`, conversión bidireccional pura entre el índice `.course-downloader.json` y las tres tablas del editor web (`cursos`, `temas`, `archivos`), con inversión de carpetas (D-6), soporte de marca `movido` efímera (Plan 22) y validaciones de guardado.
 - **`core/destino/accesoMd.ts`**: `accesoADataUri(idArchivo, fecha)`, formateo isomórfico puro de accesos Markdown con frontmatter `tipo: acceso` y `revisado` (D-3, RN-9).
 
@@ -592,7 +593,7 @@ El servidor complementario Bun aloja en `backend/destino/` los servicios puros d
 - **`backend/destino/recorrido.js`**: `recorrerRaiz(raiz)` y `buscarPorMd5(raiz, md5)`, recorrido del árbol ignorando notas (`Wiki/`, `Mis notas/`, `Clases/`), carpetas ocultas y symlinks.
 - **`backend/destino/indiceServicio.js`**: `leerIndice(raiz)` y `modificarIndice(raiz, fn)`, lectura no destructiva y modificación atómica con candado por raíz sobre `.course-downloader.json`.
 - **`backend/destino/estado.js`**: `calcularEstado({ raiz, sitio, curso, items })`, cálculo de estado contra disco e índice corrigiendo rutas movidas (RN-19).
-- **`backend/destino/escritura.js`**: `validarDestino({ raiz, ruta, nombre, materia })` y `finalizarEnDestino(...)`, gancho `alFinalizar` del acumulador que ejecuta la tabla de decisión (`decidirDespues`) al completar la descarga para escribir, descartar o rechazar por ocupado (D-6, D-7).
+- **`backend/destino/escritura.js`**: `validarDestino({ raiz, ruta, nombre, materia })` y `finalizarEnDestino(...)`, gancho `alFinalizar` del acumulador que ejecuta la tabla de decisión (`decidirDespues`) al completar la descarga para escribir, descartar o renombrar (RN-16c): si el destino está ocupado por otro contenido, se guarda con el primer `_N` libre dentro del lock del índice (D-6, ADR-0021).
 - **`backend/destino/vistos.js`**: `guardarVisto`, `leerVistos` y `limpiarVistos`, almacén volátil en memoria para conservar los escaneos recientes de cursos y alimentar el modo índice del editor web (D-2).
 - **`backend/destino/portales.js`**: módulo puro (node-free) dueño de `PORTALES_VALIDOS` (8 portales), `PORTALES_CON_DESTINO_INDICE` (`google-classroom`, `moodle-linti`, `moodle-asignaturas`, `sites-matec`, `moodle-ingenieria`, `ideas-info`) y `resolverRaizDeDestino({ portalId, raices, raizPorDefecto, raizFacultad })` (D-1, D-2).
 - **`backend/adopcion/editor.html`**: interfaz web monocroma del editor de adopción servida en `/adopcion/` para configurar materias, temas y archivos; incluye borrador local persistido en `localStorage` con debounce de 500 ms y banner interactivo de restauración ante cambios sin guardar, sin listener `beforeunload` para evitar cuelgues del navegador (Plan 19).

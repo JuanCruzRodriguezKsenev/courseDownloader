@@ -31,7 +31,8 @@ Registro formal de las decisiones de arquitectura significativas del proyecto.
 | [0016](0016-escaneo-inyectado-avisa-al-sw.md) | Un script inyectado puede avisar al service worker vía IPC | Aceptada |
 | [0017](0017-indice-de-destino-en-la-raiz.md) | Índice de destino en la raíz del árbol | Aceptada (1 y 2 superados por 0018) |
 | [0018](0018-raiz-en-la-boveda-indice-versionado.md) | La raíz es la bóveda y el índice se versiona | Aceptada |
-| [0019](0019-raiz-por-portal-y-backend-decide-lo-descargado.md) | Raíz de destino por portal y el backend decide lo descargado | Aceptada |
+| [0019](0019-raiz-por-portal-y-backend-decide-lo-descargado.md) | Raíz de destino por portal y el backend decide lo descargado | Aceptada; superada en parte por [0021](0021-destino-ocupado-se-guarda-con-sufijo.md) |
 | [0020](0020-trabajo-en-la-boveda-referencia-en-el-repo.md) | El trabajo vive en la bóveda; en el repo, la referencia del código | Aceptada |
+| [0021](0021-destino-ocupado-se-guarda-con-sufijo.md) | Destino ocupado por otro contenido: se guarda con sufijo `_N` | Aceptada |
 
 Estados posibles: `Propuesta` → `Aceptada` | `Rechazada` | `Diferida` → (eventualmente) `Superseded by NNNN`.

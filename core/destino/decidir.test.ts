@@ -117,17 +117,17 @@ describe("core/destino/decidir.ts", () => {
       expect(res).toBe("escribir");
     });
 
-    it("rechazar: destino ocupado con otro contenido (D-7)", () => {
+    it("renombrar: destino ocupado con otro contenido (RN-16c)", () => {
       const res = decidirDespues({
         destinoEsMd: false,
         existeDestino: true,
         md5ExisteEnCarpetaDestino: false,
         existeDestinoConOtroContenido: true,
       });
-      expect(res).toBe("rechazar");
+      expect(res).toBe("renombrar");
     });
 
-    it("orden: un .md existente con md5 distinto no cae en 5 ni en rechazar", () => {
+    it("orden: un .md existente con md5 distinto no cae en 5 ni en renombrar", () => {
       const res = decidirDespues({
         destinoEsMd: true,
         existeDestino: true,
@@ -147,7 +147,7 @@ describe("core/destino/decidir.ts", () => {
       expect(res).toBe("descartar");
     });
 
-    it("orden (AC-10): destino ocupado pero md5 en raíz -> descartar sin error (descartar antes que rechazar)", () => {
+    it("orden (AC-10): destino ocupado pero md5 en raíz -> descartar sin error (descartar antes que renombrar)", () => {
       const res = decidirDespues({
         destinoEsMd: false,
         existeDestino: true,

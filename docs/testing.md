@@ -30,12 +30,14 @@ agrega `.mp4` a un PDF el archivo queda `… .pdf.mp4`.
 
 | Verificación | Baseline esperado |
 |---|---|
-| `pnpm test` | **91 archivos, 1393 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
+| `pnpm test` | **91 archivos, 1397 tests**, todo en verde (con `--exclude '.worktrees/**'`) |
 | `pnpm run lint` | **0 errores, 0 warnings** |
 | `pnpm exec tsc --noEmit` | sin salida (limpio) |
 | `pnpm run build` | compila a `.output/chrome-mv3/` |
 
-**De dónde sale el 1393** (2026-10-14, integración de los planes 35-36 con el 37 y el 38): los 1386 de abajo más **+7** tests del plan 37 (el 38 sólo sumó casos al humo); 91 archivos.
+**De dónde sale el 1397** (2026-10-14, plan 40, choques de nombre sin rebote): los 1393 de abajo más **+4** tests, sin archivos nuevos: **+3** en `core/destino/propuesta.test.ts` (AC-15, RN-16b: dos y tres ítems iguales, e ítem fijo en el índice) y **+1** neto en `backend/destino/escritura.test.js` (el test D-7 pasa a dos de AC-16, RN-16c: `_2` y `_3`). En `core/destino/decidir.test.ts` el test de rechazo pasa a «renombrar», sin cambio de cuenta.
+
+**De dónde salía el 1393** (2026-10-14, integración de los planes 35-36 con el 37 y el 38): los 1386 de abajo más **+7** tests del plan 37 (el 38 sólo sumó casos al humo); 91 archivos.
 
 **De dónde salía el 1341 (rama de main, antes de integrar IDEAS)** (2026-10-14, plan 37, subcarpeta de tema que repite el destino): los 1334 de abajo más **+7** tests, sin archivos nuevos: **+5** en `core/destino/carpetas.test.ts` (`Teorias/Teorias`, con docente, otro destino, tema distinto y `subcarpetaAplica`) y **+2** en `core/destino/vistas.test.ts` (ida y vuelta byte-idéntica y carpeta `Teorias/Teorias` ya guardada con `editable: false`). Más 3 casos de paridad en `humo-editor-indice.js` (AC-14); los 4 humos dan 0 errores.
 

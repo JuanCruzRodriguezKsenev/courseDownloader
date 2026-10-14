@@ -293,7 +293,7 @@ describe("backend/destino/escritura.js", () => {
       expect(entrada.nombre).toBe("campo_electrico.md");
     });
 
-    it("D-7: otro contenido en el destino -> DESTINO_OCUPADO, archivo intacto, sin .part (NFR-4)", async () => {
+    it("AC-16: otro contenido en el destino -> se guarda con _2, el previo intacto, sin .part (RN-16c, NFR-4)", async () => {
       const rutaRel = "Ingenieria/Fisica 2/Teorias";
       const carpetaAbs = path.join(raiz, rutaRel);
       await fs.mkdir(carpetaAbs, { recursive: true });
@@ -305,22 +305,59 @@ describe("backend/destino/escritura.js", () => {
       const parcial = path.join(raiz, "choque.part");
       await fs.writeFile(parcial, "contenido_totalmente_distinto", "utf8");
 
-      await expect(
-        finalizarEnDestino({
-          raiz,
-          parcial,
-          carpetaAbs,
-          archivoAbs,
-          nombreFinal: "01_clase.pdf",
-          claveArchivo: "google-classroom:nueva_clase",
-          claveCurso: "google-classroom:f2",
-          original: "Clase 1.pdf",
-          rutaRelativa: rutaRel,
-        })
-      ).rejects.toMatchObject({ codigo: "DESTINO_OCUPADO" });
+      const resultado = await finalizarEnDestino({
+        raiz,
+        parcial,
+        carpetaAbs,
+        archivoAbs,
+        nombreFinal: "01_clase.pdf",
+        claveArchivo: "google-classroom:nueva_clase",
+        claveCurso: "google-classroom:f2",
+        original: "Clase 1.pdf",
+        rutaRelativa: rutaRel,
+      });
 
+      expect(resultado).toBe("escrito");
       expect(fsSync.existsSync(parcial)).toBe(false);
       expect(await fs.readFile(archivoAbs, "utf8")).toBe(contenidoPrevio);
+      expect(await fs.readFile(path.join(carpetaAbs, "01_clase_2.pdf"), "utf8")).toBe("contenido_totalmente_distinto");
+
+      const indice = await leerIndice(raiz);
+      expect(indice.archivos["google-classroom:nueva_clase"].nombre).toBe("01_clase_2.pdf");
+    });
+
+    it("AC-16: con 01_clase.pdf y 01_clase_2.pdf ocupados -> se guarda como 01_clase_3.pdf (RN-16c)", async () => {
+      const rutaRel = "Ingenieria/Fisica 2/Teorias";
+      const carpetaAbs = path.join(raiz, rutaRel);
+      await fs.mkdir(carpetaAbs, { recursive: true });
+
+      const archivoAbs = path.join(carpetaAbs, "01_clase.pdf");
+      await fs.writeFile(archivoAbs, "archivo_previo_ocupante", "utf8");
+      await fs.writeFile(path.join(carpetaAbs, "01_clase_2.pdf"), "segundo_ocupante", "utf8");
+
+      const parcial = path.join(raiz, "choque.part");
+      await fs.writeFile(parcial, "contenido_totalmente_distinto", "utf8");
+
+      const resultado = await finalizarEnDestino({
+        raiz,
+        parcial,
+        carpetaAbs,
+        archivoAbs,
+        nombreFinal: "01_clase.pdf",
+        claveArchivo: "google-classroom:nueva_clase",
+        claveCurso: "google-classroom:f2",
+        original: "Clase 1.pdf",
+        rutaRelativa: rutaRel,
+      });
+
+      expect(resultado).toBe("escrito");
+      expect(fsSync.existsSync(parcial)).toBe(false);
+      expect(await fs.readFile(archivoAbs, "utf8")).toBe("archivo_previo_ocupante");
+      expect(await fs.readFile(path.join(carpetaAbs, "01_clase_2.pdf"), "utf8")).toBe("segundo_ocupante");
+      expect(await fs.readFile(path.join(carpetaAbs, "01_clase_3.pdf"), "utf8")).toBe("contenido_totalmente_distinto");
+
+      const indice = await leerIndice(raiz);
+      expect(indice.archivos["google-classroom:nueva_clase"].nombre).toBe("01_clase_3.pdf");
     });
 
     it("D-8: archivos en la carpeta de tamaño distinto no se hashean", async () => {

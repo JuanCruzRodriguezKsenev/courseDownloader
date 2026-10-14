@@ -7,6 +7,7 @@ import { sanitizarNombreArchivo } from "../utils.js";
 import { recorrerRaiz } from "./recorrido.js";
 import { decidirDespues } from "../../core/destino/decidir.ts";
 import { PORTALES_CON_DESTINO_INDICE } from "./portales.js";
+import { log } from "../logger.js";
 
 export { PORTALES_CON_DESTINO_INDICE };
 
@@ -67,7 +68,32 @@ export async function validarDestino({ raiz, ruta, nombre, materia }) {
 }
 
 /**
- * Aplica la decisión de guardado al completarse la descarga según las filas 0, 5, 6 y D-7.
+ * RN-16c: primer `<base>_<n><ext>` (n de 2 a 999) que no existe en la carpeta, comparando en minúsculas.
+ * Si no hay ninguno libre, lanza DESTINO_OCUPADO (el 409 queda sólo para ese caso extremo).
+ */
+async function nombreLibre(carpetaAbs, nombre) {
+  let existentes = [];
+  try {
+    existentes = await fs.readdir(carpetaAbs);
+  } catch {
+    existentes = [];
+  }
+  const ocupados = new Set(existentes.map((n) => n.toLowerCase()));
+  const matchExt = nombre.match(/\.([a-z0-9]{1,5})$/i);
+  const tieneExt = Boolean(matchExt && matchExt.index !== undefined);
+  const base = tieneExt ? nombre.slice(0, matchExt.index) : nombre;
+  const ext = tieneExt ? matchExt[0] : "";
+  for (let n = 2; n <= 999; n++) {
+    const candidato = `${base}_${n}${ext}`;
+    if (!ocupados.has(candidato.toLowerCase())) return candidato;
+  }
+  const err = new Error("El archivo destino ya existe con otro contenido.");
+  err.codigo = "DESTINO_OCUPADO";
+  throw err;
+}
+
+/**
+ * Aplica la decisión de guardado al completarse la descarga según las filas 0, 5, 6 y renombrar (RN-16c).
  */
 export async function finalizarEnDestino({
   raiz,
@@ -195,14 +221,6 @@ export async function finalizarEnDestino({
     existeDestinoConOtroContenido,
   });
 
-  if (accion === "rechazar") {
-    // D-7: borrar el .part y lanzar error con codigo DESTINO_OCUPADO (NFR-4)
-    await fs.unlink(parcial).catch(() => {});
-    const err = new Error("El archivo destino ya existe con otro contenido.");
-    err.codigo = "DESTINO_OCUPADO";
-    throw err;
-  }
-
   if (accion === "no-escribir") {
     // Fila 0: borrar .part y anotar si falta con el md5 del .md existente (RN-30)
     await fs.unlink(parcial).catch(() => {});
@@ -247,19 +265,41 @@ export async function finalizarEnDestino({
     return "descartado";
   }
 
-  // Fila 6: acción "escribir"
+  // Fila 6: acción "escribir", o "renombrar" (RN-16c: destino ocupado → se guarda con _N, NFR-4)
   await modificarIndice(raiz, async (indice) => {
     indice.archivos = indice.archivos || {};
     const entradaPrevia = indice.archivos[claveArchivo];
 
     // RN-14, AC-6: Si el id ya tiene entrada con otro nombre, se conserva el nombre del índice
-    const nombreDefinitivo = entradaPrevia?.nombre || nombreFinal;
+    let nombreDefinitivo = entradaPrevia?.nombre || nombreFinal;
     const rutaDefinitiva = entradaPrevia?.ruta || rutaRelativa;
 
     const carpetaDestinoFinal = path.resolve(raiz, rutaDefinitiva);
     await fs.mkdir(carpetaDestinoFinal, { recursive: true });
 
-    const destinoFinal = path.resolve(carpetaDestinoFinal, nombreDefinitivo);
+    let destinoFinal = path.resolve(carpetaDestinoFinal, nombreDefinitivo);
+    // RN-16c: también si otra descarga ocupó el mismo nombre entre el cálculo y el lock
+    let destinoOcupado = false;
+    try {
+      await fs.stat(destinoFinal);
+      destinoOcupado = true;
+    } catch {
+      destinoOcupado = false;
+    }
+    // Se mide en el destino real (RN-14 puede cambiar ruta o nombre): renombrar sólo si está ocupado (H-1 del plan 40)
+    if (destinoOcupado) {
+      const nombreOriginal = nombreDefinitivo;
+      try {
+        nombreDefinitivo = await nombreLibre(carpetaDestinoFinal, nombreDefinitivo);
+      } catch (err) {
+        // Sin _N libre hasta 999: el mismo 409 de antes, sin dejar el .part (NFR-4)
+        await fs.unlink(parcial).catch(() => {});
+        throw err;
+      }
+      destinoFinal = path.resolve(carpetaDestinoFinal, nombreDefinitivo);
+      log("WARN", "DESTINO", `${rutaDefinitiva}/${nombreOriginal} ya existía con otro contenido: se guardó como ${nombreDefinitivo}`);
+    }
+
     await fs.rename(parcial, destinoFinal);
 
     indice.archivos[claveArchivo] = {
