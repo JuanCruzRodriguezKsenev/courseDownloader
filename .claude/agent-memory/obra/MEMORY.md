@@ -61,3 +61,4 @@
 - [Guardas de fábrica sobre la bóveda](feedback_fabrica_guardas_boveda.md) — grep/find recursivo en la bóveda y git -C con ~ bloqueados; scripts con lista explícita y rutas absolutas
 - [G3 y comentarios de bloque](feedback_g3_comentarios_de_bloque.md) — continuaciones de comentarios HTML/CSS dan falsos positivos en el chequeo de sólo comentarios
 - [Plan 37: subcarpeta de tema repetida](project_carpeta_tema_repetida_plan37.md) — helper subcarpetaAplica, copia propia en editor.html y casilla del editor pendiente; 87 archivos / 1341 tests
+- [Casilla de subcarpeta con tema repetido (Plan 38)](project_casilla_subcarpeta_repetida_plan38.md) — casilla deshabilitada si el tema repite el destino; cómo simularlo en el humo; 87 archivos / 1341 tests
