@@ -1,12 +1,12 @@
 ---
 name: verificar-con-playwright
-description: El dueño no mide a mano; yo mido portales con playwright-cli antes del código, el checklist de un diff es de verificador/revisor-ux; receta probada
+description: El dueño no mide a mano; yo mido portales con playwright-cli antes del código, el checklist de un diff es de verificador (navegador, §2b); receta probada
 metadata:
   type: feedback
 ---
 
 **Roles (dueño, 2026-10-13: «vos no tenés que testear nada, para eso hay otros agentes»):** el checklist en Chrome de un diff
-lo corren `verificador`/`revisor-ux`, no yo. Yo sólo **mido el portal** antes de que haya código (cerrar `M-n` de una spec).
+lo corre `verificador` (su §2b, con playwright-cli), no yo. `revisor-ux` ya no existe: se revirtió con el flujo híbrido (2026-10-13). Yo sólo **mido el portal** antes de que haya código (cerrar `M-n` de una spec).
 Una medición que exige la extensión armada (p. ej. cookie desde el SW) va como **Paso 1 del plan con condición de parada**,
 y no la construyo yo. Pasajes de abajo que dicen «lo corro yo» quedan viejos en ese punto.
 
@@ -38,3 +38,9 @@ lo envío yo (Enter / clic en «Acceder») sin pedírselo. Sólo le pido el logi
 **Trampas medidas (2026-10-13):** `page.request.get` falla por certificado en los hosts UNLP: usar `page.evaluate(fetch)`.
 Para correr en el SW: `page.context().serviceWorkers().find(w => w.url().startsWith('chrome-extension://')).evaluate(...)`.
 La salida de `run-code` viene envuelta en `### Result\n<json>\n### `; el plan 35 trae un `escribir.py` probado que la parsea.
+
+**Rescatado de la memoria de fábrica (2026-10-13, la fábrica ya no existe):**
+- Si el código se construyó en un worktree, copiar `.output/chrome-mv3` del worktree a la del checkout principal (la que carga `pw.json`)
+  y **reabrir** `-s=verif` (con `chrome.runtime.reload()` se pierde el SW). El login de Asignaturas viene autocompletado: clic en `#loginbtn`.
+- Servidor de prueba: `HOME=~/.local/share/courseDownloader/home-prueba bun backend/server.js`.
+- `pnpm test`/`eslint .` en el checkout principal agarran `.claude/worktrees/**` (vitest sin config de exclude): pasar `--exclude`.

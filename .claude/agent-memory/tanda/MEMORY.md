@@ -1,5 +1,3 @@
-- [Sin fábrica hasta que Juan diga](feedback_participativo_sin_fabrica.md) — desde 2026-10-13 tarde: Juan participa en todo; nada a la cola
-- [Fábrica en este repo](project_fabrica_courseDownloader.md) — 32 y 33 corrieron por fábrica (mergeados); trampas medidas, en pausa
 - [Plan 34, corrección del 31](project_verificacion_plan31.md) — mergeado a6b2abd 2026-10-13
 - [Ficha en AGENTS.md](project_ficha_en_agents.md) — sin ficha en CLAUDE.md; qué docs de estado leer al arrancar y estado al 2026-09-25
 - [Organización del material](user_organizacion_material.md) — ~/U.N.L.P: árbol git+Obsidian por facultad/materia/docente; mirar antes de proponer layouts
@@ -29,9 +27,9 @@
 - [Moodle Asignaturas multicurso](project_moodle_asignaturas_multicurso.md) — spec draft 2026-10-05; /my/ tiene 1 curso; falta plan; separado de Ingeniería
 - [Sitios pendientes](project_sitios_pendientes.md) — IDEAS: planes 35+36 hechos y verificados en ideas-info; falta checklist Chrome, no pushear
 - [Plan 31 Moodle Ingeniería](project_moodle_ingenieria_plan31.md) — plan escrito, hallazgo H-1 del backend, riesgo M-A (6 vs 9 cursos), IDEAS queda después
-- [Verificar con Playwright](feedback_verificar_con_playwright.md) — yo mido portales; el checklist de un diff es de verificador/revisor-ux; receta
+- [Verificar con Playwright](feedback_verificar_con_playwright.md) — yo mido portales; el checklist de un diff es de verificador (navegador, §2b); receta
 - [Medir antes de suponer](feedback_medir_antes_de_suponer.md) — usar archivos bajados y la sesión Playwright `-s=verif` antes de inferir o preguntar
 - [Medir con clic y worktrees](feedback_medir_con_clic.md) — clic real en menús al medir; no hacer checkout con obra activo, usar git worktree
-- [Plan 32 Kaltura en Asignaturas](project_asignaturas_kaltura_plan32.md) — en la cola de fábrica desde 2026-10-13; spec ya en main
+- [Plan 32 Kaltura en Asignaturas](project_asignaturas_kaltura_plan32.md) — mergeado (ffbc4c4)
 - [AC del build](feedback_criterio_build.md) — «mismos números» excluye el tamaño si se tocan comentarios de .html
 - [Scrapers: response.ok](feedback_scraper_respuesta_ok.md) — nombrar en el plan qué hace cada fetch ante !ok y red; error del portal = curso fallido
