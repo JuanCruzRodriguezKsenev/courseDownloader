@@ -289,6 +289,38 @@ try {
     }
   }
 
+  // Plan 38: la casilla respeta RN-21 (tema que repite el destino)
+  {
+    const q = "DATOS.temas.find(t => t.clave_curso === 'google-classroom:c_nuevo' && t.tema === 'Teoría')";
+    dom.window.eval(`(() => { const t = ${q}; t.destino = "Teoria"; t.subcarpeta = "si"; renderAll(); })()`);
+    const chkRep = doc.querySelector(".topic-subfolder-check[data-tema='Teoría']");
+    if (!chkRep || !chkRep.disabled || chkRep.checked) {
+      errores.push(`Plan 38: con destino igual al tema la casilla debería estar deshabilitada y sin tildar, obtenido disabled=${chkRep?.disabled}, checked=${chkRep?.checked}`);
+    }
+    const btnToggleRep = doc.getElementById("btnToggleSubcarpetasCurso");
+    btnToggleRep.click();
+    const trasToggle = dom.window.eval(`${q}.subcarpeta`);
+    if (trasToggle !== "si") {
+      errores.push(`Plan 38: el interruptor del curso no debería tocar un tema que repite el destino, obtenido subcarpeta=${trasToggle}`);
+    }
+    // Restaurar el interruptor (lo apagó a los demás) y cambiar destino
+    btnToggleRep.click();
+    // Entrar a un destino que repite el nombre deja el flag en "no" (cambio de destino)
+    dom.window.eval(`${q}.subcarpeta = "no"`);
+    const selRep = doc.querySelector(".topic-dest-select[data-tema='Teoría']");
+    selRep.value = "Practicas";
+    selRep.dispatchEvent(new dom.window.Event("change"));
+    const chkSig = doc.querySelector(".topic-subfolder-check[data-tema='Teoría']");
+    if (!chkSig || chkSig.disabled || chkSig.checked) {
+      errores.push(`Plan 38: tras cambiar a Practicas la casilla debería estar habilitada y destildada, obtenido disabled=${chkSig?.disabled}, checked=${chkSig?.checked}`);
+    }
+    // Volver al estado previo
+    const selVuelta = doc.querySelector(".topic-dest-select[data-tema='Teoría']");
+    selVuelta.value = "Teorias";
+    selVuelta.dispatchEvent(new dom.window.Event("change"));
+    dom.window.eval(`(() => { ${q}.subcarpeta = "si"; renderAll(); })()`);
+  }
+
   // AC-13: Omitir y des-omitir
   const chkLab = doc.querySelector(".topic-check[data-tema='Laboratorio']");
   if (!chkLab) {

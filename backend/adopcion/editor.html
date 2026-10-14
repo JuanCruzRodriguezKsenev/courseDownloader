@@ -2178,11 +2178,12 @@ button {
 
         const esTemaElegibleSubcarpeta = !isTopicOmitted &&
           Boolean(destinoSeleccionado && destinoSeleccionado !== "." && destinoSeleccionado !== "-") &&
-          Boolean(nombreSubcarpetaTema(tema.tema)) &&
+          subcarpetaAplica(destinoSeleccionado, tema.tema) &&
           !tema.esHuerfano &&
           !isNovedades;
         const disabledSubcarpeta = !esTemaElegibleSubcarpeta;
-        const isSubcarpetaChecked = tema.subcarpeta === "si";
+        const isSubcarpetaChecked = tema.subcarpeta === "si" && esTemaElegibleSubcarpeta;
+        const temaRepiteDestino = Boolean(destinoSeleccionado && destinoSeleccionado !== "." && destinoSeleccionado !== "-" && nombreSubcarpetaTema(tema.tema)) && !subcarpetaAplica(destinoSeleccionado, tema.tema);
 
         const filasVisibles = ordenarArchivos(archivosTema.filter((f) => filaPasaFiltros(f, tema)));
         const textoMostrando = (filasVisibles.length !== archivosTema.length)
@@ -2225,7 +2226,7 @@ button {
                   `).join("")}
                   <option value="__nueva__">+ Nueva carpeta...</option>
                 </select>
-                <label class="topic-subfolder-label" title="${disabledSubcarpeta ? 'Subcarpeta no aplicable para este tema' : 'Crear subcarpeta con el nombre del tema dentro de la carpeta destino'}">
+                <label class="topic-subfolder-label" title="${temaRepiteDestino ? 'El tema se llama igual que la carpeta destino; no hace falta subcarpeta' : disabledSubcarpeta ? 'Subcarpeta no aplicable para este tema' : 'Crear subcarpeta con el nombre del tema dentro de la carpeta destino'}">
                   <input type="checkbox" class="topic-subfolder-check" data-tema="${tema.tema}" ${isSubcarpetaChecked ? "checked" : ""} ${disabledSubcarpeta ? "disabled" : ""} />
                   <span>📁 Subcarpeta del tema</span>
                 </label>
@@ -2576,7 +2577,7 @@ button {
           }
           if (!tema) {
             // Virtual Novedades/huérfano
-            const sub = nombreSubcarpetaTema(sel.dataset.tema) !== "" ? "si" : "no";
+            const sub = subcarpetaAplica(val, sel.dataset.tema) ? "si" : "no";
             tema = {
               clave_curso: curso.clave_curso,
               tema: sel.dataset.tema,
@@ -2589,6 +2590,7 @@ button {
           } else {
             tema.destino = val;
             tema.regla = "si";
+            if (!subcarpetaAplica(val, tema.tema)) tema.subcarpeta = "no";
           }
 
           marcarCambio();
@@ -2835,7 +2837,7 @@ button {
         const temasCurso = DATOS.temas.filter((t) => t.clave_curso === curso.clave_curso);
         const elegibles = temasCurso.filter((t) => {
           if (!t.destino || t.destino === "." || t.destino === "-") return false;
-          if (!nombreSubcarpetaTema(t.tema)) return false;
+          if (!subcarpetaAplica(t.destino, t.tema)) return false;
           if (t.esHuerfano) return false;
           const nomLow = (t.tema || "").toLowerCase();
           if (nomLow.includes("novedad") || nomLow.includes("sin tema")) return false;
@@ -2874,7 +2876,7 @@ button {
             else if (nom.includes("bibliografia")) t.destino = "Bibliografia";
             else t.destino = "Teorias";
             t.regla = "si";
-            t.subcarpeta = nombreSubcarpetaTema(t.tema) !== "" ? "si" : "no";
+            t.subcarpeta = subcarpetaAplica(t.destino, t.tema) ? "si" : "no";
           }
         });
         marcarCambio();
