@@ -1,9 +1,14 @@
 ---
 name: sitios-pendientes-antes-de-planificar
-description: Al 2026-10-13 sólo falta IDEAS: spec aprobada, plan 35 escrito para obra en la rama ideas-info; el resto de los sitios en main
+description: Al 2026-10-13 sólo falta IDEAS: planes 35 y 36 ejecutados en ideas-info, falta el checklist en Chrome; el resto en main
 metadata:
   type: project
 ---
+
+## Actualización 2026-10-13 (cierre): plan 36 ejecutado y verificado
+Compuerta 91/1386 verde, historia sin GUID real, diff del 36 sólo en sitio/ideas-info + docs. El `git diff main` de la verificación
+literal muestra backend/destino (es del plan 35, 52df57e, a propósito): error mío del plan, comparar contra 85fe80e la próxima.
+Falta: checklist Chrome C-1..C-6 + M-1 (plan 35/36) con verificador + revisor-ux; Juan reabre `-s=verif` logueado. No pushear.
 
 ## Actualización 2026-10-13 (noche): IDEAS con spec aprobada y plan 35 escrito
 Plan `~/Boveda/Proyectos/courseDownloader/Planes/35 - IDEAS, el octavo portal (un curso y todos los cursos).md`, rama `ideas-info`
