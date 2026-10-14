@@ -61,3 +61,4 @@
 - [Guardas de fábrica sobre la bóveda](feedback_fabrica_guardas_boveda.md) — grep/find recursivo en la bóveda y git -C con ~ bloqueados; scripts con lista explícita y rutas absolutas
 - [G3 y comentarios de bloque](feedback_g3_comentarios_de_bloque.md) — continuaciones de comentarios HTML/CSS dan falsos positivos en el chequeo de sólo comentarios
 - [IDEAS, el octavo portal (Plan 35)](project_ideas_octavo_portal_plan35.md) — octavo portal IDEAS (LIDI) por curso y multicurso desde /home, compuerta M-1 desde SW, content-disposition y desduplicación
+- [IDEAS: Correcciones de la revisión (Plan 36)](project_ideas_correcciones_revision_plan36.md) — saneamiento NFR-1 en historia git, errores del portal como cursos fallidos, orden de secciones, origen seguro y GUID en mayúsculas; compuerta en 91 archivos / 1386 tests
